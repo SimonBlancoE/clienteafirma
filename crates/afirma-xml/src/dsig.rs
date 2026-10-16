@@ -917,8 +917,11 @@ fn parse_key_value(doc: &Document, kv: NodeId) -> Option<PublicKey> {
     PublicKey::from_ec(oid, &point)
 }
 
+/// Función de huella.
+type DigestFn = fn(&[u8]) -> Vec<u8>;
+
 /// Huella SHA-3 de una URI de `DigestMethod` (RFC 6931).
-fn sha3_digest(uri: &str) -> Option<fn(&[u8]) -> Vec<u8>> {
+fn sha3_digest(uri: &str) -> Option<DigestFn> {
     use sha3::Digest as _;
     Some(match uri {
         "http://www.w3.org/2007/05/xmldsig-more#sha3-224" => |d: &[u8]| sha3::Sha3_224::digest(d).to_vec(),
