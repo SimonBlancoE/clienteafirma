@@ -31,6 +31,8 @@ afirma-cms.workspace = true
 afirma-xml.workspace = true
 directories.workspace = true
 afirma-protocol.workspace = true
+afirma-system.workspace = true
+afirma-hash.workspace = true
 
 [build-dependencies]
 # Recursos de Windows (icono, versión y manifiesto). build.rs solo los compila cuando el
@@ -47,7 +49,7 @@ winresource = { version = "0.1.31", default-features = false }
 name = "autofirma-rs"
 maintainer = "AutoFirma-rs <autofirma-rs@users.noreply.github.com>"
 copyright = "2025-2026, AutoFirma-rs contributors. Basado en Autofirma (C) Gobierno de España"
-license-file = ["../../license/gpl-2.0.txt", "0"]
+license-file = ["../../packaging/linux/debian-copyright", "0"]
 extended-description = """\
 Cliente de firma electrónica compatible con Autofirma: firma, cofirma, contrafirma y \
 verificación de documentos en formatos PAdES, XAdES, CAdES, FacturaE y ASiC con \
@@ -61,6 +63,8 @@ recommends = "libnss3-tools, pcscd, opensc, ca-certificates, libxkbcommon0, libe
 conflicts = "autofirma"
 replaces = "autofirma"
 maintainer-scripts = "../../packaging/linux/debian/"
+# Añada una entrada por versión (tools/package/linux.sh avisa si falta).
+changelog = "../../packaging/linux/debian-changelog"
 # Si se añade el ejecutable de consola autofirma-cli, añádalo también aquí y en el .rpm
 # (["target/release/autofirma-cli", "usr/lib/autofirma-rs/autofirma-cli", "755"]).
 assets = [

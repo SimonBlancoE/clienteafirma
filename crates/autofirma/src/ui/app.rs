@@ -64,6 +64,7 @@ pub struct AutoFirmaApp {
     pub(crate) rt: super::flows::Runtime,
     /// Modo protocolo (`afirma://`).
     pub(crate) proto: Option<super::protocol_flow::ProtocolState>,
+    pending_zoom: Option<f32>,
 }
 
 impl AutoFirmaApp {
@@ -86,8 +87,24 @@ impl AutoFirmaApp {
             request: None,
             rt: super::flows::Runtime::new(&cc.egui_ctx),
             proto: None,
-            prefs: Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() }),
+            pending_zoom: None,
+            prefs: if std::env::var_os("AF_DEMO").is_some() {
+                Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() })
+            } else {
+                crate::services::prefs::load()
+            },
         };
+        app.theme = theme_from_pref(app.prefs.get("uiTheme").as_deref());
+        {
+            let prefs = &app.prefs;
+            app.rt.store_spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
+        }
+        if let Some(scale) = app.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
+            cc.egui_ctx.set_zoom_factor(scale.clamp(0.8, 1.6));
+        }
+        if let Some(loc) = app.prefs.get("default.locale") {
+            crate::i18n::set_locale(&loc);
+        }
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
         }
@@ -134,36 +151,22 @@ impl AutoFirmaApp {
                     for (k, v) in std::mem::take(&mut self.settings.pending) {
                         self.prefs.set(&k, v.as_deref());
                     }
-                    self.theme = match self.prefs.get("uiTheme").as_deref() {
-                        Some("light") => ThemeChoice::Light,
-                        Some("dark") => ThemeChoice::Dark,
-                        Some("contrast") => ThemeChoice::HighContrast,
-                        _ => ThemeChoice::System,
-                    };
+                    self.theme = theme_from_pref(self.prefs.get("uiTheme").as_deref());
+                    if let Some(scale) = self.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
+                        self.pending_zoom = Some(scale.clamp(0.8, 1.6));
+                    }
+                    if let Some(loc) = self.prefs.get("default.locale") {
+                        crate::i18n::set_locale(&loc);
+                    }
+                    // Cambiar el almacén por defecto obliga a recargarlo.
+                    let prefs = &self.prefs;
+                    let spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
+                    if spec != self.rt.store_spec {
+                        self.rt.store_spec = spec;
+                        self.rt.store = None;
+                    }
                 }
                 SettingsAction::Discard => self.settings.pending.clear(),
-                _ => {}
-            }
-        }
-    }
-
-    fn handle_certs_actions(&mut self, actions: Vec<CertsAction>) {
-        for a in actions {
-            if let CertsAction::SelectStore(i) = a {
-                self.certificates.selected = i;
-                self.certificates.expanded = None;
-            }
-        }
-    }
-
-    fn handle_tools_actions(&mut self, actions: Vec<ToolsAction>) {
-        for a in actions {
-            match a {
-                ToolsAction::Open(t) => {
-                    self.tools.open = Some(t);
-                    self.tools.result = None;
-                }
-                ToolsAction::Close => self.tools.open = None,
                 _ => {}
             }
         }
@@ -252,6 +255,9 @@ impl eframe::App for AutoFirmaApp {
             self.applied = Some(self.palette);
         }
         self.files_hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
+        if let Some(z) = self.pending_zoom.take() {
+            ctx.set_zoom_factor(z);
+        }
         self.pump_jobs(&ctx);
         self.handle_dropped_files(&ctx);
         if self.proto.is_some() {
@@ -296,12 +302,13 @@ impl eframe::App for AutoFirmaApp {
                         self.on_verify_actions(&ctx, actions);
                     }
                     Page::Certificates => {
+                        self.ensure_cert_stores(&ctx);
                         let actions = self.certificates.ui(ui, &p);
-                        self.handle_certs_actions(actions);
+                        self.on_certs_actions(&ctx, actions);
                     }
                     Page::Tools => {
                         let actions = self.tools.ui(ui, &p);
-                        self.handle_tools_actions(actions);
+                        self.on_tools_actions(&ctx, actions);
                     }
                     Page::Settings => {
                         let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
@@ -316,5 +323,15 @@ impl eframe::App for AutoFirmaApp {
         self.on_picker_event(&ctx, ev);
         super::dialogs::show_inbox(&ctx, &p, &mut self.rt.inbox);
         self.toast_ui(&ctx);
+    }
+}
+
+/// Tema según la preferencia `uiTheme`.
+fn theme_from_pref(v: Option<&str>) -> ThemeChoice {
+    match v {
+        Some("light") => ThemeChoice::Light,
+        Some("dark") => ThemeChoice::Dark,
+        Some("contrast") => ThemeChoice::HighContrast,
+        _ => ThemeChoice::System,
     }
 }

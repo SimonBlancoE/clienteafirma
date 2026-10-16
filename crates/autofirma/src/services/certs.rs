@@ -42,6 +42,19 @@ pub fn default_spec() -> StoreSpec {
     StoreSpec::new(KeyStoreKind::default_for_current_os().unwrap_or(KeyStoreKind::Pkcs12))
 }
 
+/// Almacén por defecto según las preferencias `defaultKeystore` y
+/// `defaultLocalKeystorePath` (como `SimpleKeyStoreManager`).
+pub fn spec_from_prefs(pref: &dyn Fn(&str) -> Option<String>) -> StoreSpec {
+    let prefs = afirma_keystores::selection::StorePreferences {
+        default_keystore: pref("defaultKeystore").unwrap_or_else(|| "default".into()),
+        default_local_keystore_path: pref("defaultLocalKeystorePath").unwrap_or_default(),
+        use_default_store_in_browser_calls: pref("useDefaultStoreInBrowserCalls").is_some_and(|v| v == "true"),
+    };
+    let firefox = afirma_keystores::nss::is_firefox_available(&afirma_keystores::nss::profiles::MozEnv::current());
+    afirma_keystores::selection::local_default_store(&prefs, &afirma_keystores::RegisteredCards::new(), Os::current(), firefox)
+        .unwrap_or_else(default_spec)
+}
+
 /// Especificación a partir del identificador del selector (y, para
 /// PKCS#12/PKCS#11, de la ruta).
 pub fn spec_for(id: &str, lib: Option<String>) -> Option<StoreSpec> {

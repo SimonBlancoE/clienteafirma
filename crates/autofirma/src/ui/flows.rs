@@ -43,6 +43,8 @@ pub struct Runtime {
     pub store_spec: StoreSpec,
     pub sign_job: Option<Job<SignProgress, Result<(), String>>>,
     pub verify_job: Option<Job<(), Result<SignatureReport, String>>>,
+    pub tool_job: Option<Job<(), crate::services::tools::ToolOutcome>>,
+    pub certs_job: Option<(usize, Job<(), Result<Vec<super::model::CertItem>, String>>)>,
     pub step: SignStep,
     pub visible_params: Option<ExtraParams>,
     pub toast: Option<(String, std::time::Instant)>,
@@ -60,6 +62,8 @@ impl Runtime {
             store_spec: certs::default_spec(),
             sign_job: None,
             verify_job: None,
+            tool_job: None,
+            certs_job: None,
             step: SignStep::Idle,
             visible_params: None,
             toast: None,
@@ -219,7 +223,8 @@ impl AutoFirmaApp {
                 self.rt.verify_job = None;
             }
         }
-        let _ = ctx;
+        self.pump_tool_job(ctx);
+        self.pump_certs_job();
     }
 
     pub(crate) fn pref_bool(&self, key: &str, default: bool) -> bool {
@@ -529,6 +534,313 @@ impl AutoFirmaApp {
                 }
             }
             _ => self.notify("La firma no contiene el documento firmado"),
+        }
+    }
+
+    fn pump_tool_job(&mut self, ctx: &egui::Context) {
+        use crate::services::tools::ToolOutcome;
+        use super::widgets::CalloutKind;
+        let Some(job) = &mut self.rt.tool_job else { return };
+        let events = job.poll();
+        if job.is_finished() {
+            self.rt.tool_job = None;
+        }
+        for ev in events {
+            let JobEvent::Done(out) = ev else { continue };
+            self.tools.running = false;
+            match out {
+                ToolOutcome::FileHash { content, proposed, ext, clipboard } => {
+                    if self.tools.copy_clipboard {
+                        ctx.copy_text(clipboard);
+                    }
+                    let dlg = rfd::FileDialog::new()
+                        .set_title("Guardar huella digital")
+                        .set_file_name(&proposed)
+                        .add_filter(format!("Huella digital (*.{ext})"), &[ext.as_str()]);
+                    let dlg = match self.tools.input.as_ref().and_then(|p| p.parent()) {
+                        Some(d) => dlg.set_directory(d),
+                        None => dlg,
+                    };
+                    if let Some(path) = dlg.save_file() {
+                        self.tools.result = Some(match std::fs::write(&path, content) {
+                            Ok(()) => (CalloutKind::Success, "Huella digital guardada".into(), Some(path.display().to_string())),
+                            Err(e) => (CalloutKind::Error, "No se ha podido guardar la huella digital".into(), Some(e.to_string())),
+                        });
+                    } else if self.tools.copy_clipboard {
+                        self.tools.result = Some((CalloutKind::Info, "Huella copiada al portapapeles".into(), None));
+                    }
+                }
+                ToolOutcome::DirHash { document, proposed } => {
+                    let dlg = rfd::FileDialog::new()
+                        .set_title("Guardar huellas digitales")
+                        .set_file_name(&proposed)
+                        .add_filter("Huellas digitales en formato XML (*.hashfiles)", &["hashfiles"])
+                        .add_filter("Huellas digitales en formato TXT (*.txthashfiles)", &["txthashfiles"]);
+                    if let Some(path) = dlg.save_file() {
+                        let format = crate::services::tools::dir_format_for(&path);
+                        let r = document.generate(format).map_err(|e| e.to_string()).and_then(|b| std::fs::write(&path, b).map_err(|e| e.to_string()));
+                        self.tools.result = Some(match r {
+                            Ok(()) => (CalloutKind::Success, format!("Huellas de {} ficheros guardadas", document.entries.len()), Some(path.display().to_string())),
+                            Err(e) => (CalloutKind::Error, "No se han podido guardar las huellas".into(), Some(e)),
+                        });
+                    }
+                }
+                ToolOutcome::Check { ok, title, detail, report_xml } => {
+                    self.tools.result = Some((if ok { CalloutKind::Success } else { CalloutKind::Warning }, title, detail));
+                    if let Some(xml) = report_xml {
+                        if !ok {
+                            if let Some(path) = rfd::FileDialog::new()
+                                .set_title("Guardar informe de huellas digitales")
+                                .set_file_name("informe.hashreport")
+                                .save_file()
+                            {
+                                let _ = std::fs::write(path, xml);
+                            }
+                        }
+                    }
+                }
+                ToolOutcome::Doctor(rows) => self.tools.doctor = rows,
+                ToolOutcome::Error(e) => self.tools.result = Some((CalloutKind::Error, "No se ha podido completar la operación".into(), Some(e))),
+            }
+        }
+    }
+
+    /// Acciones de la página de herramientas.
+    pub(crate) fn on_tools_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::tools::ToolsAction>) {
+        use super::pages::tools::{Tool, ToolsAction};
+        use crate::services::tools;
+        for a in actions {
+            match a {
+                ToolsAction::Open(t) => {
+                    self.tools.open = Some(t);
+                    self.tools.result = None;
+                    self.tools.input = None;
+                    self.tools.secondary = None;
+                    if matches!(t, Tool::Doctor | Tool::RestoreBrowsers) && self.tools.doctor.is_empty() {
+                        self.tools.running = true;
+                        self.rt.tool_job = Some(Job::spawn(ctx, "doctor", |_| tools::doctor()));
+                    }
+                }
+                ToolsAction::Close => self.tools.open = None,
+                ToolsAction::PickInput => {
+                    let dlg = rfd::FileDialog::new();
+                    let picked = match self.tools.open {
+                        Some(Tool::HashDir | Tool::CheckHashDir) => dlg.set_title("Selecciona la carpeta").pick_folder(),
+                        _ => dlg.set_title("Selecciona el fichero").pick_file(),
+                    };
+                    if picked.is_some() {
+                        self.tools.input = picked;
+                        self.tools.result = None;
+                    }
+                }
+                ToolsAction::PickSecondary => {
+                    let exts: &[&str] = match self.tools.open {
+                        Some(Tool::CheckHashDir) => &["hashfiles", "txthashfiles", "xml", "txt"],
+                        _ => &["hexhash", "hashb64", "hash"],
+                    };
+                    if let Some(p) = rfd::FileDialog::new().set_title("Selecciona el fichero de huellas").add_filter("Huellas digitales", exts).pick_file() {
+                        self.tools.secondary = Some(p);
+                        self.tools.result = None;
+                    }
+                }
+                ToolsAction::Run => {
+                    let (Some(tool), Some(input)) = (self.tools.open, self.tools.input.clone()) else { continue };
+                    let secondary = self.tools.secondary.clone();
+                    let (alg, fmt, rec) = (self.tools.algorithm.clone(), self.tools.format.clone(), self.tools.recursive);
+                    self.tools.running = true;
+                    self.tools.result = None;
+                    self.rt.tool_job = Some(Job::spawn(ctx, "herramienta", move |_| match tool {
+                        Tool::HashFile => tools::hash_file(&input, &alg, &fmt),
+                        Tool::CheckHashFile => tools::check_file(&input, secondary.as_deref().unwrap_or(&input)),
+                        Tool::HashDir => tools::hash_dir(&input, &alg, rec),
+                        Tool::CheckHashDir => tools::check_dir(&input, secondary.as_deref().unwrap_or(&input)),
+                        _ => tools::ToolOutcome::Error("Herramienta no disponible todavía".into()),
+                    }));
+                }
+                ToolsAction::RunDoctor => {
+                    self.tools.running = true;
+                    self.rt.tool_job = Some(Job::spawn(ctx, "doctor", |_| tools::doctor()));
+                }
+                ToolsAction::RepairAll => {
+                    self.tools.running = true;
+                    self.rt.tool_job = Some(Job::spawn(ctx, "reparar", |_| tools::repair()));
+                }
+            }
+        }
+    }
+
+    /// Prepara la lista de almacenes de la página "Mis certificados".
+    pub(crate) fn ensure_cert_stores(&mut self, ctx: &egui::Context) {
+        use super::pages::certificates::StoreEntry;
+        if !self.certificates.stores.is_empty() {
+            return;
+        }
+        let default_id = self.rt.store_spec.kind.id().to_string();
+        for o in crate::services::certs::store_options().into_iter().filter(|o| o.id != "PKCS12") {
+            let description = match o.id.as_str() {
+                "MOZ_UNI" => "Certificados de Mozilla Firefox (y sus dispositivos)",
+                "DNIEJAVA" => "DNI electrónico y tarjetas criptográficas",
+                _ => "Almacén de certificados del sistema operativo",
+            };
+            self.certificates.stores.push(StoreEntry {
+                id: o.id.clone(),
+                label: o.label.clone(),
+                description: description.into(),
+                icon: o.icon,
+                available: true,
+                certs: None,
+                error: None,
+                loading: false,
+                removable: false,
+            });
+        }
+        self.certificates.default_store = Some(default_id.clone());
+        self.certificates.selected = self.certificates.stores.iter().position(|s| s.id == default_id).unwrap_or(0);
+        let i = self.certificates.selected;
+        self.load_cert_store(ctx, i);
+    }
+
+    fn load_cert_store(&mut self, ctx: &egui::Context, index: usize) {
+        let Some(entry) = self.certificates.stores.get_mut(index) else { return };
+        let (id, lib) = match entry.id.split_once(':') {
+            Some((k, l)) => (k.to_string(), Some(l.to_string())),
+            None => (entry.id.clone(), None),
+        };
+        let Some(spec) = crate::services::certs::spec_for(&id, lib) else { return };
+        entry.loading = true;
+        entry.error = None;
+        let bridge = self.rt.bridge.clone();
+        self.rt.certs_job = Some((
+            index,
+            Job::spawn(ctx, "mis-certificados", move |_| {
+                let filters = afirma_keystores::LocalFilterPrefs {
+                    use_only_signature_certificates: false,
+                    skip_auth_cert_dnie: false,
+                    use_only_alias_certificates: false,
+                    show_expired_certs: true,
+                };
+                crate::services::certs::load(&spec, Arc::new(bridge), &filters, true).map(|l| l.items)
+            }),
+        ));
+    }
+
+    fn pump_certs_job(&mut self) {
+        let Some((index, job)) = &mut self.rt.certs_job else { return };
+        let index = *index;
+        let events = job.poll();
+        if job.is_finished() {
+            self.rt.certs_job = None;
+        }
+        for ev in events {
+            if let JobEvent::Done(r) = ev {
+                if let Some(s) = self.certificates.stores.get_mut(index) {
+                    s.loading = false;
+                    match r {
+                        Ok(items) => s.certs = Some(items),
+                        Err(e) => {
+                            s.error = Some(e);
+                            s.certs = None;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acciones de la página "Mis certificados".
+    pub(crate) fn on_certs_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::certificates::CertsAction>) {
+        use super::pages::certificates::{CertsAction, StoreEntry};
+        for a in actions {
+            match a {
+                CertsAction::SelectStore(i) => {
+                    self.certificates.selected = i;
+                    self.certificates.expanded = None;
+                    if self.certificates.stores.get(i).is_some_and(|s| s.certs.is_none() && !s.loading) {
+                        self.load_cert_store(ctx, i);
+                    }
+                }
+                CertsAction::LoadStore(i) => self.load_cert_store(ctx, i),
+                CertsAction::OpenPkcs12 => {
+                    if let Some(p) = rfd::FileDialog::new()
+                        .set_title("Abrir almacén de certificados")
+                        .add_filter("Almacenes de claves (*.p12, *.pfx)", &["p12", "pfx"])
+                        .pick_file()
+                    {
+                        let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        self.certificates.stores.push(StoreEntry {
+                            id: format!("PKCS12:{}", p.display()),
+                            label: name,
+                            description: p.display().to_string(),
+                            icon: super::icons::FILE_LOCK,
+                            available: true,
+                            certs: None,
+                            error: None,
+                            loading: false,
+                            removable: true,
+                        });
+                        let i = self.certificates.stores.len() - 1;
+                        self.certificates.selected = i;
+                        self.load_cert_store(ctx, i);
+                    }
+                }
+                CertsAction::RegisterPkcs11 => {
+                    let exts: &[&str] = if cfg!(windows) { &["dll"] } else if cfg!(target_os = "macos") { &["dylib", "so"] } else { &["so"] };
+                    if let Some(p) = rfd::FileDialog::new()
+                        .set_title("Selecciona el controlador PKCS#11 de la tarjeta")
+                        .add_filter("Bibliotecas PKCS#11", exts)
+                        .pick_file()
+                    {
+                        let name = p.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        self.certificates.stores.push(StoreEntry {
+                            id: format!("PKCS11:{}", p.display()),
+                            label: name,
+                            description: p.display().to_string(),
+                            icon: super::icons::CPU,
+                            available: true,
+                            certs: None,
+                            error: None,
+                            loading: false,
+                            removable: true,
+                        });
+                        let i = self.certificates.stores.len() - 1;
+                        self.certificates.selected = i;
+                        self.load_cert_store(ctx, i);
+                    }
+                }
+                CertsAction::RemoveStore(i) => {
+                    if self.certificates.stores.get(i).is_some_and(|s| s.removable) {
+                        self.certificates.stores.remove(i);
+                        self.certificates.selected = 0;
+                    }
+                }
+                CertsAction::SetDefault(i) => {
+                    if let Some(s) = self.certificates.stores.get(i) {
+                        let (id, lib) = match s.id.split_once(':') {
+                            Some((k, l)) => (k.to_string(), Some(l.to_string())),
+                            None => (s.id.clone(), None),
+                        };
+                        if let Some(kind) = afirma_keystores::KeyStoreKind::from_id(&id) {
+                            let is_system = crate::services::certs::default_spec().kind == kind;
+                            self.prefs.set("defaultKeystore", Some(if is_system { "default" } else { kind.display_name() }));
+                            self.prefs.set("defaultLocalKeystorePath", lib.as_deref());
+                            self.rt.store_spec = afirma_keystores::StoreSpec { kind, lib, card_name: None };
+                            self.rt.store = None;
+                            self.certificates.default_store = Some(s.id.clone());
+                            self.notify("Almacén predeterminado actualizado");
+                        }
+                    }
+                }
+                CertsAction::Export(si, ci) => {
+                    let der = self.certificates.stores.get(si).and_then(|s| s.certs.as_ref()).and_then(|c| c.get(ci)).map(|c| (c.der.clone(), c.info.subject_cn.clone()));
+                    if let Some((der, cn)) = der {
+                        if let Some(path) = rfd::FileDialog::new().set_file_name(format!("{cn}.cer")).add_filter("Certificado (*.cer)", &["cer"]).save_file() {
+                            if let Err(e) = std::fs::write(&path, der) {
+                                self.notify(format!("No se ha podido guardar: {e}"));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
