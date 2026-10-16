@@ -36,7 +36,7 @@ BUNDLE_ID="io.github.autofirma-rs.AutoFirma"
 PKG_ID="io.github.autofirma-rs.AutoFirma.pkg"
 
 usage() {
-    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p}' "${BASH_SOURCE[0]}"
+    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"
     exit "${1:-0}"
 }
 

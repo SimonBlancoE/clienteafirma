@@ -47,7 +47,7 @@ declare -A APPIMAGE_RUNTIME_SHA=(
 )
 
 usage() {
-    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p}' "${BASH_SOURCE[0]}"
+    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"
     exit "${1:-0}"
 }
 

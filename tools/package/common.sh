@@ -20,7 +20,7 @@ warn() {
 
 # Versión del espacio de trabajo ([workspace.package] version del Cargo.toml raíz).
 workspace_version() {
-    sed -n '/^\[workspace\.package\]/,/^\[/{s/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p}' "$ROOT/Cargo.toml" | head -n 1
+    sed -n '/^\[workspace\.package\]/,/^\[/{s/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p;}' "$ROOT/Cargo.toml" | head -n 1
 }
 
 # Versión para Debian/RPM/AppStream: el guion de una versión previa se convierte en «~»

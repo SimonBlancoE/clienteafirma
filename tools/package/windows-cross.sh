@@ -33,7 +33,7 @@ OUT="$ROOT/target/dist"
 DOCKER_IMAGE="${AUTOFIRMA_CROSS_IMAGE:-autofirma-cross:latest}"
 
 usage() {
-    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p}' "${BASH_SOURCE[0]}"
+    sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"
     exit "${1:-0}"
 }
 
