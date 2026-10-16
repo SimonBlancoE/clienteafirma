@@ -37,3 +37,34 @@ pub fn reveal(path: &Path) -> std::io::Result<()> {
         Command::new("xdg-open").arg(dir).spawn().map(|_| ())
     }
 }
+
+/// Diálogo de ficheros que empieza en la última carpeta usada (preferencia
+/// auxiliar `currentDir`, la misma que usa AutoFirma Java).
+pub fn file_dialog() -> rfd::FileDialog {
+    let dialog = rfd::FileDialog::new();
+    match last_dir() {
+        Some(dir) => dialog.set_directory(dir),
+        None => dialog,
+    }
+}
+
+/// Recuerda la carpeta de un fichero (o la propia carpeta) elegido por el usuario.
+pub fn remember_dir(path: &Path) {
+    let dir = if path.is_dir() { Some(path) } else { path.parent() };
+    let Some(dir) = dir.filter(|d| !d.as_os_str().is_empty()) else { return };
+    if let Some(mut prefs) = load_prefs() {
+        let _ = prefs.put_aux(afirma_system::prefs::keys::AUX_CURRENT_DIR, &dir.to_string_lossy());
+    }
+}
+
+fn last_dir() -> Option<std::path::PathBuf> {
+    load_prefs()?
+        .get_aux(afirma_system::prefs::keys::AUX_CURRENT_DIR)
+        .map(std::path::PathBuf::from)
+        .filter(|d| d.is_dir())
+}
+
+fn load_prefs() -> Option<afirma_system::prefs::Preferences> {
+    let ctx = afirma_system::Context::detect(afirma_system::AppIdentity::current());
+    afirma_system::prefs::Preferences::load(&ctx, afirma_system::prefs::ResolutionMode::Strict).ok()
+}

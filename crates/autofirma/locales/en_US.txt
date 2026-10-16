@@ -615,3 +615,6 @@ Qué colocas en la página = What you are placing on the page
 Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = An image (logo, stamp…) added to the document before signing it.
 Incluir la imagen en todas las páginas = Include the image on all pages
 Selecciona la imagen de la marca = Select the mark image
+
+# ui/pages/verify.rs (VALIDe)
+Para comprobar también la revocación de los certificados puedes usar el servicio oficial = To also check certificate revocation you can use the official service

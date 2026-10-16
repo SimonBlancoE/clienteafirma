@@ -312,7 +312,10 @@ impl AutoFirmaApp {
         for a in actions {
             match a {
                 SignAction::PickFiles => {
-                    if let Some(files) = rfd::FileDialog::new().set_title(tr("Selecciona los documentos que quieres firmar")).pick_files() {
+                    if let Some(files) = crate::services::desktop::file_dialog().set_title(tr("Selecciona los documentos que quieres firmar")).pick_files() {
+                        if let Some(f) = files.first() {
+                            crate::services::desktop::remember_dir(f);
+                        }
                         self.load_files(ctx, files);
                     }
                 }
@@ -331,7 +334,7 @@ impl AutoFirmaApp {
                     }
                 }
                 SignAction::ChooseOutputDir => {
-                    if let Some(dir) = rfd::FileDialog::new().set_title(tr("Carpeta donde guardar las firmas")).pick_folder() {
+                    if let Some(dir) = crate::services::desktop::file_dialog().set_title(tr("Carpeta donde guardar las firmas")).pick_folder() {
                         self.sign.output_dir = Some(dir);
                     }
                 }
@@ -438,7 +441,7 @@ impl AutoFirmaApp {
             }
             PickerEvent::ChangeStore(id) => {
                 let lib = if id == "PKCS12" {
-                    match rfd::FileDialog::new()
+                    match crate::services::desktop::file_dialog()
                         .set_title(tr("Selecciona el almacén de certificados"))
                         .add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"])
                         .pick_file()
@@ -552,11 +555,15 @@ impl AutoFirmaApp {
         for a in actions {
             match a {
                 VerifyAction::PickFile => {
-                    if let Some(p) = rfd::FileDialog::new().set_title(tr("Selecciona la firma o el documento firmado")).pick_file() {
+                    if let Some(p) = crate::services::desktop::file_dialog().set_title(tr("Selecciona la firma o el documento firmado")).pick_file() {
+                        crate::services::desktop::remember_dir(&p);
                         self.verify_path(ctx, p);
                     }
                 }
                 VerifyAction::Clear => self.verify = VerifyPage::default(),
+                VerifyAction::OpenValide => {
+                    let _ = crate::services::desktop::open(std::path::Path::new("https://valide.redsara.es/"));
+                }
                 VerifyAction::ExtractData => self.extract_signed_data(),
                 VerifyAction::Cosign | VerifyAction::Countersign => {
                     if let Some(r) = &self.verify.report {
@@ -575,7 +582,7 @@ impl AutoFirmaApp {
                 }
                 VerifyAction::ExportCertificate(i) => {
                     if let Some(der) = self.verify.report.as_ref().and_then(|r| r.signatures.get(i)).map(|s| s.cert_der.clone())
-                        && let Some(path) = rfd::FileDialog::new().set_file_name("certificado.cer").save_file()
+                        && let Some(path) = crate::services::desktop::file_dialog().set_file_name("certificado.cer").save_file()
                             && let Err(e) = std::fs::write(&path, der) {
                                 self.notify(trf("No se ha podido guardar: {0}", &[&e]));
                             }
@@ -594,7 +601,7 @@ impl AutoFirmaApp {
                 let stem = report.path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "datos".into());
                 let ext = afirma_core::mime::MimeHelper::new(&content).extension().ok().flatten().unwrap_or_else(|| "bin".into());
                 let name = if stem.contains('.') { stem.clone() } else { format!("{stem}.{ext}") };
-                if let Some(path) = rfd::FileDialog::new().set_title(tr("Guardar el documento firmado")).set_file_name(name).save_file() {
+                if let Some(path) = crate::services::desktop::file_dialog().set_title(tr("Guardar el documento firmado")).set_file_name(name).save_file() {
                     match std::fs::write(&path, content) {
                         Ok(()) => self.notify(tr("Documento guardado")),
                         Err(e) => self.notify(trf("No se ha podido guardar: {0}", &[&e])),
@@ -621,7 +628,7 @@ impl AutoFirmaApp {
                     if self.tools.copy_clipboard {
                         ctx.copy_text(clipboard);
                     }
-                    let dlg = rfd::FileDialog::new()
+                    let dlg = crate::services::desktop::file_dialog()
                         .set_title(tr("Guardar huella digital"))
                         .set_file_name(&proposed)
                         .add_filter(trf("Huella digital (*.{0})", &[&ext]), &[ext.as_str()]);
@@ -639,7 +646,7 @@ impl AutoFirmaApp {
                     }
                 }
                 ToolOutcome::DirHash { document, proposed } => {
-                    let dlg = rfd::FileDialog::new()
+                    let dlg = crate::services::desktop::file_dialog()
                         .set_title(tr("Guardar huellas digitales"))
                         .set_file_name(&proposed)
                         .add_filter(tr("Huellas digitales en formato XML (*.hashfiles)"), &["hashfiles"])
@@ -657,7 +664,7 @@ impl AutoFirmaApp {
                     self.tools.result = Some((if ok { CalloutKind::Success } else { CalloutKind::Warning }, title, detail));
                     if let Some(xml) = report_xml
                         && !ok
-                            && let Some(path) = rfd::FileDialog::new()
+                            && let Some(path) = crate::services::desktop::file_dialog()
                                 .set_title(tr("Guardar informe de huellas digitales"))
                                 .set_file_name("informe.hashreport")
                                 .save_file()
@@ -699,7 +706,7 @@ impl AutoFirmaApp {
                 }
                 ToolsAction::Close => self.tools.open = None,
                 ToolsAction::PickInput => {
-                    let dlg = rfd::FileDialog::new();
+                    let dlg = crate::services::desktop::file_dialog();
                     let picked = match self.tools.open {
                         Some(Tool::HashDir | Tool::CheckHashDir) => dlg.set_title(tr("Selecciona la carpeta")).pick_folder(),
                         _ => dlg.set_title(tr("Selecciona el fichero")).pick_file(),
@@ -714,7 +721,7 @@ impl AutoFirmaApp {
                         Some(Tool::CheckHashDir) => &["hashfiles", "txthashfiles", "xml", "txt"],
                         _ => &["hexhash", "hashb64", "hash"],
                     };
-                    if let Some(p) = rfd::FileDialog::new().set_title(tr("Selecciona el fichero de huellas")).add_filter(tr("Huellas digitales"), exts).pick_file() {
+                    if let Some(p) = crate::services::desktop::file_dialog().set_title(tr("Selecciona el fichero de huellas")).add_filter(tr("Huellas digitales"), exts).pick_file() {
                         self.tools.secondary = Some(p);
                         self.tools.result = None;
                     }
@@ -836,7 +843,7 @@ impl AutoFirmaApp {
                 }
                 CertsAction::LoadStore(i) => self.load_cert_store(ctx, i),
                 CertsAction::OpenPkcs12 => {
-                    if let Some(p) = rfd::FileDialog::new()
+                    if let Some(p) = crate::services::desktop::file_dialog()
                         .set_title(tr("Abrir almacén de certificados"))
                         .add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"])
                         .pick_file()
@@ -860,7 +867,7 @@ impl AutoFirmaApp {
                 }
                 CertsAction::RegisterPkcs11 => {
                     let exts: &[&str] = if cfg!(windows) { &["dll"] } else if cfg!(target_os = "macos") { &["dylib", "so"] } else { &["so"] };
-                    if let Some(p) = rfd::FileDialog::new()
+                    if let Some(p) = crate::services::desktop::file_dialog()
                         .set_title(tr("Selecciona el controlador PKCS#11 de la tarjeta"))
                         .add_filter(tr("Bibliotecas PKCS#11"), exts)
                         .pick_file()
@@ -908,7 +915,7 @@ impl AutoFirmaApp {
                 CertsAction::Export(si, ci) => {
                     let der = self.certificates.stores.get(si).and_then(|s| s.certs.as_ref()).and_then(|c| c.get(ci)).map(|c| (c.der.clone(), c.info.subject_cn.clone()));
                     if let Some((der, cn)) = der
-                        && let Some(path) = rfd::FileDialog::new().set_file_name(format!("{cn}.cer")).add_filter(tr("Certificado (*.cer)"), &["cer"]).save_file()
+                        && let Some(path) = crate::services::desktop::file_dialog().set_file_name(format!("{cn}.cer")).add_filter(tr("Certificado (*.cer)"), &["cer"]).save_file()
                             && let Err(e) = std::fs::write(&path, der) {
                                 self.notify(trf("No se ha podido guardar: {0}", &[&e]));
                             }

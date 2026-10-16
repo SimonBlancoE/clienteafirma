@@ -615,3 +615,6 @@ Qué colocas en la página = Que colocas na páxina
 Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = Unha imaxe (logotipo, selo…) que se engade ao documento antes de asinalo.
 Incluir la imagen en todas las páginas = Incluír a imaxe en todas as páxinas
 Selecciona la imagen de la marca = Selecciona a imaxe da marca
+
+# ui/pages/verify.rs (VALIDe)
+Para comprobar también la revocación de los certificados puedes usar el servicio oficial = Para comprobar tamén a revogación dos certificados podes usar o servizo oficial

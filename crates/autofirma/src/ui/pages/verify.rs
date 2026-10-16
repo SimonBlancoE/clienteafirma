@@ -77,6 +77,8 @@ pub enum VerifyAction {
     Cosign,
     Countersign,
     ExportCertificate(usize),
+    /// Abrir VALIDe (servicio oficial de validación) en el navegador.
+    OpenValide,
     Clear,
 }
 
@@ -187,6 +189,19 @@ impl VerifyPage {
             ui.add_space(10.0);
             widgets::callout(ui, p, CalloutKind::Warning, issue, None);
         }
+        // Como la pantalla de resultado de AutoFirma: la validez legal completa
+        // (revocación de los certificados) se puede comprobar en VALIDe.
+        ui.add_space(8.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(
+                RichText::new(tr("Para comprobar también la revocación de los certificados puedes usar el servicio oficial"))
+                    .size(12.5)
+                    .color(p.text_muted),
+            );
+            if ui.link(RichText::new("VALIDe").size(12.5).color(p.primary)).clicked() {
+                actions.push(VerifyAction::OpenValide);
+            }
+        });
 
         ui.add_space(18.0);
         widgets::section_title(ui, p, &trf("Firmantes ({0})", &[&report.signatures.len()]));

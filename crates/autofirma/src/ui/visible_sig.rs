@@ -742,7 +742,7 @@ impl VisibleSigEditor {
             None => {
                 ui.label(RichText::new(tr("Puedes añadir tu rúbrica o el sello de tu organización.")).size(12.5).color(p.text_muted));
                 if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), tr("Elegir imagen…"), true).clicked()
-                    && let Some(path) = rfd::FileDialog::new()
+                    && let Some(path) = crate::services::desktop::file_dialog()
                         .set_title(tr("Selecciona la imagen de la firma"))
                         .add_filter(tr("Imágenes"), &["jpg", "jpeg", "png", "gif", "bmp"])
                         .pick_file()
@@ -826,7 +826,7 @@ impl VisibleSigEditor {
     }
 
     fn pick_stamp_image(&mut self, ctx: &egui::Context) {
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = crate::services::desktop::file_dialog()
             .set_title(tr("Selecciona la imagen de la marca"))
             .add_filter(tr("Imágenes"), &["jpg", "jpeg", "png", "gif", "bmp"])
             .pick_file()

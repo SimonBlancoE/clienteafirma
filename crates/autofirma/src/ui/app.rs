@@ -215,7 +215,7 @@ impl AutoFirmaApp {
                             continue;
                         }
                     };
-                    let Some(path) = rfd::FileDialog::new()
+                    let Some(path) = crate::services::desktop::file_dialog()
                         .set_title(tr("Exportar configuración"))
                         .set_file_name("configuracion.afconfig")
                         .add_filter(tr("Configuración de AutoFirma"), &["afconfig"])
@@ -229,7 +229,7 @@ impl AutoFirmaApp {
                     });
                 }
                 SettingsAction::Import => {
-                    let Some(path) = rfd::FileDialog::new()
+                    let Some(path) = crate::services::desktop::file_dialog()
                         .set_title(tr("Importar configuración"))
                         .add_filter(tr("Configuración de AutoFirma"), &["afconfig", "xml", "plist"])
                         .pick_file()

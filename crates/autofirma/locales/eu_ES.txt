@@ -615,3 +615,6 @@ Qué colocas en la página = Zer kokatzen duzun orrian
 Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = Dokumentua sinatu aurretik gehitzen zaion irudia (logotipoa, zigilua…).
 Incluir la imagen en todas las páginas = Sartu irudia orri guztietan
 Selecciona la imagen de la marca = Hautatu markaren irudia
+
+# ui/pages/verify.rs (VALIDe)
+Para comprobar también la revocación de los certificados puedes usar el servicio oficial = Ziurtagirien errebokazioa ere egiaztatzeko, zerbitzu ofiziala erabil dezakezu

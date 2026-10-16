@@ -199,11 +199,15 @@ impl AutoFirmaApp {
                 proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| load_candidates(&spec, &extra, bridge)));
             }
             ProtocolUiRequest::ChooseFile { req, reply } => {
-                let mut dlg = rfd::FileDialog::new().set_title(&req.title);
+                let mut dlg = crate::services::desktop::file_dialog().set_title(&req.title);
                 if let Some(exts) = &req.extensions {
                     dlg = dlg.add_filter(&req.description, exts);
                 }
-                let r = match dlg.pick_file() {
+                let picked = dlg.pick_file();
+                if let Some(p) = &picked {
+                    crate::services::desktop::remember_dir(p);
+                }
+                let r = match picked {
                     Some(p) => std::fs::read(&p)
                         .map(|data| afirma_protocol::FileData {
                             name: p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
@@ -215,7 +219,7 @@ impl AutoFirmaApp {
                 let _ = reply.send(r);
             }
             ProtocolUiRequest::SaveFile { title, data, proposed_name, extensions, reply } => {
-                let mut dlg = rfd::FileDialog::new().set_title(&title);
+                let mut dlg = crate::services::desktop::file_dialog().set_title(&title);
                 if let Some(n) = &proposed_name {
                     dlg = dlg.set_file_name(n);
                 }
@@ -229,7 +233,7 @@ impl AutoFirmaApp {
                 let _ = reply.send(r);
             }
             ProtocolUiRequest::LoadFiles { req, reply } => {
-                let mut dlg = rfd::FileDialog::new();
+                let mut dlg = crate::services::desktop::file_dialog();
                 if let Some(t) = &req.title {
                     dlg = dlg.set_title(t);
                 }
@@ -384,7 +388,7 @@ impl AutoFirmaApp {
             }
             Some(RequestEvent::Picker(super::cert_picker::PickerEvent::ChangeStore(id))) => {
                 let lib = if id == "PKCS12" {
-                    rfd::FileDialog::new().add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"]).pick_file().map(|p| p.display().to_string())
+                    crate::services::desktop::file_dialog().add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"]).pick_file().map(|p| p.display().to_string())
                 } else {
                     None
                 };
