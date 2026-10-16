@@ -466,7 +466,9 @@ pub fn toggle(ui: &mut Ui, p: &Palette, on: &mut bool) -> egui::Response {
     }
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, true, *on, ""));
     let t = ui.ctx().animate_bool_responsive(response.id, *on);
-    let bg = if *on { p.primary } else { p.border.gamma_multiply(1.4) };
+    let off = if p.dark { egui::Color32::from_rgb(0x46, 0x4E, 0x5B) } else { egui::Color32::from_rgb(0xC3, 0xC9, 0xD2) };
+    let bg = if *on { p.primary } else { off };
+    let bg = if ui.is_enabled() { bg } else { bg.gamma_multiply(0.5) };
     ui.painter().rect_filled(rect, egui::CornerRadius::same(11), bg);
     let x = egui::lerp((rect.left() + 11.0)..=(rect.right() - 11.0), t);
     ui.painter().circle_filled(egui::pos2(x, rect.center().y), 8.0, egui::Color32::WHITE);

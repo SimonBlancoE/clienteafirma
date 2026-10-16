@@ -57,6 +57,8 @@ pub struct AutoFirmaApp {
     pub(crate) tools: ToolsPage,
     pub(crate) picker: CertPicker,
     pub(crate) visible_sig: super::visible_sig::VisibleSigEditor,
+    pub(crate) settings: super::pages::settings::SettingsPage,
+    pub(crate) prefs: Box<dyn super::pages::settings::PrefStore>,
 }
 
 impl AutoFirmaApp {
@@ -75,11 +77,34 @@ impl AutoFirmaApp {
             tools: ToolsPage::default(),
             picker: CertPicker::default(),
             visible_sig: Default::default(),
+            settings: Default::default(),
+            prefs: Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() }),
         };
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
         }
         app
+    }
+
+    fn handle_settings_actions(&mut self, actions: Vec<super::pages::settings::SettingsAction>) {
+        use super::pages::settings::SettingsAction;
+        for a in actions {
+            match a {
+                SettingsAction::Save => {
+                    for (k, v) in std::mem::take(&mut self.settings.pending) {
+                        self.prefs.set(&k, v.as_deref());
+                    }
+                    self.theme = match self.prefs.get("uiTheme").as_deref() {
+                        Some("light") => ThemeChoice::Light,
+                        Some("dark") => ThemeChoice::Dark,
+                        Some("contrast") => ThemeChoice::HighContrast,
+                        _ => ThemeChoice::System,
+                    };
+                }
+                SettingsAction::Discard => self.settings.pending.clear(),
+                _ => {}
+            }
+        }
     }
 
     fn handle_certs_actions(&mut self, actions: Vec<CertsAction>) {
@@ -185,6 +210,14 @@ impl eframe::App for AutoFirmaApp {
         }
         self.files_hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
         self.sidebar(ui);
+        if self.page == Page::Settings && !self.settings.pending.is_empty() {
+            let p = self.palette;
+            let actions = egui::Panel::bottom("settings_bar")
+                .frame(Frame::new().fill(p.surface).inner_margin(Margin::symmetric(36, 12)).stroke(Stroke::new(1.0, p.border)))
+                .show(ui, |ui| self.settings.pending_bar(ui, &p))
+                .inner;
+            self.handle_settings_actions(actions);
+        }
         let p = self.palette;
         egui::CentralPanel::no_frame().frame(Frame::new().fill(p.bg).inner_margin(Margin::symmetric(36, 28))).show(ui, |ui| {
             ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -205,6 +238,10 @@ impl eframe::App for AutoFirmaApp {
                     Page::Tools => {
                         let actions = self.tools.ui(ui, &p);
                         self.handle_tools_actions(actions);
+                    }
+                    Page::Settings => {
+                        let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
+                        self.handle_settings_actions(actions);
                     }
                     other => widgets::page_header(ui, &p, other.label(), Some("En construcción")),
                 }
