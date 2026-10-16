@@ -566,7 +566,12 @@ pub fn linux_files(ctx: &Context, opts: &ProtocolOptions) -> Vec<(PathBuf, Strin
     let exe = desktop_exec_quote(&ctx.app.exe.to_string_lossy());
     let l = labels(&opts.locale);
     let mut v = Vec::new();
-    if opts.write_desktop_file {
+    // Los paquetes .deb/.rpm ya instalan /usr/share/applications/<id>.desktop; uno en
+    // /usr/local lo taparía, así que en ese caso no se escribe.
+    let packaged = opts.scope == TrustScope::Machine
+        && opts.desktop_dir.is_none()
+        && ctx.sys(&format!("/usr/share/applications/{id}.desktop")).is_file();
+    if opts.write_desktop_file && !packaged {
         v.push((
             apps.join(format!("{id}.desktop")),
             desktop_entry(ctx),

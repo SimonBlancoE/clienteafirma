@@ -55,8 +55,10 @@ compilando para `aarch64-apple-darwin` y `x86_64-apple-darwin` (`cargo zigbuild`
   `/etc/autofirma/policy.json` + `/etc/autofirma/policy.d/*.json` en Linux. Las
   recomendadas actúan como valores de sistema. Los valores se validan contra el tipo de la
   clave (los no válidos se descartan con aviso).
-* Se mantiene el identificador de paquete de macOS de Java (`es.gob.afirma.simpleafirma.osx`)
-  para que los perfiles MDM existentes sigan aplicándose.
+* El paquete de macOS tiene identificador propio (`io.github.autofirma-rs.AutoFirma`) para
+  no confundirse con la versión Java en Launch Services. Las preferencias gestionadas se leen
+  de ese dominio y, con menor prioridad, del de Java (`es.gob.afirma.simpleafirma.osx`), de
+  modo que los perfiles MDM existentes siguen aplicándose.
 
 ### 1.3 Validación de escrituras
 * **Java** no validaba los valores. **Rust** rechaza en `put` valores fuera de la

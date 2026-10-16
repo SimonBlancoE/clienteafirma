@@ -43,7 +43,7 @@ pub struct AppIdentity {
     pub icon: Option<PathBuf>,
     /// Paquete `.app` en macOS.
     pub macos_bundle: Option<PathBuf>,
-    /// Identificador del paquete de macOS (Java: `es.gob.afirma.simpleafirma.osx`).
+    /// Identificador del paquete de macOS (debe coincidir con `CFBundleIdentifier`).
     pub macos_bundle_id: String,
     /// Identificador del fichero `.desktop` en Linux (sin extensión).
     pub desktop_id: String,
@@ -53,21 +53,33 @@ pub struct AppIdentity {
     pub version: String,
 }
 
-/// Identificador del paquete de macOS de AutoFirma (se conserva el de Java para que las
-/// directivas MDM ya desplegadas sigan aplicándose).
-pub const MACOS_BUNDLE_ID: &str = "es.gob.afirma.simpleafirma.osx";
+/// Identificador del paquete de macOS de AutoFirma-rs (`CFBundleIdentifier` de
+/// `packaging/macos/Info.plist`). Es propio para no confundirse con la versión Java en
+/// Launch Services; las directivas MDM ya desplegadas para Java se siguen leyendo de
+/// [`LEGACY_MACOS_PREFS_DOMAIN`].
+pub const MACOS_BUNDLE_ID: &str = "io.github.autofirma-rs.AutoFirma";
+
+/// Dominio de preferencias gestionadas de la versión Java (compatibilidad con perfiles
+/// MDM existentes; menor prioridad que el dominio propio).
+pub const LEGACY_MACOS_PREFS_DOMAIN: &str = "es.gob.afirma.simpleafirma.osx";
 
 /// Identificador del fichero `.desktop` (paquetes RPM de Java: `autofirma.desktop`).
 pub const DESKTOP_ID: &str = "autofirma";
 
 /// Nombre visible de la aplicación.
-pub const DISPLAY_NAME: &str = "Autofirma";
+pub const DISPLAY_NAME: &str = "AutoFirma";
 
 impl AppIdentity {
     /// Identidad a partir del ejecutable en curso.
     pub fn current() -> Self {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("autofirma"));
-        Self::for_exe(exe)
+        let mut id = Self::for_exe(exe);
+        // Dentro de una AppImage el ejecutable está en un montaje temporal
+        // (/tmp/.mount_*); al registrar el protocolo hay que usar la propia AppImage.
+        if let Some(appimage) = std::env::var_os("APPIMAGE").map(PathBuf::from).filter(|p| p.is_file()) {
+            id.exe = appimage;
+        }
+        id
     }
 
     /// Identidad para un ejecutable dado.

@@ -6,7 +6,8 @@
 //!   explícitos, `LocalNetworkAccessAllowedForUrls` / `InsecurePrivateNetworkRequestsAllowedForUrls`
 //!   (acceso de la sede web al servidor local `wss://127.0.0.1`).
 //! * Firefox: `Handlers.schemes.afirma` (`useSystemDefault`, `ask: false`) y
-//!   `Certificates.ImportEnterpriseRoots`.
+//!   `Certificates.ImportEnterpriseRoots`. En Linux, donde Firefox no lee el almacén del
+//!   sistema, además `Certificates.Install` con la CA local (también para perfiles nuevos).
 //!
 //! Ubicaciones: Windows `HKLM\SOFTWARE\Policies\...`; Linux ficheros JSON en
 //! `/etc/opt/chrome/policies/managed/`, `/etc/chromium*/policies/managed/`,
@@ -254,6 +255,7 @@ fn merge_firefox_json(
     doc: &mut Value,
     handlers: bool,
     roots: bool,
+    install_ca: Option<&std::path::Path>,
     owned: &mut OwnedEntries,
     id: &str,
 ) -> Result<bool> {
@@ -286,6 +288,17 @@ fn merge_firefox_json(
             owned.add(format!("{id}:Certificates.ImportEnterpriseRoots"));
         }
         certs.insert("ImportEnterpriseRoots".into(), json!(true));
+        if let Some(ca) = install_ca {
+            let ca = ca.to_string_lossy().into_owned();
+            let list = certs.entry("Install").or_insert_with(|| json!([]));
+            let list = list
+                .as_array_mut()
+                .ok_or_else(|| SystemError::Other("«Certificates.Install» no es una lista".into()))?;
+            if !list.iter().any(|v| v.as_str() == Some(ca.as_str())) {
+                list.push(json!(ca));
+                owned.add(format!("{id}:Certificates.Install:{ca}"));
+            }
+        }
     }
     Ok(*doc != before)
 }
@@ -304,15 +317,28 @@ fn unmerge_firefox_json(doc: &mut Value, owned: &mut OwnedEntries, id: &str) -> 
                 pol.remove("Handlers");
             }
         }
-        let k = format!("{id}:Certificates.ImportEnterpriseRoots");
-        if owned.owns(&k) {
-            if let Some(c) = pol.get_mut("Certificates").and_then(Value::as_object_mut) {
-                c.remove("ImportEnterpriseRoots");
-                if c.is_empty() {
-                    pol.remove("Certificates");
+        if let Some(c) = pol.get_mut("Certificates").and_then(Value::as_object_mut) {
+            if let Some(list) = c.get_mut("Install").and_then(Value::as_array_mut) {
+                list.retain(|v| {
+                    let k = format!("{id}:Certificates.Install:{}", v.as_str().unwrap_or_default());
+                    let ours = owned.owns(&k);
+                    if ours {
+                        owned.forget(&k);
+                    }
+                    !ours
+                });
+                if list.is_empty() {
+                    c.remove("Install");
                 }
             }
-            owned.forget(&k);
+            let k = format!("{id}:Certificates.ImportEnterpriseRoots");
+            if owned.owns(&k) {
+                c.remove("ImportEnterpriseRoots");
+                owned.forget(&k);
+            }
+            if c.is_empty() {
+                pol.remove("Certificates");
+            }
         }
     }
     *doc != before
@@ -346,6 +372,7 @@ fn install_firefox_file(
     path: &std::path::Path,
     handlers: bool,
     roots: bool,
+    install_ca: Option<&std::path::Path>,
     owned: &mut OwnedEntries,
 ) -> Result<bool> {
     let id = format!("json:{}", path.display());
@@ -357,7 +384,7 @@ fn install_firefox_file(
         })?,
         None => json!({ "policies": {} }),
     };
-    if !merge_firefox_json(&mut doc, handlers, roots, owned, &id)? {
+    if !merge_firefox_json(&mut doc, handlers, roots, install_ca, owned, &id)? {
         return Ok(false);
     }
     if !existed {
@@ -427,6 +454,14 @@ pub fn linux_policy_files(opts: &BrowserPolicyOptions) -> Vec<(String, String)> 
     v
 }
 
+/// CA local para `Certificates.Install` de Firefox en Linux (solo si existe el fichero).
+fn linux_firefox_ca(ctx: &Context, roots: bool) -> Option<PathBuf> {
+    if !roots || ctx.os != Os::Linux {
+        return None;
+    }
+    crate::certs::locate(ctx).map(|c| c.ca_path()).filter(|p| p.is_file())
+}
+
 fn install_linux(
     ctx: &Context,
     opts: &BrowserPolicyOptions,
@@ -459,8 +494,9 @@ fn install_linux(
                 }
             }
         } else {
+            let ca = linux_firefox_ca(ctx, opts.firefox_enterprise_roots);
             for p in firefox_policy_files(ctx) {
-                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, owned)?;
+                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, ca.as_deref(), owned)?;
             }
         }
     }
@@ -623,7 +659,7 @@ fn install_windows(
                 changed |= set_win_enterprise_roots(ctx, owned)?;
             }
             for p in firefox_policy_files(ctx) {
-                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, owned)?;
+                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, None, owned)?;
             }
         }
     }
@@ -673,7 +709,7 @@ pub fn install_firefox_enterprise_roots(ctx: &Context) -> Result<Change> {
     }
     if ctx.os != Os::Linux {
         for p in firefox_policy_files(ctx) {
-            changed |= install_firefox_file(&p, false, true, &mut owned)?;
+            changed |= install_firefox_file(&p, false, true, linux_firefox_ca(ctx, true).as_deref(), &mut owned)?;
         }
     }
     owned.save(ctx)?;
@@ -877,7 +913,7 @@ fn install_macos(
             }
         } else {
             for p in firefox_policy_files(ctx) {
-                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, owned)?;
+                changed |= install_firefox_file(&p, true, opts.firefox_enterprise_roots, None, owned)?;
             }
         }
     }
@@ -1443,6 +1479,22 @@ pub fn macos_mobileconfig(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn firefox_install_ca_se_retira_solo_lo_propio() {
+        let mut owned = OwnedEntries::default();
+        let mut doc = json!({ "policies": { "Certificates": { "Install": ["/etc/admin.pem"] } } });
+        let ca = std::path::Path::new("/usr/lib/autofirma-rs/Autofirma_ROOT.cer");
+        assert!(merge_firefox_json(&mut doc, true, true, Some(ca), &mut owned, "j").unwrap());
+        let list = doc["policies"]["Certificates"]["Install"].as_array().unwrap();
+        assert_eq!(list.len(), 2);
+        // Idempotente.
+        assert!(!merge_firefox_json(&mut doc, true, true, Some(ca), &mut owned, "j").unwrap());
+        assert!(unmerge_firefox_json(&mut doc, &mut owned, "j"));
+        assert_eq!(doc["policies"]["Certificates"]["Install"], json!(["/etc/admin.pem"]));
+        assert!(doc["policies"]["Certificates"].get("ImportEnterpriseRoots").is_none());
+        assert!(doc["policies"].get("Handlers").is_none());
+    }
+
     use super::*;
     use crate::ctx::Os;
 

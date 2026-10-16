@@ -207,12 +207,17 @@ fn plist_to_raw(v: &plist::Value) -> Option<RawPolicyValue> {
 }
 
 fn load_macos(ctx: &Context, ps: &mut PolicySet) {
-    let id = &ctx.app.macos_bundle_id;
-    let mut files = vec![ctx.sys(&format!("/Library/Managed Preferences/{id}.plist"))];
-    if let Some(u) = &ctx.paths.user_name {
-        // Las preferencias gestionadas por usuario: menor prioridad que las de equipo.
-        files.push(ctx.sys(&format!("/Library/Managed Preferences/{u}/{id}.plist")));
+    // Dominio propio primero; después el de la versión Java para que los perfiles MDM
+    // ya desplegados sigan aplicándose. Lo primero leído tiene prioridad.
+    let mut files = Vec::new();
+    for id in [ctx.app.macos_bundle_id.as_str(), crate::ctx::LEGACY_MACOS_PREFS_DOMAIN] {
+        files.push(ctx.sys(&format!("/Library/Managed Preferences/{id}.plist")));
+        if let Some(u) = &ctx.paths.user_name {
+            // Las preferencias gestionadas por usuario: menor prioridad que las de equipo.
+            files.push(ctx.sys(&format!("/Library/Managed Preferences/{u}/{id}.plist")));
+        }
     }
+    files.dedup();
     for f in files {
         let Ok(v) = plist::Value::from_file(&f) else {
             continue;

@@ -105,11 +105,13 @@ impl AutoFirmaApp {
                 crate::services::prefs::load()
             },
         };
+        tracing::debug!("arranque: preferencias cargadas");
         app.theme = theme_from_pref(app.prefs.get("uiTheme").as_deref());
         {
             let prefs = &app.prefs;
             app.rt.store_spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
         }
+        tracing::debug!("arranque: almacén por defecto {:?}", app.rt.store_spec);
         if let Some(scale) = app.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
             cc.egui_ctx.set_zoom_factor(scale.clamp(0.8, 1.6));
         }
