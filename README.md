@@ -1,122 +1,117 @@
-# ![Logo de la Suite @firma](logo_autofirma.png)
+<p align="center"><img src="packaging/icons/autofirma-256.png" width="96" alt=""></p>
 
-Autofirma es uno de los productos de la **Suite @firma** de soluciones de identificación y firma electrónica. Se proporciona a las Administraciones Públicas para que dispongan de los instrumentos necesarios para implementar la autenticación y firma electrónica avanzada de una forma rápida y efectiva.
+# AutoFirma-rs
 
-Autofirma es una herramienta de firma electrónica en entornos de escritorio y dispositivos móviles, que funciona en forma de Applet de Java integrado en una página Web mediante JavaScript, como aplicación de escritorio, o como aplicación móvil, dependiendo del entorno del usuario.
+Cliente de firma electrónica compatible con **AutoFirma**, reescrito en **Rust**. Es un fork de
+[clienteafirma](https://github.com/ctt-gob-es/clienteafirma) (Gobierno de España): firma y
+valida los mismos formatos, atiende las mismas peticiones `afirma://` de las sedes electrónicas
+y entiende la misma configuración, pero es un único ejecutable nativo, sin Java, con una interfaz
+nueva y preparado para desplegarse en equipos corporativos sin avisos.
 
-Es **software libre** con licencia **GPL 2+** y **EUPL 1.1**. Puede consultar más información y el código del producto en la forja del [Centro de Transferencia de Tecnología (CTT)](https://github.com/ctt-gob-es/).
+> Proyecto independiente, sin relación con el Gobierno de España ni con el CTT. Estado: **alfa**.
 
----
+## Qué ofrece
 
-## Construcción de Autofirma
+- **Paridad con AutoFirma 1.9**: CAdES, XAdES, XMLDSig, FacturaE, PAdES (con firma visible
+  idéntica a la de Java), ODF, OOXML, ASiC-S (CAdES y XAdES), PKCS#1; firma, cofirma y
+  contrafirma; sellos de tiempo; firma trifásica y por lotes; validación con los mismos
+  veredictos. Las firmas se comparan en las pruebas con las de la versión Java.
+- **Firma desde la web**: protocolo `afirma://` (WebSocket local, servidor intermedio, cifrado
+  de respuestas), compatible con el `autoscript.js` de las sedes.
+- **Certificados**: almacén de Windows, llavero de macOS, NSS (Firefox, Chrome en Linux),
+  PKCS#12, PKCS#11 (DNIe, tarjetas CERES y otras tarjetas registradas), con los mismos filtros.
+- **Línea de comandos** compatible (`sign`, `cosign`, `countersign`, `verify`, `listaliases`,
+  `batchsign`, `createdigest`, `checkdigest`) y órdenes nuevas para la integración con el
+  sistema (`install`, `uninstall`, `doctor`, `restore-config`).
+- **Herramientas**: huellas digitales de ficheros y carpetas, diagnóstico y reparación de la
+  integración con los navegadores.
+- **Idiomas**: español, català, galego, euskara, valencià e inglés.
 
-Los módulos de Autofirma se encuentran preparados para su compilación y empaquetado mediante **Apache Maven**. Los módulos básicos del Cliente son compatibles con Java 1.7. Sin embargo, las bibliotecas JUnit que se importan ya requieren el uso de Java 1.8 o superior, por lo que deberemos tener configurada una JDK 1.8 o superior para compilar el proyecto. La aplicación Autofirma se compila directamente para Java 1.8.
+### Mejoras sobre la versión Java
 
-A continuación se indican los distintos parámetros a utilizar para construir sus artefactos según el uso que se desee dar. A cualquiera de los comandos que se indican se le puede agregar el parámetro `-DskipTests` para omitir los tests JUnit.
+- Sin Java ni JRE: un único ejecutable nativo que arranca al instante, en Windows, Linux y macOS
+  (x86_64 y ARM).
+- Interfaz rediseñada: arrastrar y firmar, varios documentos a la vez, vista previa de la firma
+  visible sobre el PDF, verificación con informe detallado, tema claro, oscuro y de alto
+  contraste, escalado.
+- Despliegue corporativo sin avisos: directivas de Chrome, Edge y Firefox para abrir `afirma://`
+  sin preguntar, MSI con propiedades para GPO/Intune, perfiles MDM en macOS, preferencias
+  bloqueables por directiva y configuración remota con firma verificada
+  ([guía de despliegue](docs/DEPLOYMENT.md)).
+- Diagnóstico (`autofirma doctor`) y reparación de la integración con un clic.
+- Correcciones de seguridad respecto a Java: respuestas OCSP y listas de revocación verificadas,
+  configuraciones `.afconfig` firmadas comprobadas al instalar, sin expansión de entidades XML,
+  TLS con `rustls` y el almacén de confianza del sistema.
 
-### Módulos básicos
+La lista completa de funciones y su estado está en [docs/PARITY.md](docs/PARITY.md); las
+diferencias deliberadas con Java, en [docs/deviations/](docs/deviations/).
 
-Los módulos de Autofirma incluidos en este repositorio se pueden construir mediante el siguiente comando de Maven.
+## Instalación
 
-```bash
-mvn clean install
+| Sistema | Paquetes |
+|---|---|
+| Windows 10/11 | `AutoFirma-<versión>-windows-x86_64.msi` (por equipo, admite instalación silenciosa), ZIP portable |
+| Linux | `.deb`, `.rpm`, AppImage y `.tar.gz` portable |
+| macOS 10.15+ | `.dmg` y `.pkg` (binario universal) |
+
+Instalación silenciosa en Windows:
+
+```powershell
+msiexec /i AutoFirma-2.0.0-windows-x86_64.msi /qn FIREFOX_SECURITY_ROOTS=true
 ```
 
-Este comando generará todos los módulos básicos del proyecto.
+La versión portable no necesita instalación: al abrirla por primera vez ofrece integrarse con
+los navegadores del usuario (o `autofirma install --user`).
 
-### Artefactos desplegables y aplicaciones
+## Uso
 
-Para la construcción de Autofirma (JAR) y los servicios que utiliza será necesario usar el perfil `env-install`. Este se puede activar mediante el comando:
-
-```bash
-mvn clean install -Denv=install
-```
-
-Con esto, se podrán construir los artefactos:
-
-* `afirma-server-triphase-signer`: WAR con el servicio para la generación de firmas trifásicas.
-* `afirma-signature-retriever`: WAR con el servicio de recuperación de datos del servidor intermedio.
-* `afirma-signature-storage`: WAR con el servicio de guardado de datos en el servidor intermedio.
-* `afirma-simple`: JAR autoejecutable de Autofirma (`Autofirma.jar`).
-* `afirma-ui-simple-configurator`: JAR autoejecutable del configurador necesario para la instalación de Autofirma (`AutofirmaConfigurador.jar`).
-
-### Despliegue en repositorio de artefactos
-
-Para el despliegue de los distintos módulos en un repositorio de artefactos, además de la construcción de los propios artefactos, es necesario aportar el código fuente de la aplicación, su JavaDoc y firmar los distintos artefactos. Para evitar generar estos recursos y realizar la firma de los artefactos para la operativa ordinaria de compilación y empaquetado se ha creado un perfil `env-deploy` para que se utilice sólo cuando se va a proceder al despliegue de los artefactos en un repositorio. Se puede hacer eso mediante el comando:
+- **Escritorio**: abre AutoFirma, arrastra los documentos y pulsa *Firmar*. Para comprobar una
+  firma, arrástrala a *Verificar firmas*.
+- **Sedes electrónicas**: la sede abre AutoFirma automáticamente; aparece una ventana compacta
+  con el nombre de la sede, el documento y tus certificados.
+- **Línea de comandos**:
 
 ```bash
-mvn clean deploy -Denv=deploy
+autofirma sign -i contrato.pdf -o contrato_firmado.pdf -format pades -store auto -filter "subject.contains:12345678Z"
+autofirma verify -i contrato_firmado.pdf
+autofirma listaliases -store pkcs12:/ruta/certificado.p12 -password ****
+autofirma doctor
+autofirma --help
 ```
 
----
+## Compilación
 
-## Módulos del proyecto
+Requisitos: Rust 1.92 o posterior. En Linux, las cabeceras de X11/Wayland habituales.
 
-El proyecto está formado por múltiples módulos, algunos de los cuales se utilizan en varias de las aplicaciones de Autofirma. Otros son los módulos de las propias aplicaciones o con recursos necesarios para su construcción o su uso.
+```bash
+cargo build --release -p autofirma          # target/release/autofirma
+cargo test --workspace                       # pruebas
+tools/package/linux.sh                       # .deb, .rpm, AppImage, .tar.gz
+tools/package/windows-cross.sh --msi         # .exe y .msi desde Linux (Docker)
+tools/package/macos.sh                       # .app, .dmg y .pkg (en macOS)
+```
 
-### Módulos vigentes
+## Organización del repositorio
 
-A continuación, se muestra un listado de los distintos módulos actualmente en uso en el proyecto:
+| Ruta | Contenido |
+|---|---|
+| `crates/autofirma` | Ejecutable: interfaz (egui), línea de comandos y modo protocolo |
+| `crates/afirma-core` | Tipos comunes: algoritmos, claves, parámetros, certificados, red |
+| `crates/afirma-cms` | ASN.1, CMS, CAdES, ASiC-S, sellos de tiempo |
+| `crates/afirma-xml` | XMLDSig, XAdES, FacturaE, ODF, OOXML |
+| `crates/afirma-pdf` | PAdES, firma visible, renderizado y validación de PDF |
+| `crates/afirma-keystores` | Almacenes de certificados y selección |
+| `crates/afirma-signers` | Registro de formatos, selección automática y validación |
+| `crates/afirma-protocol` | Protocolo `afirma://` |
+| `crates/afirma-system` | Integración con el sistema, preferencias y directivas |
+| `crates/afirma-cli`, `afirma-hash`, `afirma-certval` | Línea de comandos, huellas digitales, validación de certificados |
+| `docs/` | Arquitectura, especificación extraída de Java, despliegue, paridad y desviaciones |
+| `packaging/`, `tools/package/` | Instaladores y scripts de empaquetado |
+| `afirma-*` | Código Java original, que se conserva como referencia y como oráculo de pruebas |
 
-* `afirma-core`: Módulo con los componentes principales del proyecto.
-* `afirma-core-keystores`: Módulo con las clases de gestión de almacenes de claves de usuario.
-* `afirma-core-massive`: Módulo con funcionalidades para la ejecución de operaciones masivas de firma.
-* `afirma-crypto-batch-client`: Módulo con el componente cliente para la invocación de las operaciones de firma de lote en servidor.
-* `afirma-crypto-cades`: Módulo con la lógica de generación de las firmas CAdES (excluidas cofirmas y contrafirmas) y ASiC-CAdES.
-* `afirma-crypto-cades-multi`: Módulo con la lógica de generación de las cofirmas y contrafirmas CAdES.
-* `afirma-crypto-cadestri-client`: Módulo con lógica de invocación para la generación de firmas trifásicas CAdES en servidor.
-* `afirma-crypto-cms`: Módulo con la lógica de generación de las firmas CMS.
-* `afirma-crypto-core-pkcs7`: Módulo con la lógica básica de estructuras PKCS#7, necesarias para la generación de firmas ASN.1 (CAdES, PAdES, etc.).
-* `afirma-crypto-core-xml`: Módulo con la lógica básica de estructuras XML, necesarias para la generación de firmas XML (XAdES, ODF, OOXML, etc.).
-* `afirma-crypto-odf`: Módulo con la lógica de generación de las firmas ODF.
-* `afirma-crypto-ooxml`: Módulo con la lógica de generación de las firmas OOXML.
-* `afirma-crypto-padestri-client`: Módulo con lógica de invocación para la generación de firmas trifásicas PAdES en servidor.
-* `afirma-crypto-pdf`: Módulo con la lógica de generación de las firmas PAdES.
-* `afirma-crypto-pdf-common`: Módulo con recursos comunes utilizados en los módulos que operan sobre firmas PDF.
-* `afirma-crypto-validation`: Módulo con la lógica de verificación de la integridad de las firmas CAdES, PAdES y XAdES (no incluye la comprobación de la validez de los certificados).
-* `afirma-crypto-xades`: Módulo con la lógica de generación de las firmas XAdES, ASiC-XAdES y FacturaE.
-* `afirma-crypto-xadestri-client`: Módulo con lógica de invocación para la generación de firmas trifásicas XAdES y de FacturaE en servidor.
-* `afirma-crypto-xmlsignature`: Módulo con la lógica de generación de las firmas XMLdSig.
-* `afirma-keystores-filters`: Módulo con los filtros de certificados utilizados por Autofirma.
-* `afirma-keystores-mozilla`: Módulo para la gestión del almacén de claves de Mozilla Firefox.
-* `afirma-server-triphase-signer`: Módulo principal del servicio de firma trifásica y de lotes.
-* `afirma-server-triphase-signer-cache`: Módulo con la interfaz que define las operaciones de guardado y recuperación de datos de caché del servidor trifásico.
-* `afirma-server-triphase-signer-core`: Módulo con la funcionalidad básica de firma trifásica CAdES, PAdES, XAdES y de FacturaE.
-* `afirma-server-triphase-signer-document`: Módulo con la interfaz que define las operaciones de guardado y recuperación de documentos para firmar del servidor trifásico.
-* `afirma-signature-retriever`: Módulo principal del servicio de recuperación del servidor intermedio.
-* `afirma-signature-storage`: Módulo principal del servicio de guardado del servidor intermedio.
-* `afirma-simple`: Módulo principal de la aplicación Autofirma.
-* `afirma-simple-installer`: Módulo con los componentes para la generación de los instaladores de Autofirma.
-* `afirma-simple-plugin-hash`: Módulo con el plugin de Autofirma para generación y validación de hashes.
-* `afirma-simple-plugin-hash-exe`: Módulo de la aplicación EXE para el registro de las entradas de generación y validación de hashes en el menú contextual de Windows.
-* `afirma-simple-plugin-validatecerts`: Módulo con el plugin de Autofirma para validación de firmas.
-* `afirma-simple-plugins`: Módulo con los recursos base para la implementación de plugins de Autofirma.
-* `afirma-ui-core-jse`: Módulo con las interfaces gráficas genéricas usadas por las distintas aplicaciones de Autofirma.
-* `afirma-ui-core-jse-keystores`: Módulo con la interfaz gráfica del diálogo de selección de certificados.
-* `afirma-ui-miniapplet-deploy`: Módulo principal para el desarrollo de AutoScript.
-* `afirma-ui-simple-configurator`: Módulo principal de la aplicación de configuración ejecutada durante la instalación de Autofirma.
+El README original de clienteafirma está en [docs/README-original-java.md](docs/README-original-java.md).
 
-### Módulos sin mantenimiento
+## Licencia
 
-La lista de módulos obsoletos y/o sin soporte que se conservan en el repositorio son los siguientes:
-
-* `afirma-crypto-cipher`: __Obsoleto.__ Módulo con las clases para el cifrado síncrono y asíncrono de datos usado en el antiguo Applet de @firma y StandAlone.
-* `afirma-crypto-cms-enveloper`: __Obsoleto.__ Módulo con la lógica para la generación de sobres digitales CMS utilizada en los antiguos Applet de @firma y StandAlone.
-* `afirma-crypto-core-pkcs7-tsp`: __Sin soporte.__ Módulo con la lógica para agregar sellos de tiempo a firmas PKCS#7.
-* `afirma-crypto-jarverifier`: __Obsoleto.__ Módulo para la comprobación de la integridad de un JAR utilizada en el antiguo Applet de @firma.
-* `afirma-crypto-pdf-enhancer`: __Obsoleto.__ Módulo con un cliente SOAP para el envío de peticiones a @firma para la actualización de PDF a formatos longevos.
-* `afirma-keystores-capiaddressbook`: __Obsoleto.__ Módulo con la lógica de acceso a la libreta de direcciones de Windows.
-* `afirma-keystores-single`: __Obsoleto.__ Módulo con un proveedor criptográfico para la gestión de certificados sueltos como si fuesen almacenes.
-* `afirma-miniapplet-report`: __Obsoleto.__ Módulo para la generación de informes de las pruebas del antiguo MiniApplet.
-* `afirma-miniapplet-store-testdata`: __Obsoleto.__ Módulo para el guardado de los datos de los informes de las pruebas del antiguo MiniApplet.
-* `afirma-report-fail-tests`: __Obsoleto.__ Módulo para la notificación de errores de las pruebas del antiguo MiniApplet.
-* `afirma-server-simple-webstart`: __Obsoleto.__ Módulo principal del servicio para la generación del JNLP para la ejecución de Autofirma WebStart.
-* `afirma-standalone`: __Obsoleto.__ Módulo principal de la antigua herramienta de escritorio StandAlone.
-* `afirma-standalone-installer`: __Obsoleto.__ Módulo con los componentes para la generación del instalador de la antigua herramienta de escritorio StandAlone.
-* `afirma-ui-applet`: __Obsoleto.__ Módulo principal del antiguo Applet de @firma.
-* `afirma-ui-applet-deploy`: __Obsoleto.__ Módulo con el JavaScript de despliegue del antiguo Applet de @firma.
-* `afirma-ui-miniapplet`: __Obsoleto.__ Módulo principal del antiguo MiniApplet.
-* `afirma-ui-simple-webstart`: __Obsoleto.__ Módulo principal del antiguo empaquetado de Autofirma como aplicación WebStart.
-* `afirma-windows-store`: __Obsoleto.__ Módulo principal del antiguo cliente de firma para Windows 8.
-
-**No se ofrece ningún tipo de mantenimiento ni soporte sobre estos módulos.**
+Como el original, software libre con doble licencia **GPL 2.0 o posterior** y **EUPL 1.1**
+(véase [license/](license/)). Tipografía Inter (SIL OFL 1.1) e iconos Phosphor (MIT).
