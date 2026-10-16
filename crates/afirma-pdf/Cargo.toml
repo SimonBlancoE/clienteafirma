@@ -1,0 +1,36 @@
+[package]
+name = "afirma-pdf"
+description = "Firmas PDF/PAdES de AutoFirma-rs: lectura de PDF, actualización incremental, firma visible, sellos de tiempo, validación y ataques de sombra"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = ["render"]
+# Renderizado de páginas (vista previa de la firma visible y comprobación de
+# ataques de sombra) con `hayro`, un rasterizador PDF en Rust puro.
+render = ["dep:hayro"]
+
+[dependencies]
+afirma-core.workspace = true
+afirma-cms.workspace = true
+lopdf.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+hex.workspace = true
+flate2.workspace = true
+md-5.workspace = true
+sha2.workspace = true
+rsa.workspace = true
+x509-parser.workspace = true
+iana-time-zone = "0.1"
+image = { version = "0.25", default-features = false, features = ["png", "gif", "bmp", "jpeg"] }
+hayro = { version = "0.8", optional = true }
+
+[dev-dependencies]
+sha1.workspace = true
+p256.workspace = true
+ecdsa.workspace = true
