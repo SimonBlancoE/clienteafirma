@@ -65,6 +65,12 @@ pub struct AutoFirmaApp {
     /// Modo protocolo (`afirma://`).
     pub(crate) proto: Option<super::protocol_flow::ProtocolState>,
     pending_zoom: Option<f32>,
+    /// La integración con el navegador necesita reparación (aviso en "Firmar").
+    pub(crate) integration_needed: bool,
+    integration_job: Option<crate::services::task::Job<(), bool>>,
+    asking_close: bool,
+    prefs_close_now: bool,
+    dont_ask_close: bool,
 }
 
 impl AutoFirmaApp {
@@ -88,6 +94,11 @@ impl AutoFirmaApp {
             rt: super::flows::Runtime::new(&cc.egui_ctx),
             proto: None,
             pending_zoom: None,
+            integration_needed: false,
+            integration_job: None,
+            asking_close: false,
+            prefs_close_now: false,
+            dont_ask_close: false,
             prefs: if std::env::var_os("AF_DEMO").is_some() {
                 Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() })
             } else {
@@ -114,6 +125,11 @@ impl AutoFirmaApp {
         if let Some(url) = start.protocol_url {
             let rx = crate::services::protocol::spawn_launcher(url, cc.egui_ctx.clone());
             app.proto = Some(super::protocol_flow::ProtocolState::new(rx));
+        }
+        if app.proto.is_none() && std::env::var_os("AF_DEMO").is_none() {
+            app.integration_job = Some(crate::services::task::Job::spawn(&cc.egui_ctx, "integracion", |_| {
+                crate::services::tools::integration_needed()
+            }));
         }
         if let Some(v) = start.verify_file {
             app.verify_path(&cc.egui_ctx, v);
@@ -168,6 +184,82 @@ impl AutoFirmaApp {
                 }
                 SettingsAction::Discard => self.settings.pending.clear(),
                 _ => {}
+            }
+        }
+    }
+
+    /// Confirmación al cerrar (`omitAskOnClose`) y aviso si hay una firma en curso.
+    fn close_confirmation(&mut self, ctx: &egui::Context) {
+        if self.proto.is_some() {
+            return;
+        }
+        let busy = self.rt.sign_job.is_some();
+        if ctx.input(|i| i.viewport().close_requested()) && !self.asking_close {
+            let ask = !self.prefs_close_now && (busy || !self.pref_bool("omitAskOnClose", false));
+            if ask {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.asking_close = true;
+            }
+        }
+        if !self.asking_close {
+            return;
+        }
+        let p = self.palette;
+        let msg = if busy { "Hay una firma en curso. Si cierras ahora se interrumpirá." } else { "¿Quieres cerrar AutoFirma?" };
+        let mut decision = None;
+        egui::Modal::new(egui::Id::unique("close_dialog")).show(ctx, |ui| {
+            ui.set_width(380.0);
+            ui.label(RichText::new(msg).size(14.5));
+            if !busy {
+                ui.checkbox(&mut self.dont_ask_close, "No volver a preguntar");
+            }
+            ui.add_space(10.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if widgets::button(ui, &p, widgets::ButtonKind::Primary, None, "Cerrar", true).clicked() {
+                    decision = Some(true);
+                }
+                if widgets::button(ui, &p, widgets::ButtonKind::Secondary, None, "Cancelar", true).clicked() {
+                    decision = Some(false);
+                }
+            });
+        });
+        match decision {
+            Some(true) => {
+                if self.dont_ask_close {
+                    self.prefs.set("omitAskOnClose", Some("true"));
+                }
+                self.asking_close = false;
+                // Segunda petición: ya no se pregunta.
+                self.prefs_close_now = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            Some(false) => self.asking_close = false,
+            None => {}
+        }
+    }
+
+    fn on_help_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::help::HelpAction>) {
+        use super::pages::help::HelpAction;
+        for a in actions {
+            match a {
+                HelpAction::OpenUrl(u) => {
+                    let _ = crate::services::desktop::open(std::path::Path::new(&u));
+                }
+                HelpAction::OpenLogs => {
+                    let _ = crate::services::desktop::reveal(&crate::logging::log_path());
+                }
+                HelpAction::CopyDiagnostics => {
+                    let info = format!(
+                        "AutoFirma-rs {}\nSistema: {} {}\nAlmacén por defecto: {}\nIdioma: {}",
+                        env!("CARGO_PKG_VERSION"),
+                        std::env::consts::OS,
+                        std::env::consts::ARCH,
+                        self.rt.store_spec.display_name(),
+                        crate::i18n::locale()
+                    );
+                    ctx.copy_text(info);
+                    self.rt.toast = Some(("Información copiada al portapapeles".into(), std::time::Instant::now()));
+                }
             }
         }
     }
@@ -259,6 +351,17 @@ impl eframe::App for AutoFirmaApp {
             ctx.set_zoom_factor(z);
         }
         self.pump_jobs(&ctx);
+        if let Some(job) = &mut self.integration_job {
+            for ev in job.poll() {
+                if let crate::services::task::JobEvent::Done(needed) = ev {
+                    self.integration_needed = needed;
+                }
+            }
+            if job.is_finished() {
+                self.integration_job = None;
+            }
+        }
+        self.close_confirmation(&ctx);
         self.handle_dropped_files(&ctx);
         if self.proto.is_some() {
             self.protocol_logic(&ctx);
@@ -294,6 +397,7 @@ impl eframe::App for AutoFirmaApp {
                 ui.set_max_width(ui.available_width().min(900.0));
                 match self.page {
                     Page::Sign => {
+                        self.sign.integration_needed = self.integration_needed;
                         let actions = self.sign.ui(ui, &p, self.files_hovering);
                         self.on_sign_actions(&ctx, actions);
                     }
@@ -314,7 +418,10 @@ impl eframe::App for AutoFirmaApp {
                         let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
                         self.handle_settings_actions(actions);
                     }
-                    other => widgets::page_header(ui, &p, other.label(), Some("En construcción")),
+                    Page::Help => {
+                        let actions = super::pages::help::ui(ui, &p);
+                        self.on_help_actions(&ctx, actions);
+                    }
                 }
             });
         });

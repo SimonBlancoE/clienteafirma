@@ -157,12 +157,13 @@ pub fn long_standing_priority(mut list: Vec<SignValidity>) -> Vec<SignValidity> 
     let expired = list.iter().any(|v| v.validity == Validity::Ko && v.error == Some(ValidityError::CertificateExpired));
     let other_ko = list.iter().any(|v| v.validity == Validity::Ko && v.error != Some(ValidityError::CertificateExpired));
     if expired && !other_ko {
+        // Como Java: se intercambia la posición 0 con la última entrada
+        // "validación incompleta" por atributos longevos.
         if let Some(pos) = list
             .iter()
-            .position(|v| v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked))
+            .rposition(|v| v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked))
         {
-            let item = list.remove(pos);
-            list.insert(0, item);
+            list.swap(0, pos);
         }
     }
     list

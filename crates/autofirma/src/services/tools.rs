@@ -147,3 +147,13 @@ pub fn proposed_path(near: &Path, name: &str) -> PathBuf {
 pub fn dir_format_for(path: &Path) -> DirDocumentFormat {
     DirDocumentFormat::from_save_path(path)
 }
+
+/// Indica si falta la integración básica con los navegadores (certificado
+/// local o protocolo `afirma://`). En instalaciones corporativas la hace el
+/// instalador y no se avisa.
+pub fn integration_needed() -> bool {
+    let ctx = Context::detect(AppIdentity::current());
+    let pfx = afirma_protocol::channel::find_autofirma_pfx(Some(&ctx.app.app_dir)).is_some();
+    let proto = afirma_system::protocol::status(&ctx).registered;
+    !(pfx && proto)
+}

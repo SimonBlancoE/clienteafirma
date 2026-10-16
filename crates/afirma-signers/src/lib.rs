@@ -5,7 +5,6 @@
 pub mod auto;
 pub mod naming;
 pub mod params;
-pub mod pkcs1;
 pub mod registry;
 pub mod validate;
 

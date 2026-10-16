@@ -96,12 +96,25 @@ fn check_input(asic: &[u8]) -> Result<(), AsicError> {
     Ok(())
 }
 
-/// Recorre las entradas en el orden de sus cabeceras locales
-/// (`ZipInputStream`). El visitante devuelve `true` para detenerse.
+/// Recorre las entradas del contenedor. Se usa el directorio central (orden
+/// de las entradas, que coincide con el de las cabeceras locales que lee
+/// `ZipInputStream`); si el ZIP no lo tiene, se leen las cabeceras locales.
+/// Leer por el directorio central admite los ZIP con descriptores de datos
+/// que genera Java (tamaño no disponible en la cabecera local).
 fn walk_entries(
     asic: &[u8],
     mut visit: impl FnMut(&str, &mut dyn Read) -> Result<bool, AsicError>,
 ) -> Result<(), AsicError> {
+    if let Ok(mut archive) = zip::ZipArchive::new(Cursor::new(asic)) {
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).map_err(io)?;
+            let name = file.name().map_err(io)?.to_string();
+            if visit(&name, &mut file)? {
+                return Ok(());
+            }
+        }
+        return Ok(());
+    }
     let mut cursor = Cursor::new(asic);
     loop {
         let entry = zip::read::read_zipfile_from_stream(&mut cursor).map_err(io)?;

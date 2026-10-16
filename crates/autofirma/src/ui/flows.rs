@@ -312,6 +312,12 @@ impl AutoFirmaApp {
                     let _ = crate::services::desktop::open(&p);
                 }
                 SignAction::VerifyOutput(p) => self.verify_path(ctx, p),
+                SignAction::RepairIntegration => {
+                    self.sign.integration_needed = false;
+                    self.integration_needed = false;
+                    self.notify("Integrando AutoFirma con los navegadores…");
+                    self.rt.tool_job = Some(Job::spawn(ctx, "reparar", |_| crate::services::tools::repair()));
+                }
             }
         }
     }
@@ -599,7 +605,17 @@ impl AutoFirmaApp {
                         }
                     }
                 }
-                ToolOutcome::Doctor(rows) => self.tools.doctor = rows,
+                ToolOutcome::Doctor(rows) => {
+                    if self.page != Page::Tools {
+                        let failed = rows.iter().filter(|r| r.ok == Some(false)).count();
+                        self.notify(if failed == 0 {
+                            "AutoFirma está integrado con tus navegadores".to_string()
+                        } else {
+                            format!("Integración incompleta: {failed} comprobaciones con problemas (ver Herramientas)")
+                        });
+                    }
+                    self.tools.doctor = rows;
+                }
                 ToolOutcome::Error(e) => self.tools.result = Some((CalloutKind::Error, "No se ha podido completar la operación".into(), Some(e))),
             }
         }

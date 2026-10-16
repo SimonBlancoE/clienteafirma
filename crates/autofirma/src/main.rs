@@ -6,6 +6,7 @@
 
 mod i18n;
 mod launch;
+mod logging;
 mod services;
 mod ui;
 
@@ -13,6 +14,7 @@ use launch::{GuiStart, Launch};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    logging::init();
     let code = match launch::classify(&args) {
         Launch::Gui(start) => run_gui(start),
         Launch::Protocol(url) => {

@@ -121,6 +121,7 @@ pub enum SignAction {
     OpenFolder(PathBuf),
     VerifyOutput(PathBuf),
     ChooseOutputDir,
+    RepairIntegration,
 }
 
 #[derive(Debug)]
@@ -132,6 +133,8 @@ pub struct SignPage {
     pub store_label: String,
     pub store_ready: bool,
     pub last_error: Option<String>,
+    /// Falta integrar AutoFirma con el navegador (aviso).
+    pub integration_needed: bool,
 }
 
 impl Default for SignPage {
@@ -144,6 +147,7 @@ impl Default for SignPage {
             store_label: "Almacén del sistema".into(),
             store_ready: true,
             last_error: None,
+            integration_needed: false,
         }
     }
 }
@@ -203,6 +207,27 @@ impl SignPage {
             actions.push(SignAction::PickFiles);
         }
         ui.add_space(16.0);
+        if self.integration_needed {
+            widgets::card(ui, p, |ui| {
+                ui.horizontal(|ui| {
+                    widgets::status_circle(ui, icons::GLOBE, 42.0, p.warning, p.warning_soft);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new("Integra AutoFirma con tu navegador").font(FontId::new(14.5, semibold())));
+                        ui.label(
+                            RichText::new("Necesario para firmar en sedes electrónicas. Solo tarda unos segundos.")
+                                .size(12.5)
+                                .color(p.text_muted),
+                        );
+                    });
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUGS_CONNECTED), "Integrar ahora", true).clicked() {
+                            actions.push(SignAction::RepairIntegration);
+                        }
+                    });
+                });
+            });
+            ui.add_space(16.0);
+        }
         self.store_card(ui, p, actions);
         ui.add_space(16.0);
         widgets::callout(

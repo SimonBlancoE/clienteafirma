@@ -16,11 +16,13 @@ pub fn signer(kind: SignerKind) -> Option<Box<dyn Signer>> {
         SignerKind::Cms => Box::new(afirma_cms::CmsSigner),
         SignerKind::CadesAsicS => Box::new(afirma_cms::CadesAsicsSigner),
         SignerKind::Xades => Box::new(afirma_xml::xades::XadesSigner::new()),
+        SignerKind::XmlDSig => Box::new(afirma_xml::xmldsig::XmldsigSigner::new()),
+        SignerKind::Odf => Box::new(afirma_xml::office::odf::OdfSigner::new()),
+        SignerKind::Ooxml => Box::new(afirma_xml::office::ooxml::OoxmlSigner::new()),
         SignerKind::FacturaE => Box::new(afirma_xml::facturae::FacturaeSigner::new()),
         SignerKind::XadesAsicS => Box::new(afirma_xml::asic::XadesAsicSigner::new()),
         SignerKind::Pdf => Box::new(afirma_pdf::PadesSigner::new()),
-        SignerKind::Pkcs1 => Box::new(crate::pkcs1::Pkcs1Signer),
-        SignerKind::XmlDSig | SignerKind::Odf | SignerKind::Ooxml => return extra_signer(kind),
+        SignerKind::Pkcs1 => Box::new(afirma_core::pkcs1::Pkcs1Signer),
         SignerKind::CadesTri
         | SignerKind::CadesAsicSTri
         | SignerKind::FacturaETri
@@ -31,16 +33,13 @@ pub fn signer(kind: SignerKind) -> Option<Box<dyn Signer>> {
     })
 }
 
-/// Firmadores que aún pueden no estar disponibles en todas las
-/// compilaciones (XMLDSig, ODF y OOXML).
-fn extra_signer(kind: SignerKind) -> Option<Box<dyn Signer>> {
-    tracing::debug!("firmador no disponible en esta compilación: {kind:?}");
-    None
-}
-
 /// Firmador para un nombre de formato (sin distinguir mayúsculas), como
-/// `AOSignerFactory.getSigner(String)`.
+/// `AOSignerFactory.getSigner(String)`. `Adobe PDF` usa la variante con ese
+/// nombre de formato.
 pub fn signer_for_format(format: &str) -> Option<Box<dyn Signer>> {
+    if format.eq_ignore_ascii_case(afirma_core::constants::SIGN_FORMAT_PDF) {
+        return Some(Box::new(afirma_pdf::PadesSigner::adobe_pdf()));
+    }
     formats::signer_kind_for_format(format).and_then(signer)
 }
 
