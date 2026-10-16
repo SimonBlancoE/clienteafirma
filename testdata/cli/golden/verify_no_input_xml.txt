@@ -1,0 +1,7 @@
+status: 255
+No se ha especificado un fichero de entrada
+Sintaxis: autofirma.jar verify [opciones...]
+
+Opciones:
+  -gui 		 (Realiza la operacion con entorno grafico.)
+  -i inputfile	 (Ruta del fichero de entrada)

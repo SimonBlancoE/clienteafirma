@@ -1,0 +1,6 @@
+status: 0
+Sintaxis: autofirma.jar verify [opciones...]
+
+Opciones:
+  -gui 		 (Realiza la operacion con entorno grafico.)
+  -i inputfile	 (Ruta del fichero de entrada)

@@ -1,0 +1,184 @@
+# Casos de la línea de comandos comparados con la AutoFirma Java (tools/oracle/cli_goldens.py).
+# nombre<TAB>marcas<TAB>argumentos... Marcas: locale=xx_XX, sig=<fichero de @OUT@>, xmlsig,
+# cmp=exact|prefix|status, os=linux, dev (desviación documentada: prueba específica).
+# @TD@ = testdata, @OUT@ = directorio de salida del caso, @J@ = testdata/cli/java (firmas de Java),
+# @RSA@/@EC@ = -store pkcs12:@TD@/pki/firmante-{rsa,ec}.p12 -password 12341234 -alias firmante-{rsa,ec}.
+help_general_es	locale=es_ES	-help
+help_sign_es	locale=es_ES	sign	-help
+help_cosign_es	locale=es_ES	cosign	-help
+help_countersign_es	locale=es_ES	countersign	-help
+help_listaliases_es	locale=es_ES	listaliases	-help
+help_verify_es	locale=es_ES	verify	-help
+help_batchsign_es	locale=es_ES	batchsign	-help
+help_general_en	locale=en_US	-help
+help_sign_en	locale=en_US	sign	-help
+help_cosign_en	locale=en_US	cosign	-help
+help_countersign_en	locale=en_US	countersign	-help
+help_listaliases_en	locale=en_US	listaliases	-help
+help_verify_en	locale=en_US	verify	-help
+help_batchsign_en	locale=en_US	batchsign	-help
+help_general_ca	locale=ca_ES	-help
+help_sign_ca	locale=ca_ES	sign	-help
+help_cosign_ca	locale=ca_ES	cosign	-help
+help_countersign_ca	locale=ca_ES	countersign	-help
+help_listaliases_ca	locale=ca_ES	listaliases	-help
+help_verify_ca	locale=ca_ES	verify	-help
+help_batchsign_ca	locale=ca_ES	batchsign	-help
+help_general_gl	locale=gl_ES	-help
+help_sign_gl	locale=gl_ES	sign	-help
+help_cosign_gl	locale=gl_ES	cosign	-help
+help_countersign_gl	locale=gl_ES	countersign	-help
+help_listaliases_gl	locale=gl_ES	listaliases	-help
+help_verify_gl	locale=gl_ES	verify	-help
+help_batchsign_gl	locale=gl_ES	batchsign	-help
+help_general_eu	locale=eu_ES	-help
+help_sign_eu	locale=eu_ES	sign	-help
+help_cosign_eu	locale=eu_ES	cosign	-help
+help_countersign_eu	locale=eu_ES	countersign	-help
+help_listaliases_eu	locale=eu_ES	listaliases	-help
+help_verify_eu	locale=eu_ES	verify	-help
+help_batchsign_eu	locale=eu_ES	batchsign	-help
+help_general_va	locale=va_ES	-help
+help_sign_va	locale=va_ES	sign	-help
+help_cosign_va	locale=va_ES	cosign	-help
+help_countersign_va	locale=va_ES	countersign	-help
+help_listaliases_va	locale=va_ES	listaliases	-help
+help_verify_va	locale=va_ES	verify	-help
+help_batchsign_va	locale=va_ES	batchsign	-help
+help_noargs	-
+help_caps	-	-HELP
+help_sign_caps	-	SIGN	-HELP
+unknown_cmd	-	foo
+unknown_cmd_xml	-	foo	-xml
+unknown_cmd_en	locale=en_US	foo
+bare_path	-	@TD@/cades/data/hola.txt
+sign_no_input	-	sign	-o	@OUT@/x.csig	@RSA@
+sign_no_input_en	locale=en_US	sign	-o	@OUT@/x.csig	@RSA@
+sign_no_alias	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_no_output	-	sign	-i	@TD@/cades/data/hola.txt	@RSA@
+cosign_no_output	-	cosign	-i	@TD@/cades/data/hola.txt	@RSA@
+countersign_no_input	-	countersign	@RSA@
+sign_bad_format	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	@RSA@	-format	foo
+sign_bad_format_xml	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	@RSA@	-format	foo	-xml
+sign_input_missing	-	sign	-i	@TD@/no/existe.txt	-o	@OUT@/x.csig	@RSA@
+sign_input_missing_xml	-	sign	-i	@TD@/no/existe.txt	-o	@OUT@/x.csig	@RSA@	-xml
+sign_dup_input	-	sign	-i	@TD@/cades/data/hola.txt	-i	@TD@/cades/data/hola.txt	@RSA@
+sign_alias_filter	-	sign	-alias	a	-filter	b
+sign_filter_alias	-	sign	-filter	b	-alias	a
+sign_last_input	-	sign	-alias	a	-i
+sign_last_config	-	sign	-config
+sign_unknown_param	-	sign	-foo
+sign_unknown_param_xml	-	sign	-foo	-xml
+sign_unknown_param_caps_xml	-	sign	-i	@TD@/cades/data/hola.txt	-XML
+sign_help_mid	-	sign	-i	@TD@/cades/data/hola.txt	-help
+sign_store_unknown	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	bogus
+sign_store_unknown_xml	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	bogus	-xml
+sign_store_windows	os=linux	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	windows
+sign_store_mac	os=linux	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	mac
+sign_p12_missing	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	pkcs12:@TD@/no/existe.p12	-password	x
+sign_p11_missing	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	pkcs11:@TD@/no/lib.so
+sign_bad_password	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	firmante-rsa	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	mala
+sign_bad_password_xml	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	firmante-rsa	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	mala	-xml
+sign_unknown_alias	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	nadie	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_unknown_alias_xml	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	nadie	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234	-xml
+sign_unknown_alias_en	locale=en_US,dev	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	nadie	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_not_p12	cmp=prefix	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-alias	x	-store	pkcs12:@TD@/cades/data/hola.txt	-password	x
+sign_filter_none	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-filter	subject.contains:NADIE	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_config_noeq	dev	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	@RSA@	-config	foo
+sign_bad_algo	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	@RSA@	-algorithm	md5
+sign_out_dir_missing	-	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/no/existe/x.csig	@RSA@
+sign_out_is_dir	os=linux	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@	@RSA@
+sign_in_is_dir	-	sign	-i	@TD@/cades/data	-o	@OUT@/x.csig	@RSA@
+countersign_pades	-	countersign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/x.pdf	@RSA@	-format	pades
+sign_certgui_nochooser	dev	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/x.csig	-certgui	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+list_rsa	-	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+list_rsa_xml	-	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234	-xml
+list_ec	-	listaliases	-store	pkcs12:@TD@/pki/firmante-ec.p12	-password	12341234
+list_legacy	-	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa-legacy.p12	-password	12341234
+list_bad_password	-	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	mala
+list_bad_password_xml	-	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	mala	-xml
+list_p12_missing	-	listaliases	-store	pkcs12:@TD@/no/existe.p12	-password	x
+list_store_unknown	-	listaliases	-store	bogus
+list_store_windows	os=linux	listaliases	-store	windows
+list_p11_missing	-	listaliases	-store	pkcs11:@TD@/no/lib.so
+list_dup_store	-	listaliases	-store	a	-store	b
+list_not_p12	cmp=prefix	listaliases	-store	pkcs12:@TD@/cades/data/hola.txt	-password	x
+list_no_password	dev	listaliases	-store	pkcs12:@TD@/pki/firmante-rsa.p12
+sign_cades	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@	-format	cades
+sign_auto_txt	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@
+sign_auto_bin	sig=out.csig	sign	-i	@TD@/cades/data/binario.bin	-o	@OUT@/out.csig	@RSA@	-format	AUTO
+sign_auto_pdf	sig=out.pdf	sign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/out.pdf	@RSA@
+sign_auto_xml	sig=out.xsig	sign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/out.xsig	@RSA@
+sign_pades	sig=out.pdf	sign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/out.pdf	@RSA@	-format	PAdES
+sign_pades_visible	sig=out.pdf	sign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/out.pdf	@RSA@	-format	pades	-config	signaturePositionOnPageLowerLeftX=100\nsignaturePositionOnPageLowerLeftY=100\nsignaturePositionOnPageUpperRightX=200\nsignaturePositionOnPageUpperRightY=200\nsignaturePage=1
+sign_pades_badpage	sig=out.pdf	sign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/out.pdf	@RSA@	-format	pades	-config	signReason=Prueba\nsignaturePositionOnPageLowerLeftX=100\nsignaturePositionOnPageLowerLeftY=100\nsignaturePositionOnPageUpperRightX=200\nsignaturePositionOnPageUpperRightY=200\nsignaturePage=99
+sign_xades	sig=out.xsig	sign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/out.xsig	@RSA@	-format	xades
+sign_xades_txt	sig=out.xsig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.xsig	@RSA@	-format	xades
+sign_xades_enveloping	sig=out.xsig	sign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/out.xsig	@RSA@	-format	xades	-config	format=XAdES Enveloping\nsignerClaimedRoles=Director
+sign_xades_enveloped	sig=out.xsig	sign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/out.xsig	@RSA@	-format	xades	-config	format=XAdES Enveloped
+sign_facturae	sig=out.xsig	sign	-i	@TD@/xades/inputs/factura_sinFirmar.xml	-o	@OUT@/out.xsig	@RSA@	-format	facturae
+sign_ooxml	sig=out.docx,dev	sign	-i	@TD@/office/inputs/in.docx	-o	@OUT@/out.docx	@RSA@	-format	ooxml
+sign_odf	sig=out.odt	sign	-i	@TD@/office/inputs/in.odt	-o	@OUT@/out.odt	@RSA@	-format	odf
+sign_auto_docx	sig=out.csig	sign	-i	@TD@/office/inputs/in.docx	-o	@OUT@/out.csig	@RSA@
+sign_sha1	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@	-algorithm	sha1
+sign_sha256	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@	-algorithm	sha256
+sign_sha384_withrsa	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@	-algorithm	SHA384withRSA
+sign_ec	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@EC@
+sign_ec_xades	sig=out.xsig	sign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/out.xsig	@EC@	-algorithm	sha256
+sign_ec_pades	sig=out.pdf	sign	-i	@TD@/cades/data/documento.pdf	-o	@OUT@/out.pdf	@EC@
+sign_filter_ok	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	-filter	subject.contains:JUAN	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_filter_nonexpired	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	-filter	nonexpired:;keyusage.nonrepudiation:true	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234
+sign_xml_stdout	xmlsig	sign	-i	@TD@/cades/data/hola.txt	@RSA@	-xml
+sign_xml_with_output	sig=out.csig	sign	-i	@TD@/cades/data/hola.txt	-o	@OUT@/out.csig	@RSA@	-xml
+sign_gui_ignored_cosign	-	cosign	-gui	-i	@TD@/cades/data/hola.txt	@RSA@
+cosign_cades	sig=out.csig	cosign	-i	@J@/sign_cades.csig	-o	@OUT@/out.csig	@RSA@	-format	cades
+cosign_auto	sig=out.csig	cosign	-i	@J@/sign_cades.csig	-o	@OUT@/out.csig	@EC@
+cosign_xades	sig=out.xsig	cosign	-i	@J@/sign_xades.xsig	-o	@OUT@/out.xsig	@EC@	-format	xades
+cosign_pades	sig=out.pdf	cosign	-i	@J@/sign_pades.pdf	-o	@OUT@/out.pdf	@EC@	-format	pades
+countersign_cades	sig=out.csig	countersign	-i	@J@/cosign_cades.csig	-o	@OUT@/out.csig	@EC@	-format	cades
+countersign_cades_tree	sig=out.csig	countersign	-i	@J@/countersign_cades.csig	-o	@OUT@/out.csig	@RSA@	-format	cades	-config	target=tree
+countersign_cades_leafs	sig=out.csig	countersign	-i	@J@/countersign_cades.csig	-o	@OUT@/out.csig	@RSA@	-format	cades	-config	target=leafs
+countersign_xades	sig=out.xsig	countersign	-i	@J@/cosign_xades.xsig	-o	@OUT@/out.xsig	@RSA@	-format	xades
+countersign_xades_tree	sig=out.xsig	countersign	-i	@J@/countersign_xades.xsig	-o	@OUT@/out.xsig	@EC@	-format	xades	-config	target=TREE
+countersign_xml_stdout	xmlsig	countersign	-i	@J@/sign_cades.csig	@EC@	-format	cades	-xml
+verify_no_input	-	verify
+verify_no_input_xml	-	verify	-xml
+verify_missing_file	-	verify	-i	@TD@/no/existe
+verify_dir	os=linux	verify	-i	@TD@/cades/data
+verify_not_signature	-	verify	-i	@TD@/cades/data/hola.txt
+verify_not_signature_en	locale=en_US	verify	-i	@TD@/cades/data/hola.txt
+verify_pdf_unsigned	-	verify	-i	@TD@/cades/data/documento.pdf
+verify_xml_unsigned	-	verify	-i	@TD@/cades/data/documento.xml
+verify_docx_unsigned	-	verify	-i	@TD@/office/inputs/in.docx
+verify_cades_fixture	-	verify	-i	@TD@/cades/cades_impl_sha256.java.csig
+verify_cades_fixture_xml	-	verify	-i	@TD@/cades/cades_impl_sha256.java.csig	-xml
+verify_cades_expired	-	verify	-i	@TD@/cades/cades_caducado.java.csig
+verify_cades_explicit	-	verify	-i	@TD@/cades/cades_expl_sha256.java.csig
+verify_xades_fixture	-	verify	-i	@TD@/xades/java/xades-enveloped.xml
+verify_xades_detached	-	verify	-i	@TD@/xades/java/xades-detached-bin.xml
+verify_j_sign_cades	-	verify	-i	@J@/sign_cades.csig
+verify_j_sign_pades	-	verify	-i	@J@/sign_pades.pdf
+verify_j_sign_pades_visible	-	verify	-i	@J@/sign_pades_visible.pdf
+verify_j_sign_xades	-	verify	-i	@J@/sign_xades.xsig
+verify_j_sign_xades_txt	-	verify	-i	@J@/sign_xades_txt.xsig
+verify_j_sign_xades_enveloping	-	verify	-i	@J@/sign_xades_enveloping.xsig
+verify_j_sign_facturae	-	verify	-i	@J@/sign_facturae.xsig
+verify_word_signed	-	verify	-i	@TD@/office/inputs/word-signed.docx
+verify_j_sign_odf	-	verify	-i	@J@/sign_odf.odt
+verify_j_sign_ec	-	verify	-i	@J@/sign_ec.csig
+verify_j_cosign_cades	-	verify	-i	@J@/cosign_cades.csig
+verify_j_countersign_cades_tree	-	verify	-i	@J@/countersign_cades_tree.csig
+verify_j_countersign_xades_tree	-	verify	-i	@J@/countersign_xades_tree.xsig
+verify_j_cosign_pades	-	verify	-i	@J@/cosign_pades.pdf
+batch_no_input	-	batchsign	-o	@OUT@/r.xml	@RSA@	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_no_alias	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_no_output	-	batchsign	-i	@TD@/cades/data/documento.xml	@RSA@	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_no_urls	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	@RSA@
+batch_only_preurl	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	@RSA@	-preurl	http://127.0.0.1:9/pre
+batch_bad_url	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	@RSA@	-preurl	foo	-posturl	http://x
+batch_bad_scheme	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	@RSA@	-preurl	http://x	-posturl	xyz:abc
+batch_unknown_alias	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	-alias	nadie	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_filter_none	-	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	-filter	subject.contains:NADIE	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	12341234	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_conn_error	dev	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	@RSA@	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_bad_password	dev	batchsign	-i	@TD@/cades/data/documento.xml	-o	@OUT@/r.xml	-alias	firmante-rsa	-store	pkcs12:@TD@/pki/firmante-rsa.p12	-password	mala	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post
+batch_xml_no_output	dev	batchsign	-i	@TD@/cades/data/documento.xml	@RSA@	-xml	-preurl	http://127.0.0.1:9/pre	-posturl	http://127.0.0.1:9/post

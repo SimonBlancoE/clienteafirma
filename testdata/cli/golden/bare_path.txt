@@ -1,0 +1,14 @@
+status: 255
+Comando no reconocido: @TD@/cades/data/hola.txt
+Sintaxis: autofirma.jar cmd [opciones...]
+
+Comandos cmd:
+
+  sign		 (firma de fichero)
+  cosign	 (cofirma de fichero)
+  countersign	 (contrafirma de fichero)
+  listaliases	 (lista los alias disponibles en el almacen)
+  verify	 (abre un panel con la informacion de validacion de una firma o certificado)
+  batchsign	 (firma/multifirma de lotes de ficheros)
+
+Utilice "autofirma.jar cmd -help" para ver la sintaxis del comando "cmd"

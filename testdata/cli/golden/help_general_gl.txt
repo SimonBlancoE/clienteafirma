@@ -1,0 +1,15 @@
+status: 0
+Ferramenta de sinatura de documentos.
+
+Sintaxe: autofirma.jar cmd [opcións...]
+
+Comandos cmd:
+
+  sign		 (sinatura de ficheiro)
+  cosign	 (cofirma de ficheiro)
+  countersign	 (contrafirma de ficheiro)
+  listaliases	 (lista os alias dispoñibles no almacen)
+  verify	 (abre un panel coa informacion de validacion dunha firma ou certificado)
+  batchsign	 (asina/multisinatura de lotes de ficheiros)
+
+Utilice "autofirma.jar cmd -help" para ver a sintaxe do comando "cmd"

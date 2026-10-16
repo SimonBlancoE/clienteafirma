@@ -1,0 +1,15 @@
+status: 0
+Dokumentuak sinatzeko tresna.
+
+Sintaxia: autofirma.jar cmd [aukerak...]
+
+Komandoak cmd:
+
+  sign		 (fitxategiaren sinadura)
+  cosign	 (fitxategien berrsinadura)
+  countersign	 (fitxategiaren baieztapena)
+  listaliases	 (biltegian dauden ezizenen zerrenda)
+  verify	 (sinadura edo ziurtagiri baten baliozkotze-informazioa duen panel bat irekitzen du)
+  batchsign	 (fitxategien sorten sinadura/sinadura anitza)
+
+Erabili "autofirma.jar cmd -help" komandoaren sintaxia ikusteko

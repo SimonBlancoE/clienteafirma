@@ -1,0 +1,15 @@
+status: 0
+Document signing tool.
+
+Syntax: autofirma.jar cmd [options...]
+
+Commands cmd:
+
+  sign		 (file signing)
+  cosign	 (file co-signing)
+  countersign	 (file counter)
+  listaliases	 (list the aliases available in the warehouse)
+  verify	 (opens a panel with the validation information of a signature or certificate)
+  batchsign	 (signature/multi-signature file lots)
+
+Use "autofirma.jar cmd -help" to view the "cmd" command syntax

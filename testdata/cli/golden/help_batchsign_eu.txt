@@ -1,0 +1,20 @@
+status: 0
+Sintaxia: autofirma.jar batchsign [aukerak...]
+
+Aukerak:
+  -i inputfile		 (Eragiketaren konfigurazio-fitxategiaren bidea)
+  -o outputfile		 (Fitxategiaren ibilbidea eragiketaren emaitza den XMLrekin)
+  -store		 (Gakoen biltegia ezartzen du. Lehenespenez, sistemarena)
+  	 auto		 (Sistemaren gakoen biltegia)
+  	 windows	 (Windowseko gakoen biltegia)
+  	 mac		 (MakOS gakoen biltegia)
+  	 mozilla	 (Mozilla Firefox-en gakoen biltegia)
+  	 dni		 (NAN elektronikoa)
+  	 pkcs12:p12file	 (PKCS#12 biltegia. "p12file" biltegiaren ibilbidea da)
+  	 pkcs11:p11file	 (PKCS#11 biltegia. "p11file" kontrolatzailearen ibilbidea da)
+  -password password	 (Ezarri biltegiko pasahitza)
+  -alias alias		 (Sinadura-ziurtagiriaren ezizena)
+  -filter filter	 (Sinadura-ziurtagiria hautatzeko iragazkia)
+  -preurl url		 (Aurreirmaren kanpo-zerbitzuaren URLa)
+  -posturl url		 (Postsinadura-zerbitzuaren kanpoko URLa)
+  -xml			 (Formateatu erantzuna XML gisa)

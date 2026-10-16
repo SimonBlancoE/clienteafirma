@@ -1,0 +1,2 @@
+status: 0
+<afirma><result>true</result><response><msg>La operacion ha terminado correctamente </msg></response></afirma>

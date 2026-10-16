@@ -1,0 +1,2 @@
+status: 255
+CAdES no permite huellas digitales MD2 o MD5 (Decision 130/2011 CE)

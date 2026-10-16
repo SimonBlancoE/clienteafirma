@@ -1,0 +1,6 @@
+status: 0
+Syntax: autofirma.jar verify [options...]
+
+Options:
+  -gui 		 (Perform the operation with graphic environment. Priority over %0)
+  -i inputfile	 (Input file path)

@@ -1,0 +1,2 @@
+status: 255
+El almacen de claves seleccionado no esta disponible: La plataforma de navegador 'Llavero de Mac' mas sistema operativo 'LINUX' no esta soportada

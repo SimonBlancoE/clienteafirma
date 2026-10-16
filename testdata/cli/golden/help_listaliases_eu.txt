@@ -1,0 +1,13 @@
+status: 0
+Sintaxia: autofirma.jar listaliases [aukerak...]
+
+Aukerak:
+  -store		 (Gakoen biltegia ezartzen du. Lehenespenez, sistemarena)
+  	 auto		 (Sistemaren gakoen biltegia)
+  	 windows	 (Windowseko gakoen biltegia)
+  	 mac		 (MakOS gakoen biltegia)
+  	 mozilla	 (Mozilla Firefox-en gakoen biltegia)
+  	 dni		 (NAN elektronikoa)
+  	 pkcs12:p12file	 (PKCS#12 biltegia. "p12file" biltegiaren ibilbidea da)
+  -password password	 (Ezarri biltegiko pasahitza)
+  -xml			 (Formateatu erantzuna XML gisa)

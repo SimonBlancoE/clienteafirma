@@ -1,0 +1,6 @@
+status: 0
+Sintaxia: autofirma.jar verify [aukerak...]
+
+Aukerak:
+  -gui 		 (Egin eragiketa ingurune grafikoarekin. Lehentasuna du %0ren aldean)
+  -i inputfile	 (Sarrera-fitxategiaren bidea)

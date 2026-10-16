@@ -1,0 +1,2 @@
+status: 255
+<afirma><result>false</result><response><msg>No se reconoce el parametro -XML</msg></response></afirma>

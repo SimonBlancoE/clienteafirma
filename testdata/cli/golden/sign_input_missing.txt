@@ -1,0 +1,2 @@
+status: 255
+El fichero de entrada no existe: @TD@/no/existe.txt

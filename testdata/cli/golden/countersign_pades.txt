@@ -1,0 +1,2 @@
+status: 255
+No es posible realizar contrafirmas de ficheros PDF

@@ -1,0 +1,2 @@
+status: 0
+<afirma><result>ok</result><response><alias>firmante-rsa</alias></response></afirma>

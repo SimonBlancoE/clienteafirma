@@ -1,0 +1,15 @@
+status: 0
+Eina de signatura de documents.
+
+Sintaxi: autofirma.jar cmd [opcions...]
+
+Comandos cmd:
+
+  sign		 (signatura de fitxer)
+  cosign	 (cosignatura de fitxer)
+  countersign	 (contrasigna de fitxer)
+  listaliases	 (llista els àlies disponibles en l'almacen)
+  verify	 (obre un panell amb la informacion de validacion d'una signatura o certificat)
+  batchsign	 (signa/multisignatura de lots de fitxers)
+
+Utilitzi "autofirma.jar cmd -help" per a veure la sintaxi del comando "cmd"

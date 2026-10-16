@@ -1,0 +1,2 @@
+status: 255
+No hay permisos de escritura en el directorio especificado para el fichero de salida: @OUT@/no/existe/x.csig

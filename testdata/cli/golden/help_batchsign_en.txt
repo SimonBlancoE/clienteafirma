@@ -1,0 +1,20 @@
+status: 0
+Syntax: autofirma.jar batchsign [options...]
+
+Options:
+  -i inputfile		 (Operating configuration file path)
+  -o outputfile		 (File path with XML operating result)
+  -store		 (Sets the store of keys. By default, the system)
+  	 auto		 (Store system keys)
+  	 windows	 (Store Windows Keys)
+  	 mac		 (Store macOS keys)
+  	 mozilla	 (Store Mozilla Firefox Keys)
+  	 dni		 (Electronic ID)
+  	 pkcs12:p12file	 (Store PKCS#12. "p12file" is the stock route)
+  	 pkcs11:p11file	 (Store PKCS#11. "p11file" is the driver path)
+  -password password	 (Sets the back of the store)
+  -alias alias		 (Alias of signature certificate)
+  -filter filter	 (Filter to select the signing certificate)
+  -preurl url		 (External Presignature Service URL)
+  -posturl url		 (External post-signature service URL)
+  -xml			 (Format the answer as XML)

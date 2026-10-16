@@ -1,0 +1,20 @@
+status: 0
+Sintaxe: autofirma.jar batchsign [opcións...]
+
+Opcións:
+  -i inputfile		 (Ruta do ficheiro de configuracion da operacion)
+  -o outputfile		 (Ruta do ficheiro co XML resultado da operacion)
+  -store		 (Establece o almacen de claves. Por defecto, o do sistema)
+  	 auto		 (Almacen de claves do sistema)
+  	 windows	 (Almacen de claves de Windows)
+  	 mac		 (Almacen de claves de macOS)
+  	 mozilla	 (Almacen de claves de Mozilla Firefox)
+  	 dni		 (DNI electronico)
+  	 pkcs12:p12file	 (Almacen PKCS#12. "p12file" é a ruta do almacen)
+  	 pkcs11:p11file	 (Almacen PKCS#11. "p11file" é a ruta do controlador)
+  -password password	 (Establece a contrasena do almacen)
+  -alias alias		 (Alias do certificado de firma)
+  -filter filter	 (Filtro para seleccionar o certificado de firma)
+  -preurl url		 (URL do servizo externo de prefirma)
+  -posturl url		 (URL do servizo externo de postfirma)
+  -xml			 (Formatea a resposta como XML)

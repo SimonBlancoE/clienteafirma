@@ -1,0 +1,2 @@
+status: 255
+No se ha indicado la configuración del formato de firma

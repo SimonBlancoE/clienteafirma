@@ -1,0 +1,6 @@
+status: 0
+Sintaxi: autofirma.jar verify [opcions...]
+
+Opcions:
+  -gui 		 (Realitza l'operacion amb entorn grafico. Té prioritat sobre %0)
+  -i inputfile	 (Ruta del fitxer d'entrada)

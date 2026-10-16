@@ -1,0 +1,2 @@
+status: 255
+No se ha encontrado ninguna entrada en el almacen con el alias 'nadie', puede listar las entradas actuales con el comando "listaliases"

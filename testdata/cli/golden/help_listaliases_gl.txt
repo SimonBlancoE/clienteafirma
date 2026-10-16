@@ -1,0 +1,13 @@
+status: 0
+Sintaxe: autofirma.jar listaliases [opcións...]
+
+Opcións:
+  -store		 (Establece o almacen de claves. Por defecto, o do sistema)
+  	 auto		 (Almacen de claves do sistema)
+  	 windows	 (Almacen de claves de Windows)
+  	 mac		 (Almacen de claves de macOS)
+  	 mozilla	 (Almacen de claves de Mozilla Firefox)
+  	 dni		 (DNI electronico)
+  	 pkcs12:p12file	 (Almacen PKCS#12. "p12file" é a ruta do almacen)
+  -password password	 (Establece a contrasena do almacen)
+  -xml			 (Formatea a resposta como XML)

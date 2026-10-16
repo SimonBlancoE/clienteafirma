@@ -1,0 +1,2 @@
+status: 255
+El fichero PKCS#12 indicado no existe: @TD@/no/existe.p12

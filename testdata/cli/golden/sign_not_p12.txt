@@ -1,0 +1,2 @@
+status: 255
+El almacen PKCS#12 / PFX no es valido o no pudo cargarse

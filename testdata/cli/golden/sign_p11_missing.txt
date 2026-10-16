@@ -1,0 +1,2 @@
+status: 255
+La biblioteca PKCS#11 indicada no existe: @TD@/no/lib.so

@@ -1,0 +1,3 @@
+status: 0
+Firma no válida: no se encuentra la firma dentro del documento
+

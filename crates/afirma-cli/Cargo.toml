@@ -1,0 +1,30 @@
+[package]
+name = "afirma-cli"
+description = "Línea de comandos de AutoFirma-rs: sign, cosign, countersign, verify, listaliases, batchsign, huellas digitales e integración con el sistema"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+# Implementación de `SystemOps` (install, uninstall, doctor, restore-config) con el crate
+# `afirma-system`. La aplicación puede activarla o conectar su propia implementación.
+afirma-system = ["dep:afirma-system"]
+
+[dependencies]
+afirma-core.workspace = true
+afirma-signers.workspace = true
+afirma-keystores.workspace = true
+afirma-hash.workspace = true
+afirma-protocol.workspace = true
+afirma-xml.workspace = true
+afirma-pdf.workspace = true
+afirma-system = { workspace = true, optional = true }
+chrono.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+base64.workspace = true

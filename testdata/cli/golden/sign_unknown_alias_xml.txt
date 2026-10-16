@@ -1,0 +1,2 @@
+status: 255
+<afirma><result>false</result><response><msg>No se hay ninguna entrada en el almacen con el alias indicado: nadie</msg></response></afirma>

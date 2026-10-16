@@ -1,0 +1,13 @@
+status: 0
+Syntax: autofirma.jar listaliases [options...]
+
+Options:
+  -store		 (Sets the store of keys. By default, the system)
+  	 auto		 (Store system keys)
+  	 windows	 (Store Windows Keys)
+  	 mac		 (Store macOS keys)
+  	 mozilla	 (Store Mozilla Firefox Keys)
+  	 dni		 (Electronic ID)
+  	 pkcs12:p12file	 (Store PKCS#12. "p12file" is the stock route)
+  -password password	 (Sets the back of the store)
+  -xml			 (Format the answer as XML)

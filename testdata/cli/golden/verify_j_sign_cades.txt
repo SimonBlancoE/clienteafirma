@@ -1,0 +1,4 @@
+status: 0
+Validación incompleta: no se puede comprobar la validez por no tener los datos firmados
+Firma válida
+
