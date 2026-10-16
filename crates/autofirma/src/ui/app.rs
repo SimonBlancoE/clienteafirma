@@ -70,6 +70,8 @@ pub struct AutoFirmaApp {
     integration_job: Option<crate::services::task::Job<(), bool>>,
     asking_close: bool,
     prefs_close_now: bool,
+    /// macOS: ventana aún oculta a la espera de eventos de apertura del sistema.
+    launch_grace: Option<std::time::Instant>,
     dont_ask_close: bool,
 }
 
@@ -98,6 +100,7 @@ impl AutoFirmaApp {
             integration_job: None,
             asking_close: false,
             prefs_close_now: false,
+            launch_grace: None,
             dont_ask_close: false,
             prefs: if std::env::var_os("AF_DEMO").is_some() {
                 Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() })
@@ -121,8 +124,16 @@ impl AutoFirmaApp {
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
         }
+        if crate::platform::launch_events_by_message() && start.is_empty() && std::env::var_os("AF_DEMO").is_none() {
+            app.launch_grace = Some(std::time::Instant::now());
+        }
+        crate::platform::init(&cc.egui_ctx);
+        app.rt.cli_sign = start.cli_sign;
         if !start.sign_files.is_empty() {
             app.load_files(&cc.egui_ctx, start.sign_files);
+        }
+        if let Some(h) = start.hash {
+            app.start_hash_request(&cc.egui_ctx, h);
         }
         if let Some(url) = start.protocol_url {
             let rx = crate::services::protocol::spawn_launcher(url, cc.egui_ctx.clone());
@@ -240,6 +251,53 @@ impl AutoFirmaApp {
         }
     }
 
+    /// Peticiones de apertura del sistema (macOS: URL afirma:// y ficheros
+    /// abiertos desde el Finder o el Dock).
+    fn pump_platform(&mut self, ctx: &egui::Context) {
+        use crate::platform::Opened;
+        for item in crate::platform::take_opened() {
+            match item {
+                Opened::Url(url) => {
+                    // Cada invocación del navegador se atiende en su propio
+                    // proceso, con su ventana compacta, como en la línea de
+                    // comandos de los demás sistemas.
+                    let spawned = std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg(&url).spawn());
+                    if let Err(e) = spawned {
+                        tracing::error!("No se ha podido atender la URL del navegador: {e}");
+                    }
+                    if self.launch_grace.take().is_some() {
+                        // La aplicación se abrió solo para esta URL.
+                        self.prefs_close_now = true;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        return;
+                    }
+                }
+                Opened::File(path) => {
+                    if self.proto.is_some() {
+                        continue;
+                    }
+                    self.launch_grace = None;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+                    if matches!(ext.as_str(), "csig" | "xsig") {
+                        self.verify_path(ctx, path);
+                    } else {
+                        self.load_files(ctx, vec![path]);
+                    }
+                }
+            }
+        }
+        if let Some(t) = self.launch_grace {
+            if t.elapsed() >= std::time::Duration::from_millis(700) {
+                self.launch_grace = None;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+
     fn on_help_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::help::HelpAction>) {
         use super::pages::help::HelpAction;
         for a in actions {
@@ -333,6 +391,7 @@ impl AutoFirmaApp {
 
 impl eframe::App for AutoFirmaApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.pump_platform(ctx);
         // Con la ventana oculta (modo protocolo) también hay que atender las
         // peticiones de la página.
         if self.proto.is_some() {

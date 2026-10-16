@@ -33,6 +33,16 @@ directories.workspace = true
 afirma-protocol.workspace = true
 afirma-system.workspace = true
 afirma-hash.workspace = true
+afirma-cli = { workspace = true, features = ["afirma-system"] }
+rpassword = "7"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSAppleEventManager", "NSArray", "NSString", "NSURL", "NSObject"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder"] }
 
 [build-dependencies]
 # Recursos de Windows (icono, versión y manifiesto). build.rs solo los compila cuando el

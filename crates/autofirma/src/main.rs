@@ -4,9 +4,11 @@
 // se engancha a la consola del proceso padre si existe.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod cli;
 mod i18n;
 mod launch;
 mod logging;
+mod platform;
 mod services;
 mod ui;
 
@@ -15,21 +17,19 @@ use launch::{GuiStart, Launch};
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     logging::init();
+    platform::early_init();
     let code = match launch::classify(&args) {
         Launch::Gui(start) => run_gui(start),
         Launch::Protocol(url) => {
             let code = run_gui(GuiStart { protocol_url: Some(url), ..Default::default() });
             if code == 0 { ui::protocol_flow::EXIT_CODE.load(std::sync::atomic::Ordering::SeqCst) } else { code }
         }
-        Launch::Cli(args) => {
-            eprintln!("Línea de comandos aún no conectada: {args:?}");
-            1
-        }
+        Launch::Cli(args) => cli::run(&args),
     };
     std::process::exit(code);
 }
 
-fn native_options(renderer: eframe::Renderer, compact: bool) -> eframe::NativeOptions {
+fn native_options(renderer: eframe::Renderer, compact: bool, hidden: bool) -> eframe::NativeOptions {
     let (size, min) = if compact { ([560.0, 700.0], [460.0, 520.0]) } else { ([1100.0, 740.0], [760.0, 560.0]) };
     let mut viewport = eframe::egui::ViewportBuilder::default();
     if compact {
@@ -43,8 +43,10 @@ fn native_options(renderer: eframe::Renderer, compact: bool) -> eframe::NativeOp
             .with_title("AutoFirma")
             .with_inner_size(size)
             .with_min_inner_size(min)
-            // En modo protocolo la ventana solo aparece si hace falta al usuario.
-            .with_visible(!compact)
+            // En modo protocolo la ventana solo aparece si hace falta al usuario;
+            // en macOS, sin argumentos, se espera un instante por si el sistema
+            // envía una URL afirma:// o ficheros.
+            .with_visible(!compact && !hidden)
             .with_app_id("autofirma")
             .with_icon(
                 eframe::icon_data::from_png_bytes(include_bytes!("../../../packaging/icons/autofirma-256.png"))
@@ -71,7 +73,11 @@ fn run_gui(start: GuiStart) -> i32 {
         let start = start.clone();
         let result = eframe::run_native(
             "AutoFirma",
-            native_options(renderer, start.protocol_url.is_some()),
+            native_options(
+                renderer,
+                start.protocol_url.is_some(),
+                platform::launch_events_by_message() && start.is_empty(),
+            ),
             Box::new(move |cc| Ok(Box::new(ui::AutoFirmaApp::new(cc, start)))),
         );
         match result {

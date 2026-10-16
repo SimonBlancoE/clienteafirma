@@ -22,15 +22,39 @@ pub struct GuiStart {
     pub verify_file: Option<PathBuf>,
     /// URL `afirma://` (modo protocolo, ventana compacta).
     pub protocol_url: Option<String>,
+    /// Opciones de `sign|cosign|countersign -gui` (formato, `-config`...).
+    pub cli_sign: Option<CliSign>,
+    /// `createdigest`/`checkdigest -gui`.
+    pub hash: Option<afirma_hash::cli::GuiRequest>,
+}
+
+/// Opciones de firma de la línea de comandos para la interfaz.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CliSign {
+    /// Formato pedido (`None`: el que elija la aplicación).
+    pub format: Option<String>,
+    pub cosign: bool,
+    pub countersign: bool,
+    /// Parámetros de `-config`, que se aplican sobre los de las preferencias.
+    pub extra: afirma_core::ExtraParams,
+    /// Algoritmo de huella (`SHA512`...) si se indicó `-algorithm`.
+    pub algorithm: Option<String>,
+}
+
+impl GuiStart {
+    /// Arranque sin nada que abrir (en macOS, la URL o los ficheros pueden
+    /// llegar después como eventos del sistema).
+    pub fn is_empty(&self) -> bool {
+        self.sign_files.is_empty() && self.verify_file.is_none() && self.protocol_url.is_none() && self.hash.is_none()
+    }
 }
 
 /// Clasifica los argumentos (sin el nombre del programa).
 ///
 /// - Sin argumentos: interfaz gráfica.
 /// - `afirma://...` (sin distinguir mayúsculas): protocolo.
-/// - `sign|cosign|countersign ... -gui -i <fichero>`: interfaz con el fichero
-///   cargado (lo que usa el menú contextual de Windows).
-/// - `verify -gui -i <fichero>`: verificación en la interfaz.
+/// - `sign|cosign|countersign|verify ... -gui` y demás órdenes: línea de
+///   comandos, que puede pedir abrir la interfaz (menú contextual de Windows).
 /// - Una o varias rutas de ficheros existentes: interfaz con esos ficheros
 ///   (mejora: asociación de ficheros y "Abrir con" en Linux y macOS).
 /// - Cualquier otra cosa: línea de comandos.
@@ -42,18 +66,6 @@ pub fn classify(args: &[String]) -> Launch {
     // macOS añade -psn_X_Y al abrir desde el Finder.
     if first.starts_with("-psn_") {
         return Launch::Gui(GuiStart::default());
-    }
-    let cmd = first.to_lowercase();
-    let has_gui = args.iter().skip(1).any(|a| a == "-gui");
-    let input = args.windows(2).find(|w| w[0] == "-i").map(|w| PathBuf::from(&w[1]));
-    if has_gui {
-        match cmd.as_str() {
-            "sign" | "cosign" | "countersign" => {
-                return Launch::Gui(GuiStart { sign_files: input.into_iter().collect(), ..Default::default() });
-            }
-            "verify" => return Launch::Gui(GuiStart { verify_file: input, ..Default::default() }),
-            _ => {}
-        }
     }
     let paths: Vec<PathBuf> = args.iter().map(PathBuf::from).collect();
     if !first.starts_with('-') && paths.iter().all(|p| p.exists()) {
@@ -74,14 +86,7 @@ mod tests {
     fn classification() {
         assert_eq!(classify(&[]), Launch::Gui(GuiStart::default()));
         assert_eq!(classify(&s(&["AFIRMA://websocket?v=4"])), Launch::Protocol("AFIRMA://websocket?v=4".into()));
-        assert_eq!(
-            classify(&s(&["sign", "-gui", "-i", "/tmp/x.pdf"])),
-            Launch::Gui(GuiStart { sign_files: vec!["/tmp/x.pdf".into()], ..Default::default() })
-        );
-        assert_eq!(
-            classify(&s(&["verify", "-gui", "-i", "a.csig"])),
-            Launch::Gui(GuiStart { verify_file: Some("a.csig".into()), ..Default::default() })
-        );
+        assert_eq!(classify(&s(&["sign", "-gui", "-i", "/tmp/x.pdf"])), Launch::Cli(s(&["sign", "-gui", "-i", "/tmp/x.pdf"])));
         assert_eq!(classify(&s(&["sign", "-i", "a"])), Launch::Cli(s(&["sign", "-i", "a"])));
         assert_eq!(classify(&s(&["-help"])), Launch::Cli(s(&["-help"])));
         assert_eq!(classify(&s(&["-psn_0_123"])), Launch::Gui(GuiStart::default()));

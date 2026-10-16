@@ -48,6 +48,8 @@ pub struct Runtime {
     pub step: SignStep,
     pub visible_params: Option<ExtraParams>,
     pub toast: Option<(String, std::time::Instant)>,
+    /// Opciones de `sign -gui` de la línea de comandos.
+    pub cli_sign: Option<crate::launch::CliSign>,
 }
 
 impl Runtime {
@@ -65,6 +67,7 @@ impl Runtime {
             tool_job: None,
             certs_job: None,
             step: SignStep::Idle,
+            cli_sign: None,
             visible_params: None,
             toast: None,
         }
@@ -99,6 +102,35 @@ impl AutoFirmaApp {
         }));
     }
 
+    /// `createdigest`/`checkdigest -gui`: abre la herramienta con los datos de
+    /// la línea de comandos y, si no falta nada, la ejecuta.
+    pub(crate) fn start_hash_request(&mut self, ctx: &egui::Context, req: afirma_hash::cli::GuiRequest) {
+        use super::pages::tools::{Tool, ToolsAction};
+        use afirma_hash::cli::GuiRequest;
+        self.page = Page::Tools;
+        match req {
+            GuiRequest::CreateDigest { path, algorithm, format, recursive, .. } => {
+                self.tools.open = Some(if path.is_dir() { Tool::HashDir } else { Tool::HashFile });
+                self.tools.input = Some(path);
+                self.tools.algorithm = algorithm;
+                if let Some(f) = format {
+                    self.tools.format = f;
+                }
+                self.tools.recursive = recursive;
+                self.on_tools_actions(ctx, vec![ToolsAction::Run]);
+            }
+            GuiRequest::CheckDigest { path, hash_file, directory } => {
+                self.tools.open = Some(if directory { Tool::CheckHashDir } else { Tool::CheckHashFile });
+                let ready = path.is_some() && hash_file.is_some();
+                self.tools.input = path;
+                self.tools.secondary = hash_file;
+                if ready {
+                    self.on_tools_actions(ctx, vec![ToolsAction::Run]);
+                }
+            }
+        }
+    }
+
     /// Abre el almacén indicado en segundo plano.
     pub(crate) fn load_store(&mut self, ctx: &egui::Context, spec: StoreSpec, force: bool) {
         let prefs = self.prefs_snapshot();
@@ -131,6 +163,10 @@ impl AutoFirmaApp {
                     self.notify(format!("{} fichero(s) no se han podido leer", errors.len()));
                 }
                 if !items.is_empty() {
+                    let mut items = items;
+                    if let Some(cli) = &self.rt.cli_sign {
+                        apply_cli_sign(cli, &mut items);
+                    }
                     if self.sign.stage != Stage::Ready {
                         self.sign.files.clear();
                     }
@@ -427,8 +463,25 @@ impl AutoFirmaApp {
             files: self.sign.files.clone(),
             store: store.store.clone(),
             entry_id: entry.id.clone(),
-            algorithm: afirma_signers::params::desktop_algorithm(&|k| prefs.get(k).cloned()),
-            params_for: Arc::new(move |kind: SignerKind| afirma_signers::params::from_preferences(kind, &|k| params_prefs.get(k).cloned())),
+            algorithm: self
+                .rt
+                .cli_sign
+                .as_ref()
+                .and_then(|c| c.algorithm.clone())
+                .unwrap_or_else(|| afirma_signers::params::desktop_algorithm(&|k| prefs.get(k).cloned())),
+            params_for: {
+                // Preferencias del formato y, encima, los -config de la línea de comandos.
+                let cli_extra = self.rt.cli_sign.as_ref().map(|c| c.extra.clone());
+                Arc::new(move |kind: SignerKind| {
+                    let mut p = afirma_signers::params::from_preferences(kind, &|k| params_prefs.get(k).cloned());
+                    if let Some(extra) = &cli_extra {
+                        for (k, v) in extra.iter() {
+                            p.set(k, v);
+                        }
+                    }
+                    p
+                })
+            },
             visible_params: if self.sign.visible_signature { self.rt.visible_params.clone() } else { None },
             output_dir: self.sign.output_dir.clone(),
             overwrite: prefs.get("massiveOverride").is_some_and(|v| v == "true"),
@@ -857,6 +910,27 @@ impl AutoFirmaApp {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Formato y operación pedidos con `sign|cosign|countersign -gui`.
+fn apply_cli_sign(cli: &crate::launch::CliSign, items: &mut [FileItem]) {
+    use super::pages::sign::Operation;
+    for item in items {
+        if let Some(f) = &cli.format {
+            match item.formats.iter().find(|x| x.eq_ignore_ascii_case(f)) {
+                Some(found) => item.format = found.clone(),
+                None => {
+                    item.formats.push(f.clone());
+                    item.format = f.clone();
+                }
+            }
+        }
+        if cli.cosign && item.is_signed() {
+            item.operation = Operation::Cosign;
+        } else if cli.countersign && item.is_signed() {
+            item.operation = Operation::CountersignLeafs;
         }
     }
 }
