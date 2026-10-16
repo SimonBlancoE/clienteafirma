@@ -1,0 +1,19 @@
+[package]
+name = "afirma-signers"
+description = "Registro de firmadores de AutoFirma-rs: detección y selección de formato, validación y firma de varios ficheros"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+afirma-core.workspace = true
+afirma-cms.workspace = true
+afirma-xml.workspace = true
+afirma-pdf.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+afirma-keystores.workspace = true
+tempfile.workspace = true

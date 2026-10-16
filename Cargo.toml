@@ -20,6 +20,7 @@ afirma-keystores = { path = "crates/afirma-keystores" }
 afirma-signers = { path = "crates/afirma-signers" }
 afirma-protocol = { path = "crates/afirma-protocol" }
 afirma-system = { path = "crates/afirma-system" }
+afirma-hash = { path = "crates/afirma-hash" }
 
 # Utilidades
 thiserror = "2"
