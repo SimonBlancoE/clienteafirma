@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Metadatos AppStream de AutoFirma-rs (centros de software de GNOME/KDE).
+     Al publicar una versión, añada su entrada en <releases> (tools/package/linux.sh avisa
+     si falta la versión que se empaqueta). -->
+<component type="desktop-application">
+  <id>io.github.autofirma_rs.AutoFirma</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later OR EUPL-1.1</project_license>
+
+  <name>AutoFirma</name>
+  <summary>Firma electrónica de documentos y en trámites web</summary>
+  <summary xml:lang="en">Electronic signature of documents and web procedures</summary>
+  <summary xml:lang="ca">Signatura electrònica de documents i en tràmits web</summary>
+  <summary xml:lang="gl">Sinatura electrónica de documentos e en trámites web</summary>
+
+  <developer id="io.github.autofirma_rs">
+    <name>AutoFirma-rs contributors</name>
+  </developer>
+
+  <description>
+    <p>
+      AutoFirma permite firmar electrónicamente documentos con certificados en tarjeta
+      (DNIe, tarjetas criptográficas), en fichero o en el almacén del navegador, y firmar
+      en los trámites web de las administraciones públicas que usan el protocolo afirma://.
+    </p>
+    <p xml:lang="en">
+      AutoFirma signs documents with certificates stored on smart cards (Spanish eID,
+      cryptographic tokens), in files or in the browser store, and signs in e-government
+      web procedures that use the afirma:// protocol.
+    </p>
+    <p>Funciones principales:</p>
+    <p xml:lang="en">Main features:</p>
+    <ul>
+      <li>Firmas PAdES (PDF, con firma visible), XAdES, CAdES, FacturaE y ASiC</li>
+      <li xml:lang="en">PAdES (PDF, with visible signature), XAdES, CAdES, FacturaE and ASiC signatures</li>
+      <li>Cofirmas, contrafirmas y verificación de firmas</li>
+      <li xml:lang="en">Co-signatures, counter-signatures and signature verification</li>
+      <li>Integración con el navegador mediante el protocolo afirma://</li>
+      <li xml:lang="en">Browser integration through the afirma:// protocol</li>
+      <li>Firma por lotes y desde la línea de comandos</li>
+      <li xml:lang="en">Batch and command-line signing</li>
+    </ul>
+    <p>
+      Reimplementación en Rust de Autofirma, la herramienta de firma de la Suite @firma.
+    </p>
+    <p xml:lang="en">
+      Rust reimplementation of Autofirma, the signature tool of the @firma suite.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">autofirma.desktop</launchable>
+  <icon type="stock">autofirma</icon>
+
+  <url type="homepage">https://github.com/autofirma-rs/autofirma-rs</url>
+  <url type="bugtracker">https://github.com/autofirma-rs/autofirma-rs/issues</url>
+
+  <categories>
+    <category>Office</category>
+  </categories>
+
+  <keywords>
+    <keyword>firma</keyword>
+    <keyword>certificado</keyword>
+    <keyword>DNIe</keyword>
+    <keyword>PAdES</keyword>
+    <keyword>XAdES</keyword>
+    <keyword>CAdES</keyword>
+    <keyword xml:lang="en">signature</keyword>
+    <keyword xml:lang="en">certificate</keyword>
+  </keywords>
+
+  <provides>
+    <binary>autofirma</binary>
+    <mediatype>x-scheme-handler/afirma</mediatype>
+  </provides>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">760</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="2.0.0~alpha.1" date="2026-10-16" type="development">
+      <description>
+        <p>Primera versión de desarrollo de AutoFirma-rs.</p>
+      </description>
+    </release>
+  </releases>
+</component>

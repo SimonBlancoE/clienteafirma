@@ -1,0 +1,23 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=AutoFirma
+GenericName=Firma electrónica
+GenericName[en]=Electronic signature
+GenericName[ca]=Signatura electrònica
+GenericName[gl]=Sinatura electrónica
+GenericName[eu]=Sinadura elektronikoa
+Comment=Firma electrónica de documentos y en trámites web (protocolo afirma://)
+Comment[en]=Electronic signature of documents and web procedures (afirma:// protocol)
+Comment[ca]=Signatura electrònica de documents i en tràmits web (protocol afirma://)
+Comment[gl]=Sinatura electrónica de documentos e en trámites web (protocolo afirma://)
+Comment[eu]=Dokumentuen eta web izapideen sinadura elektronikoa (afirma:// protokoloa)
+Keywords=firma;electrónica;certificado;DNIe;PAdES;XAdES;CAdES;signature;certificate;
+Exec=autofirma %u
+TryExec=autofirma
+Icon=autofirma
+Terminal=false
+Categories=Office;
+MimeType=x-scheme-handler/afirma;
+StartupNotify=true
+StartupWMClass=autofirma

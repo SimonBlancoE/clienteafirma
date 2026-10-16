@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Identificadores FIJOS del instalador MSI de AutoFirma-rs. No los cambie nunca: el
+  UpgradeCode identifica el producto entre versiones (actualizaciones mayores,
+  detección en SCCM/Intune). El ProductCode se genera en cada compilación.
+
+  No coincide a propósito con el UpgradeCode de la Autofirma Java
+  ({A6D90EBF-E089-4281-9269-AE5D20BA74D2}): son productos distintos.
+-->
+<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?define UpgradeCode = "{48D90D3A-830C-4DA9-8F3C-D4E2ADE9EE89}" ?>
+</Include>

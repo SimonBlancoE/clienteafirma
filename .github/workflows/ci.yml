@@ -1,0 +1,81 @@
+# Integración continua: formato, clippy y pruebas en Linux, Windows y macOS, y
+# comprobación de los ficheros de empaquetado.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+
+jobs:
+  fmt:
+    name: Formato (rustfmt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  test:
+    name: Clippy y pruebas (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Solo la rama principal guarda la caché; las PR la reutilizan.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Pruebas
+        run: cargo test --workspace --locked
+
+  packaging:
+    name: Ficheros de empaquetado
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Herramientas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck desktop-file-utils appstream libxml2-utils
+      - name: shellcheck
+        run: |
+          shellcheck tools/package/*.sh
+          shellcheck -s sh packaging/common/configure-hook.sh packaging/linux/autofirma-wrapper.sh \
+            packaging/linux/appimage/AppRun packaging/linux/debian/* packaging/linux/rpm/*.sh \
+            packaging/macos/scripts/postinstall packaging/macos/uninstall.sh
+      - name: Escritorio Linux (.desktop y AppStream)
+        run: |
+          desktop-file-validate packaging/linux/autofirma.desktop
+          appstreamcli validate --no-net packaging/linux/io.github.autofirma_rs.AutoFirma.metainfo.xml
+      - name: XML (WiX, manifiesto de Windows, plist de macOS)
+        run: |
+          xmllint --noout packaging/windows/*.wxs packaging/windows/*.wxi packaging/windows/wixl/*.wxs \
+            packaging/windows/autofirma.exe.manifest packaging/macos/*.plist packaging/macos/*.xml
+          python3 -I -c 'import plistlib,sys; [plistlib.load(open(f,"rb")) for f in sys.argv[1:]]' \
+            packaging/macos/Info.plist packaging/macos/entitlements.plist packaging/macos/component.plist
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color

@@ -1,0 +1,17 @@
+#!/bin/sh
+# prerm de autofirma-rs: deshace la integración con el sistema solo al desinstalar (no en
+# las actualizaciones, para conservar la CA local ya instalada en los almacenes).
+set -e
+
+case "$1" in
+    remove | deconfigure)
+        /usr/lib/autofirma-rs/configure-hook.sh uninstall /usr/lib/autofirma-rs/autofirma
+        # Ficheros generados que dpkg no conoce (para que pueda borrar el directorio).
+        for f in autofirma.pfx Autofirma_ROOT.cer autofirma.cer; do
+            rm -f "/usr/lib/autofirma-rs/$f"
+        done
+        ;;
+esac
+
+
+exit 0

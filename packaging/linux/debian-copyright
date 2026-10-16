@@ -1,0 +1,33 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: AutoFirma-rs
+Upstream-Contact: https://github.com/autofirma-rs/autofirma-rs/issues
+Source: https://github.com/autofirma-rs/autofirma-rs
+
+Files: *
+Copyright: 2025-2026 AutoFirma-rs contributors
+           Gobierno de España (código original de Autofirma, Suite @firma)
+License: GPL-2+ or EUPL-1.1
+Comment:
+ AutoFirma-rs es una reimplementación en Rust de Autofirma
+ (https://github.com/ctt-gob-es/clienteafirma). El ejecutable incluye
+ bibliotecas de Rust con licencias compatibles (MIT, Apache-2.0, BSD, ISC...);
+ el SBOM de cada versión (autofirma-rs-<versión>.spdx.json) las enumera.
+
+License: GPL-2+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 2 can be found in "/usr/share/common-licenses/GPL-2".
+
+License: EUPL-1.1
+ European Union Public Licence, version 1.1. The complete text is available
+ at https://joinup.ec.europa.eu/collection/eupl/eupl-text-11-12 and in the
+ source code (license/EUPL v.1.1.pdf).

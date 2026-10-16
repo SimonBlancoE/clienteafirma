@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Fichero «component-plist» de pkgbuild: la aplicación siempre se instala en /Applications (sin
+     «reubicación» a otra copia con el mismo identificador), así postinstall sabe dónde está. -->
+<plist version="1.0">
+<array>
+	<dict>
+		<key>RootRelativeBundlePath</key>
+		<string>AutoFirma.app</string>
+		<key>BundleIsRelocatable</key>
+		<false/>
+		<key>BundleIsVersionChecked</key>
+		<false/>
+		<key>BundleHasStrictIdentifier</key>
+		<true/>
+		<key>BundleOverwriteAction</key>
+		<string>upgrade</string>
+	</dict>
+</array>
+</plist>

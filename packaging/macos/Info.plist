@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist de AutoFirma.app. tools/package/macos.sh sustituye @SHORT_VERSION@ (x.y.z),
+  @BUNDLE_VERSION@ (número de compilación) y @MIN_MACOS@.
+
+  Requisitos para la aplicación: macOS entrega las URL afirma:// y los ficheros abiertos
+  desde el Finder como eventos de Apple (kAEGetURL / application:openURLs:), no como
+  argumentos de la línea de órdenes.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>es</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+		<string>ca</string>
+		<string>gl</string>
+		<string>eu</string>
+		<string>en</string>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>autofirma</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.autofirma-rs.AutoFirma</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>AutoFirma</string>
+	<key>CFBundleDisplayName</key>
+	<string>AutoFirma</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@SHORT_VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@BUNDLE_VERSION@</string>
+	<key>CFBundleIconFile</key>
+	<string>AutoFirma</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>@MIN_MACOS@</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>AutoFirma-rs (GPL-2.0-or-later o EUPL-1.1). Basado en Autofirma © Gobierno de España.</string>
+
+	<!-- Protocolo afirma:// (sedes electrónicas) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.autofirma-rs.AutoFirma.afirma</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>afirma</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Firmas .csig/.xsig (propias) y «Abrir con AutoFirma» para cualquier documento -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.autofirma-rs.csig</string>
+			<key>UTTypeDescription</key>
+			<string>Firma binaria CMS/CAdES</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>csig</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.autofirma-rs.xsig</string>
+			<key>UTTypeDescription</key>
+			<string>Firma XMLDSig/XAdES</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>xsig</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Firma electrónica</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.autofirma-rs.csig</string>
+				<string>io.github.autofirma-rs.xsig</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Documento</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Textos de los avisos de privacidad (TCC) al abrir documentos de estas carpetas -->
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>AutoFirma necesita acceder a la carpeta Documentos para firmar o verificar los documentos que usted elija.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>AutoFirma necesita acceder al Escritorio para firmar o verificar los documentos que usted elija.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>AutoFirma necesita acceder a la carpeta Descargas para firmar o verificar los documentos que usted elija.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>AutoFirma necesita acceder a unidades extraíbles para leer certificados o documentos que usted elija.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>AutoFirma necesita acceder a unidades de red para firmar o verificar los documentos que usted elija.</string>
+</dict>
+</plist>

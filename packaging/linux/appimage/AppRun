@@ -1,0 +1,6 @@
+#!/bin/sh
+# Punto de entrada del AppImage. El runtime define $APPIMAGE (ruta del fichero .AppImage);
+# `autofirma install --user` debe usarla para registrar afirma:// en lugar de la ruta del
+# montaje temporal (/tmp/.mount_*), que cambia en cada ejecución.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/bin/autofirma" "$@"

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalador MSI de AutoFirma-rs (WiX Toolset v4/v5; esquema v4).
+  Compilación: tools/package/windows.ps1 (ver allí la orden «wix build» completa).
+  Variables del preprocesador: Version (x.y.z[.n]), BinDir (directorio con autofirma.exe)
+  y, opcionalmente, HasCli (incluye autofirma-cli.exe).
+
+  Instalación por equipo en %ProgramFiles%\AutoFirma-rs, acceso directo en el menú Inicio
+  (y en el escritorio, como la Autofirma Java, salvo CREATE_ICON=false) y entrada en
+  «Aplicaciones instaladas». Después de copiar los ficheros ejecuta, como LocalSystem y sin
+  interfaz, la orden «install» de autofirma.exe con la opción «system»: genera la CA local
+  y el certificado SSL de 127.0.0.1, los instala en LocalMachine\ROOT y en Firefox, y
+  registra afirma://, los menús contextuales y las asociaciones. Al desinstalar ejecuta la
+  orden «uninstall» con la opción «system» antes de borrar ficheros (no en las
+  actualizaciones). La salida de ambas queda en el registro de MSI (msiexec /l*v).
+
+  Propiedades públicas (msiexec /i AutoFirma.msi /qn PROPIEDAD=valor) y opción de la
+  orden «install» a la que equivalen:
+    BROWSER_POLICIES=1            browser-policies: directivas de Chrome/Edge/Firefox para
+                                  abrir afirma:// sin preguntar.
+    ORIGINS=https://a,https://b   origins: orígenes autorizados (sin ella, todos).
+    FIREFOX_SECURITY_ROOTS=true   firefox-roots: Firefox confía en las CA del sistema.
+    CONFIG_PATH=<ruta|https:…>    config-path: preferencias .afconfig a importar.
+    UPDATE_CONFIG=true            update-config: volver a descargar CONFIG_PATH cada día.
+    DEFAULT_LANGUAGE=es_ES        default-language: idioma por defecto.
+    KEYSTORE_PATH=<pfx> y CERTIFICATE_PATH=<cer>
+                                  keystore-path y certificate-path: par CA + SSL
+                                  corporativo en lugar de generar uno (los dos a la vez).
+    CREATE_ICON=false             sin acceso directo en el escritorio.
+    ADD_TO_PATH=0                 no añadir la carpeta de instalación al PATH del sistema.
+    SKIP_CONFIGURE=1              no ejecutar «install» (el administrador configura).
+    IGNORE_CONFIGURE_ERRORS=1     un fallo de «install» no aborta la instalación.
+  Los nombres coinciden con los del MSI de la Autofirma Java; como allí, el valor «false»
+  equivale a no indicar la propiedad.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?include ids.wxi ?>
+
+  <?ifndef Version ?>
+  <?error Defina la versión numérica con -d Version=x.y.z ?>
+  <?endif ?>
+  <?ifndef BinDir ?>
+  <?error Defina el directorio del ejecutable con -d BinDir=<ruta> ?>
+  <?endif ?>
+
+  <Package Name="AutoFirma"
+           Manufacturer="AutoFirma-rs"
+           Version="$(var.Version)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Language="3082"
+           Codepage="1252"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="yes">
+
+    <SummaryInformation Description="AutoFirma: firma electrónica de documentos y en trámites web"
+                        Manufacturer="AutoFirma-rs"
+                        Keywords="AutoFirma, firma electrónica, afirma" />
+
+    <!-- Las versiones previas (alpha, beta, rc) comparten versión numérica: se permite
+         actualizar a la misma versión. No se permite instalar una versión anterior. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="Ya está instalada una versión más reciente de AutoFirma. Desinstálela antes de instalar esta versión." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Entrada de «Aplicaciones instaladas» -->
+    <Icon Id="AutoFirmaIcon" SourceFile="$(sys.SOURCEFILEDIR)..\icons\autofirma.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AutoFirmaIcon" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPCOMMENTS" Value="Firma electrónica de documentos y en trámites web (protocolo afirma://)" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/autofirma-rs/autofirma-rs" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/autofirma-rs/autofirma-rs" />
+
+    <!-- Propiedades públicas (Secure: se transmiten a la fase de ejecución elevada) -->
+    <Property Id="BROWSER_POLICIES" Secure="yes" />
+    <Property Id="ORIGINS" Secure="yes" />
+    <Property Id="FIREFOX_SECURITY_ROOTS" Secure="yes" />
+    <Property Id="CONFIG_PATH" Secure="yes" />
+    <Property Id="UPDATE_CONFIG" Secure="yes" />
+    <Property Id="DEFAULT_LANGUAGE" Secure="yes" />
+    <Property Id="KEYSTORE_PATH" Secure="yes" />
+    <Property Id="CERTIFICATE_PATH" Secure="yes" />
+    <Property Id="CREATE_ICON" Value="true" Secure="yes" />
+    <Property Id="ADD_TO_PATH" Value="1" Secure="yes" />
+    <Property Id="SKIP_CONFIGURE" Secure="yes" />
+    <Property Id="IGNORE_CONFIGURE_ERRORS" Secure="yes" />
+
+    <!-- ===================================================================== Ficheros -->
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <!-- «AutoFirma-rs» y no «Autofirma»: la Autofirma Java usa %ProgramFiles%\Autofirma
+           (NTFS no distingue mayúsculas) y su desinstalador borra esa carpeta entera. -->
+      <Directory Id="INSTALLFOLDER" Name="AutoFirma-rs" />
+    </StandardDirectory>
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Component Id="AutofirmaExeComponent">
+        <File Id="AutofirmaExe" Source="$(var.BinDir)\autofirma.exe" KeyPath="yes" />
+        <!-- «autofirma» desde Ejecutar (Win+R) y ShellExecute -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\autofirma.exe">
+          <RegistryValue Type="string" Value="[#AutofirmaExe]" />
+          <RegistryValue Type="string" Name="Path" Value="[INSTALLFOLDER]" />
+        </RegistryKey>
+      </Component>
+      <?ifdef HasCli ?>
+      <Component Id="AutofirmaCliExeComponent">
+        <File Id="AutofirmaCliExe" Source="$(var.BinDir)\autofirma-cli.exe" KeyPath="yes" />
+      </Component>
+      <?endif ?>
+      <Component Id="LicenseComponent">
+        <File Id="LicenseGpl" Source="$(sys.SOURCEFILEDIR)..\..\license\gpl-2.0.txt" Name="LICENSE-gpl-2.0.txt" KeyPath="yes" />
+      </Component>
+      <!-- Datos para scripts de inventario y reglas de detección (SCCM/Intune). -->
+      <Component Id="InstallInfoComponent">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\AutoFirma-rs">
+          <RegistryValue Type="string" Name="InstallDir" Value="[INSTALLFOLDER]" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Version" Value="$(var.Version)" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PathComponent" Condition="NOT (ADD_TO_PATH=&quot;0&quot; OR ADD_TO_PATH~=&quot;false&quot;)">
+        <Environment Id="SystemPath" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="yes" Permanent="no" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\AutoFirma-rs" Name="AddedToPath" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Accesos directos (patrón de WiX para instalaciones por equipo: la clave del
+         componente es un valor de HKCU). -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcutComponent">
+        <Shortcut Id="StartMenuShortcut" Name="AutoFirma" Description="Firma electrónica de documentos"
+                  Target="[#AutofirmaExe]" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\AutoFirma-rs" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcutComponent" Condition="NOT (CREATE_ICON~=&quot;false&quot; OR CREATE_ICON=&quot;0&quot;)">
+        <Shortcut Id="DesktopShortcut" Name="AutoFirma" Description="Firma electrónica de documentos"
+                  Target="[#AutofirmaExe]" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\AutoFirma-rs" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="AutoFirma" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcutComponent" />
+      <ComponentRef Id="DesktopShortcutComponent" />
+    </Feature>
+
+    <!-- ========================================== Integración con el sistema (CLI) -->
+    <!-- Valores booleanos normalizados (1, true; «false» o vacío = no). -->
+    <SetProperty Id="AF_SKIP" Value="1" Before="InstallInitialize" Sequence="execute"
+                 Condition="SKIP_CONFIGURE=&quot;1&quot; OR SKIP_CONFIGURE~=&quot;true&quot;" />
+    <SetProperty Id="AF_IGNORE" Value="1" Before="InstallInitialize" Sequence="execute"
+                 Condition="IGNORE_CONFIGURE_ERRORS=&quot;1&quot; OR IGNORE_CONFIGURE_ERRORS~=&quot;true&quot;" />
+
+    <!-- Argumentos opcionales de la orden «install» -->
+    <SetProperty Id="AF_ARG_POLICIES" Value="--browser-policies" Before="InstallInitialize" Sequence="execute"
+                 Condition="BROWSER_POLICIES=&quot;1&quot; OR BROWSER_POLICIES~=&quot;true&quot;" />
+    <SetProperty Id="AF_ARG_ORIGINS" Value="--origins &quot;[ORIGINS]&quot;" Before="InstallInitialize" Sequence="execute"
+                 Condition="ORIGINS AND NOT ORIGINS~=&quot;false&quot;" />
+    <SetProperty Id="AF_ARG_FFROOTS" Value="--firefox-roots" Before="InstallInitialize" Sequence="execute"
+                 Condition="FIREFOX_SECURITY_ROOTS=&quot;1&quot; OR FIREFOX_SECURITY_ROOTS~=&quot;true&quot;" />
+    <SetProperty Id="AF_ARG_CONFIG" Value="--config-path &quot;[CONFIG_PATH]&quot;" Before="InstallInitialize" Sequence="execute"
+                 Condition="CONFIG_PATH AND NOT CONFIG_PATH~=&quot;false&quot;" />
+    <SetProperty Id="AF_ARG_UPDATE" Value="--update-config" Before="InstallInitialize" Sequence="execute"
+                 Condition="(UPDATE_CONFIG=&quot;1&quot; OR UPDATE_CONFIG~=&quot;true&quot;) AND CONFIG_PATH AND NOT CONFIG_PATH~=&quot;false&quot;" />
+    <SetProperty Id="AF_ARG_CERTS" Value="--keystore-path &quot;[KEYSTORE_PATH]&quot; --certificate-path &quot;[CERTIFICATE_PATH]&quot;" Before="InstallInitialize" Sequence="execute"
+                 Condition="KEYSTORE_PATH AND CERTIFICATE_PATH AND NOT KEYSTORE_PATH~=&quot;false&quot; AND NOT CERTIFICATE_PATH~=&quot;false&quot;" />
+    <SetProperty Id="AF_ARG_LANG" Value="--default-language &quot;[DEFAULT_LANGUAGE]&quot;" Before="InstallInitialize" Sequence="execute"
+                 Condition="DEFAULT_LANGUAGE AND NOT DEFAULT_LANGUAGE~=&quot;false&quot;" />
+
+    <!-- CustomActionData de las acciones diferidas (WixQuietExec: sin ventana, salida al
+         registro de MSI). Se usa [INSTALLFOLDER] y no [#AutofirmaExe] porque esta última
+         queda vacía cuando el componente se está desinstalando. -->
+    <SetProperty Id="AfInstall" Before="AfInstall" Sequence="execute"
+                 Value="&quot;[INSTALLFOLDER]autofirma.exe&quot; install --system [AF_ARG_POLICIES] [AF_ARG_ORIGINS] [AF_ARG_FFROOTS] [AF_ARG_CONFIG] [AF_ARG_UPDATE] [AF_ARG_LANG] [AF_ARG_CERTS]" />
+    <SetProperty Id="AfInstallIgnoringErrors" Before="AfInstallIgnoringErrors" Sequence="execute"
+                 Value="&quot;[INSTALLFOLDER]autofirma.exe&quot; install --system [AF_ARG_POLICIES] [AF_ARG_ORIGINS] [AF_ARG_FFROOTS] [AF_ARG_CONFIG] [AF_ARG_UPDATE] [AF_ARG_LANG] [AF_ARG_CERTS]" />
+    <SetProperty Id="AfInstallRollback" Before="AfInstallRollback" Sequence="execute"
+                 Value="&quot;[INSTALLFOLDER]autofirma.exe&quot; uninstall --system" />
+    <SetProperty Id="AfUninstall" Before="AfUninstall" Sequence="execute"
+                 Value="&quot;[INSTALLFOLDER]autofirma.exe&quot; uninstall --system" />
+
+    <CustomAction Id="AfInstallRollback" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="rollback" Impersonate="no" Return="ignore" />
+    <CustomAction Id="AfInstall" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="AfInstallIgnoringErrors" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="AfUninstall" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <!-- Instalación, reparación y actualización (idempotente). -->
+      <Custom Action="AfInstallRollback" After="PublishProduct"
+              Condition="NOT REMOVE~=&quot;ALL&quot; AND NOT AF_SKIP" />
+      <Custom Action="AfInstall" After="AfInstallRollback"
+              Condition="NOT REMOVE~=&quot;ALL&quot; AND NOT AF_SKIP AND NOT AF_IGNORE" />
+      <Custom Action="AfInstallIgnoringErrors" After="AfInstall"
+              Condition="NOT REMOVE~=&quot;ALL&quot; AND NOT AF_SKIP AND AF_IGNORE" />
+      <!-- Desinstalación real (no la retirada de la versión anterior en una actualización),
+           antes de borrar ningún fichero. -->
+      <Custom Action="AfUninstall" After="InstallInitialize"
+              Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND NOT AF_SKIP" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

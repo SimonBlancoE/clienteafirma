@@ -1,0 +1,16 @@
+#!/bin/sh
+# postinstall del paquete AutoFirma.pkg (se ejecuta como root). Integra AutoFirma con el
+# sistema: CA local y certificado SSL de 127.0.0.1 en el llavero del sistema, Firefox,
+# protocolo afirma:// y, si se pide en «/Library/Application Support/AutoFirma/install.conf»,
+# directivas de navegadores. Ver configure-hook.sh.
+#
+# $1 = ruta del paquete, $2 = destino (/Applications), $3 = volumen de destino.
+
+target_volume="${3:-/}"
+if [ "$target_volume" != "/" ]; then
+    echo "autofirma-rs: instalación en otro volumen ($target_volume); no se configura el sistema"
+    exit 0
+fi
+
+app="${2:-/Applications}/AutoFirma.app"
+exec "$(dirname "$0")/configure-hook.sh" install "$app/Contents/MacOS/autofirma"

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- productbuild distribution de AutoFirma.pkg. macos.sh sustituye @VERSION@ y @MIN_MACOS@. -->
+<installer-gui-script minSpecVersion="2">
+    <title>AutoFirma</title>
+    <organization>io.github.autofirma-rs</organization>
+    <domains enable_localSystem="true" enable_anywhere="false" enable_currentUserHome="false"/>
+    <options customize="never" require-scripts="true" hostArchitectures="arm64,x86_64"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="@MIN_MACOS@"/>
+        </allowed-os-versions>
+    </volume-check>
+    <license file="LICENSE.txt"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="io.github.autofirma-rs.AutoFirma.pkg"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="io.github.autofirma-rs.AutoFirma.pkg" visible="false">
+        <pkg-ref id="io.github.autofirma-rs.AutoFirma.pkg"/>
+    </choice>
+    <pkg-ref id="io.github.autofirma-rs.AutoFirma.pkg" version="@VERSION@" onConclusion="none">AutoFirma-component.pkg</pkg-ref>
+</installer-gui-script>

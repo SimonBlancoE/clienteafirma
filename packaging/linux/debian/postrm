@@ -1,0 +1,16 @@
+#!/bin/sh
+# postrm de autofirma-rs: retira los ficheros generados en la instalación que dpkg no
+# conoce (certificados locales), por si `autofirma uninstall --system` no pudo hacerlo.
+set -e
+
+case "$1" in
+    remove | purge)
+        for f in autofirma.pfx Autofirma_ROOT.cer autofirma.cer; do
+            rm -f "/usr/lib/autofirma-rs/$f"
+        done
+        rmdir --ignore-fail-on-non-empty /usr/lib/autofirma-rs 2>/dev/null || true
+        ;;
+esac
+
+
+exit 0

@@ -1,0 +1,15 @@
+#!/bin/sh
+# postinst de autofirma-rs: integra AutoFirma con el sistema (CA local y certificado SSL de
+# 127.0.0.1, almacenes de confianza del sistema y de NSS, manejador afirma:// y, si se
+# pide en /etc/autofirma/install.conf, directivas de navegadores). Idempotente: también
+# se ejecuta en las actualizaciones. Ver packaging/common/configure-hook.sh.
+set -e
+
+case "$1" in
+    configure | abort-upgrade | abort-remove | abort-deconfigure)
+        /usr/lib/autofirma-rs/configure-hook.sh install /usr/lib/autofirma-rs/autofirma
+        ;;
+esac
+
+
+exit 0
