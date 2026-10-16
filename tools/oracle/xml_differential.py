@@ -10,7 +10,7 @@ Java (AutoFirma original):
 5. guarda las salidas Java como *golden* en testdata/{xades,xmldsig,office}/java/.
 
 Requisitos: `cargo build -p afirma-xml --examples` con
-CARGO_TARGET_DIR=target/agents/afirma-xml (usa `xsign` y `mock_tsa`), y tres
+CARGO_TARGET_DIR=target/agents/afirma-xml (usa `xsign` y `xml_mock_tsa`), y tres
 envoltorios ejecutables:
   XO      `java -cp autofirma.jar:<clases> XmlOracle "$@"`
   XO_GUI  igual, con DISPLAY de un Xvfb (el firmador OOXML de Java necesita AWT)
@@ -121,7 +121,7 @@ CASES += [
     ("xmldsig-countersign-tree", "xmldsig", "countersign-tree", "@xmldsig-cosign-enveloping", {}, RSA),
     ("xmldsig-countersign-leafs", "xmldsig", "countersign-leafs", "@xmldsig-countersign-tree", {}, RSA),
 ]
-# XAdES-T con la TSA de pruebas (ejemplo `mock_tsa` de afirma-xml).
+# XAdES-T con la TSA de pruebas (ejemplo `xml_mock_tsa` de afirma-xml).
 CASES += [("xades-t", "xades", "sign", "hello.txt", {"tsaURL": "@TSA"}, RSA)]
 OFFICE = os.path.join(ROOT, "testdata/office/inputs")
 CASES += [
@@ -209,7 +209,7 @@ def main():
             continue
         if "@TSA" in params.values():
             if tsa is None:
-                exe = os.path.join(os.path.dirname(XSIGN), "mock_tsa")
+                exe = os.path.join(os.path.dirname(XSIGN), "xml_mock_tsa")
                 tsa = subprocess.Popen([exe, "1000"], stdout=subprocess.PIPE, text=True)
                 tsa_url = tsa.stdout.readline().strip()
             params = {k: (tsa_url if v == "@TSA" else v) for k, v in params.items()}

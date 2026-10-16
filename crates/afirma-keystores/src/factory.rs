@@ -271,10 +271,11 @@ fn open_windows(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreError> 
         agg.add(c.clone());
     }
     let (preferred, cancelled) = add_preferred(&agg, opts);
-    if temporary && !preferred {
-        if let Some(s) = smartcard::open_known_smartcards(opts.callback.clone(), cancelled) {
-            agg.add(Arc::new(s));
-        }
+    if temporary
+        && !preferred
+        && let Some(s) = smartcard::open_known_smartcards(opts.callback.clone(), cancelled)
+    {
+        agg.add(Arc::new(s));
     }
     if let (Some(c), false) = (&capi, preferred) {
         // El sondeo de la tarjeta puede quitar el lector al minidriver de
