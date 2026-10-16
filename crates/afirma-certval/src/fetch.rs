@@ -120,6 +120,23 @@ impl HttpFetcher for AfirmaHttpFetcher {
             .read_timeout(timeouts.read);
         Ok(self.client().read_url(&request)?)
     }
+
+    fn post(
+        &self,
+        url: &str,
+        content_type: &str,
+        accept: &str,
+        body: &[u8],
+        timeouts: Timeouts,
+    ) -> Result<Vec<u8>, FetchError> {
+        let request = HttpRequest::post(url)
+            .with_body(body.to_vec())
+            .header("Content-Type", content_type)
+            .header("Accept", accept)
+            .connect_timeout_millis(i64::try_from(timeouts.connect.as_millis()).unwrap_or(i64::MAX))
+            .read_timeout(timeouts.read);
+        Ok(self.client().read_url(&request)?)
+    }
 }
 
 /// Lee un fichero local de una URL `file:` (solo rutas locales: se rechazan

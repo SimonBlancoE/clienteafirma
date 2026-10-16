@@ -210,7 +210,7 @@ impl UreqHttpClient {
         url: &url::Url,
         method: HttpMethod,
         headers: &[(String, String)],
-        body: Option<&str>,
+        body: Option<&[u8]>,
         proxy: Option<ureq::Proxy>,
         connect_timeout: Option<Duration>,
         read_timeout: Option<Duration>,
@@ -236,14 +236,14 @@ impl UreqHttpClient {
             HttpMethod::Post => {
                 let b = configure!(agent.post(uri));
                 match body {
-                    Some(d) => b.send(d.as_bytes()),
+                    Some(d) => b.send(d),
                     None => b.send_empty(),
                 }
             }
             HttpMethod::Put => {
                 let b = configure!(agent.put(uri));
                 match body {
-                    Some(d) => b.send(d.as_bytes()),
+                    Some(d) => b.send(d),
                     None => b.send_empty(),
                 }
             }
@@ -256,9 +256,15 @@ impl UreqHttpClient {
             return Err(HttpClientError::InvalidUrl("La URL a leer no puede ser nula".into()));
         }
         let (url, auth) = extract_url_credentials(&request.url)?;
-        let (target, mut body) = match request.method {
-            HttpMethod::Post | HttpMethod::Put => split_post_url(&url),
-            HttpMethod::Get => (url.clone(), None),
+        // Cuerpo binario explícito (p. ej., una petición OCSP) o, como en
+        // AutoFirma, la consulta de la URL.
+        let (target, mut body): (String, Option<Vec<u8>>) = match (request.method, &request.body) {
+            (HttpMethod::Post | HttpMethod::Put, Some(b)) => (url.clone(), Some(b.clone())),
+            (HttpMethod::Post | HttpMethod::Put, None) => {
+                let (t, b) = split_post_url(&url);
+                (t, b.map(String::into_bytes))
+            }
+            (HttpMethod::Get, _) => (url.clone(), None),
         };
         let settings = self.settings();
         let read_timeout = request.read_timeout.or_else(|| lock_read(&self.read_timeout));

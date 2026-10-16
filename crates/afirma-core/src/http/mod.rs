@@ -108,6 +108,9 @@ pub struct HttpRequest {
     pub read_timeout: Option<Duration>,
     pub tls: TlsOverride,
     pub ssl_error_handling: SslErrorHandling,
+    /// Cuerpo binario de un POST/PUT. Si es `None`, el cuerpo es la consulta
+    /// de la URL, como en AutoFirma.
+    pub body: Option<Vec<u8>>,
 }
 
 impl HttpRequest {
@@ -121,7 +124,14 @@ impl HttpRequest {
             read_timeout: None,
             tls: TlsOverride::Default,
             ssl_error_handling: SslErrorHandling::None,
+            body: None,
         }
+    }
+
+    /// Establece un cuerpo binario (para POST/PUT).
+    pub fn with_body(mut self, body: Vec<u8>) -> Self {
+        self.body = Some(body);
+        self
     }
 
     /// Petición GET.

@@ -79,16 +79,12 @@ respuestas, CRL con y sin clave del emisor y validación sin red (tabla de Java)
 
 ## Transporte
 
-13. **OCSP por GET con el cliente por defecto.** `afirma_core::http::HttpClient` no admite
-    cuerpos binarios (el cuerpo de un POST es la consulta de la URL), así que
-    `AfirmaHttpFetcher` (que usa `installed_http_client()` para aplicar el proxy y la
-    configuración TLS del usuario) envía la petición por GET (RFC 6960, apéndice A.1:
-    `<url>/<Base64 con %2B %2F %3D>`), con `Accept: application/ocsp-response`. Con un
-    `HttpFetcher` que implemente `post` se usa POST como Java (`Content-Type:
-    application/ocsp-request`), con el mismo cuerpo byte a byte; `OcspHttpMethod` permite
-    forzar uno u otro. Probado con FNMT, ACCV, Sectigo y DigiCert. *Pendiente:* si
-    `afirma-core` añade cuerpos binarios a `HttpRequest`, `AfirmaHttpFetcher::post` puede
-    implementarse y se usará POST por defecto.
+13. **OCSP por POST, como Java.** `AfirmaHttpFetcher` (que usa `installed_http_client()` para
+    aplicar el proxy y la configuración TLS del usuario) envía la petición por POST con
+    `Content-Type: application/ocsp-request` y el mismo cuerpo byte a byte que Java
+    (`HttpRequest::with_body`). `OcspHttpMethod` permite forzar GET (RFC 6960, apéndice A.1:
+    `<url>/<Base64 con %2B %2F %3D>`); en modo automático se usa GET si el `HttpFetcher` no
+    admite POST.
 14. **Tiempos de espera.** Java no fijaba ninguno; aquí 15 s de conexión y 60 s de lectura
     por descarga (`connect_timeout`, `read_timeout`).
 15. **Orden de las CRL.** Se prueban primero los puntos de distribución HTTP(S) y de
