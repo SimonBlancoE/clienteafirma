@@ -359,7 +359,6 @@ dependencies = [
  "time",
  "tracing",
  "ureq",
- "url",
  "windows",
  "windows-registry",
  "windows-result",

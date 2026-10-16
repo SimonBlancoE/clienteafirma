@@ -1,0 +1,45 @@
+[package]
+name = "afirma-protocol"
+description = "Protocolo de invocación web de AutoFirma-rs: afirma://, servidor WebSocket local, socket de servicio, servidor intermedio, cifrado de respuestas, firma trifásica y por lotes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+afirma-core.workspace = true
+afirma-xml.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+base64.workspace = true
+flate2.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+x509-parser.workspace = true
+rsa.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+p256.workspace = true
+p384.workspace = true
+p521.workspace = true
+ecdsa.workspace = true
+p12-keystore.workspace = true
+# Cifrado DES/AES del servidor intermedio (misma familia de versiones que usa
+# p12-keystore, para no duplicar dependencias).
+des = "0.9"
+aes = "0.9"
+cipher = "0.5"
+# Red
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+tokio-rustls.workspace = true
+rustls.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+afirma-keystores.workspace = true
+rcgen.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "process"] }
