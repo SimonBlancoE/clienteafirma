@@ -13,9 +13,22 @@ use crate::ui::pages::tools::CheckRow;
 pub enum ToolOutcome {
     /// Huella calculada: bytes a guardar, nombre propuesto, extensión y texto
     /// para el portapapeles.
-    FileHash { content: Vec<u8>, proposed: String, ext: String, clipboard: String },
-    DirHash { document: afirma_hash::document::HashDocument, proposed: String },
-    Check { ok: bool, title: String, detail: Option<String>, report_xml: Option<Vec<u8>> },
+    FileHash {
+        content: Vec<u8>,
+        proposed: String,
+        ext: String,
+        clipboard: String,
+    },
+    DirHash {
+        document: afirma_hash::document::HashDocument,
+        proposed: String,
+    },
+    Check {
+        ok: bool,
+        title: String,
+        detail: Option<String>,
+        report_xml: Option<Vec<u8>>,
+    },
     Doctor(Vec<CheckRow>),
     Error(String),
 }
@@ -56,15 +69,26 @@ pub fn check_file(data: &Path, hash: &Path) -> ToolOutcome {
 pub fn hash_dir(dir: &Path, algorithm: &str, recursive: bool) -> ToolOutcome {
     let run = || -> Result<ToolOutcome, String> {
         let alg = afirma_hash::algorithm::parse_algorithm(algorithm).map_err(|e| e.to_string())?;
-        let opts = afirma_hash::dir::HashOptions { threads: 0, cancel: None, progress: None };
+        let opts = afirma_hash::dir::HashOptions {
+            threads: 0,
+            cancel: None,
+            progress: None,
+        };
         let document = afirma_hash::dir::hash_directory(dir, recursive, alg, &opts).map_err(|e| e.to_string())?;
-        Ok(ToolOutcome::DirHash { document, proposed: afirma_hash::dir::default_directory_document_name(dir, DirDocumentFormat::Xml) })
+        Ok(ToolOutcome::DirHash {
+            document,
+            proposed: afirma_hash::dir::default_directory_document_name(dir, DirDocumentFormat::Xml),
+        })
     };
     run().unwrap_or_else(ToolOutcome::Error)
 }
 
 pub fn check_dir(dir: &Path, document: &Path) -> ToolOutcome {
-    let opts = afirma_hash::dir::HashOptions { threads: 0, cancel: None, progress: None };
+    let opts = afirma_hash::dir::HashOptions {
+        threads: 0,
+        cancel: None,
+        progress: None,
+    };
     match afirma_hash::dir::check_directory_with_file(dir, document, &opts) {
         Ok(r) => {
             let mut lines = Vec::new();
@@ -81,7 +105,11 @@ pub fn check_dir(dir: &Path, document: &Path) -> ToolOutcome {
             let ok = !r.has_errors();
             ToolOutcome::Check {
                 ok,
-                title: if ok { tr("Las huellas digitales coinciden").into() } else { tr("Se han encontrado diferencias en la carpeta").into() },
+                title: if ok {
+                    tr("Las huellas digitales coinciden").into()
+                } else {
+                    tr("Se han encontrado diferencias en la carpeta").into()
+                },
                 detail: Some(lines.join("\n")),
                 report_xml: r.to_xml().ok(),
             }
@@ -99,10 +127,15 @@ fn row_from(c: &afirma_system::doctor::Check) -> CheckRow {
     };
     let mut detail = c.detail.clone();
     if let Some(f) = &c.fix
-        && ok == Some(false) {
-            detail = format!("{detail} {f}");
-        }
-    CheckRow { ok, title: c.title.clone(), detail }
+        && ok == Some(false)
+    {
+        detail = format!("{detail} {f}");
+    }
+    CheckRow {
+        ok,
+        title: c.title.clone(),
+        detail,
+    }
 }
 
 pub fn doctor() -> ToolOutcome {

@@ -82,10 +82,7 @@ fn main() {
                             "{:?} {:?}{}",
                             v.validity,
                             v.error,
-                            v.detail
-                                .as_ref()
-                                .map(|d| format!(" ({d})"))
-                                .unwrap_or_default()
+                            v.detail.as_ref().map(|d| format!(" ({d})")).unwrap_or_default()
                         );
                     }
                 }
@@ -117,8 +114,7 @@ fn main() {
         }
         Some("debug") => {
             let data = std::fs::read(&args[1]).expect("entrada");
-            let doc = afirma_pdf::pdf::doc::PdfDoc::open(&data, args.get(2).map(String::as_str))
-                .expect("pdf");
+            let doc = afirma_pdf::pdf::doc::PdfDoc::open(&data, args.get(2).map(String::as_str)).expect("pdf");
             println!(
                 "version={} startxref={:?} kind={:?} broken={} encrypted={} owner={} size={} pages={}",
                 doc.header_version,
@@ -141,10 +137,7 @@ fn main() {
                 }
             }
             for f in doc.form_fields() {
-                println!(
-                    "campo {} pagina {} widget {:?}",
-                    f.name, f.page, f.widget_id
-                );
+                println!("campo {} pagina {} widget {:?}", f.name, f.page, f.widget_id);
             }
             let (sigs, total) = doc.signatures();
             println!("revisiones {total}");

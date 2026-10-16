@@ -38,14 +38,7 @@ const ALLOWED_PARAMS: &[&str] = &[
     "SignatureId",
 ];
 
-const ROLES: &[&str] = &[
-    "emisor",
-    "receptor",
-    "tercero",
-    "supplier",
-    "customer",
-    "third party",
-];
+const ROLES: &[&str] = &["emisor", "receptor", "tercero", "supplier", "customer", "third party"];
 
 /// `AOFacturaESigner.getFacturaEExtraParams`: parámetros XAdES de una firma
 /// FacturaE (lista blanca, rol por defecto `emisor`, política FacturaE 3.1).
@@ -54,10 +47,7 @@ pub fn facturae_extra_params(original: &ExtraParams) -> afirma_core::Result<Extr
     x.set("format", FORMAT_ENVELOPED);
     x.set("facturaeSign", "true");
     let mut o = original.clone();
-    let role = o
-        .get("signerClaimedRoles")
-        .unwrap_or("emisor")
-        .to_lowercase();
+    let role = o.get("signerClaimedRoles").unwrap_or("emisor").to_lowercase();
     if !ROLES.contains(&role.as_str()) {
         return Err(AfirmaError::invalid_argument(format!(
             "El papel '{role}' no es valido para una factura electronica"
@@ -70,9 +60,7 @@ pub fn facturae_extra_params(original: &ExtraParams) -> afirma_core::Result<Extr
             let alg = o
                 .get("policyIdentifierHashAlgorithm")
                 .map(afirma_core::algorithms::java_digest_algorithm_name);
-            let matches = |(pid, phash): (&str, &str)| {
-                id == pid && hash == phash && alg.as_deref() == Some("SHA1")
-            };
+            let matches = |(pid, phash): (&str, &str)| id == pid && hash == phash && alg.as_deref() == Some("SHA1");
             if !matches(POLICY_FACTURAE_31) && !matches(POLICY_FACTURAE_30) {
                 return Err(AfirmaError::invalid_argument(format!(
                     "La politica no esta soportada (solo se soporta FacturaE 3.0 y 3.1): {id}"
@@ -106,9 +94,7 @@ pub fn is_facturae_doc(doc: &Document) -> bool {
         .child_elements(root)
         .filter_map(|c| doc.element(c).map(|e| e.local.as_str()))
         .collect();
-    ["FileHeader", "Parties", "Invoices"]
-        .iter()
-        .all(|n| names.contains(n))
+    ["FileHeader", "Parties", "Invoices"].iter().all(|n| names.contains(n))
 }
 
 /// Firmador FacturaE.
@@ -147,13 +133,7 @@ impl Signer for FacturaeSigner {
             return Err(AfirmaError::from_code(codes::FACTURAE_ALREADY_SIGNED));
         }
         let params = facturae_extra_params(extra)?;
-        xades::sign::sign(
-            Some(data),
-            algorithm,
-            key,
-            &params,
-            &crate::dsig::NoResolver,
-        )
+        xades::sign::sign(Some(data), algorithm, key, &params, &crate::dsig::NoResolver)
     }
 
     fn cosign(
@@ -164,9 +144,7 @@ impl Signer for FacturaeSigner {
         _key: &dyn SigningKey,
         _extra: &ExtraParams,
     ) -> afirma_core::Result<Vec<u8>> {
-        Err(AfirmaError::unsupported(
-            "No se soporta la cofirma de facturas",
-        ))
+        Err(AfirmaError::unsupported("No se soporta la cofirma de facturas"))
     }
 
     fn countersign(
@@ -177,16 +155,10 @@ impl Signer for FacturaeSigner {
         _key: &dyn SigningKey,
         _extra: &ExtraParams,
     ) -> afirma_core::Result<Vec<u8>> {
-        Err(AfirmaError::unsupported(
-            "No se soporta la contrafirma de facturas",
-        ))
+        Err(AfirmaError::unsupported("No se soporta la contrafirma de facturas"))
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         xades::info::signers_structure(sign)
     }
 
@@ -199,11 +171,7 @@ impl Signer for FacturaeSigner {
     }
 
     fn signed_name(&self, original: Option<&str>, in_text: Option<&str>) -> String {
-        format!(
-            "{}{}.xsig",
-            original.unwrap_or("null"),
-            in_text.unwrap_or("")
-        )
+        format!("{}{}.xsig", original.unwrap_or("null"), in_text.unwrap_or(""))
     }
 
     fn get_data(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<Option<Vec<u8>>> {
@@ -237,7 +205,12 @@ mod tests {
         assert!(x.get("referencesDigestMethod").is_none());
         assert_eq!(x.get("signatureProductionCity"), Some("Madrid"));
         assert!(facturae_extra_params(&ExtraParams::parse("signerClaimedRoles=jefe")).is_err());
-        assert!(facturae_extra_params(&ExtraParams::parse("policyIdentifier=urn:oid:1.2.3\npolicyIdentifierHash=AA==\npolicyIdentifierHashAlgorithm=SHA1")).is_err());
+        assert!(
+            facturae_extra_params(&ExtraParams::parse(
+                "policyIdentifier=urn:oid:1.2.3\npolicyIdentifierHash=AA==\npolicyIdentifierHashAlgorithm=SHA1"
+            ))
+            .is_err()
+        );
         let p30 = ExtraParams::parse(&format!(
             "policyIdentifier={}\npolicyIdentifierHash={}\npolicyIdentifierHashAlgorithm=http://www.w3.org/2000/09/xmldsig#sha1",
             POLICY_FACTURAE_30.0.replace(' ', "\\ "),

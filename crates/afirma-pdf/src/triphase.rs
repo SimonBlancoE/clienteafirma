@@ -57,10 +57,7 @@ impl PadesSession {
             (PRE.to_string(), afirma_core::base64_encode(&self.pre)),
             (NEED_PRE.to_string(), "true".to_string()),
             (TIME.to_string(), self.time.to_string()),
-            (
-                PID.to_string(),
-                afirma_core::base64_encode(self.file_id.as_bytes()),
-            ),
+            (PID.to_string(), afirma_core::base64_encode(self.file_id.as_bytes())),
         ];
         if let Some(p) = &self.pk1 {
             v.push((PK1.to_string(), afirma_core::base64_encode(p)));
@@ -69,9 +66,7 @@ impl PadesSession {
     }
 
     /// Lee los parámetros de un `TriSign`.
-    pub fn from_params<'a>(
-        params: impl IntoIterator<Item = (&'a str, &'a str)>,
-    ) -> Result<PadesSession, AfirmaError> {
+    pub fn from_params<'a>(params: impl IntoIterator<Item = (&'a str, &'a str)>) -> Result<PadesSession, AfirmaError> {
         let mut pre = None;
         let mut time = None;
         let mut pid = None;
@@ -89,9 +84,7 @@ impl PadesSession {
                 _ => {}
             }
         }
-        let bad = |m: &str| {
-            AfirmaError::invalid_argument(format!("Sesion trifasica PAdES no valida: falta {m}"))
-        };
+        let bad = |m: &str| AfirmaError::invalid_argument(format!("Sesion trifasica PAdES no valida: falta {m}"));
         Ok(PadesSession {
             pre: pre.ok_or_else(|| bad(PRE))?,
             time: time.ok_or_else(|| bad(TIME))?,
@@ -114,10 +107,7 @@ pub fn presign(
     let mut xp = xp.clone();
     crate::pades::params::check_params(algorithm, &mut xp)?;
     let alg = compose_signature_algorithm(algorithm, key_algorithm)?;
-    let chain = if crate::pades::params::is_true(
-        &xp,
-        crate::pades::params::INCLUDE_ONLY_SIGNING_CERTIFICATE,
-    ) {
+    let chain = if crate::pades::params::is_true(&xp, crate::pades::params::INCLUDE_ONLY_SIGNING_CERTIFICATE) {
         chain.iter().take(1).cloned().collect::<Vec<_>>()
     } else {
         chain.to_vec()
@@ -151,11 +141,12 @@ pub fn postsign(
     session: &PadesSession,
     xp: &ExtraParams,
 ) -> Result<Vec<u8>, AfirmaError> {
-    let pk1 = session.pk1.as_ref().ok_or_else(|| {
-        AfirmaError::invalid_argument("La sesion trifasica no contiene el PKCS#1 (PK1)")
-    })?;
-    let sign_time = from_millis(session.time)
-        .ok_or_else(|| AfirmaError::invalid_argument("Fecha de firma trifasica no valida"))?;
+    let pk1 = session
+        .pk1
+        .as_ref()
+        .ok_or_else(|| AfirmaError::invalid_argument("La sesion trifasica no contiene el PKCS#1 (PK1)"))?;
+    let sign_time =
+        from_millis(session.time).ok_or_else(|| AfirmaError::invalid_argument("Fecha de firma trifasica no valida"))?;
     let (pre, regenerated) = presign(pdf, algorithm, key_algorithm, chain, sign_time, xp)?;
     if regenerated.file_id != session.file_id || regenerated.pre != session.pre {
         return Err(crate::pades::errors::internal(

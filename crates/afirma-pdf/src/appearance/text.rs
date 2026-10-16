@@ -143,10 +143,8 @@ fn is_split_char(c: char) -> bool {
 
 /// `Character.isWhitespace` de Java.
 fn java_is_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | '\u{1c}'..='\u{1f}'
-    ) || (c.is_whitespace() && !matches!(c, '\u{a0}' | '\u{2007}' | '\u{202f}') && c != '\u{85}')
+    matches!(c, '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | '\u{1c}'..='\u{1f}')
+        || (c.is_whitespace() && !matches!(c, '\u{a0}' | '\u{2007}' | '\u{202f}') && c != '\u{85}')
 }
 
 fn is_ws(c: char) -> bool {
@@ -298,12 +296,7 @@ pub struct ColumnLayout {
 
 /// Maqueta en la columna `[llx, lly, urx, ury]` con interlineado fijo
 /// (`ColumnText.setSimpleColumn` + `go`).
-pub fn layout_column(
-    text: &str,
-    rect: (f64, f64, f64, f64),
-    leading: f64,
-    style: &TextStyle,
-) -> ColumnLayout {
+pub fn layout_column(text: &str, rect: (f64, f64, f64, f64), leading: f64, style: &TextStyle) -> ColumnLayout {
     let (llx, lly, urx, ury) = rect;
     let width = urx - llx;
     let all = break_lines(text, width, style);
@@ -325,10 +318,7 @@ pub fn layout_column(
     if leading <= 0.0 && !out.is_empty() {
         complete = false;
     }
-    ColumnLayout {
-        lines: out,
-        complete,
-    }
+    ColumnLayout { lines: out, complete }
 }
 
 /// `fitText` de AutoFirma/iText: el mayor tamaño (≤ `max_size`) con el que
@@ -437,13 +427,7 @@ pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str,
 /// Convierte el contenido generado (caracteres Latin-1) en bytes.
 pub fn latin1_bytes(s: &str) -> Vec<u8> {
     s.chars()
-        .map(|c| {
-            if (c as u32) < 256 {
-                c as u32 as u8
-            } else {
-                b'?'
-            }
-        })
+        .map(|c| if (c as u32) < 256 { c as u32 as u8 } else { b'?' })
         .collect()
 }
 
@@ -499,12 +483,7 @@ mod tests {
     #[test]
     fn fit_text_shrinks() {
         let style = TextStyle::default();
-        let s = fit_text(
-            "Texto bastante largo que no cabe",
-            (2.0, 2.0, 78.0, 38.0),
-            12.0,
-            &style,
-        );
+        let s = fit_text("Texto bastante largo que no cabe", (2.0, 2.0, 78.0, 38.0), 12.0, &style);
         assert!(s < 12.0 && s > 3.0, "{s}");
         assert_eq!(fit_text("Hola", (2.0, 2.0, 78.0, 38.0), 12.0, &style), 12.0);
     }

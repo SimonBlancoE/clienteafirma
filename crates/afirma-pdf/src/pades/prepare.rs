@@ -23,9 +23,7 @@ use crate::pdf::date::{SignTime, millis, pdf_date};
 use crate::pdf::doc::{FieldItem, OpenError, PdfDoc, Rect, merge_different};
 use crate::pdf::parse::XrefKind;
 use crate::pdf::text::{decode_text_string, encode_text_string, text_object};
-use crate::pdf::write::{
-    TrailerInfo, Update, flate_stream, num, write_dict, write_literal_string, write_name,
-};
+use crate::pdf::write::{TrailerInfo, Update, flate_stream, num, write_dict, write_literal_string, write_name};
 
 /// Tipo de firma a preparar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,12 +119,8 @@ pub fn open_pdf(pdf: &[u8], xp: &ExtraParams) -> Result<PdfDoc, AfirmaError> {
     let password = xp.get(OWNER_PASSWORD).or_else(|| xp.get(USER_PASSWORD));
     PdfDoc::open(pdf, password).map_err(|e| match e {
         OpenError::NotPdf(_) => errors::pdf_needed(),
-        OpenError::NeedsPassword => {
-            errors::password_protected("El PDF esta protegido por contrasena para lectura")
-        }
-        OpenError::BadPassword => {
-            errors::bad_password("Se ha indicado una contrasena incorrecta para el PDF")
-        }
+        OpenError::NeedsPassword => errors::password_protected("El PDF esta protegido por contrasena para lectura"),
+        OpenError::BadPassword => errors::bad_password("Se ha indicado una contrasena incorrecta para el PDF"),
     })
 }
 
@@ -173,16 +167,10 @@ pub fn check_unregistered(doc: &PdfDoc, xp: &ExtraParams) -> Result<(), AfirmaEr
 
 /// Carga una imagen de los parámetros (Base64; o ruta si no está en modo
 /// seguro y el valor es corto).
-pub fn load_image_param(
-    value: &str,
-    secure_mode: bool,
-    what: &str,
-) -> Result<PdfImage, AfirmaError> {
-    let bytes = if !secure_mode && value.len() < 500 && std::path::Path::new(value.trim()).exists()
-    {
-        std::fs::read(value.trim()).map_err(|_| {
-            AfirmaError::msg("El parametro de imagen no contiene una ruta valida a un recurso")
-        })?
+pub fn load_image_param(value: &str, secure_mode: bool, what: &str) -> Result<PdfImage, AfirmaError> {
+    let bytes = if !secure_mode && value.len() < 500 && std::path::Path::new(value.trim()).exists() {
+        std::fs::read(value.trim())
+            .map_err(|_| AfirmaError::msg("El parametro de imagen no contiene una ruta valida a un recurso"))?
     } else {
         afirma_core::base64_decode_lenient(value).map_err(|_| {
             AfirmaError::msg(format!(
@@ -275,40 +263,35 @@ impl<'a> Edit<'a> {
 fn next_signature_name(doc: &PdfDoc) -> String {
     let mut names: BTreeSet<String> = doc.form_fields().into_iter().map(|f| f.name).collect();
     if let Some(form) = doc.acroform()
-        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
-            fn walk(
-                doc: &PdfDoc,
-                o: &Object,
-                prefix: &str,
-                out: &mut BTreeSet<String>,
-                depth: usize,
-            ) {
-                if depth > 32 {
-                    return;
-                }
-                let Some(d) = doc.dict(o) else { return };
-                let t = doc
-                    .dict_get(d, b"T")
-                    .and_then(|t| t.as_str().ok())
-                    .map(decode_text_string);
-                let full = match (&t, prefix.is_empty()) {
-                    (Some(t), true) => t.clone(),
-                    (Some(t), false) => format!("{prefix}.{t}"),
-                    (None, _) => prefix.to_string(),
-                };
-                if !full.is_empty() {
-                    out.insert(full.clone());
-                }
-                if let Some(Object::Array(kids)) = doc.dict_get(d, b"Kids") {
-                    for k in kids {
-                        walk(doc, k, &full, out, depth + 1);
-                    }
-                }
+        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields")
+    {
+        fn walk(doc: &PdfDoc, o: &Object, prefix: &str, out: &mut BTreeSet<String>, depth: usize) {
+            if depth > 32 {
+                return;
             }
-            for f in fields {
-                walk(doc, f, "", &mut names, 0);
+            let Some(d) = doc.dict(o) else { return };
+            let t = doc
+                .dict_get(d, b"T")
+                .and_then(|t| t.as_str().ok())
+                .map(decode_text_string);
+            let full = match (&t, prefix.is_empty()) {
+                (Some(t), true) => t.clone(),
+                (Some(t), false) => format!("{prefix}.{t}"),
+                (None, _) => prefix.to_string(),
+            };
+            if !full.is_empty() {
+                out.insert(full.clone());
+            }
+            if let Some(Object::Array(kids)) = doc.dict_get(d, b"Kids") {
+                for k in kids {
+                    walk(doc, k, &full, out, depth + 1);
+                }
             }
         }
+        for f in fields {
+            walk(doc, f, "", &mut names, 0);
+        }
+    }
     let mut k = 1;
     loop {
         let n = format!("Signature{k}");
@@ -359,9 +342,7 @@ fn appearance_params(
     };
     let mask = obfuscate.then(|| match xp.get(OBFUSCATION_MASK) {
         Some(m) => tokens::TextMask::parse(m).unwrap_or_else(|e| {
-            tracing::warn!(
-                "La mascara de ofuscacion no esta bien definida. Se usara la por defecto: {e}"
-            );
+            tracing::warn!("La mascara de ofuscacion no esta bien definida. Se usara la por defecto: {e}");
             tokens::TextMask::default()
         }),
         None => tokens::TextMask::default(),
@@ -369,9 +350,7 @@ fn appearance_params(
     let configured = match xp.get(LAYER2_TEXT) {
         Some(t) => Some(t.to_string()),
         None if rubric.is_none() => {
-            let mut s = String::from(
-                "Firmado por $$SUBJECTCN$$\nFecha: $$SIGNDATE=dd/MM/yyyy HH:mm:ss z$$",
-            );
+            let mut s = String::from("Firmado por $$SUBJECTCN$$\nFecha: $$SIGNDATE=dd/MM/yyyy HH:mm:ss z$$");
             if reason.is_some() {
                 s.push_str("\nMotivo: $$REASON$$");
             }
@@ -392,9 +371,7 @@ fn appearance_params(
     };
     let text = match configured {
         Some(t) => Some(tokens::layer_text(&t, &data).map_err(|_| {
-            AfirmaError::invalid_argument(
-                "La etiqueta $$SIGNDATE del texto de la firma visible no esta cerrada",
-            )
+            AfirmaError::invalid_argument("La etiqueta $$SIGNDATE del texto de la firma visible no esta cerrada")
         })?),
         None => None,
     };
@@ -454,9 +431,9 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
     // 1. Parámetros básicos.
     let do_not_use_chain = is_true(xp, DO_NOT_USE_CERT_CHAIN_ON_POST_SIGN);
     let rotation = match xp.get(SIGNATURE_ROTATION) {
-        Some(v) => parse_java_int(v)
-            .ok_or_else(|| AfirmaError::invalid_argument(format!("For input string: \"{v}\"")))?
-            as i32,
+        Some(v) => {
+            parse_java_int(v).ok_or_else(|| AfirmaError::invalid_argument(format!("For input string: \"{v}\"")))? as i32
+        }
         None => 0,
     };
     let rubric = match (input.kind, xp.get(SIGNATURE_RUBRIC_IMAGE)) {
@@ -557,9 +534,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         let item: FieldItem = fields
             .into_iter()
             .find(|f| &f.name == name)
-            .ok_or_else(|| {
-                AfirmaError::invalid_argument(format!("The field {name} does not exist."))
-            })?;
+            .ok_or_else(|| AfirmaError::invalid_argument(format!("The field {name} does not exist.")))?;
         if doc.dict_get_name(&item.merged, b"FT") != Some(b"Sig") {
             return Err(AfirmaError::invalid_argument(format!(
                 "The field {name} is not a signature field."
@@ -601,9 +576,10 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
             .widget_id
             .ok_or_else(|| errors::internal("El campo de firma no es un objeto indirecto"))?;
         if let Some(vid) = item.value_id
-            && let Some(d) = ed.dict_mut(vid) {
-                d.set("V", Object::Reference(sig_id));
-            }
+            && let Some(d) = ed.dict_mut(vid)
+        {
+            d.set("V", Object::Reference(sig_id));
+        }
         if let Some(wd) = ed.dict_mut(widget_id) {
             wd.set("P", Object::Reference(page_id));
             let old_f = wd.get(b"F").and_then(Object::as_i64).unwrap_or(0);
@@ -660,10 +636,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         let (rot, page_box) = if sel.append {
             (0, Rect::new(0.0, 0.0, 0.0, 0.0))
         } else {
-            (
-                doc.rotation(main_page),
-                doc.page_size_with_rotation(main_page),
-            )
+            (doc.rotation(main_page), doc.page_size_with_rotation(main_page))
         };
         let spec = match (&rect, &appearance_info) {
             (Some(r), Some(a)) => AppearanceSpec {
@@ -698,10 +671,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         wd.set("F", Object::Integer(132));
         wd.set("Type", Object::Name(b"Annot".to_vec()));
         wd.set("Subtype", Object::Name(b"Widget".to_vec()));
-        wd.set(
-            "Rect",
-            Object::Array(rect_nums.iter().map(|v| num(*v)).collect()),
-        );
+        wd.set("Rect", Object::Array(rect_nums.iter().map(|v| num(*v)).collect()));
         let mut apd = Dictionary::new();
         apd.set("N", Object::Reference(built.napp));
         wd.set("AP", Object::Dictionary(apd));
@@ -729,34 +699,29 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
 
     // Certificación (DocMDP).
     if cert_level > 0
-        && let Some(cat) = ed.dict_mut(root_id) {
-            let mut perms = Dictionary::new();
-            perms.set("DocMDP", Object::Reference(sig_id));
-            cat.set("Perms", Object::Dictionary(perms));
-        }
+        && let Some(cat) = ed.dict_mut(root_id)
+    {
+        let mut perms = Dictionary::new();
+        perms.set("DocMDP", Object::Reference(sig_id));
+        cat.set("Perms", Object::Dictionary(perms));
+    }
 
     // Versión del documento.
     if let Some(v) = pdf_version(xp) {
-        let header_minor = doc
-            .header_version
-            .strip_prefix("1.")
-            .and_then(|m| m.parse::<u8>().ok());
+        let header_minor = doc.header_version.strip_prefix("1.").and_then(|m| m.parse::<u8>().ok());
         let catalog_minor = doc
             .catalog()
             .and_then(|c| c.get(b"Version").ok())
             .and_then(|o| o.as_name().ok())
-            .and_then(|n| {
-                std::str::from_utf8(n)
-                    .ok()?
-                    .strip_prefix("1.")?
-                    .parse::<u8>()
-                    .ok()
-            });
+            .and_then(|n| std::str::from_utf8(n).ok()?.strip_prefix("1.")?.parse::<u8>().ok());
         let current = header_minor.max(catalog_minor).unwrap_or(7);
-        if doc.header_version.starts_with("1.") && current < v && !is_pdfa
-            && let Some(cat) = ed.dict_mut(root_id) {
-                cat.set("Version", Object::Name(format!("1.{v}").into_bytes()));
-            }
+        if doc.header_version.starts_with("1.")
+            && current < v
+            && !is_pdfa
+            && let Some(cat) = ed.dict_mut(root_id)
+        {
+            cat.set("Version", Object::Name(format!("1.{v}").into_bytes()));
+        }
     }
 
     // Info /ModDate.
@@ -784,13 +749,9 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         sub_filter: &sub_filter,
         date: &pdf_date(&input.sign_time),
         name: name.as_deref().filter(|_| input.kind == SigKind::Signature),
-        reason: reason
-            .as_deref()
-            .filter(|_| input.kind == SigKind::Signature),
+        reason: reason.as_deref().filter(|_| input.kind == SigKind::Signature),
         location: city.as_deref().filter(|_| input.kind == SigKind::Signature),
-        contact: contact
-            .as_deref()
-            .filter(|_| input.kind == SigKind::Signature),
+        contact: contact.as_deref().filter(|_| input.kind == SigKind::Signature),
         reserved,
         docmdp: (cert_level > 0).then_some((cert_level, root_id)),
         encrypt: enc.map(|s| (s, sig_id)),
@@ -810,14 +771,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         _ => XrefKind::Table,
     };
     let update = std::mem::replace(&mut ed.update, Update::new(1));
-    let written = update.write(
-        &doc.bytes,
-        doc.startxref,
-        kind,
-        &trailer,
-        enc,
-        doc.pdf_start,
-    );
+    let written = update.write(&doc.bytes, doc.startxref, kind, &trailer, enc, doc.pdf_start);
     let sig_off = *written
         .offsets
         .get(&sig_id.0)
@@ -828,16 +782,9 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
     let contents_end = contents_start + 2 * reserved + 2;
     let mut bytes = written.bytes;
     let total = bytes.len();
-    let br = format!(
-        "[0 {} {} {} ]",
-        contents_start,
-        contents_end,
-        total - contents_end
-    );
+    let br = format!("[0 {} {} {} ]", contents_start, contents_end, total - contents_end);
     if br.len() > 80 {
-        return Err(errors::internal(
-            "El rango de bytes no cabe en el espacio reservado",
-        ));
+        return Err(errors::internal("El rango de bytes no cabe en el espacio reservado"));
     }
     let slot = &mut bytes[br_pos..br_pos + 80];
     slot.fill(b' ');
@@ -1005,12 +952,7 @@ fn add_annotation(ed: &mut Edit<'_>, page: ObjectId, annot: ObjectId) {
 }
 
 /// Añade una página en blanco al final (tamaño y giro de la página 1).
-fn append_blank_page(
-    ed: &mut Edit<'_>,
-    pages: &[ObjectId],
-    w: f64,
-    h: f64,
-) -> Result<ObjectId, AfirmaError> {
+fn append_blank_page(ed: &mut Edit<'_>, pages: &[ObjectId], w: f64, h: f64) -> Result<ObjectId, AfirmaError> {
     let last = *pages.last().ok_or_else(errors::pdf_needed)?;
     let parent = ed
         .doc
@@ -1032,16 +974,14 @@ fn append_blank_page(
     pd.set("Type", Object::Name(b"Page".to_vec()));
     pd.set("Resources", Object::Dictionary(res));
     pd.set("Rotate", Object::Integer(0));
-    pd.set(
-        "MediaBox",
-        Object::Array(vec![num(0.0), num(0.0), num(w), num(h)]),
-    );
+    pd.set("MediaBox", Object::Array(vec![num(0.0), num(0.0), num(w), num(h)]));
     pd.set("Parent", Object::Reference(parent));
     let new_id = ed.new_editable(Object::Dictionary(pd));
     if let Some(d) = ed.dict_mut(parent)
-        && let Ok(Object::Array(kids)) = d.get_mut(b"Kids") {
-            kids.push(Object::Reference(new_id));
-        }
+        && let Ok(Object::Array(kids)) = d.get_mut(b"Kids")
+    {
+        kids.push(Object::Reference(new_id));
+    }
     // Incremento de /Count en todos los ascendientes.
     let mut cur = Some(parent);
     let mut guard = 0;
@@ -1064,17 +1004,8 @@ fn append_blank_page(
 }
 
 /// Actualiza (o crea) el `/AcroForm`.
-fn update_acroform(
-    ed: &mut Edit<'_>,
-    root: ObjectId,
-    field: Option<ObjectId>,
-    frm: Option<ObjectId>,
-) {
-    let cat = ed
-        .get(root)
-        .and_then(|o| o.as_dict().ok())
-        .cloned()
-        .unwrap_or_default();
+fn update_acroform(ed: &mut Edit<'_>, root: ObjectId, field: Option<ObjectId>, frm: Option<ObjectId>) {
+    let cat = ed.get(root).and_then(|o| o.as_dict().ok()).cloned().unwrap_or_default();
     match cat.get(b"AcroForm").ok().cloned() {
         None | Some(Object::Null) => {
             let mut af = Dictionary::new();
@@ -1083,10 +1014,7 @@ fn update_acroform(
                 Object::Array(field.map(Object::Reference).into_iter().collect()),
             );
             af.set("SigFlags", Object::Integer(3));
-            af.set(
-                "DA",
-                Object::String(b"/Helv 0 Tf 0 g ".to_vec(), StringFormat::Literal),
-            );
+            af.set("DA", Object::String(b"/Helv 0 Tf 0 g ".to_vec(), StringFormat::Literal));
             let mut helv = Dictionary::new();
             helv.set("Type", Object::Name(b"Font".to_vec()));
             helv.set("Subtype", Object::Name(b"Type1".to_vec()));
@@ -1130,9 +1058,7 @@ fn update_acroform(
             af.set("SigFlags", Object::Integer(flags | 3));
             if let Some(f) = field {
                 match af.get(b"Fields").ok().cloned() {
-                    Some(Object::Reference(arr))
-                        if matches!(ed.get(arr), Some(Object::Array(_))) =>
-                    {
+                    Some(Object::Reference(arr)) if matches!(ed.get(arr), Some(Object::Array(_))) => {
                         if let Some(Object::Array(a)) = ed.get_mut(arr) {
                             a.push(Object::Reference(f));
                         }
@@ -1187,10 +1113,9 @@ fn update_xmp(ed: &mut Edit<'_>, root: ObjectId, t: &SignTime, add_history: bool
         return;
     };
     let mut new_text = crate::xmp::update_dates(&text, t);
-    if add_history
-        && let Some(h) = crate::xmp::add_sign_history(&new_text, t) {
-            new_text = h;
-        }
+    if add_history && let Some(h) = crate::xmp::add_sign_history(&new_text, t) {
+        new_text = h;
+    }
     if new_text == text {
         return;
     }
@@ -1286,10 +1211,7 @@ fn add_stamp_image(
             num_str(x),
             num_str(y)
         );
-        let c_id = ed.new_obj(Object::Stream(flate_stream(
-            Dictionary::new(),
-            content.as_bytes(),
-        )));
+        let c_id = ed.new_obj(Object::Stream(flate_stream(Dictionary::new(), content.as_bytes())));
         let contents = ed
             .get(page_id)
             .and_then(|o| o.as_dict().ok())
@@ -1336,10 +1258,7 @@ fn add_attachment(ed: &mut Edit<'_>, xp: &ExtraParams, root: ObjectId) -> Result
     fs.set("Type", Object::Name(b"Filespec".to_vec()));
     fs.set(
         "F",
-        Object::String(
-            crate::pdf::text::winansi_encode(file_name),
-            StringFormat::Literal,
-        ),
+        Object::String(crate::pdf::text::winansi_encode(file_name), StringFormat::Literal),
     );
     fs.set("UF", text_object(file_name));
     fs.set("EF", Object::Dictionary(ef));
@@ -1347,11 +1266,7 @@ fn add_attachment(ed: &mut Edit<'_>, xp: &ExtraParams, root: ObjectId) -> Result
     let fs_id = ed.new_obj(Object::Dictionary(fs));
 
     // Árbol de nombres /EmbeddedFiles (se lee y se reescribe plano).
-    let cat = ed
-        .get(root)
-        .and_then(|o| o.as_dict().ok())
-        .cloned()
-        .unwrap_or_default();
+    let cat = ed.get(root).and_then(|o| o.as_dict().ok()).cloned().unwrap_or_default();
     let names_obj = cat.get(b"Names").ok().cloned();
     let mut names_dict = match names_obj.as_ref().map(|o| ed.resolve(o)) {
         Some(Object::Dictionary(d)) => d,
@@ -1404,19 +1319,21 @@ fn collect_name_tree(ed: &Edit<'_>, node: &Object, out: &mut Vec<(Vec<u8>, Objec
     }
     let Object::Dictionary(d) = node else { return };
     if let Ok(names) = d.get(b"Names")
-        && let Object::Array(a) = ed.resolve(names) {
-            for pair in a.chunks(2) {
-                if let [Object::String(n, _), v] = pair {
-                    out.push((n.clone(), v.clone()));
-                }
+        && let Object::Array(a) = ed.resolve(names)
+    {
+        for pair in a.chunks(2) {
+            if let [Object::String(n, _), v] = pair {
+                out.push((n.clone(), v.clone()));
             }
         }
+    }
     if let Ok(kids) = d.get(b"Kids")
-        && let Object::Array(a) = ed.resolve(kids) {
-            for k in a {
-                collect_name_tree(ed, &ed.resolve(&k), out, depth + 1);
-            }
+        && let Object::Array(a) = ed.resolve(kids)
+    {
+        for k in a {
+            collect_name_tree(ed, &ed.resolve(&k), out, depth + 1);
         }
+    }
 }
 
 /// Reconstruye un PDF dañado (sin firmas ni cifrado) como un fichero nuevo.

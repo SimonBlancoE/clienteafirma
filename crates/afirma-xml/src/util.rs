@@ -37,8 +37,7 @@ pub fn b64_decode(text: &str) -> Option<Vec<u8>> {
 
 /// `Base64.isBase64(byte[])` de AutoFirma.
 pub fn is_base64(data: &[u8]) -> bool {
-    const SET: &[u8] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz=_-\t\n+/0123456789\r~";
+    const SET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz=_-\t\n+/0123456789\r~";
     let len = data.len();
     let mut count = 0usize;
     for (i, &b) in data.iter().enumerate() {
@@ -114,19 +113,13 @@ pub fn encoding_for(name: &str) -> Option<&'static encoding_rs::Encoding> {
 /// esquema bien formado si lo tiene.
 pub fn is_valid_uri(s: &str) -> bool {
     if s.chars().any(|c| {
-        c.is_whitespace()
-            || c.is_control()
-            || matches!(c, '"' | '<' | '>' | '\\' | '^' | '`' | '{' | '|' | '}')
+        c.is_whitespace() || c.is_control() || matches!(c, '"' | '<' | '>' | '\\' | '^' | '`' | '{' | '|' | '}')
     }) {
         return false;
     }
     if let Some(idx) = s.find(':') {
         let scheme = &s[..idx];
-        if !scheme.is_empty()
-            && !scheme.contains('/')
-            && !scheme.contains('?')
-            && !scheme.contains('#')
-        {
+        if !scheme.is_empty() && !scheme.contains('/') && !scheme.contains('?') && !scheme.contains('#') {
             let mut chars = scheme.chars();
             let first_ok = chars.next().is_some_and(|c| c.is_ascii_alphabetic());
             let rest_ok = chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
@@ -143,8 +136,7 @@ pub fn is_valid_uri(s: &str) -> bool {
     let b = s.as_bytes();
     for (i, &c) in b.iter().enumerate() {
         if c == b'%'
-            && !(b.get(i + 1).is_some_and(u8::is_ascii_hexdigit)
-                && b.get(i + 2).is_some_and(u8::is_ascii_hexdigit))
+            && !(b.get(i + 1).is_some_and(u8::is_ascii_hexdigit) && b.get(i + 2).is_some_and(u8::is_ascii_hexdigit))
         {
             return false;
         }
@@ -171,10 +163,7 @@ mod tests {
         let u = uuid_v3_from_bytes(b"hola");
         assert_eq!(u.len(), 36);
         assert_eq!(&u[14..15], "3");
-        assert_eq!(
-            uuid_v3_from_bytes(b""),
-            "d41d8cd9-8f00-3204-a980-0998ecf8427e"
-        );
+        assert_eq!(uuid_v3_from_bytes(b""), "d41d8cd9-8f00-3204-a980-0998ecf8427e");
     }
 
     #[test]

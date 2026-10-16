@@ -6,9 +6,7 @@ use afirma_core::key::SigningKey;
 use afirma_core::signer::CounterSignTarget;
 
 use super::info::{self, find_element_by_id};
-use super::props::{
-    self, DataObjectFormat, KeyInfoOptions, ObjectIdentifier, PolicySpec, SignedProps,
-};
+use super::props::{self, DataObjectFormat, KeyInfoOptions, ObjectIdentifier, PolicySpec, SignedProps};
 use super::sign::{check_digest_uri, encoding_param, key_info_certs};
 use super::*;
 use crate::c14n::{C14N_10, C14n};
@@ -57,9 +55,7 @@ fn multi_params(
             "Los formatos de firma XML no soportan el algoritmo de firma '{algorithm}'"
         ))
     })?;
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD).to_string();
     let c14n = p.get_or("canonicalizationAlgorithm", C14N_10).to_string();
     Ok(MultiParams {
         sig_uri,
@@ -98,12 +94,7 @@ fn has_archive_timestamp(doc: &Document, sig: NodeId) -> bool {
         .any(|ns| doc.find_child(usp, ns, "ArchiveTimeStamp").is_some())
 }
 
-fn check_archive(
-    doc: &Document,
-    sigs: &[NodeId],
-    p: &ExtraParams,
-    cosign: bool,
-) -> afirma_core::Result<()> {
+fn check_archive(doc: &Document, sigs: &[NodeId], p: &ExtraParams, cosign: bool) -> afirma_core::Result<()> {
     let allow = p.get("allowSignLTSignature");
     if allow.is_some_and(|v| v.eq_ignore_ascii_case("true")) {
         return Ok(());
@@ -111,10 +102,7 @@ fn check_archive(
     if sigs.iter().any(|&s| has_archive_timestamp(doc, s)) {
         let err = if cosign {
             // Java marca como denegada la causa, no la excepción lanzada.
-            AfirmaError::signing_lts(
-                "La cofirma de firmas de archivo invalidara el sello de archivo",
-                false,
-            )
+            AfirmaError::signing_lts("La cofirma de firmas de archivo invalidara el sello de archivo", false)
         } else {
             let e = AfirmaError::signing_lts(
                 "La contrafirma de firmas de archivo podria invalidar el sello de archivo si se aplicase a contrafirmas internas",
@@ -132,11 +120,7 @@ fn known_transform(alg: &str) -> bool {
     C14n::from_uri(alg).is_some()
         || matches!(
             alg,
-            dsig::BASE64
-                | dsig::ENVELOPED
-                | dsig::XPATH
-                | dsig::XPATH2
-                | "http://www.w3.org/TR/1999/REC-xslt-19991116"
+            dsig::BASE64 | dsig::ENVELOPED | dsig::XPATH | dsig::XPATH2 | "http://www.w3.org/TR/1999/REC-xslt-19991116"
         )
 }
 
@@ -153,10 +137,7 @@ pub(crate) fn copy_transforms(
             format!("{prefix}:{l}")
         }
     };
-    let named = |n: NodeId, l: &str| {
-        doc.element(n)
-            .is_some_and(|e| e.qname() == l || e.qname() == qn(l))
-    };
+    let named = |n: NodeId, l: &str| doc.element(n).is_some_and(|e| e.qname() == l || e.qname() == qn(l));
     let mut out = Vec::new();
     let Some(ts) = doc
         .children(reference)
@@ -181,9 +162,7 @@ pub(crate) fn copy_transforms(
         let bad = |m: &str| {
             AfirmaError::new(
                 codes::INVALID_TRANSFORMATION,
-                format!(
-                    "Se han especificado parametros erroneos para una transformacion personalizada: {m}"
-                ),
+                format!("Se han especificado parametros erroneos para una transformacion personalizada: {m}"),
             )
         };
         match alg.as_str() {
@@ -284,9 +263,7 @@ fn cosign_dof(
     oid: Option<&str>,
     encoding: Option<&str>,
 ) -> DataObjectFormat {
-    let oid = oid
-        .map(str::to_string)
-        .or_else(|| mime_type.map(mime::mime_to_oid));
+    let oid = oid.map(str::to_string).or_else(|| mime_type.map(mime::mime_to_oid));
     DataObjectFormat {
         object_reference: format!("#{reference_id}"),
         description: None,
@@ -296,13 +273,7 @@ fn cosign_dof(
     }
 }
 
-fn ds_object(
-    ds: &DsNames,
-    id: &str,
-    mime: Option<&str>,
-    encoding: Option<&str>,
-    content: &str,
-) -> String {
+fn ds_object(ds: &DsNames, id: &str, mime: Option<&str>, encoding: Option<&str>, content: &str) -> String {
     let mut s = format!("<{}", ds.q("Object"));
     if let Some(e) = encoding {
         s.push_str(&format!(" Encoding=\"{}\"", esc_attr(e)));
@@ -339,12 +310,7 @@ fn signed_props(
 
 /// `KeyInfo`, método de canonicalización y referencia a `KeyInfo` según
 /// `includeOnlySignningCertificate` (jxades o AutoFirma).
-fn key_info_setup(
-    mp: &MultiParams,
-    ds: &DsNames,
-    key: &dyn SigningKey,
-    sig_prefix: &str,
-) -> (String, String, bool) {
+fn key_info_setup(mp: &MultiParams, ds: &DsNames, key: &dyn SigningKey, sig_prefix: &str) -> (String, String, bool) {
     let id = format!("{sig_prefix}-KeyInfo");
     if mp.only_cert {
         (
@@ -375,9 +341,8 @@ pub fn cosign(
     extra: &ExtraParams,
     resolver: &dyn dsig::Resolver,
 ) -> afirma_core::Result<Vec<u8>> {
-    let doc = info::parse(sign).ok_or_else(|| {
-        AfirmaError::invalid_signature_format("No se ha podido cargar el documento XML de firmas")
-    })?;
+    let doc = info::parse(sign)
+        .ok_or_else(|| AfirmaError::invalid_signature_format("No se ha podido cargar el documento XML de firmas"))?;
     if !info::is_sign_doc(&doc) {
         return Err(AfirmaError::invalid_signature_format(
             "No se ha indicado una firma XAdES para cofirmar",
@@ -409,8 +374,8 @@ pub fn cosign(
     } else {
         doc.source().to_string()
     };
-    let doc = Document::parse(&base_text)
-        .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+    let doc =
+        Document::parse(&base_text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
     let root = doc.document_element().expect("raíz");
     let sigs: Vec<NodeId> = doc.find_descendants(root, DSIG_NS, "Signature");
     check_archive(&doc, &sigs, &mp.p, true)?;
@@ -442,10 +407,7 @@ pub fn cosign(
         .and_then(|e| e.ns.clone())
         .unwrap_or_else(|| NS_XADES_132.to_string());
     let baseline = mp.p.get("profile") == Some("baseline") && is_baseline_compatible(&xades_ns);
-    let xmlsig_prefix = doc
-        .element(first)
-        .and_then(|e| e.prefix.clone())
-        .unwrap_or_default();
+    let xmlsig_prefix = doc.element(first).and_then(|e| e.prefix.clone()).unwrap_or_default();
     let ds = DsNames::new(&xmlsig_prefix);
 
     let mut refs: Vec<ReferenceSpec> = Vec::new();
@@ -455,19 +417,13 @@ pub fn cosign(
     for r in info::data_references(&doc, first) {
         let mut transforms = copy_transforms(&doc, r, &xmlsig_prefix)?;
         let re = doc.element(r).expect("elemento");
-        let reference_id = if re
-            .attr("Id")
-            .is_some_and(|i| i.starts_with("StyleReference-"))
-        {
+        let reference_id = if re.attr("Id").is_some_and(|i| i.starts_with("StyleReference-")) {
             format!("StyleReference-{}", uuid_v4())
         } else {
             format!("Reference-{}", uuid_v4())
         };
         let uri = re.attr("URI").unwrap_or("").to_string();
-        let ty = re
-            .attr("Type")
-            .filter(|t| !t.is_empty())
-            .map(str::to_string);
+        let ty = re.attr("Type").filter(|t| !t.is_empty()).map(str::to_string);
         if ty.as_deref() == Some(dsig::MANIFEST_TYPE) {
             let Some(mid) = uri.strip_prefix('#') else {
                 return Err(AfirmaError::new(
@@ -486,26 +442,16 @@ pub fn cosign(
                 .child_elements(sp_el)
                 .find(|&c| local(&doc, c) == "SignedDataObjectProperties")
             {
-                let ns = doc
-                    .element(sdop)
-                    .and_then(|e| e.ns.clone())
-                    .unwrap_or_default();
+                let ns = doc.element(sdop).and_then(|e| e.ns.clone()).unwrap_or_default();
                 for d in doc.find_descendants(sdop, &ns, "DataObjectFormat") {
                     copied.push(parse_data_object_format(&doc, d));
                 }
             }
             let new_manifest_id = format!("Manifest-{}", uuid_v4());
             let mut changes = vec![(manifest, new_manifest_id.clone())];
-            let mns = doc
-                .element(manifest)
-                .and_then(|e| e.ns.clone())
-                .unwrap_or_default();
+            let mns = doc.element(manifest).and_then(|e| e.ns.clone()).unwrap_or_default();
             for mr in doc.find_descendants(manifest, &mns, "Reference") {
-                let old = doc
-                    .element(mr)
-                    .and_then(|e| e.attr("Id"))
-                    .unwrap_or("")
-                    .to_string();
+                let old = doc.element(mr).and_then(|e| e.attr("Id")).unwrap_or("").to_string();
                 let new_id = format!("Reference-{}", uuid_v4());
                 for d in copied.iter_mut() {
                     if d.object_reference == format!("#{old}") {
@@ -557,9 +503,7 @@ pub fn cosign(
                         } else {
                             format!("{xmlsig_prefix}:Signature")
                         };
-                        transforms.push(TransformSpec::XPath(format!(
-                            "not(ancestor-or-self::{name})"
-                        )));
+                        transforms.push(TransformSpec::XPath(format!("not(ancestor-or-self::{name})")));
                     }
                 }
             }
@@ -580,12 +524,15 @@ pub fn cosign(
                         break;
                     }
                     if local(&doc, c) == "Signature"
-                        && let Some(&sc) = doc.children(c).iter().rev().find(|&&sc| {
-                            doc.element(sc).and_then(|e| e.attr("Id")) == Some(data_id.as_str())
-                        }) {
-                            found = Some(sc);
-                            break;
-                        }
+                        && let Some(&sc) = doc
+                            .children(c)
+                            .iter()
+                            .rev()
+                            .find(|&&sc| doc.element(sc).and_then(|e| e.attr("Id")) == Some(data_id.as_str()))
+                    {
+                        found = Some(sc);
+                        break;
+                    }
                 }
             }
             if let Some(f) = found {
@@ -671,8 +618,8 @@ pub fn cosign(
     let sig_prefix = format!("Signature-{}", uuid_v4());
     let (key_info, c14n_uri, ki_ref) = key_info_setup(&mp, &ds, key, &sig_prefix);
     let props = signed_props(&mp, key.certificate(), baseline, dofs)?;
-    let ds_in_scope = doc.lookup_namespace(root, Some(&xmlsig_prefix)).as_deref() == Some(DSIG_NS)
-        && !xmlsig_prefix.is_empty();
+    let ds_in_scope =
+        doc.lookup_namespace(root, Some(&xmlsig_prefix)).as_deref() == Some(DSIG_NS) && !xmlsig_prefix.is_empty();
     let assembly = Assembly {
         ds: ds.clone(),
         xades_prefix: XADES_PREFIX.into(),
@@ -708,8 +655,8 @@ pub fn cosign(
     let out = if wrapped {
         splice::finish(&signed, &output_encoding)
     } else {
-        let final_doc = Document::parse(&signed)
-            .map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
+        let final_doc =
+            Document::parse(&signed).map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
         splice::finish_preserving(&final_doc, &signed, &output_encoding)
     };
     out.map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m))
@@ -723,9 +670,7 @@ fn first_cert_cn(doc: &Document, sig: NodeId) -> Option<String> {
         .next()?;
     let der = util::b64_decode(&doc.text_content(c))?;
     let (_, cert) = x509_parser::parse_x509_certificate(&der).ok()?;
-    Some(afirma_core::aoutil::get_cn(&crate::dn::java_name(
-        cert.subject(),
-    )))
+    Some(afirma_core::aoutil::get_cn(&crate::dn::java_name(cert.subject())))
 }
 
 /// Contrafirma XAdES.
@@ -736,9 +681,8 @@ pub fn countersign(
     key: &dyn SigningKey,
     extra: &ExtraParams,
 ) -> afirma_core::Result<Vec<u8>> {
-    let doc = info::parse(sign).ok_or_else(|| {
-        AfirmaError::invalid_signature_format("No se ha podido cargar el documento XML de firmas")
-    })?;
+    let doc = info::parse(sign)
+        .ok_or_else(|| AfirmaError::invalid_signature_format("No se ha podido cargar el documento XML de firmas"))?;
     let baseline_sig = info::check_compatibility(&doc)?;
     if !info::is_sign_doc(&doc) {
         return Err(AfirmaError::invalid_signature_format(
@@ -769,8 +713,7 @@ pub fn countersign(
     } else {
         doc.source().to_string()
     };
-    let cur = Document::parse(&text)
-        .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+    let cur = Document::parse(&text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
     let root = cur.document_element().expect("raíz");
     let sigs: Vec<NodeId> = cur.find_descendants(root, DSIG_NS, "Signature");
     check_archive(&cur, &sigs, &mp.p, false)?;
@@ -785,10 +728,7 @@ pub fn countersign(
             let mut out = Vec::new();
             for &i in idx {
                 let s = *sigs.get(i).ok_or_else(|| {
-                    AfirmaError::new(
-                        codes::INVALID_COUNTERSIGNATURE_INDEX,
-                        "Posicion de nodo no valida.",
-                    )
+                    AfirmaError::new(codes::INVALID_COUNTERSIGNATURE_INDEX, "Posicion de nodo no valida.")
                 })?;
                 if !out.contains(&s) {
                     out.push(s);
@@ -810,8 +750,8 @@ pub fn countersign(
         text = countersign_one(text, start, &mp, key, input_encoding.as_deref())?;
     }
     if wrapped {
-        let d = Document::parse(&text)
-            .map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
+        let d =
+            Document::parse(&text).map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
         let first = d
             .find_descendants(d.root(), DSIG_NS, "Signature")
             .into_iter()
@@ -821,15 +761,13 @@ pub fn countersign(
         return splice::finish(&text, &output_encoding)
             .map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m));
     }
-    let d = Document::parse(&text)
-        .map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
+    let d = Document::parse(&text).map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))?;
     splice::finish_preserving(&d, &text, &output_encoding)
         .map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m))
 }
 
 fn reparse(text: &str) -> afirma_core::Result<Document> {
-    Document::parse(text)
-        .map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))
+    Document::parse(text).map_err(|e| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, e.to_string()))
 }
 
 fn signature_at(doc: &Document, start: usize) -> afirma_core::Result<NodeId> {
@@ -873,14 +811,8 @@ fn countersign_one(
             "No se han encontrado los atributos firmados de la firma original",
         )
     })?;
-    let mut xades_prefix = doc
-        .element(sp)
-        .and_then(|e| e.prefix.clone())
-        .unwrap_or_default();
-    let xades_ns = doc
-        .element(sp)
-        .and_then(|e| e.ns.clone())
-        .unwrap_or_default();
+    let mut xades_prefix = doc.element(sp).and_then(|e| e.prefix.clone()).unwrap_or_default();
+    let xades_ns = doc.element(sp).and_then(|e| e.ns.clone()).unwrap_or_default();
     let sp_type = doc
         .element(sp_ref)
         .and_then(|e| e.attr("Type"))
@@ -891,15 +823,9 @@ fn countersign_one(
     let up = first_desc_local(&doc, sig, "UnsignedProperties");
     let mut usp_exists = false;
     if let Some(up) = up {
-        xades_prefix = doc
-            .element(up)
-            .and_then(|e| e.prefix.clone())
-            .unwrap_or_default();
+        xades_prefix = doc.element(up).and_then(|e| e.prefix.clone()).unwrap_or_default();
         if let Some(usp) = first_desc_local(&doc, up, "UnsignedSignatureProperties") {
-            xades_prefix = doc
-                .element(usp)
-                .and_then(|e| e.prefix.clone())
-                .unwrap_or_default();
+            xades_prefix = doc.element(usp).and_then(|e| e.prefix.clone()).unwrap_or_default();
             usp_exists = true;
             text = splice::move_to_last_child(&doc, usp);
         }
@@ -922,17 +848,8 @@ fn countersign_one(
         .find_descendants(sig, DSIG_NS, "SignatureValue")
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            AfirmaError::new(
-                codes::UNKWNON_XML_SIGNING_ERROR,
-                "La firma no tiene SignatureValue",
-            )
-        })?;
-    let sv_id = doc
-        .element(sv)
-        .and_then(|e| e.attr("Id"))
-        .unwrap_or("")
-        .to_string();
+        .ok_or_else(|| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, "La firma no tiene SignatureValue"))?;
+    let sv_id = doc.element(sv).and_then(|e| e.attr("Id")).unwrap_or("").to_string();
 
     if C14n::from_uri(&mp.c14n).is_none() {
         return Err(AfirmaError::new(
@@ -968,12 +885,8 @@ fn countersign_one(
     // Punto de inserción y elementos a crear.
     let up = first_desc_local(&doc, sig, "UnsignedProperties");
     let usp = up.and_then(|u| first_desc_local(&doc, u, "UnsignedSignatureProperties"));
-    let qp = first_desc_local(&doc, sig, "QualifyingProperties").ok_or_else(|| {
-        AfirmaError::new(
-            codes::UNKWNON_XML_SIGNING_ERROR,
-            "No se encuentra QualifyingProperties",
-        )
-    })?;
+    let qp = first_desc_local(&doc, sig, "QualifyingProperties")
+        .ok_or_else(|| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, "No se encuentra QualifyingProperties"))?;
     let (parent, wrap_open, wrap_close) = match (up, usp, usp_exists) {
         (Some(_), Some(usp), true) => (
             usp,
@@ -982,16 +895,8 @@ fn countersign_one(
         ),
         (Some(up), _, _) => (
             up,
-            format!(
-                "<{}><{}>",
-                qn("UnsignedSignatureProperties"),
-                qn("CounterSignature")
-            ),
-            format!(
-                "</{}></{}>",
-                qn("CounterSignature"),
-                qn("UnsignedSignatureProperties")
-            ),
+            format!("<{}><{}>", qn("UnsignedSignatureProperties"), qn("CounterSignature")),
+            format!("</{}></{}>", qn("CounterSignature"), qn("UnsignedSignatureProperties")),
         ),
         (None, _, _) => (
             qp,
@@ -1035,8 +940,7 @@ fn countersign_one(
     };
     let mut ph = Placeholders::new();
     let sig_text = assembly.render(&mut ph);
-    let full =
-        splice::insert_last_child(&doc, parent, &format!("{wrap_open}{sig_text}{wrap_close}"));
+    let full = splice::insert_last_child(&doc, parent, &format!("{wrap_open}{sig_text}{wrap_close}"));
     dsig::complete(
         full,
         &ph,

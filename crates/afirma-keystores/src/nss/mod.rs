@@ -61,7 +61,11 @@ fn nss_quote(v: &str) -> String {
 /// Cadena de inicialización de `softokn3` (`nssArgs` de SunPKCS11).
 pub fn nss_init_string(profile_dir: &Path, sql: bool, enable_write: bool) -> String {
     let dir = profile_dir.to_string_lossy();
-    let dir = if cfg!(windows) { dir.replace('\\', "/") } else { dir.to_string() };
+    let dir = if cfg!(windows) {
+        dir.replace('\\', "/")
+    } else {
+        dir.to_string()
+    };
     format!(
         "configdir='{}{}' certPrefix='' keyPrefix='' {}",
         if sql { "sql:" } else { "" },
@@ -81,7 +85,10 @@ fn preload_dependencies(lib_dir: &Path, os: Os) {
     for dep in libdir::softokn_dependencies(os) {
         let p = lib_dir.join(dep);
         if p.is_file() && !crate::pkcs11::raw::preload_global(&p) {
-            tracing::warn!("Error al cargar la biblioteca {} para el acceso al almacen de claves de Mozilla", p.display());
+            tracing::warn!(
+                "Error al cargar la biblioteca {} para el acceso al almacen de claves de Mozilla",
+                p.display()
+            );
         }
     }
 }
@@ -96,11 +103,17 @@ fn internal_config(kind: KeyStoreKind) -> Pkcs11Config {
         slots: SlotSelection::AllTokens,
         // Ranura 2 ("NSS User Private Key and Certificate Services") o el
         // token de certificados en modo FIPS.
-        token_filter: Some(Arc::new(|t: &TokenDescription| t.slot_id == 2 || t.label.contains("Certificate DB"))),
+        token_filter: Some(Arc::new(|t: &TokenDescription| {
+            t.slot_id == 2 || t.label.contains("Certificate DB")
+        })),
         hardware: false,
         try_empty_pin_first: true,
         retry_wrong_pin: false,
-        source: Some(if kind == KeyStoreKind::SharedNss { "NSS".into() } else { "Mozilla Firefox".into() }),
+        source: Some(if kind == KeyStoreKind::SharedNss {
+            "NSS".into()
+        } else {
+            "Mozilla Firefox".into()
+        }),
         ..Pkcs11Config::new(kind).with_pin_prompt(prompt)
     }
 }
@@ -131,7 +144,10 @@ pub fn open_internal(
         let module = match Pkcs11Module::load_with_init(&softokn, Some(&init)) {
             Ok(m) => m,
             Err(e) => {
-                tracing::info!("No se ha podido cargar NSS ({}): {e}", init.replace(&*profile_dir.to_string_lossy(), "USERHOME"));
+                tracing::info!(
+                    "No se ha podido cargar NSS ({}): {e}",
+                    init.replace(&*profile_dir.to_string_lossy(), "USERHOME")
+                );
                 last_err = Some(e);
                 continue;
             }
@@ -142,8 +158,14 @@ pub fn open_internal(
     }
     Err(match last_err {
         Some(KeyStoreError::LibraryNotFound(p)) => KeyStoreError::LibraryNotFound(p),
-        Some(e) => KeyStoreError::load(KeyStoreKind::MozUni, format!("Ocurrio un error al configurar el proveedor de acceso a NSS: {e}")),
-        None => KeyStoreError::load(KeyStoreKind::MozUni, "Ocurrio un error al configurar el proveedor de acceso a NSS"),
+        Some(e) => KeyStoreError::load(
+            KeyStoreKind::MozUni,
+            format!("Ocurrio un error al configurar el proveedor de acceso a NSS: {e}"),
+        ),
+        None => KeyStoreError::load(
+            KeyStoreKind::MozUni,
+            "Ocurrio un error al configurar el proveedor de acceso a NSS",
+        ),
     })
 }
 
@@ -167,7 +189,11 @@ pub fn external_modules(profile_dir: &Path, env: &MozEnv, filter: &ModuleFilter)
 /// conocidos (`System32`, o `SysWOW64` en un proceso de 32 bits).
 pub fn windows_system_dir(env: &MozEnv) -> Option<PathBuf> {
     let root = env.var("SystemRoot").or_else(|| env.var("SYSTEMROOT"))?;
-    let sub = if cfg!(target_pointer_width = "32") && env.var("ProgramFiles(x86)").is_some() { "SysWOW64" } else { "System32" };
+    let sub = if cfg!(target_pointer_width = "32") && env.var("ProgramFiles(x86)").is_some() {
+        "SysWOW64"
+    } else {
+        "System32"
+    };
     Some(Path::new(root).join(sub))
 }
 
@@ -183,7 +209,9 @@ pub fn open_external_modules(
 ) -> Vec<Pkcs11Store> {
     let mut out = Vec::new();
     for m in modules {
-        let config = Pkcs11Config::new(kind).with_name(m.description.clone()).with_pin_prompt(crate::kind::prompts::firefox_module(&m.description));
+        let config = Pkcs11Config::new(kind)
+            .with_name(m.description.clone())
+            .with_pin_prompt(crate::kind::prompts::firefox_module(&m.description));
         let lib = PathBuf::from(&m.lib);
         let mut result = Pkcs11Store::open(&lib, config.clone(), callback.clone());
         if matches!(result, Err(ref e) if !e.is_cancelled()) && Os::current() == Os::Linux {

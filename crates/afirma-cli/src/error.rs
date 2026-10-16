@@ -99,10 +99,7 @@ mod tests {
     fn mensajes_io() {
         let e = std::io::Error::from_raw_os_error(21);
         if cfg!(target_os = "linux") {
-            assert_eq!(
-                java_io_message(Path::new("testdata"), &e),
-                "testdata (Is a directory)"
-            );
+            assert_eq!(java_io_message(Path::new("testdata"), &e), "testdata (Is a directory)");
         }
         let e = std::io::Error::other("fallo");
         assert_eq!(java_io_message(Path::new("x"), &e), "x (fallo)");

@@ -5,9 +5,9 @@
 //!   por defecto de cada tipo tomado de las preferencias.
 //! - Protocolo web con `format=auto` (§4.4.B).
 
+use afirma_core::ExtraParams;
 use afirma_core::constants::*;
 use afirma_core::formats::{DataFileType, SignerKind};
-use afirma_core::ExtraParams;
 
 use crate::registry;
 
@@ -63,7 +63,11 @@ pub fn analyze_for_desktop(data: &[u8], pref: &dyn Fn(&str) -> Option<String>) -
     } else if afirma_core::mime::office::is_odf_document(data) {
         DataFileType::Odf
     } else if let Some((kind, _)) = registry::detect(data, &params) {
-        let ft = if kind == SignerKind::Xades { DataFileType::SignXades } else { DataFileType::SignCades };
+        let ft = if kind == SignerKind::Xades {
+            DataFileType::SignXades
+        } else {
+            DataFileType::SignCades
+        };
         return FileAnalysis {
             file_type: ft,
             format: afirma_core::formats::get_sign_format(kind).to_string(),
@@ -79,7 +83,9 @@ pub fn analyze_for_desktop(data: &[u8], pref: &dyn Fn(&str) -> Option<String>) -
 
     let (key, default) = file_type.default_format_preference().unwrap_or(("", SIGN_FORMAT_CADES));
     let alternatives: Vec<String> = alternatives_for(file_type).iter().map(|s| s.to_string()).collect();
-    let mut format = pref(key).filter(|f| !f.trim().is_empty()).unwrap_or_else(|| default.to_string());
+    let mut format = pref(key)
+        .filter(|f| !f.trim().is_empty())
+        .unwrap_or_else(|| default.to_string());
     if !alternatives.iter().any(|a| a.eq_ignore_ascii_case(&format)) {
         format = default.to_string();
     }
@@ -88,11 +94,19 @@ pub fn analyze_for_desktop(data: &[u8], pref: &dyn Fn(&str) -> Option<String>) -
     let mut existing = None;
     if file_type == DataFileType::Pdf
         && let Some(s) = &pdf
-            && format.eq_ignore_ascii_case(SIGN_FORMAT_PADES) && s.is_sign(data, &params) {
-                operation = ProposedOperation::Multisign;
-                existing = Some(SignerKind::Pdf);
-            }
-    FileAnalysis { file_type, format, alternatives, operation, existing_signature: existing }
+        && format.eq_ignore_ascii_case(SIGN_FORMAT_PADES)
+        && s.is_sign(data, &params)
+    {
+        operation = ProposedOperation::Multisign;
+        existing = Some(SignerKind::Pdf);
+    }
+    FileAnalysis {
+        file_type,
+        format,
+        alternatives,
+        operation,
+        existing_signature: existing,
+    }
 }
 
 /// Operación criptográfica para la selección automática del protocolo.
@@ -110,11 +124,14 @@ pub fn protocol_auto_format(op: CryptoOp, data: &[u8]) -> Option<String> {
     match op {
         CryptoOp::Sign => {
             let is_pdf = registry::signer(SignerKind::Pdf).is_some_and(|s| s.is_valid_data_file(data));
-            let is_facturae = !is_pdf && registry::signer(SignerKind::FacturaE).is_some_and(|s| s.is_valid_data_file(data));
+            let is_facturae =
+                !is_pdf && registry::signer(SignerKind::FacturaE).is_some_and(|s| s.is_valid_data_file(data));
             let is_xml = !is_pdf && !is_facturae && afirma_core::mime::is_xml(data);
             Some(afirma_core::formats::protocol_auto_sign_format(is_pdf, is_facturae, is_xml).to_string())
         }
-        CryptoOp::Cosign | CryptoOp::Countersign => registry::detect_format_name(data, &ExtraParams::new()).map(str::to_string),
+        CryptoOp::Cosign | CryptoOp::Countersign => {
+            registry::detect_format_name(data, &ExtraParams::new()).map(str::to_string)
+        }
     }
 }
 

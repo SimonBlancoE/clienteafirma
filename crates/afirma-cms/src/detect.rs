@@ -19,7 +19,9 @@ pub fn is_cades_signed_data(data: &[u8], enforce_cades: bool) -> bool {
     sd.signer_infos.iter().all(|si| {
         si.signed_attrs.is_some()
             && si.signed_attributes().is_ok_and(|attrs| {
-                attrs.iter().any(|a| a.is(oids::SIGNING_CERTIFICATE) || a.is(oids::SIGNING_CERTIFICATE_V2))
+                attrs
+                    .iter()
+                    .any(|a| a.is(oids::SIGNING_CERTIFICATE) || a.is(oids::SIGNING_CERTIFICATE_V2))
             })
     })
 }
@@ -31,7 +33,9 @@ pub fn is_cms_signed_data(data: &[u8]) -> bool {
     let Ok(sd) = SignedData::parse(data) else { return false };
     sd.signer_infos.iter().all(|si| {
         si.signed_attrs.is_some()
-            && si.signed_attributes().is_ok_and(|attrs| !attrs.iter().any(|a| a.is(oids::SIG_POLICY_ID)))
+            && si
+                .signed_attributes()
+                .is_ok_and(|attrs| !attrs.iter().any(|a| a.is(oids::SIG_POLICY_ID)))
     })
 }
 
@@ -39,7 +43,9 @@ pub fn is_cms_signed_data(data: &[u8]) -> bool {
 /// SignedData, DigestedData, EncryptedData, EnvelopedData o
 /// SignedAndEnvelopedData.
 pub fn is_cades_valid(data: &[u8], enforce_cades: bool) -> bool {
-    let Ok((oid, content, _)) = parse_content_info(data) else { return false };
+    let Ok((oid, content, _)) = parse_content_info(data) else {
+        return false;
+    };
     let Some(content) = content else { return false };
     match oid.to_dotted().as_str() {
         oids::DATA => true,
@@ -70,5 +76,8 @@ pub fn obtain_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
 /// primer firmante con el algoritmo de huella indicado.
 pub fn obtain_message_digest(sign: &[u8], digest: DigestAlgorithm) -> Option<Vec<u8>> {
     let sd = SignedData::parse(sign).ok()?;
-    sd.signer_infos.iter().filter(|si| si.digest_oid.is(digest.oid())).find_map(|si| si.message_digest())
+    sd.signer_infos
+        .iter()
+        .filter(|si| si.digest_oid.is(digest.oid()))
+        .find_map(|si| si.message_digest())
 }

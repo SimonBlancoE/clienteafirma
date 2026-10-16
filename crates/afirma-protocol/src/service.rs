@@ -55,7 +55,11 @@ impl Default for ServiceOptions {
 
 /// Comprueba la versión del canal (1, 2, 3 y, a diferencia de Java, 4).
 pub fn check_version(v: ProtocolVersion) -> Result<(), ChannelError> {
-    if (1..=4).contains(&v.major) { Ok(()) } else { Err(ChannelError::UnsupportedVersion(v)) }
+    if (1..=4).contains(&v.major) {
+        Ok(())
+    } else {
+        Err(ChannelError::UnsupportedVersion(v))
+    }
 }
 
 /// Respuesta HTTP del socket (saltos `\n`, sin `Content-Length`; el cuerpo
@@ -121,7 +125,11 @@ pub struct ServiceServer {
 
 impl ServiceServer {
     /// Comprueba versión y puertos, carga el TLS y liga el puerto.
-    pub async fn bind(request: &ChannelRequest, tls: &TlsSource, options: ServiceOptions) -> Result<ServiceServer, ChannelError> {
+    pub async fn bind(
+        request: &ChannelRequest,
+        tls: &TlsSource,
+        options: ServiceOptions,
+    ) -> Result<ServiceServer, ChannelError> {
         check_version(request.version)?;
         if request.ports_invalid {
             return Err(ChannelError::InvalidPorts);
@@ -131,7 +139,13 @@ impl ServiceServer {
         }
         let tls = tls.server_config()?;
         let (listener, port) = bind_first(options.bind_address, &request.candidate_ports(None)).await?;
-        Ok(ServiceServer { listener, port, tls, request: request.clone(), options })
+        Ok(ServiceServer {
+            listener,
+            port,
+            tls,
+            request: request.clone(),
+            options,
+        })
     }
 
     pub fn port(&self) -> u16 {
@@ -145,7 +159,10 @@ impl ServiceServer {
             session_id: self.request.session_id.clone(),
             version: self.request.version,
             commands: Mutex::new(Commands::default()),
-            timer: Mutex::new(Timer { running: true, deadline: Instant::now() + self.options.idle_timeout }),
+            timer: Mutex::new(Timer {
+                running: true,
+                deadline: Instant::now() + self.options.idle_timeout,
+            }),
             op_lock: Arc::new(Mutex::new(())),
             idle: self.options.idle_timeout,
         });
@@ -182,8 +199,16 @@ impl ServiceServer {
 
 /// Ejecuta el socket de servicio en un runtime propio (punto de entrada
 /// para `afirma://service`).
-pub fn run_blocking(launcher: Arc<ProtocolLauncher>, request: &ChannelRequest, tls: &TlsSource, options: ServiceOptions) -> Result<ServerExit, ChannelError> {
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().map_err(|_| ChannelError::NoPortAvailable)?;
+pub fn run_blocking(
+    launcher: Arc<ProtocolLauncher>,
+    request: &ChannelRequest,
+    tls: &TlsSource,
+    options: ServiceOptions,
+) -> Result<ServerExit, ChannelError> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| ChannelError::NoPortAvailable)?;
     let result = rt.block_on(async move {
         let server = ServiceServer::bind(request, tls, options).await?;
         Ok(server.serve(launcher).await)
@@ -224,9 +249,10 @@ async fn process_request(text: &str, st: &Arc<State>) -> String {
     let id_pos = head.find("idsession");
     let session = id_pos.map(|i| head.get(i + "idsession".len() + 1..).unwrap_or("").to_string());
     if let Some(expected) = &st.session_id
-        && session.as_deref() != Some(expected.as_str()) {
-            return st.error(codes::INVALID_SESSION_ID);
-        }
+        && session.as_deref() != Some(expected.as_str())
+    {
+        return st.error(codes::INVALID_SESSION_ID);
+    }
     let data = &head[..id_pos.unwrap_or(eof)];
     let Some((cmd, pos)) = COMMANDS.iter().find_map(|c| data.find(c).map(|p| (*c, p))) else {
         return st.error(codes::MALFORMED_REQUEST_TO_SOCKET);
@@ -297,7 +323,10 @@ async fn run_command(cmd: &str, arg: &str, st: &Arc<State>, origin: Option<Strin
         }
         "cmd=" => {
             let url = String::from_utf8_lossy(&jbase64::decode_url_safe(arg.trim()).map_err(|_| ())?).into_owned();
-            if !url.starts_with("afirma://") || url.starts_with("afirma://service?") || url.starts_with("afirma://service/?") {
+            if !url.starts_with("afirma://")
+                || url.starts_with("afirma://service?")
+                || url.starts_with("afirma://service/?")
+            {
                 return Err(());
             }
             st.stop_timer();
@@ -308,14 +337,22 @@ async fn run_command(cmd: &str, arg: &str, st: &Arc<State>, origin: Option<Strin
                 let result = launch(st, url, origin.clone()).await;
                 st.commands.lock().unwrap_or_else(|e| e.into_inner()).to_send = split_parts(&result);
             }
-            Ok(st.commands.lock().unwrap_or_else(|e| e.into_inner()).to_send.len().to_string())
+            Ok(st
+                .commands
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .to_send
+                .len()
+                .to_string())
         }
         "fragment=" => {
             st.stop_timer();
             let parts: Vec<&str> = arg.split('@').collect();
             let part: usize = parts.get(1).and_then(|p| p.trim().parse().ok()).ok_or(())?;
             let total: usize = parts.get(2).and_then(|p| p.trim().parse().ok()).ok_or(())?;
-            let chunk = String::from_utf8_lossy(&jbase64::decode_url_safe(parts.get(3).ok_or(())?.trim()).map_err(|_| ())?).into_owned();
+            let chunk =
+                String::from_utf8_lossy(&jbase64::decode_url_safe(parts.get(3).ok_or(())?.trim()).map_err(|_| ())?)
+                    .into_owned();
             let mut c = st.commands.lock().unwrap_or_else(|e| e.into_inner());
             if part == 0 {
                 return Err(());
@@ -327,7 +364,11 @@ async fn run_command(cmd: &str, arg: &str, st: &Arc<State>, origin: Option<Strin
             } else {
                 return Err(());
             }
-            Ok(if part == total { "OK".into() } else { "MORE_DATA_NEED".into() })
+            Ok(if part == total {
+                "OK".into()
+            } else {
+                "MORE_DATA_NEED".into()
+            })
         }
         "firm=" => {
             st.stop_timer();
@@ -342,7 +383,13 @@ async fn run_command(cmd: &str, arg: &str, st: &Arc<State>, origin: Option<Strin
                 let result = launch(st, url, origin.clone()).await;
                 st.commands.lock().unwrap_or_else(|e| e.into_inner()).to_send = split_parts(&result);
             }
-            Ok(st.commands.lock().unwrap_or_else(|e| e.into_inner()).to_send.len().to_string())
+            Ok(st
+                .commands
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .to_send
+                .len()
+                .to_string())
         }
         "send=" => {
             st.stop_timer();
@@ -352,7 +399,13 @@ async fn run_command(cmd: &str, arg: &str, st: &Arc<State>, origin: Option<Strin
             if part < 1 || part > total {
                 return Err(());
             }
-            st.commands.lock().unwrap_or_else(|e| e.into_inner()).to_send.get(part - 1).cloned().ok_or(())
+            st.commands
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .to_send
+                .get(part - 1)
+                .cloned()
+                .ok_or(())
         }
         _ => Err(()),
     }
@@ -375,7 +428,10 @@ mod tests {
         assert_eq!(save_response("CANCEL".into()), Ok("CANCEL".into()));
         assert_eq!(save_response("SAF_05: x".into()), Err(()));
         assert_eq!(
-            request_origin("POST /afirma HTTP/1.1\r\nHost: 127.0.0.1:5\r\norigin: https://sede.gob.es\r\n\r\necho=-idsession=x@EOF").as_deref(),
+            request_origin(
+                "POST /afirma HTTP/1.1\r\nHost: 127.0.0.1:5\r\norigin: https://sede.gob.es\r\n\r\necho=-idsession=x@EOF"
+            )
+            .as_deref(),
             Some("https://sede.gob.es")
         );
         assert_eq!(request_origin("echo=-idsession=x@EOF"), None);

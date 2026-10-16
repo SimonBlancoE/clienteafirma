@@ -33,13 +33,13 @@ pub mod signer;
 pub mod triphase;
 pub mod validity;
 
+use ::base64::Engine;
 pub use algorithms::{DigestAlgorithm, KeyAlgorithm, SignatureAlgorithm};
 pub use error::{AfirmaError, ErrorCode, ErrorKind, Result};
 pub use extra_params::ExtraParams;
 pub use formats::SignerKind;
 pub use key::{KeyError, SigningKey};
 pub use signer::{CounterSignTarget, SignInfo, Signer, SignerNode, SignersTree, SimpleSignInfo, TimestampInfo};
-use ::base64::Engine;
 
 /// Decodifica Base64 de forma tolerante: alfabeto estándar o URL-safe, con o
 /// sin relleno, ignorando espacios y saltos de línea (como hace AutoFirma con
@@ -124,7 +124,10 @@ pub(crate) mod test_support {
 
     /// Formato `clave=valor|...` ordenado del oráculo.
     pub fn sorted(p: &ExtraParams) -> String {
-        p.iter().map(|(k, v)| format!("{}={}", esc(k), esc(v))).collect::<Vec<_>>().join("|")
+        p.iter()
+            .map(|(k, v)| format!("{}={}", esc(k), esc(v)))
+            .collect::<Vec<_>>()
+            .join("|")
     }
 }
 

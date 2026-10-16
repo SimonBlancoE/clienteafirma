@@ -27,7 +27,11 @@ impl<'a> CertView<'a> {
     pub fn parse(raw: &'a [u8]) -> Result<Self> {
         let cert = Tlv::parse_single(raw)?.expect(tags::SEQUENCE)?;
         let parts = cert.children()?;
-        let tbs = parts.first().copied().ok_or(crate::asn1::Asn1Error::Truncated)?.expect(tags::SEQUENCE)?;
+        let tbs = parts
+            .first()
+            .copied()
+            .ok_or(crate::asn1::Asn1Error::Truncated)?
+            .expect(tags::SEQUENCE)?;
         let mut f = tbs.children()?.into_iter().peekable();
         if f.peek().is_some_and(|t| t.tag == Tag::context(0, true)) {
             f.next();
@@ -221,7 +225,11 @@ mod tests {
 
     #[test]
     fn parses_test_certificate() {
-        let pem = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let pem = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/pki/firmante-rsa.crt"
+        ))
+        .unwrap();
         let b64: String = pem.lines().filter(|l| !l.starts_with("-----")).collect();
         let der = afirma_test_b64(&b64);
         let c = CertView::parse(&der).unwrap();

@@ -134,7 +134,11 @@ mod tests {
 
     /// Ficheros `.rs` de un directorio (recursivo).
     fn rust_sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
-        let mut entries: Vec<_> = std::fs::read_dir(dir).expect("directorio de fuentes").flatten().map(|e| e.path()).collect();
+        let mut entries: Vec<_> = std::fs::read_dir(dir)
+            .expect("directorio de fuentes")
+            .flatten()
+            .map(|e| e.path())
+            .collect();
         entries.sort();
         for p in entries {
             if p.is_dir() {
@@ -173,7 +177,9 @@ mod tests {
                         'u' => {
                             let end = i + chars[i..].iter().position(|&c| c == '}').expect("escape \\u{…}");
                             let hex: String = chars[i + 2..end].iter().collect();
-                            out.push(char::from_u32(u32::from_str_radix(&hex, 16).expect("escape \\u")).expect("carácter"));
+                            out.push(
+                                char::from_u32(u32::from_str_radix(&hex, 16).expect("escape \\u")).expect("carácter"),
+                            );
                             i = end;
                         }
                         '\n' | '\r' => {
@@ -247,7 +253,8 @@ mod tests {
                     if matches!(ident.as_str(), "r" | "br") && c.get(i + hashes) == Some(&'"') {
                         // Cadena sin escapes: r"…", r#"…"#.
                         i += hashes + 1;
-                        while !(c[i] == '"' && c[i + 1..].iter().take(hashes).filter(|&&h| h == '#').count() == hashes) {
+                        while !(c[i] == '"' && c[i + 1..].iter().take(hashes).filter(|&&h| h == '#').count() == hashes)
+                        {
                             i += 1;
                         }
                         i += 1 + hashes;
@@ -305,8 +312,15 @@ mod tests {
     #[test]
     fn catalogs_are_complete() {
         let (keys, dynamic) = used_keys();
-        assert!(dynamic.is_empty(), "llamadas a tr/trf sin un literal (no se pueden comprobar): {dynamic:?}");
-        assert!(keys.len() > 100, "no se han encontrado los textos de la interfaz ({})", keys.len());
+        assert!(
+            dynamic.is_empty(),
+            "llamadas a tr/trf sin un literal (no se pueden comprobar): {dynamic:?}"
+        );
+        assert!(
+            keys.len() > 100,
+            "no se han encontrado los textos de la interfaz ({})",
+            keys.len()
+        );
         let mut problems = Vec::new();
         for (key, place) in &keys {
             if key.contains(" = ") || key.trim() != key || key.is_empty() || key.starts_with('#') {
@@ -344,7 +358,12 @@ mod tests {
                 }
             }
         }
-        assert!(problems.is_empty(), "{} problemas en los catálogos:\n{}", problems.len(), problems.join("\n"));
+        assert!(
+            problems.is_empty(),
+            "{} problemas en los catálogos:\n{}",
+            problems.len(),
+            problems.join("\n")
+        );
     }
 
     #[test]
@@ -354,8 +373,11 @@ mod tests {
         assert_eq!(parse("\"uno\\ndos\""), "uno\ndos");
         assert_eq!(parse("\"uno \\\n     dos\""), "uno dos");
         assert_eq!(parse("\"\\u{e9}\\x41\""), "éA");
-        assert_eq!("uno \
-                    dos", "uno dos");
+        assert_eq!(
+            "uno \
+                    dos",
+            "uno dos"
+        );
         assert_eq!(markers("Hola {0} y {1} $$SUBJECTCN$$"), ["$$SUBJECTCN$$", "{0}", "{1}"]);
     }
 }

@@ -12,9 +12,13 @@
 use chrono::{DateTime, Datelike, FixedOffset, Offset, TimeZone, Timelike};
 
 const DAYS_EN: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTHS_EN: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_EN: [&str; 12] = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 /// Abreviaturas de mes de CLDR para `es` (JDK 17+; septiembre es `sept`).
-const MONTHS_ES: [&str; 12] = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+const MONTHS_ES: [&str; 12] = [
+    "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic",
+];
 
 /// Nombre de zona tipo Java para un desplazamiento fijo (`GMT+02:00`, `GMT`).
 pub fn java_zone_label(offset: &FixedOffset) -> String {
@@ -55,7 +59,14 @@ pub fn java_date_to_string_with_zone(dt: &DateTime<FixedOffset>, zone: &str) -> 
 /// `es_ES` con Java 17+ (`16 oct 2026, 13:17`), en la zona de la fecha.
 pub fn java_default_short_datetime_es<Tz: TimeZone>(dt: &DateTime<Tz>) -> String {
     let d = dt.fixed_offset();
-    format!("{} {} {}, {}:{:02}", d.day(), MONTHS_ES[d.month0() as usize], d.year(), d.hour(), d.minute())
+    format!(
+        "{} {} {}, {}:{:02}",
+        d.day(),
+        MONTHS_ES[d.month0() as usize],
+        d.year(),
+        d.hour(),
+        d.minute()
+    )
 }
 
 /// Desplazamiento de la zona horaria local en el instante indicado.

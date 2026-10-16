@@ -88,31 +88,50 @@ impl MagicTest {
     fn matches(&self, data: &[u8]) -> bool {
         match *self {
             MagicTest::String { offset, value } => {
-                if String::from_utf8_lossy(value).trim_matches(|c: char| c <= ' ').is_empty() {
+                if String::from_utf8_lossy(value)
+                    .trim_matches(|c: char| c <= ' ')
+                    .is_empty()
+                {
                     return false;
                 }
                 Self::window(data, offset, value.len()).is_some_and(|w| w == value)
             }
-            MagicTest::Byte { offset, mask, value, cmp } => Self::window(data, offset, 1)
+            MagicTest::Byte {
+                offset,
+                mask,
+                value,
+                cmp,
+            } => Self::window(data, offset, 1)
                 .is_some_and(|w| compare(i64::from((w[0] & mask) as i8), i64::from(value as i8), cmp)),
-            MagicTest::Short { offset, big_endian, mask, value, cmp } => {
-                Self::window(data, offset, 4).is_some_and(|w| {
-                    let raw =
-                        if big_endian { u16::from_be_bytes([w[0], w[1]]) } else { u16::from_le_bytes([w[0], w[1]]) };
-                    compare(i64::from((raw & mask) as i16), i64::from(value as i16), cmp)
-                })
-            }
-            MagicTest::Long { offset, big_endian, mask, value, cmp } => {
-                Self::window(data, offset, 8).is_some_and(|w| {
-                    let raw = if big_endian {
-                        i32::from_be_bytes([w[0], w[1], w[2], w[3]])
-                    } else {
-                        i32::from_le_bytes([w[0], w[1], w[2], w[3]])
-                    };
-                    let v = (i64::from(raw) as u64) & mask;
-                    compare(v as i64, value as i64, cmp)
-                })
-            }
+            MagicTest::Short {
+                offset,
+                big_endian,
+                mask,
+                value,
+                cmp,
+            } => Self::window(data, offset, 4).is_some_and(|w| {
+                let raw = if big_endian {
+                    u16::from_be_bytes([w[0], w[1]])
+                } else {
+                    u16::from_le_bytes([w[0], w[1]])
+                };
+                compare(i64::from((raw & mask) as i16), i64::from(value as i16), cmp)
+            }),
+            MagicTest::Long {
+                offset,
+                big_endian,
+                mask,
+                value,
+                cmp,
+            } => Self::window(data, offset, 8).is_some_and(|w| {
+                let raw = if big_endian {
+                    i32::from_be_bytes([w[0], w[1], w[2], w[3]])
+                } else {
+                    i32::from_le_bytes([w[0], w[1], w[2], w[3]])
+                };
+                let v = (i64::from(raw) as u64) & mask;
+                compare(v as i64, value as i64, cmp)
+            }),
             MagicTest::Regex { offset, pattern } => {
                 let len = data.len().saturating_sub(offset).saturating_sub(1);
                 Self::window(data, offset, len).is_some_and(|w| regex_matches(pattern, &String::from_utf8_lossy(w)))
@@ -147,7 +166,9 @@ fn is_ascii_text(window: &[u8]) -> bool {
 /// Intérprete mínimo de los patrones Perl5 de las reglas `regex` del
 /// `magic.xml` (todos de la forma `/^[\s*]literal/[m]`).
 fn regex_matches(pattern: &str, text: &str) -> bool {
-    let Some(body) = pattern.strip_prefix('/') else { return false };
+    let Some(body) = pattern.strip_prefix('/') else {
+        return false;
+    };
     let Some(end) = body.rfind('/') else { return false };
     let flags = &body[end + 1..];
     let mut expr = &body[..end];
@@ -163,7 +184,11 @@ fn regex_matches(pattern: &str, text: &str) -> bool {
     let literal = expr.replace("\\/", "/");
     let is_perl_space = |c: char| matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{c}');
     let matches_at = |s: &str| -> bool {
-        let s = if ws_star { s.trim_start_matches(is_perl_space) } else { s };
+        let s = if ws_star {
+            s.trim_start_matches(is_perl_space)
+        } else {
+            s
+        };
         s.starts_with(&literal)
     };
     if !anchored {
@@ -193,7 +218,10 @@ mod tests {
         assert_eq!(mt(&[0xff, 0xd8, 0xff, 0xe0]), None);
         assert_eq!(mt(&[0xff, 0xd8, 0xff, 0xe0, 0x00]).map(|m| m.0), Some("image/jpeg"));
         assert_eq!(mt(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 0x34]), None);
-        assert_eq!(mt(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 0x34, 0]).map(|m| m.0), Some("application/java"));
+        assert_eq!(
+            mt(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 0x34, 0]).map(|m| m.0),
+            Some("application/java")
+        );
         assert_eq!(mt(b"MZ"), Some(("text/plain", "txt", "Texto plano")));
         assert_eq!(mt(b"MZ\x00"), Some(("???", "???", "MS-DOS executable (EXE)")));
         assert_eq!(mt(b"<?xml").map(|m| m.0), Some("text/plain"));
@@ -214,7 +242,10 @@ mod tests {
         assert!(regex_matches("/^#include/m", "int a;\n#include <x>\n"));
         assert!(!regex_matches("/^#include/", "int a;\n#include <x>\n"));
         assert!(regex_matches("/^#!\\/bin\\/sh/", "#!/bin/sh\n"));
-        assert_eq!(mt(b"#!/bin/bash\necho\n"), Some(("application/x-bash", ".sh", "bash script")));
+        assert_eq!(
+            mt(b"#!/bin/bash\necho\n"),
+            Some(("application/x-bash", ".sh", "bash script"))
+        );
         assert_eq!(mt(b"#include <stdio.h>\n").map(|m| m.0), Some("text/x-c"));
     }
 }

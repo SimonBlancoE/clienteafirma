@@ -9,8 +9,7 @@ pub const SIGNATURE_SUBFILTER: &str = "signatureSubFilter";
 pub const PROFILE: &str = "profile";
 pub const INCLUDE_ONLY_SIGNING_CERTIFICATE: &str = "includeOnlySignningCertificate";
 pub const SIGNING_CERTIFICATE_V2: &str = "signingCertificateV2";
-pub const DO_NOT_INCLUDE_POLICY_ON_SIGNING_CERTIFICATE: &str =
-    "doNotIncludePolicyOnSigningCertificate";
+pub const DO_NOT_INCLUDE_POLICY_ON_SIGNING_CERTIFICATE: &str = "doNotIncludePolicyOnSigningCertificate";
 pub const POLICY_IDENTIFIER: &str = "policyIdentifier";
 pub const POLICY_IDENTIFIER_HASH: &str = "policyIdentifierHash";
 pub const POLICY_IDENTIFIER_HASH_ALGORITHM: &str = "policyIdentifierHashAlgorithm";
@@ -101,19 +100,13 @@ pub fn check_params(algorithm: &str, xp: &mut ExtraParams) -> Result<(), AfirmaE
             "PAdES no permite huellas digitales MD2 o MD5 (Decision 130/2011 CE)",
         ));
     }
-    let baseline = xp
-        .get(PROFILE)
-        .is_some_and(|p| p.eq_ignore_ascii_case("baseline"));
+    let baseline = xp.get(PROFILE).is_some_and(|p| p.eq_ignore_ascii_case("baseline"));
     if baseline && xp.contains(SIGNATURE_SUBFILTER) {
-        tracing::warn!(
-            "El perfil baseline siempre usa el subfiltro ETSI.CAdES.detached; se ignora signatureSubFilter"
-        );
+        tracing::warn!("El perfil baseline siempre usa el subfiltro ETSI.CAdES.detached; se ignora signatureSubFilter");
         xp.remove(SIGNATURE_SUBFILTER);
     }
     if xp.contains(COMMITMENT_TYPE_INDICATIONS) && !baseline && !xp.contains(POLICY_IDENTIFIER) {
-        tracing::warn!(
-            "Los commitmentTypeIndications solo se permiten con politica o perfil baseline; se ignoran"
-        );
+        tracing::warn!("Los commitmentTypeIndications solo se permiten con politica o perfil baseline; se ignoran");
         xp.remove(COMMITMENT_TYPE_INDICATIONS);
     }
     if xp.contains(SIGN_REASON) && xp.contains(POLICY_IDENTIFIER) {
@@ -141,10 +134,7 @@ pub fn sub_filter(xp: &ExtraParams) -> String {
 /// Rectángulo de `<prefix>PositionOnPage{LowerLeftX,...}` (enteros; si
 /// falta o no es válido alguno, `None`).
 pub fn position(xp: &ExtraParams, prefix: &str) -> Option<Rect> {
-    let get = |k: &str| {
-        xp.get(&format!("{prefix}PositionOnPage{k}"))
-            .and_then(parse_java_int)
-    };
+    let get = |k: &str| xp.get(&format!("{prefix}PositionOnPage{k}")).and_then(parse_java_int);
     let (llx, lly, urx, ury) = (
         get("LowerLeftX")?,
         get("LowerLeftY")?,
@@ -333,10 +323,7 @@ mod tests {
         assert_eq!(p("4-2", 5), vec![5]);
         assert_eq!(p("x", 5), vec![5]);
         assert_eq!(p("1,append", 5), vec![1]);
-        let a = pages(
-            &xp(&[(SIGNATURE_PAGES, "append"), (SIGNATURE_PAGE, "1")]),
-            5,
-        );
+        let a = pages(&xp(&[(SIGNATURE_PAGES, "append"), (SIGNATURE_PAGE, "1")]), 5);
         assert!(a.append);
         assert_eq!(pages(&xp(&[(SIGNATURE_PAGE, "2")]), 5).pages, vec![2]);
     }
@@ -369,20 +356,14 @@ mod tests {
         assert!(!x.contains(SIGN_REASON));
         assert_eq!(sub_filter(&x), SUBFILTER_ETSI_CADES);
         assert!(check_params("MD5withRSA", &mut ExtraParams::new()).is_err());
-        let mut b = xp(&[
-            (PROFILE, "Baseline"),
-            (SIGNATURE_SUBFILTER, "adbe.pkcs7.detached"),
-        ]);
+        let mut b = xp(&[(PROFILE, "Baseline"), (SIGNATURE_SUBFILTER, "adbe.pkcs7.detached")]);
         check_params("SHA256withRSA", &mut b).unwrap();
         assert!(!b.contains(SIGNATURE_SUBFILTER));
         assert_eq!(
             sub_filter(&xp(&[(SIGNATURE_SUBFILTER, "adbe.pkcs7.detached")])),
             SUBFILTER_PKCS7
         );
-        assert_eq!(
-            sub_filter(&xp(&[(SIGNATURE_SUBFILTER, "")])),
-            SUBFILTER_ETSI_CADES
-        );
+        assert_eq!(sub_filter(&xp(&[(SIGNATURE_SUBFILTER, "")])), SUBFILTER_ETSI_CADES);
         assert_eq!(reserved_size(&xp(&[(SIGN_RESERVED_SIZE, "abc")])), 27000);
         assert_eq!(pdf_version(&xp(&[(PDF_VERSION, "9")])), None);
         assert_eq!(certification_level(&xp(&[(CERTIFICATION_LEVEL, "2")])), 2);

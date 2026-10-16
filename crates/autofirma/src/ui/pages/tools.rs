@@ -35,7 +35,9 @@ impl Tool {
 
     pub fn description(self) -> &'static str {
         match self {
-            Tool::HashFile => tr("Obtén la huella (SHA-256, SHA-512…) de un fichero para comprobar más tarde que no ha cambiado."),
+            Tool::HashFile => {
+                tr("Obtén la huella (SHA-256, SHA-512…) de un fichero para comprobar más tarde que no ha cambiado.")
+            }
             Tool::CheckHashFile => tr("Comprueba que un fichero coincide con una huella digital guardada."),
             Tool::HashDir => tr("Genera un fichero con las huellas de todos los documentos de una carpeta."),
             Tool::CheckHashDir => tr("Verifica una carpeta contra su fichero de huellas e informa de cambios."),
@@ -111,7 +113,10 @@ impl Default for ToolsPage {
 /// Secciones de la página (título traducido y herramientas).
 fn sections() -> [(&'static str, &'static [Tool]); 3] {
     [
-        (tr("Huellas digitales"), &[Tool::HashFile, Tool::CheckHashFile, Tool::HashDir, Tool::CheckHashDir]),
+        (
+            tr("Huellas digitales"),
+            &[Tool::HashFile, Tool::CheckHashFile, Tool::HashDir, Tool::CheckHashDir],
+        ),
         (tr("Certificados"), &[Tool::ValidateCert]),
         (tr("Integración con el sistema"), &[Tool::Doctor, Tool::RestoreBrowsers]),
     ]
@@ -134,7 +139,14 @@ impl ToolsPage {
             self.tool_view(ui, p, tool, &mut actions);
             return actions;
         }
-        widgets::page_header(ui, p, tr("Herramientas"), Some(tr("Utilidades para comprobar documentos, certificados y la instalación.")));
+        widgets::page_header(
+            ui,
+            p,
+            tr("Herramientas"),
+            Some(tr(
+                "Utilidades para comprobar documentos, certificados y la instalación.",
+            )),
+        );
         for (title, tools) in sections() {
             widgets::section_title(ui, p, title);
             ui.add_space(6.0);
@@ -142,40 +154,61 @@ impl ToolsPage {
             // Ancho de cada tarjeta: se calcula fuera de la rejilla (dentro, el
             // ancho disponible es el de la celda, mínimo en la primera pasada).
             let w = (ui.available_width() - 12.0 * (cols as f32 - 1.0)) / cols as f32;
-            egui::Grid::new(("tools", title)).num_columns(cols).spacing([12.0, 12.0]).show(ui, |ui| {
-                for (i, t) in tools.iter().enumerate() {
-                    let r = Frame::new()
-                        .fill(p.surface)
-                        .stroke(Stroke::new(1.0, p.border))
-                        .corner_radius(CornerRadius::same(12))
-                        .inner_margin(Margin::same(16))
-                        .show(ui, |ui| {
-                            ui.set_width((w - 32.0).max(0.0));
-                            ui.set_min_height(64.0);
-                            ui.horizontal_top(|ui| {
-                                widgets::status_circle(ui, t.icon(), 40.0, p.primary, p.primary_soft);
-                                ui.vertical(|ui| {
-                                    ui.label(RichText::new(t.title()).font(FontId::new(14.5, semibold())));
-                                    ui.add(egui::Label::new(RichText::new(t.description()).size(12.5).color(p.text_muted)).wrap());
+            egui::Grid::new(("tools", title))
+                .num_columns(cols)
+                .spacing([12.0, 12.0])
+                .show(ui, |ui| {
+                    for (i, t) in tools.iter().enumerate() {
+                        let r = Frame::new()
+                            .fill(p.surface)
+                            .stroke(Stroke::new(1.0, p.border))
+                            .corner_radius(CornerRadius::same(12))
+                            .inner_margin(Margin::same(16))
+                            .show(ui, |ui| {
+                                ui.set_width((w - 32.0).max(0.0));
+                                ui.set_min_height(64.0);
+                                ui.horizontal_top(|ui| {
+                                    widgets::status_circle(ui, t.icon(), 40.0, p.primary, p.primary_soft);
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new(t.title()).font(FontId::new(14.5, semibold())));
+                                        ui.add(
+                                            egui::Label::new(
+                                                RichText::new(t.description()).size(12.5).color(p.text_muted),
+                                            )
+                                            .wrap(),
+                                        );
+                                    });
                                 });
                             });
-                        });
-                    let resp = ui.interact(r.response.rect, egui::Id::unique(("tool", *t as u8)), egui::Sense::click());
-                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                        actions.push(ToolsAction::Open(*t));
+                        let resp = ui.interact(
+                            r.response.rect,
+                            egui::Id::unique(("tool", *t as u8)),
+                            egui::Sense::click(),
+                        );
+                        if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                            actions.push(ToolsAction::Open(*t));
+                        }
+                        if (i + 1) % cols == 0 {
+                            ui.end_row();
+                        }
                     }
-                    if (i + 1) % cols == 0 {
-                        ui.end_row();
-                    }
-                }
-            });
+                });
             ui.add_space(16.0);
         }
         actions
     }
 
     fn tool_view(&mut self, ui: &mut Ui, p: &Palette, tool: Tool, actions: &mut Vec<ToolsAction>) {
-        if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_LEFT), tr("Herramientas"), true).clicked() {
+        if widgets::button(
+            ui,
+            p,
+            ButtonKind::Ghost,
+            Some(icons::ARROW_LEFT),
+            tr("Herramientas"),
+            true,
+        )
+        .clicked()
+        {
             actions.push(ToolsAction::Close);
         }
         ui.add_space(6.0);
@@ -184,32 +217,46 @@ impl ToolsPage {
             Tool::HashFile | Tool::CheckHashFile | Tool::HashDir | Tool::CheckHashDir | Tool::ValidateCert => {
                 let (first, second) = match tool {
                     Tool::HashFile => (tr("Fichero"), None),
-                    Tool::CheckHashFile => (tr("Fichero de datos"), Some(tr("Fichero de huella (.hexhash, .hashb64, .hash)"))),
+                    Tool::CheckHashFile => (
+                        tr("Fichero de datos"),
+                        Some(tr("Fichero de huella (.hexhash, .hashb64, .hash)")),
+                    ),
                     Tool::HashDir => (tr("Carpeta"), None),
-                    Tool::CheckHashDir => (tr("Carpeta"), Some(tr("Fichero de huellas (.hashfiles, .txthashfiles)"))),
+                    Tool::CheckHashDir => (
+                        tr("Carpeta"),
+                        Some(tr("Fichero de huellas (.hashfiles, .txthashfiles)")),
+                    ),
                     _ => (tr("Certificado (.cer, .crt, .pem)"), None),
                 };
-                path_row(ui, p, first, self.input.as_deref(), || actions.push(ToolsAction::PickInput));
+                path_row(ui, p, first, self.input.as_deref(), || {
+                    actions.push(ToolsAction::PickInput)
+                });
                 if let Some(label) = second {
-                    path_row(ui, p, label, self.secondary.as_deref(), || actions.push(ToolsAction::PickSecondary));
+                    path_row(ui, p, label, self.secondary.as_deref(), || {
+                        actions.push(ToolsAction::PickSecondary)
+                    });
                 }
                 if matches!(tool, Tool::HashFile | Tool::HashDir) {
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.label(RichText::new(tr("Algoritmo")).color(p.text_muted));
-                        egui::ComboBox::from_id_salt("hash_alg").selected_text(&self.algorithm).show_ui(ui, |ui| {
-                            for a in ["SHA-256", "SHA-1", "SHA-384", "SHA-512"] {
-                                ui.selectable_value(&mut self.algorithm, a.to_string(), a);
-                            }
-                        });
+                        egui::ComboBox::from_id_salt("hash_alg")
+                            .selected_text(&self.algorithm)
+                            .show_ui(ui, |ui| {
+                                for a in ["SHA-256", "SHA-1", "SHA-384", "SHA-512"] {
+                                    ui.selectable_value(&mut self.algorithm, a.to_string(), a);
+                                }
+                            });
                         if tool == Tool::HashFile {
                             ui.add_space(12.0);
                             ui.label(RichText::new(tr("Formato")).color(p.text_muted));
-                            egui::ComboBox::from_id_salt("hash_fmt").selected_text(hash_format_label(&self.format)).show_ui(ui, |ui| {
-                                for f in ["Hexadecimal en ASCII (Base16)", "Base64", "Binario"] {
-                                    ui.selectable_value(&mut self.format, f.to_string(), hash_format_label(f));
-                                }
-                            });
+                            egui::ComboBox::from_id_salt("hash_fmt")
+                                .selected_text(hash_format_label(&self.format))
+                                .show_ui(ui, |ui| {
+                                    for f in ["Hexadecimal en ASCII (Base16)", "Base64", "Binario"] {
+                                        ui.selectable_value(&mut self.format, f.to_string(), hash_format_label(f));
+                                    }
+                                });
                         } else {
                             ui.add_space(12.0);
                             ui.checkbox(&mut self.recursive, tr("Incluir subcarpetas"));
@@ -246,7 +293,12 @@ impl ToolsPage {
                             Some(false) => (icons::X_CIRCLE, p.danger),
                             None => (icons::MINUS_CIRCLE, p.text_faint),
                         };
-                        ui.label(RichText::new(g).family(crate::ui::theme::icons_fill()).size(18.0).color(c));
+                        ui.label(
+                            RichText::new(g)
+                                .family(crate::ui::theme::icons_fill())
+                                .size(18.0)
+                                .color(c),
+                        );
                         ui.vertical(|ui| {
                             ui.label(RichText::new(&row.title).font(FontId::new(13.5, semibold())));
                             if !row.detail.is_empty() {
@@ -258,10 +310,28 @@ impl ToolsPage {
                 }
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::STETHOSCOPE), tr("Comprobar"), !self.running).clicked() {
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Secondary,
+                        Some(icons::STETHOSCOPE),
+                        tr("Comprobar"),
+                        !self.running,
+                    )
+                    .clicked()
+                    {
                         actions.push(ToolsAction::RunDoctor);
                     }
-                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::WRENCH), tr("Reparar todo"), !self.running).clicked() {
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Primary,
+                        Some(icons::WRENCH),
+                        tr("Reparar todo"),
+                        !self.running,
+                    )
+                    .clicked()
+                    {
                         actions.push(ToolsAction::RepairAll);
                     }
                     if self.running {
@@ -280,12 +350,31 @@ impl ToolsPage {
 fn path_row(ui: &mut Ui, p: &Palette, label: &str, value: Option<&std::path::Path>, mut on_pick: impl FnMut()) {
     ui.label(RichText::new(label).size(13.0).color(p.text_muted));
     ui.horizontal(|ui| {
-        let text = value.map(|v| v.display().to_string()).unwrap_or_else(|| tr("Ninguno seleccionado").into());
-        Frame::new().fill(p.surface_alt).corner_radius(CornerRadius::same(8)).inner_margin(Margin::symmetric(10, 8)).show(ui, |ui| {
-            ui.set_width((ui.available_width() - 130.0).max(200.0));
-            ui.label(RichText::new(text).size(13.0).color(if value.is_some() { p.text } else { p.text_faint }));
-        });
-        if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), tr("Examinar"), true).clicked() {
+        let text = value
+            .map(|v| v.display().to_string())
+            .unwrap_or_else(|| tr("Ninguno seleccionado").into());
+        Frame::new()
+            .fill(p.surface_alt)
+            .corner_radius(CornerRadius::same(8))
+            .inner_margin(Margin::symmetric(10, 8))
+            .show(ui, |ui| {
+                ui.set_width((ui.available_width() - 130.0).max(200.0));
+                ui.label(
+                    RichText::new(text)
+                        .size(13.0)
+                        .color(if value.is_some() { p.text } else { p.text_faint }),
+                );
+            });
+        if widgets::button(
+            ui,
+            p,
+            ButtonKind::Secondary,
+            Some(icons::FOLDER_OPEN),
+            tr("Examinar"),
+            true,
+        )
+        .clicked()
+        {
             on_pick();
         }
     });

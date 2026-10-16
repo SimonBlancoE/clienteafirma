@@ -27,7 +27,16 @@ fn entry(rel: &str) -> CertEntry {
     if alias.starts_with("dnie-") && alias != "dnie-ca" {
         chain.push(load("keystores/filters/dnie-ca.der"));
     }
-    CertEntry::new(alias, der, chain, EntryCapabilities { has_private_key: true, ..Default::default() }, "pruebas")
+    CertEntry::new(
+        alias,
+        der,
+        chain,
+        EntryCapabilities {
+            has_private_key: true,
+            ..Default::default()
+        },
+        "pruebas",
+    )
 }
 
 const PKI: [&str; 6] = ["firmante-rsa", "firmante-ec", "autenticacion", "caducado", "ca", "tsa"];
@@ -100,7 +109,10 @@ fn everything() -> Vec<String> {
 }
 
 fn everything_but(excluded: &[&str]) -> Vec<String> {
-    everything().into_iter().filter(|a| !excluded.contains(&a.as_str())).collect()
+    everything()
+        .into_iter()
+        .filter(|a| !excluded.contains(&a.as_str()))
+        .collect()
 }
 
 fn serial_of(alias: &str) -> String {
@@ -124,7 +136,12 @@ fn configuration_precedence_and_defaults() {
     let m = manager(&[("filters", "sscd:"), ("filters.1", "authcert:")]).unwrap();
     assert_eq!(m.filters(), &[CertFilter::Sscd]);
     // `filters.N` contiguos: se detiene en el primer hueco.
-    let m = manager(&[("filters.1", "dnie:"), ("filters.2", "sscd:"), ("filters.4", "authcert:")]).unwrap();
+    let m = manager(&[
+        ("filters.1", "dnie:"),
+        ("filters.2", "sscd:"),
+        ("filters.4", "authcert:"),
+    ])
+    .unwrap();
     assert_eq!(m.filters(), &[CertFilter::SignatureDnie, CertFilter::Sscd]);
     // `filters.2` sin `filters.1`: no hay filtros → por defecto.
     let m = manager(&[("filters.2", "sscd:")]).unwrap();
@@ -142,8 +159,16 @@ fn configuration_precedence_and_defaults() {
 fn mandatory_and_external_stores() {
     assert!(manager(&[("headless", "TRUE")]).unwrap().is_mandatory_certificate());
     assert!(!manager(&[("headless", "si")]).unwrap().is_mandatory_certificate());
-    assert!(manager(&[("mandatoryCertSelection", "False")]).unwrap().is_mandatory_certificate());
-    assert!(!manager(&[("mandatoryCertSelection", "true")]).unwrap().is_mandatory_certificate());
+    assert!(
+        manager(&[("mandatoryCertSelection", "False")])
+            .unwrap()
+            .is_mandatory_certificate()
+    );
+    assert!(
+        !manager(&[("mandatoryCertSelection", "true")])
+            .unwrap()
+            .is_mandatory_certificate()
+    );
     let m = manager(&[("filters", "DisableOpeningExternalStores;dnie:")]).unwrap();
     assert!(!m.allow_external_stores());
     assert_eq!(m.filters(), &[CertFilter::SignatureDnie]);
@@ -152,15 +177,28 @@ fn mandatory_and_external_stores() {
     let m = manager(&[("filters", "disableopeningexternalstores")]).unwrap();
     assert_eq!(m.filters(), &[CertFilter::Multiple(vec![])]);
     // En `filters.2` también cuenta.
-    let m = manager(&[("filters.1", "dnie:"), ("filters.2", "sscd:;disableopeningexternalstores")]).unwrap();
+    let m = manager(&[
+        ("filters.1", "dnie:"),
+        ("filters.2", "sscd:;disableopeningexternalstores"),
+    ])
+    .unwrap();
     assert!(!m.allow_external_stores());
 }
 
 #[test]
 fn construction_errors() {
-    assert_eq!(manager(&[("filters", "subject.rfc2254:")]), Err(FilterError::EmptyCriteria));
-    assert_eq!(manager(&[("filters", "issuer.rfc2254:")]), Err(FilterError::EmptyCriteria));
-    assert_eq!(manager(&[("filters", "dnie:;issuer.rfc2254.recurse:")]), Err(FilterError::EmptyCriteria));
+    assert_eq!(
+        manager(&[("filters", "subject.rfc2254:")]),
+        Err(FilterError::EmptyCriteria)
+    );
+    assert_eq!(
+        manager(&[("filters", "issuer.rfc2254:")]),
+        Err(FilterError::EmptyCriteria)
+    );
+    assert_eq!(
+        manager(&[("filters", "dnie:;issuer.rfc2254.recurse:")]),
+        Err(FilterError::EmptyCriteria)
+    );
     assert_eq!(manager(&[("filters", "policyid:,")]), Err(FilterError::EmptyPolicyList));
     // `policyid:` sin valor se ignora.
     assert_eq!(accepted("policyid:"), everything());
@@ -180,7 +218,11 @@ fn and_items_are_sorted() {
     );
     // Los keyusage consecutivos forman un patrón (y cada uno genera el suyo
     // desde su posición, como Java).
-    let m = manager(&[("filters", "keyusage.nonrepudiation:true;keyusage.digitalsignature:YES;keyusage.keyagreement:null")]).unwrap();
+    let m = manager(&[(
+        "filters",
+        "keyusage.nonrepudiation:true;keyusage.digitalsignature:YES;keyusage.keyagreement:null",
+    )])
+    .unwrap();
     assert_eq!(
         m.filters(),
         &[CertFilter::Multiple(vec![
@@ -205,7 +247,10 @@ fn and_items_are_sorted() {
 fn dnie_filters() {
     assert_eq!(accepted("dnie:"), names(&["dnie-firma"]));
     assert_eq!(accepted("DNIE:cualquiercosa"), names(&["dnie-firma"]));
-    assert_eq!(accepted("signingcert:"), everything_but(&["dnie-auth", "dnie-auth-otro"]));
+    assert_eq!(
+        accepted("signingcert:"),
+        everything_but(&["dnie-auth", "dnie-auth-otro"])
+    );
     assert_eq!(accepted("authcert:"), everything_but(&["dnie-firma"]));
     // Sin dos puntos no se reconoce.
     assert_eq!(accepted("signingcert"), everything());
@@ -220,36 +265,77 @@ fn ssl_filter() {
     assert_eq!(accepted("ssl:80ab12"), names(&["dnie-firma"]));
     assert_eq!(accepted("ssl: # 00 80 AB 12 "), names(&["dnie-firma"]));
     // Sin pareja: nada.
-    assert_eq!(accepted(&format!("ssl:{}", serial_of("dnie-auth-otro"))), Vec::<String>::new());
+    assert_eq!(
+        accepted(&format!("ssl:{}", serial_of("dnie-auth-otro"))),
+        Vec::<String>::new()
+    );
     // Los demás se devuelven tal cual.
-    assert_eq!(accepted(&format!("ssl:{}", serial_of("firmante-rsa"))), names(&["firmante-rsa"]));
-    assert_eq!(accepted(&format!("ssl:{}", serial_of("autenticacion"))), names(&["autenticacion"]));
+    assert_eq!(
+        accepted(&format!("ssl:{}", serial_of("firmante-rsa"))),
+        names(&["firmante-rsa"])
+    );
+    assert_eq!(
+        accepted(&format!("ssl:{}", serial_of("autenticacion"))),
+        names(&["autenticacion"])
+    );
     assert_eq!(accepted("ssl:1122"), names(&["dnie-firma"]));
     assert_eq!(accepted("ssl:FFFF"), Vec::<String>::new());
 }
 
 #[test]
 fn qualified_filter() {
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("dnie-auth"))), names(&["dnie-firma"]));
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("dnie-firma"))), names(&["dnie-firma"]));
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("dnie-auth"))),
+        names(&["dnie-firma"])
+    );
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("dnie-firma"))),
+        names(&["dnie-firma"])
+    );
     // Autenticación del DNIe sin pareja: nada.
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("dnie-auth-otro"))), Vec::<String>::new());
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("dnie-auth-otro"))),
+        Vec::<String>::new()
+    );
     // Patrón de ACCV: el de firma solo tiene digitalSignature.
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("accv-auth"))), names(&["accv-firma"]));
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("accv-firma"))), names(&["accv-firma"]));
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("accv-auth"))),
+        names(&["accv-firma"])
+    );
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("accv-firma"))),
+        names(&["accv-firma"])
+    );
     // PKI de pruebas: la pareja de firma del de autenticación.
-    assert_eq!(accepted(&format!("qualified:{}", serial_of("autenticacion"))), names(&["firmante-rsa"]));
+    assert_eq!(
+        accepted(&format!("qualified:{}", serial_of("autenticacion"))),
+        names(&["firmante-rsa"])
+    );
     // Sin pareja y sin ser de autenticación del DNIe: el propio. (Con todos
     // los certificados de prueba hay varias "parejas" posibles —mismo emisor,
     // sin serialNumber y misma caducidad— y Java devuelve la primera en el
     // orden de su Hashtable; aquí, la primera en el orden recibido.)
-    let set: Vec<CertEntry> = all().into_iter().filter(|e| ["ku-cifrado", "sin-keyusage", "firmante-rsa", "dnie-firma"].contains(&e.alias.as_str())).collect();
+    let set: Vec<CertEntry> = all()
+        .into_iter()
+        .filter(|e| ["ku-cifrado", "sin-keyusage", "firmante-rsa", "dnie-firma"].contains(&e.alias.as_str()))
+        .collect();
     let pick = |expr: &str| -> Vec<String> {
-        manager(&[("filters", expr)]).unwrap().apply(&set, now()).into_iter().map(|e| e.alias).collect()
+        manager(&[("filters", expr)])
+            .unwrap()
+            .apply(&set, now())
+            .into_iter()
+            .map(|e| e.alias)
+            .collect()
     };
-    assert_eq!(pick(&format!("qualified:{}", serial_of("ku-cifrado"))), names(&["ku-cifrado"]));
+    assert_eq!(
+        pick(&format!("qualified:{}", serial_of("ku-cifrado"))),
+        names(&["ku-cifrado"])
+    );
     // Sin keyUsage nunca es "de firma"; sin pareja → el propio.
-    assert_eq!(pick(&format!("qualified:{}", serial_of("sin-keyusage"))), names(&["sin-keyusage"]));
+    assert_eq!(
+        pick(&format!("qualified:{}", serial_of("sin-keyusage"))),
+        names(&["sin-keyusage"])
+    );
     let v = accepted(&format!("qualified:{}", serial_of("ku-cifrado")));
     assert_eq!(v.len(), 1);
     assert_ne!(v[0], "ku-cifrado");
@@ -267,13 +353,25 @@ fn expiry_filter() {
 #[test]
 fn sscd_and_policies() {
     assert_eq!(accepted("sscd:"), names(&["dnie-firma"]));
-    assert_eq!(accepted("policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10.1"), names(&["politicas"]));
+    assert_eq!(
+        accepted("policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10.1"),
+        names(&["politicas"])
+    );
     // Política de más: rechazado.
     assert_eq!(accepted("policyid:2.16.724.1.3.5.7.1"), Vec::<String>::new());
-    assert_eq!(accepted("policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10"), names(&["caducado", "firmante-ec", "firmante-rsa"]));
+    assert_eq!(
+        accepted("policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10"),
+        names(&["caducado", "firmante-ec", "firmante-rsa"])
+    );
     // Sin recortar: el espacio cuenta.
-    assert_eq!(accepted("policyid:2.16.724.1.3.5.7.1, 1.3.6.1.4.1.5734.3.10.1"), Vec::<String>::new());
-    assert_eq!(accepted("policyid:2.16.724.1.2.2.2.3,2.16.724.1.2.2.2.4"), names(&["dnie-auth", "dnie-firma"]));
+    assert_eq!(
+        accepted("policyid:2.16.724.1.3.5.7.1, 1.3.6.1.4.1.5734.3.10.1"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        accepted("policyid:2.16.724.1.2.2.2.3,2.16.724.1.2.2.2.4"),
+        names(&["dnie-auth", "dnie-firma"])
+    );
 }
 
 #[test]
@@ -282,61 +380,140 @@ fn keyusage_filter() {
     assert!(nr.contains(&"dnie-firma".to_string()) && nr.contains(&"firmante-rsa".to_string()));
     assert!(!nr.contains(&"sin-keyusage".to_string()) && !nr.contains(&"autenticacion".to_string()));
     // Patrón todo nulo: cualquiera con keyUsage, nunca sin la extensión.
-    assert_eq!(accepted("keyusage.digitalsignature:null"), everything_but(&["sin-keyusage"]));
+    assert_eq!(
+        accepted("keyusage.digitalsignature:null"),
+        everything_but(&["sin-keyusage"])
+    );
     assert_eq!(
         accepted("keyusage.digitalsignature:true;keyusage.nonrepudiation:false"),
-        names(&["accv-auth", "accv-firma", "autenticacion", "dnie-auth", "dnie-auth-otro"])
+        names(&[
+            "accv-auth",
+            "accv-firma",
+            "autenticacion",
+            "dnie-auth",
+            "dnie-auth-otro"
+        ])
     );
-    assert_eq!(accepted("keyusage.keyagreement:true;keyusage.encipheronly:true"), names(&["ku-agreement"]));
-    assert_eq!(accepted("keyusage.dataencipherment:true"), names(&["ku-cifrado", "ku-todos"]));
-    assert_eq!(accepted("keyusage.keycertsign:true;keyusage.crlsign:true"), names(&["ca", "dnie-ca"]));
+    assert_eq!(
+        accepted("keyusage.keyagreement:true;keyusage.encipheronly:true"),
+        names(&["ku-agreement"])
+    );
+    assert_eq!(
+        accepted("keyusage.dataencipherment:true"),
+        names(&["ku-cifrado", "ku-todos"])
+    );
+    assert_eq!(
+        accepted("keyusage.keycertsign:true;keyusage.crlsign:true"),
+        names(&["ca", "dnie-ca"])
+    );
     // "yes" equivale a false.
-    assert_eq!(accepted("keyusage.keycertsign:yes"), everything_but(&["ca", "dnie-ca", "sin-keyusage"]));
+    assert_eq!(
+        accepted("keyusage.keycertsign:yes"),
+        everything_but(&["ca", "dnie-ca", "sin-keyusage"])
+    );
 }
 
 #[test]
 fn rfc2254_filters() {
     assert_eq!(accepted("subject.rfc2254:(cn=PRUEBA*)"), names(&["firmante-ec"]));
     assert_eq!(accepted("subject.rfc2254:cn=prueba maria*"), names(&["firmante-ec"]));
-    assert_eq!(accepted("subject.rfc2254:(serialnumber=IDCES-*)"), names(&["autenticacion", "firmante-ec", "firmante-rsa", "representante"]));
+    assert_eq!(
+        accepted("subject.rfc2254:(serialnumber=IDCES-*)"),
+        names(&["autenticacion", "firmante-ec", "firmante-rsa", "representante"])
+    );
     assert_eq!(accepted("subject.rfc2254:(OID.2.5.4.65=*)"), names(&["pseudonimo"]));
     assert_eq!(
         accepted("issuer.rfc2254:(|(o=FNMT-RCM)(o=DIRECCION GENERAL DE LA POLICIA))"),
-        names(&["cnp", "dnie-auth", "dnie-auth-otro", "dnie-ca", "dnie-firma", "fnmt-otro", "pseudonimo", "pseudonimo-gemelo", "representante"])
+        names(&[
+            "cnp",
+            "dnie-auth",
+            "dnie-auth-otro",
+            "dnie-ca",
+            "dnie-firma",
+            "fnmt-otro",
+            "pseudonimo",
+            "pseudonimo-gemelo",
+            "representante"
+        ])
     );
     // RDN repetido: cuenta el situado más a la izquierda en toString().
     assert_eq!(accepted("subject.rfc2254:(cn=CN Segundo)"), names(&["cn-repetido"]));
     assert_eq!(accepted("subject.rfc2254:(cn=CN Primero)"), Vec::<String>::new());
     // RDN multivaluado: solo el tipo menor (CN) y GIVENNAME.
-    assert_eq!(accepted("subject.rfc2254:(&(cn=Nombre A)(givenname=MARIA))"), names(&["multivalor"]));
+    assert_eq!(
+        accepted("subject.rfc2254:(&(cn=Nombre A)(givenname=MARIA))"),
+        names(&["multivalor"])
+    );
     assert_eq!(accepted("subject.rfc2254:(ou=Unidad B)"), Vec::<String>::new());
     // Valores no textuales: solo presencia.
     assert_eq!(accepted("subject.rfc2254:(st=*)"), names(&["escapes", "tipos-cadena"]));
     assert_eq!(accepted("subject.rfc2254:(st=Visible)"), Vec::<String>::new());
-    assert_eq!(accepted("subject.rfc2254:(street=Ya entre comillas)"), names(&["escapes"]));
+    assert_eq!(
+        accepted("subject.rfc2254:(street=Ya entre comillas)"),
+        names(&["escapes"])
+    );
     // Falla en abierto, salvo nombres vacíos.
     assert_eq!(accepted("subject.rfc2254:(cn:=x)"), everything_but(&["sujeto-vacio"]));
-    assert_eq!(accepted("subject.rfc2254:(cn=*)"), everything_but(&["sujeto-vacio", "solo-o", "solo-ou"]));
+    assert_eq!(
+        accepted("subject.rfc2254:(cn=*)"),
+        everything_but(&["sujeto-vacio", "solo-o", "solo-ou"])
+    );
     // Recursivo: algún certificado de la cadena (incluido el propio) con
     // titular que cumpla el filtro.
-    assert_eq!(accepted("issuer.rfc2254.recurse:(cn=AC DNIE 004)"), names(&["dnie-auth", "dnie-auth-otro", "dnie-ca", "dnie-firma"]));
-    assert_eq!(accepted("issuer.rfc2254.recurse:(cn=AC RAIZ DNIE 2)"), Vec::<String>::new());
-    assert_eq!(accepted("issuer.rfc2254.recurse:(cn=PRUEBA MARIA*)"), names(&["firmante-ec"]));
+    assert_eq!(
+        accepted("issuer.rfc2254.recurse:(cn=AC DNIE 004)"),
+        names(&["dnie-auth", "dnie-auth-otro", "dnie-ca", "dnie-firma"])
+    );
+    assert_eq!(
+        accepted("issuer.rfc2254.recurse:(cn=AC RAIZ DNIE 2)"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        accepted("issuer.rfc2254.recurse:(cn=PRUEBA MARIA*)"),
+        names(&["firmante-ec"])
+    );
 }
 
 #[test]
 fn text_and_thumbprint_filters() {
-    assert_eq!(accepted("subject.contains:12345678z"), names(&["dnie-auth", "dnie-firma"]));
-    assert_eq!(accepted("issuer.contains:O=FNMT"), names(&["fnmt-otro", "pseudonimo", "pseudonimo-gemelo", "representante"]));
+    assert_eq!(
+        accepted("subject.contains:12345678z"),
+        names(&["dnie-auth", "dnie-firma"])
+    );
+    assert_eq!(
+        accepted("issuer.contains:O=FNMT"),
+        names(&["fnmt-otro", "pseudonimo", "pseudonimo-gemelo", "representante"])
+    );
     assert_eq!(accepted("subject.contains:"), everything());
-    assert_eq!(accepted("Subject.Contains:OID.2.5.4.97=VATES"), names(&["representante"]));
+    assert_eq!(
+        accepted("Subject.Contains:OID.2.5.4.97=VATES"),
+        names(&["representante"])
+    );
     let rsa = entry("pki/firmante-rsa.crt");
     let sha256 = rsa.sha256_hex();
-    let spaced: String = sha256.chars().collect::<Vec<_>>().chunks(2).map(|c| c.iter().collect::<String>()).collect::<Vec<_>>().join(" ");
-    assert_eq!(accepted(&format!("thumbprint:SHA-256:{spaced}")), names(&["firmante-rsa"]));
-    assert_eq!(accepted(&format!("thumbprint:sha256:{}", sha256.to_uppercase())), names(&["firmante-rsa"]));
-    assert_eq!(accepted(&format!("thumbprint:SHA1:{}", rsa.sha1_upper)), names(&["firmante-rsa"]));
-    assert_eq!(accepted(&format!("thumbprint:SHA:{}", rsa.sha1_upper.to_lowercase())), names(&["firmante-rsa"]));
+    let spaced: String = sha256
+        .chars()
+        .collect::<Vec<_>>()
+        .chunks(2)
+        .map(|c| c.iter().collect::<String>())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert_eq!(
+        accepted(&format!("thumbprint:SHA-256:{spaced}")),
+        names(&["firmante-rsa"])
+    );
+    assert_eq!(
+        accepted(&format!("thumbprint:sha256:{}", sha256.to_uppercase())),
+        names(&["firmante-rsa"])
+    );
+    assert_eq!(
+        accepted(&format!("thumbprint:SHA1:{}", rsa.sha1_upper)),
+        names(&["firmante-rsa"])
+    );
+    assert_eq!(
+        accepted(&format!("thumbprint:SHA:{}", rsa.sha1_upper.to_lowercase())),
+        names(&["firmante-rsa"])
+    );
     let md5 = {
         use md5::Digest;
         hex::encode(md5::Md5::digest(&rsa.certificate))
@@ -376,13 +553,31 @@ fn encoded_cert_filter() {
 #[test]
 fn or_semantics_on_remaining_aliases() {
     // Unión de expresiones.
-    let v = accepted_props(&[("filters.1", "dnie:"), ("filters.2", "issuer.contains:O=FNMT-RCM;nonexpired:")]);
-    assert_eq!(v, names(&["dnie-firma", "fnmt-otro", "pseudonimo", "pseudonimo-gemelo", "representante"]));
+    let v = accepted_props(&[
+        ("filters.1", "dnie:"),
+        ("filters.2", "issuer.contains:O=FNMT-RCM;nonexpired:"),
+    ]);
+    assert_eq!(
+        v,
+        names(&[
+            "dnie-firma",
+            "fnmt-otro",
+            "pseudonimo",
+            "pseudonimo-gemelo",
+            "representante"
+        ])
+    );
     // La segunda expresión solo ve lo que no aceptó la primera: el filtro
     // ssl no encuentra la pareja de firma, que ya fue aceptada.
-    let v = accepted_props(&[("filters.1", "keyusage.nonrepudiation:true;subject.contains:12345678Z"), ("filters.2", "ssl:80AB12")]);
+    let v = accepted_props(&[
+        ("filters.1", "keyusage.nonrepudiation:true;subject.contains:12345678Z"),
+        ("filters.2", "ssl:80AB12"),
+    ]);
     assert_eq!(v, names(&["dnie-firma"]));
-    let v = accepted_props(&[("filters.1", "subject.contains:OTRA PERSONA"), ("filters.2", "ssl:80AB12")]);
+    let v = accepted_props(&[
+        ("filters.1", "subject.contains:OTRA PERSONA"),
+        ("filters.2", "ssl:80AB12"),
+    ]);
     assert_eq!(v, names(&["dnie-auth-otro", "dnie-firma"]));
 }
 
@@ -394,15 +589,34 @@ fn local_preferences() {
     let mut v: Vec<String> = m.apply(&all(), now()).into_iter().map(|e| e.alias).collect();
     v.sort();
     assert_eq!(v, everything_but(&["dnie-auth", "dnie-auth-otro"]));
-    let none = LocalFilterPrefs { skip_auth_cert_dnie: false, ..Default::default() };
+    let none = LocalFilterPrefs {
+        skip_auth_cert_dnie: false,
+        ..Default::default()
+    };
     assert!(none.filters().is_empty());
-    assert_eq!(CertFilterManager::from_local_prefs(&none).apply(&all(), now()).len(), all().len());
-    let all_on = LocalFilterPrefs { use_only_signature_certificates: true, skip_auth_cert_dnie: true, use_only_alias_certificates: true, show_expired_certs: false };
+    assert_eq!(
+        CertFilterManager::from_local_prefs(&none).apply(&all(), now()).len(),
+        all().len()
+    );
+    let all_on = LocalFilterPrefs {
+        use_only_signature_certificates: true,
+        skip_auth_cert_dnie: true,
+        use_only_alias_certificates: true,
+        show_expired_certs: false,
+    };
     assert_eq!(
         all_on.filters(),
-        vec![CertFilter::Multiple(vec![CertFilter::KeyUsage(SIGN_CERT_USAGE), CertFilter::SkipAuthDnie, CertFilter::Pseudonym { only: true }])]
+        vec![CertFilter::Multiple(vec![
+            CertFilter::KeyUsage(SIGN_CERT_USAGE),
+            CertFilter::SkipAuthDnie,
+            CertFilter::Pseudonym { only: true }
+        ])]
     );
-    let r: Vec<String> = CertFilterManager::from_local_prefs(&all_on).apply(&all(), now()).into_iter().map(|e| e.alias).collect();
+    let r: Vec<String> = CertFilterManager::from_local_prefs(&all_on)
+        .apply(&all(), now())
+        .into_iter()
+        .map(|e| e.alias)
+        .collect();
     assert_eq!(r, vec!["pseudonimo".to_string()]);
 }
 
@@ -451,7 +665,8 @@ fn pseudonym_twins_with_rcgen() {
         p.distinguished_name = RDn::new();
         p.distinguished_name.push(DnType::CountryName, "ES");
         if pseudo {
-            p.distinguished_name.push(DnType::CustomDnType(vec![2, 5, 4, 65]), "SEUDO-9");
+            p.distinguished_name
+                .push(DnType::CustomDnType(vec![2, 5, 4, 65]), "SEUDO-9");
         }
         p.distinguished_name.push(DnType::CommonName, cn);
         p.key_usages = ku;
@@ -465,7 +680,16 @@ fn pseudonym_twins_with_rcgen() {
         };
         let c = p.signed_by(&key, &issuer).unwrap();
         let der = c.der().to_vec();
-        CertEntry::new(cn, der.clone(), vec![der], EntryCapabilities { has_private_key: true, ..Default::default() }, "rcgen")
+        CertEntry::new(
+            cn,
+            der.clone(),
+            vec![der],
+            EntryCapabilities {
+                has_private_key: true,
+                ..Default::default()
+            },
+            "rcgen",
+        )
     };
     let ku = || vec![KeyUsagePurpose::DigitalSignature, KeyUsagePurpose::ContentCommitment];
     let entries = vec![
@@ -490,22 +714,27 @@ fn pseudonym_twins_with_rcgen() {
 fn matches_java_golden() {
     let cases = std::fs::read_to_string(testdata().join("keystores/filters/filter-cases.txt")).unwrap();
     let golden = std::fs::read_to_string(testdata().join("keystores/filters/filter-java.txt")).unwrap();
-    let golden: std::collections::HashMap<&str, &str> =
-        golden.lines().filter_map(|l| l.split_once('\t')).collect();
+    let golden: std::collections::HashMap<&str, &str> = golden.lines().filter_map(|l| l.split_once('\t')).collect();
     let entries = all();
     let mut checked = 0;
     for line in cases.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#')) {
         let (name, props) = line.split_once('\t').unwrap();
         let props_text = props.replace("<NL>", "\n");
         let params = afirma_core::ExtraParams::parse(&props_text);
-        let expected = golden.get(name).unwrap_or_else(|| panic!("falta el caso {name} en filter-java.txt"));
+        let expected = golden
+            .get(name)
+            .unwrap_or_else(|| panic!("falta el caso {name} en filter-java.txt"));
         let got = match CertFilterManager::from_extra_params(&params) {
             Err(_) => "ERROR".to_string(),
             Ok(m) => {
                 let mut v: Vec<String> = m.apply(&entries, Utc::now()).into_iter().map(|e| e.alias).collect();
                 v.sort();
                 let mut s = v.join(",");
-                s.push_str(&format!("|mandatory={}|external={}", m.is_mandatory_certificate(), m.allow_external_stores()));
+                s.push_str(&format!(
+                    "|mandatory={}|external={}",
+                    m.is_mandatory_certificate(),
+                    m.allow_external_stores()
+                ));
                 s
             }
         };

@@ -12,7 +12,10 @@ pub const ERROR_GENERIC_TEXT: &str = "Se ha encontrado un error durante la opera
 /// Textos por clave (`Error.<código>` y categorías `Error.NXXXXX`).
 pub const ERROR_TEXTS: &[(&str, &str)] = &[
     ("Error", ERROR_GENERIC_TEXT),
-    ("Error.1XXXXX", "Se ha producido un error con el dispositivo externo. No se puede completar la operación. "),
+    (
+        "Error.1XXXXX",
+        "Se ha producido un error con el dispositivo externo. No se puede completar la operación. ",
+    ),
     ("Error.2XXXXX", "Ocurrió un error interno durante la operación "),
     (
         "Error.220001",
@@ -22,9 +25,18 @@ pub const ERROR_TEXTS: &[(&str, &str)] = &[
         "Error.220008",
         "No se han encontrado las claves para la conexión segura con el navegador.\nEjecute la función de restauración de la instalación desde el menú de herramientas de Autofirma para poder firmar.",
     ),
-    ("Error.3XXXXX", "Un servicio o biblioteca externo devolvió un error durante el proceso. Se aborta la operación."),
-    ("Error.4XXXXX", "Ocurrió un error al conectarse con un servicio o aplicativo externo. Se aborta la operación."),
-    ("Error.400004", "Se ha interrumpido la operación al detectar una conexión con un entorno no seguro: %0"),
+    (
+        "Error.3XXXXX",
+        "Un servicio o biblioteca externo devolvió un error durante el proceso. Se aborta la operación.",
+    ),
+    (
+        "Error.4XXXXX",
+        "Ocurrió un error al conectarse con un servicio o aplicativo externo. Se aborta la operación.",
+    ),
+    (
+        "Error.400004",
+        "Se ha interrumpido la operación al detectar una conexión con un entorno no seguro: %0",
+    ),
     ("Error.5XXXXX", "No se ha podido completar la operación."),
     (
         "Error.500006",
@@ -35,7 +47,10 @@ pub const ERROR_TEXTS: &[(&str, &str)] = &[
         "La validación de la firma requiere información que Autofirma no ha podido identificar. Compruebe si existe una versión más reciente de Autofirma.",
     ),
     ("Error.500002", "La firma que se trata de procesar es inválida."),
-    ("Error.500003", "Su sistema operativo no es compatible con la operación solicitada."),
+    (
+        "Error.500003",
+        "Su sistema operativo no es compatible con la operación solicitada.",
+    ),
     (
         "Error.500004",
         "Su JRE no es compatible con la operación solicitada. Actualícela a la última versión compatiple.",
@@ -44,36 +59,84 @@ pub const ERROR_TEXTS: &[(&str, &str)] = &[
         "Error.500005",
         "La aplicación web requiere una versión posterior de Autofirma. Actualicese a la última versión disponible.",
     ),
-    ("Error.500008", "La operación de carga de fichero no está disponible en este sistema."),
-    ("Error.500009", "La operación de carga de múltiples ficheros no está disponible en este sistema."),
-    ("Error.501001", "No se han encontrado certificados para realizar la firma."),
-    ("Error.501002", "El formato de fichero no es válido para la operación que se intenta realizar."),
+    (
+        "Error.500008",
+        "La operación de carga de fichero no está disponible en este sistema.",
+    ),
+    (
+        "Error.500009",
+        "La operación de carga de múltiples ficheros no está disponible en este sistema.",
+    ),
+    (
+        "Error.501001",
+        "No se han encontrado certificados para realizar la firma.",
+    ),
+    (
+        "Error.501002",
+        "El formato de fichero no es válido para la operación que se intenta realizar.",
+    ),
     ("Error.501003", "El PIN del la tarjeta inteligente es incorrecto."),
     ("Error.501005", "El documento supera el tamaño máximo permitido."),
-    ("Error.501006", "La firma no es compatible con el formato de firma utilizado."),
-    ("Error.501007", "No se agregará la nueva firma porque la firma longeva original quedaría invalidada."),
+    (
+        "Error.501006",
+        "La firma no es compatible con el formato de firma utilizado.",
+    ),
+    (
+        "Error.501007",
+        "No se agregará la nueva firma porque la firma longeva original quedaría invalidada.",
+    ),
     (
         "Error.501008",
         "No se firmará el documento porque la firma resultante sería incompatible con la política de firma.",
     ),
-    ("Error.501009", "No se ha podido identificar un formato de firma para los datos."),
+    (
+        "Error.501009",
+        "No se ha podido identificar un formato de firma para los datos.",
+    ),
     ("Error.501010", "Sólo se permite la firma visible del documento PDF."),
-    ("Error.502001", "No se han encontrado certificados para realizar la selección."),
-    ("Error.504001", "No se han encontrado certificados para realizar la firma del lote."),
+    (
+        "Error.502001",
+        "No se han encontrado certificados para realizar la selección.",
+    ),
+    (
+        "Error.504001",
+        "No se han encontrado certificados para realizar la firma del lote.",
+    ),
     ("Error.506001", "El directorio de entrada no existe."),
     ("Error.506002", "No se tiene acceso al directorio indicado."),
-    ("Error.510001", "La firma no contiene los datos firmados necesarios para completar la operación."),
-    ("Error.510002", "Para poder realizar esta operación es necesario seleccionar un fichero XML."),
-    ("Error.510003", "Para poder realizar esta operación es necesario seleccionar un fichero ODF."),
-    ("Error.510004", "Para poder realizar esta operación es necesario seleccionar un fichero OOXML."),
-    ("Error.510005", "Para poder realizar esta operación es necesario seleccionar un fichero PDF."),
+    (
+        "Error.510001",
+        "La firma no contiene los datos firmados necesarios para completar la operación.",
+    ),
+    (
+        "Error.510002",
+        "Para poder realizar esta operación es necesario seleccionar un fichero XML.",
+    ),
+    (
+        "Error.510003",
+        "Para poder realizar esta operación es necesario seleccionar un fichero ODF.",
+    ),
+    (
+        "Error.510004",
+        "Para poder realizar esta operación es necesario seleccionar un fichero OOXML.",
+    ),
+    (
+        "Error.510005",
+        "Para poder realizar esta operación es necesario seleccionar un fichero PDF.",
+    ),
     ("Error.510006", "La firma no es compatible o está mal formada."),
     (
         "Error.510007",
         "El documento es una firma XML y no se puede volver a firmar. Pruebe a cofirmarla o contrafirmarla.",
     ),
-    ("Error.510008", "La factura ya tiene una firma electrónica y no admite firmas adicionales."),
-    ("Error.510009", "Para poder realizar esta operación es necesario seleccionar un fichero FacturaE."),
+    (
+        "Error.510008",
+        "La factura ya tiene una firma electrónica y no admite firmas adicionales.",
+    ),
+    (
+        "Error.510009",
+        "Para poder realizar esta operación es necesario seleccionar un fichero FacturaE.",
+    ),
     ("Error.511003", "El almacén de claves esta bloqueado."),
     ("Error.511004", "La tarjeta inteligente esta bloqueada."),
     ("Error.6XXXXX", "Los parámetros recibidos no son corretos."),
@@ -120,8 +183,15 @@ pub fn category_key(code: &ErrorCode) -> &'static str {
 pub fn user_message(code: &ErrorCode, params: &[&str]) -> String {
     let key = format!("Error.{}", code.code_str());
     let s = code.code_str();
-    let fallback = if s.starts_with('1') || s.starts_with('2') { "Error" } else { category_key(code) };
-    let mut text = lookup(&key).or_else(|| lookup(fallback)).unwrap_or(code.description).to_string();
+    let fallback = if s.starts_with('1') || s.starts_with('2') {
+        "Error"
+    } else {
+        category_key(code)
+    };
+    let mut text = lookup(&key)
+        .or_else(|| lookup(fallback))
+        .unwrap_or(code.description)
+        .to_string();
     for (i, p) in params.iter().enumerate() {
         text = text.replace(&format!("%{i}"), p);
     }
@@ -156,7 +226,10 @@ mod tests {
 
     #[test]
     fn texts_and_fallbacks() {
-        assert_eq!(user_message(&codes::INVALID_SIGNATURE, &[]), "La firma que se trata de procesar es inválida.");
+        assert_eq!(
+            user_message(&codes::INVALID_SIGNATURE, &[]),
+            "La firma que se trata de procesar es inválida."
+        );
         assert_eq!(
             user_message(&codes::INVALID_DOMAIN_SSL_CERTIFICATE_ERROR, &["ejemplo.es"]),
             "Se ha interrumpido la operación al detectar una conexión con un entorno no seguro: ejemplo.es"
@@ -170,14 +243,26 @@ mod tests {
         assert_eq!(user_message(&codes::SIGNING_PKCS1_ERROR, &[]), ERROR_GENERIC_TEXT);
         assert_eq!(user_message(&codes::SOCKET_INITIALIZING_ERROR, &[]).lines().count(), 2);
         assert_eq!(user_message(&codes::KEYSTORE_SMARTCARD_LOCKED, &[]), ERROR_GENERIC_TEXT);
-        assert_eq!(user_message(&codes::UNSUPPORTED_PROTOCOL_VERSION, &[]).lines().count(), 2);
-        assert_eq!(user_message(&codes::INVALID_SESSION_ID, &[]), "La petición no es válida.");
-        assert_eq!(user_message(&codes::DATA_NOT_FOUND, &[]), "Los parámetros recibidos no son corretos.");
+        assert_eq!(
+            user_message(&codes::UNSUPPORTED_PROTOCOL_VERSION, &[]).lines().count(),
+            2
+        );
+        assert_eq!(
+            user_message(&codes::INVALID_SESSION_ID, &[]),
+            "La petición no es válida."
+        );
+        assert_eq!(
+            user_message(&codes::DATA_NOT_FOUND, &[]),
+            "Los parámetros recibidos no son corretos."
+        );
         assert_eq!(
             user_message(&codes::TSA_CONNECTION_ERROR, &[]),
             "Ocurrió un error al conectarse con un servicio o aplicativo externo. Se aborta la operación."
         );
-        assert_eq!(user_message(&codes::CANCELLED_OPERATION, &[]), "No se ha podido completar la operación.");
+        assert_eq!(
+            user_message(&codes::CANCELLED_OPERATION, &[]),
+            "No se ha podido completar la operación."
+        );
         assert_eq!(dialog_title(&codes::CANCELLED_OPERATION, true), "Error");
         assert_eq!(dialog_title(&codes::CANCELLED_OPERATION, false), "Error AF500001");
         assert_eq!(

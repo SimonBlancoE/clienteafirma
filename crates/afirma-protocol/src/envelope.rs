@@ -27,7 +27,14 @@ pub fn parse_xml_envelope(xml: &[u8]) -> Result<Params, String> {
     let root = doc.document_element().ok_or("sin elemento raíz")?;
     let root_el = doc.element(root).ok_or("sin elemento raíz")?;
     let root_name = root_el.qname();
-    let mut pairs = vec![("op".to_string(), if root_name.eq_ignore_ascii_case("op") { "SIGN".to_string() } else { root_name })];
+    let mut pairs = vec![(
+        "op".to_string(),
+        if root_name.eq_ignore_ascii_case("op") {
+            "SIGN".to_string()
+        } else {
+            root_name
+        },
+    )];
     for &child in doc.children(root) {
         match doc.kind(child) {
             NodeKind::Element(el) => {
@@ -55,7 +62,9 @@ pub fn parse_json_envelope(json: &[u8]) -> Result<Params, String> {
     let obj = json_lenient::parse_object_bytes(json)?;
     let mut pairs = Vec::new();
     for item in obj.get_array("params")? {
-        let Some(o) = item.as_object() else { return Err("JSONArray[i] is not a JSONObject.".into()) };
+        let Some(o) = item.as_object() else {
+            return Err("JSONArray[i] is not a JSONObject.".into());
+        };
         if o.has("k") && o.has("v") {
             let k = o.get_string("k")?.to_string();
             let v = match o.get("v") {
@@ -71,7 +80,11 @@ pub fn parse_json_envelope(json: &[u8]) -> Result<Params, String> {
 /// Analiza un sobre XML o JSON según su primer carácter significativo.
 pub fn parse_envelope(data: &[u8]) -> Result<Params, String> {
     let first = data.iter().find(|b| !b.is_ascii_whitespace()).copied();
-    if first == Some(b'{') { parse_json_envelope(data) } else { parse_xml_envelope(data) }
+    if first == Some(b'{') {
+        parse_json_envelope(data)
+    } else {
+        parse_xml_envelope(data)
+    }
 }
 
 /// Descarga, descifra y analiza el sobre de una operación
@@ -86,29 +99,49 @@ pub fn fetch_envelope(
     let (io_code, timeout_code) = kind.retrieve_errors();
     let body = intermediate::retrieve(http, retrieve_servlet, file_id).map_err(|e| {
         let code = if e.is_timeout() { timeout_code } else { io_code };
-        ProtocolError::operation(code, format!("Error al recuperar los datos enviados por el cliente a traves del servidor intermedio: {e}"))
+        ProtocolError::operation(
+            code,
+            format!("Error al recuperar los datos enviados por el cliente a traves del servidor intermedio: {e}"),
+        )
     })?;
     if intermediate::is_error_response(&body) {
         return Err(ProtocolError::operation(
             codes::ERROR_RECIVED_FROM_CLIENT,
-            format!("Se recupera un error desde el servidor intermedio: {}", String::from_utf8_lossy(&body).trim()),
+            format!(
+                "Se recupera un error desde el servidor intermedio: {}",
+                String::from_utf8_lossy(&body).trim()
+            ),
         ));
     }
     let plain = match cipher_config {
         None => None,
         Some(cfg) => match ServerCipher::from_config(cfg) {
-            Err(e) => return Err(ProtocolError::operation(io_code, format!("Error al instanciar el cifrador de datos: {e}"))),
+            Err(e) => {
+                return Err(ProtocolError::operation(
+                    io_code,
+                    format!("Error al instanciar el cifrador de datos: {e}"),
+                ));
+            }
             Ok(None) => None,
             Ok(Some(c)) => Some(c.decipher(&String::from_utf8_lossy(&body)).map_err(|e| {
-                ProtocolError::operation(codes::DECRYPTING_PARAMS_ERROR, format!("Error en el descifrado de los datos: {e}"))
+                ProtocolError::operation(
+                    codes::DECRYPTING_PARAMS_ERROR,
+                    format!("Error en el descifrado de los datos: {e}"),
+                )
             })?),
         },
     };
     let Some(plain) = plain else {
-        return Err(ProtocolError::unexpected(kind.generic_error(), "No se han podido descifrar los datos del servidor intermedio (sin clave)"));
+        return Err(ProtocolError::unexpected(
+            kind.generic_error(),
+            "No se han podido descifrar los datos del servidor intermedio (sin clave)",
+        ));
     };
     parse_envelope(&plain).map_err(|e| {
-        ProtocolError::unexpected(kind.generic_error(), format!("La respuesta del servidor intermedio al descargar la informacion no es un XML valido: {e}"))
+        ProtocolError::unexpected(
+            kind.generic_error(),
+            format!("La respuesta del servidor intermedio al descargar la informacion no es un XML valido: {e}"),
+        )
     })
 }
 
@@ -126,7 +159,10 @@ mod tests {
         assert_eq!(p.get("op").unwrap().as_deref(), Some("cosign"));
         assert_eq!(p.get("format").unwrap().as_deref(), Some("CAdES"));
         // '+' de Base64 conservado en los parámetros Base64.
-        assert_eq!(p.get_base64("properties").unwrap().as_deref(), Some("bW9kZT1pbXBsaWNpdA+="));
+        assert_eq!(
+            p.get_base64("properties").unwrap().as_deref(),
+            Some("bW9kZT1pbXBsaWNpdA+=")
+        );
         let p = parse_xml_envelope(b"<OP><e k='x' v='a%20b'/></OP>").unwrap();
         assert_eq!(p.get("op").unwrap().as_deref(), Some("SIGN"));
         assert_eq!(p.get("x").unwrap().as_deref(), Some("a b"));
@@ -143,28 +179,71 @@ mod tests {
 
     #[test]
     fn fetch_and_decrypt() {
-        let cipher = crate::cipher::ServerCipher::from_config(&des_config("04719233")).unwrap().unwrap();
+        let cipher = crate::cipher::ServerCipher::from_config(&des_config("04719233"))
+            .unwrap()
+            .unwrap();
         let body = format!("{}\n", cipher.cipher(ENVELOPE.as_bytes()).unwrap());
         let t = MockTransport::new(move |_| ok(body.clone()));
         let http = HttpClient::new(t.clone());
-        let p = fetch_envelope(&http, "https://h/RetrieveService", "FID", Some(&des_config("04719233")), OperationKind::Sign).unwrap();
+        let p = fetch_envelope(
+            &http,
+            "https://h/RetrieveService",
+            "FID",
+            Some(&des_config("04719233")),
+            OperationKind::Sign,
+        )
+        .unwrap();
         assert_eq!(p.get("id").unwrap().as_deref(), Some("RID123"));
         assert_eq!(t.bodies(), vec!["op=get&v=1_0&id=FID".to_string()]);
         // Error del servidor intermedio.
-        let http = HttpClient::new(MockTransport::new(|_| ok("ERR-06:=El identificador para los datos es inválido\n")));
-        let e = fetch_envelope(&http, "https://h/r", "FID", Some(&des_config("04719233")), OperationKind::Batch).unwrap_err();
+        let http = HttpClient::new(MockTransport::new(|_| {
+            ok("ERR-06:=El identificador para los datos es inválido\n")
+        }));
+        let e = fetch_envelope(
+            &http,
+            "https://h/r",
+            "FID",
+            Some(&des_config("04719233")),
+            OperationKind::Batch,
+        )
+        .unwrap_err();
         assert_eq!(e.code.code, 220003);
         // Descifrado erróneo.
         let http = HttpClient::new(MockTransport::new(|_| ok("0.AAAAAAAAAAAAAAA=")));
-        let e = fetch_envelope(&http, "https://h/r", "FID", Some(&des_config("04719233")), OperationKind::Save).unwrap_err();
+        let e = fetch_envelope(
+            &http,
+            "https://h/r",
+            "FID",
+            Some(&des_config("04719233")),
+            OperationKind::Save,
+        )
+        .unwrap_err();
         assert_eq!(e.code.code, 220002);
         // Sin clave → error genérico.
         let http = HttpClient::new(MockTransport::new(|_| ok("PHNpZ24vPg==AAAA")));
-        assert_eq!(fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::SelectCert).unwrap_err().code.code, 200201);
+        assert_eq!(
+            fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::SelectCert)
+                .unwrap_err()
+                .code
+                .code,
+            200201
+        );
         // E/S y tiempo de espera.
         let http = HttpClient::new(MockTransport::new(|_| crate::http::testing::timeout()));
-        assert_eq!(fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::Load).unwrap_err().code.code, 401110);
+        assert_eq!(
+            fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::Load)
+                .unwrap_err()
+                .code
+                .code,
+            401110
+        );
         let http = HttpClient::new(MockTransport::new(|_| crate::http::testing::status(500)));
-        assert_eq!(fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::SignAndSave).unwrap_err().code.code, 401105);
+        assert_eq!(
+            fetch_envelope(&http, "https://h/r", "FID", None, OperationKind::SignAndSave)
+                .unwrap_err()
+                .code
+                .code,
+            401105
+        );
     }
 }

@@ -236,19 +236,33 @@ impl Tokener {
                         'f' => out.push('\u{c}'),
                         'r' => out.push('\r'),
                         'u' => {
-                            let hex: String = self.chars.get(self.pos..self.pos + 4).ok_or("Illegal escape.")?.iter().collect();
+                            let hex: String = self
+                                .chars
+                                .get(self.pos..self.pos + 4)
+                                .ok_or("Illegal escape.")?
+                                .iter()
+                                .collect();
                             self.pos += 4;
                             let v = u32::from_str_radix(&hex, 16).map_err(|_| "Illegal escape.")?;
                             // Pares sustitutos UTF-16.
-                            if (0xD800..0xDC00).contains(&v) && self.chars.get(self.pos) == Some(&'\\') && self.chars.get(self.pos + 1) == Some(&'u') {
-                                let hex2: String = self.chars.get(self.pos + 2..self.pos + 6).unwrap_or(&[]).iter().collect();
+                            if (0xD800..0xDC00).contains(&v)
+                                && self.chars.get(self.pos) == Some(&'\\')
+                                && self.chars.get(self.pos + 1) == Some(&'u')
+                            {
+                                let hex2: String = self
+                                    .chars
+                                    .get(self.pos + 2..self.pos + 6)
+                                    .unwrap_or(&[])
+                                    .iter()
+                                    .collect();
                                 if let Ok(lo) = u32::from_str_radix(&hex2, 16)
-                                    && (0xDC00..0xE000).contains(&lo) {
-                                        self.pos += 6;
-                                        let cp = 0x10000 + ((v - 0xD800) << 10) + (lo - 0xDC00);
-                                        out.push(char::from_u32(cp).unwrap_or('\u{FFFD}'));
-                                        continue;
-                                    }
+                                    && (0xDC00..0xE000).contains(&lo)
+                                {
+                                    self.pos += 6;
+                                    let cp = 0x10000 + ((v - 0xD800) << 10) + (lo - 0xDC00);
+                                    out.push(char::from_u32(cp).unwrap_or('\u{FFFD}'));
+                                    continue;
+                                }
                             }
                             out.push(char::from_u32(v).unwrap_or('\u{FFFD}'));
                         }
@@ -382,7 +396,10 @@ fn string_to_value(s: String) -> JsonValue {
 /// Analiza un objeto JSON (texto completo; se ignora lo que siga al objeto,
 /// como `new JSONObject(String)`).
 pub fn parse_object(text: &str) -> Result<JsonObject, String> {
-    let mut t = Tokener { chars: text.chars().collect(), pos: 0 };
+    let mut t = Tokener {
+        chars: text.chars().collect(),
+        pos: 0,
+    };
     t.object()
 }
 
@@ -415,9 +432,13 @@ mod tests {
 
     #[test]
     fn org_json_serialisation() {
-        let o = parse_object(r#"{"format":"XAdES","signinfo":[{"id":"a","params":{"PRE":"x/y","NEED_PRE":"true"}}]}"#).unwrap();
+        let o = parse_object(r#"{"format":"XAdES","signinfo":[{"id":"a","params":{"PRE":"x/y","NEED_PRE":"true"}}]}"#)
+            .unwrap();
         // Orden de HashMap de Java comprobado con una JVM.
-        assert_eq!(o.to_org_json(), r#"{"signinfo":[{"id":"a","params":{"PRE":"x/y","NEED_PRE":"true"}}],"format":"XAdES"}"#);
+        assert_eq!(
+            o.to_org_json(),
+            r#"{"signinfo":[{"id":"a","params":{"PRE":"x/y","NEED_PRE":"true"}}],"format":"XAdES"}"#
+        );
         assert_eq!(quote("a</b\"\\\n\u{1}\u{85}"), r#""a<\/b\"\\\n\u0001\u0085""#);
     }
 }

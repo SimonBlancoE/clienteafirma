@@ -7,10 +7,7 @@
 
 use afirma_system::{AppIdentity, Context};
 
-use crate::system::{
-    DoctorRequest, InstallRequest, RestoreRequest, Scope, SystemOps, SystemOutcome,
-    UninstallRequest,
-};
+use crate::system::{DoctorRequest, InstallRequest, RestoreRequest, Scope, SystemOps, SystemOutcome, UninstallRequest};
 
 /// [`SystemOps`] sobre `afirma-system`.
 #[derive(Debug, Clone)]

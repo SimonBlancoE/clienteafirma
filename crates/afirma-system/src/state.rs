@@ -46,8 +46,7 @@ impl OwnedEntries {
             fsutil::remove_file_if_exists(&p)?;
             return Ok(());
         }
-        let data = serde_json::to_vec_pretty(self)
-            .map_err(|e| crate::error::SystemError::Other(e.to_string()))?;
+        let data = serde_json::to_vec_pretty(self).map_err(|e| crate::error::SystemError::Other(e.to_string()))?;
         fsutil::write_atomic(&p, &data, Some(0o644))
     }
 

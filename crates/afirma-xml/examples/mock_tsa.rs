@@ -3,15 +3,8 @@
 use std::sync::Arc;
 
 fn main() {
-    let n: usize = std::env::args()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
-    let p12 = std::fs::read(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../testdata/pki/tsa.p12"
-    ))
-    .expect("tsa.p12");
+    let n: usize = std::env::args().nth(1).and_then(|s| s.parse().ok()).unwrap_or(10);
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/tsa.p12")).expect("tsa.p12");
     let key = afirma_keystores::pkcs12::open(&p12, "12341234").expect("pkcs12")[0]
         .signing_key()
         .expect("clave");

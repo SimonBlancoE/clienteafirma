@@ -51,9 +51,7 @@ impl HashCommand {
 
     /// Comando correspondiente a un nombre (el lanzador lo pasa a minúsculas).
     pub fn parse(op: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|c| c.op().eq_ignore_ascii_case(op))
+        Self::ALL.into_iter().find(|c| c.op().eq_ignore_ascii_case(op))
     }
 
     /// Descripción que muestra la ayuda general del lanzador (`plugin.json`;
@@ -216,17 +214,16 @@ impl HashParameters {
 
     /// Algoritmo indicado o `SHA-256`.
     pub fn hash_algorithm(&self) -> &str {
-        self.hash_algorithm
-            .as_deref()
-            .unwrap_or(DEFAULT_HASH_ALGORITHM)
+        self.hash_algorithm.as_deref().unwrap_or(DEFAULT_HASH_ALGORITHM)
     }
 
     /// Formato para un fichero (`getHashFileFormat`): hex por defecto.
     pub fn file_format(&self) -> Result<FileHashFormat, CliError> {
         match self.hash_format.as_deref() {
             None => Ok(FileHashFormat::Hex),
-            Some(f) => FileHashFormat::from_cli_name(f)
-                .ok_or_else(|| CliError::illegal(format("CommandLine.91", &[f]))),
+            Some(f) => {
+                FileHashFormat::from_cli_name(f).ok_or_else(|| CliError::illegal(format("CommandLine.91", &[f])))
+            }
         }
     }
 
@@ -234,8 +231,9 @@ impl HashParameters {
     pub fn directory_format(&self) -> Result<DirDocumentFormat, CliError> {
         match self.hash_format.as_deref() {
             None => Ok(DirDocumentFormat::Xml),
-            Some(f) => DirDocumentFormat::from_cli_name(f)
-                .ok_or_else(|| CliError::illegal(format("CommandLine.90", &[f]))),
+            Some(f) => {
+                DirDocumentFormat::from_cli_name(f).ok_or_else(|| CliError::illegal(format("CommandLine.90", &[f])))
+            }
         }
     }
 }
@@ -251,12 +249,9 @@ fn check_duplicate(already: bool, arg: &str) -> Result<(), CliError> {
 /// Valor de `-halgorithm`/`-hformat` (Java no lo comprueba y falla con un
 /// `ArrayIndexOutOfBoundsException`).
 fn option_value(args: &[String], i: usize) -> Result<&str, CliError> {
-    args.get(i + 1).map(String::as_str).ok_or_else(|| {
-        CliError::illegal(format!(
-            "No se ha indicado valor para el parametro: {}",
-            args[i]
-        ))
-    })
+    args.get(i + 1)
+        .map(String::as_str)
+        .ok_or_else(|| CliError::illegal(format!("No se ha indicado valor para el parametro: {}", args[i])))
 }
 
 fn read_main_file(value: &str) -> Result<PathBuf, CliError> {
@@ -290,9 +285,7 @@ fn parent_writable(path: &Path) -> bool {
     match path.parent() {
         None => true,
         Some(parent) if parent.as_os_str().is_empty() => true,
-        Some(parent) => {
-            fs::metadata(parent).is_ok_and(|m| m.is_dir() && !m.permissions().readonly())
-        }
+        Some(parent) => fs::metadata(parent).is_ok_and(|m| m.is_dir() && !m.permissions().readonly()),
     }
 }
 
@@ -360,14 +353,8 @@ pub enum CommandResponse {
 }
 
 /// Ejecuta un comando con los argumentos que siguen a su nombre.
-pub fn execute(
-    command: HashCommand,
-    args: &[String],
-    options: &HashOptions<'_>,
-) -> Result<CommandResponse, CliError> {
-    let help = args
-        .first()
-        .is_some_and(|a| a.eq_ignore_ascii_case("-help"));
+pub fn execute(command: HashCommand, args: &[String], options: &HashOptions<'_>) -> Result<CommandResponse, CliError> {
+    let help = args.first().is_some_and(|a| a.eq_ignore_ascii_case("-help"));
     if help || (command == HashCommand::CheckDigest && args.is_empty()) {
         return Ok(CommandResponse::Help(command.help_text()));
     }
@@ -393,12 +380,7 @@ pub fn execute(
         HashCommand::CreateDigest => create_digest(&params, options).map(CommandResponse::Text),
         HashCommand::CheckDigest => {
             let matches = check_digest(&params, options)?;
-            let message = get(if matches {
-                "CommandLine.123"
-            } else {
-                "CommandLine.124"
-            })
-            .to_string();
+            let message = get(if matches { "CommandLine.123" } else { "CommandLine.124" }).to_string();
             Ok(CommandResponse::Check { matches, message })
         }
     }
@@ -410,16 +392,10 @@ fn check_main_file(params: &HashParameters) -> Result<&Path, CliError> {
         .as_deref()
         .ok_or_else(|| CliError::illegal(get("CommandLine.5").into()))?;
     if !exists(path) {
-        return Err(CliError::controlled(format(
-            "CommandLine.87",
-            &[&absolute(path)],
-        )));
+        return Err(CliError::controlled(format("CommandLine.87", &[&absolute(path)])));
     }
     if !can_read(path) {
-        return Err(CliError::controlled(format(
-            "CommandLine.88",
-            &[&absolute(path)],
-        )));
+        return Err(CliError::controlled(format("CommandLine.88", &[&absolute(path)])));
     }
     Ok(path)
 }
@@ -431,8 +407,7 @@ fn create_digest(params: &HashParameters, options: &HashOptions<'_>) -> Result<S
     let data = if input.is_dir() {
         let format = params.directory_format()?;
         let algorithm = parse_algorithm(params.hash_algorithm()).map_err(calc_error)?;
-        let doc =
-            hash_directory(input, params.recursive, algorithm, options).map_err(calc_error)?;
+        let doc = hash_directory(input, params.recursive, algorithm, options).map_err(calc_error)?;
         doc.generate(format)
             .map_err(|_| CliError::controlled(get("CommandLine.93").into()))?
     } else {
@@ -446,8 +421,7 @@ fn create_digest(params: &HashParameters, options: &HashOptions<'_>) -> Result<S
     };
     match &params.output_file {
         Some(out) => {
-            fs::write(out, &data)
-                .map_err(|_| CliError::controlled(format("CommandLine.21", &[&absolute(out)])))?;
+            fs::write(out, &data).map_err(|_| CliError::controlled(format("CommandLine.21", &[&absolute(out)])))?;
             Ok(get("CommandLine.22").to_string())
         }
         None => Ok(String::from_utf8_lossy(&data).into_owned()),
@@ -462,36 +436,28 @@ fn check_digest(params: &HashParameters, options: &HashOptions<'_>) -> Result<bo
         .as_deref()
         .ok_or_else(|| CliError::illegal(get("CommandLine.6").into()))?;
     if !exists(hash_file) {
-        return Err(CliError::controlled(format(
-            "CommandLine.98",
-            &[&absolute(hash_file)],
-        )));
+        return Err(CliError::controlled(format("CommandLine.98", &[&absolute(hash_file)])));
     }
     if !can_read(hash_file) {
-        return Err(CliError::controlled(format(
-            "CommandLine.99",
-            &[&absolute(hash_file)],
-        )));
+        return Err(CliError::controlled(format("CommandLine.99", &[&absolute(hash_file)])));
     }
     if !data.is_dir() {
-        let check = check_file_hash_file(data, hash_file)
-            .map_err(|_| CliError::controlled(get("CommandLine.94").into()))?;
+        let check =
+            check_file_hash_file(data, hash_file).map_err(|_| CliError::controlled(get("CommandLine.94").into()))?;
         return Ok(check.matches);
     }
-    let content =
-        fs::read(hash_file).map_err(|_| CliError::controlled(get("CommandLine.101").into()))?;
+    let content = fs::read(hash_file).map_err(|_| CliError::controlled(get("CommandLine.101").into()))?;
     let doc = HashDocument::parse(&content).map_err(|e| match e {
         DocumentError::Unsupported(_) => CliError::controlled(get("CommandLine.102").into()),
         DocumentError::Corrupted(_) => CliError::controlled(get("CommandLine.103").into()),
     })?;
-    let report = check_directory(data, &doc, options)
-        .map_err(|_| CliError::controlled(get("CommandLine.94").into()))?;
+    let report =
+        check_directory(data, &doc, options).map_err(|_| CliError::controlled(get("CommandLine.94").into()))?;
     if let Some(out) = &params.output_file {
         let xml = report
             .to_xml()
             .map_err(|_| CliError::controlled(get("CommandLine.104").into()))?;
-        fs::write(out, xml)
-            .map_err(|_| CliError::controlled(format("CommandLine.21", &[&absolute(out)])))?;
+        fs::write(out, xml).map_err(|_| CliError::controlled(format("CommandLine.21", &[&absolute(out)])))?;
     }
     Ok(!report.has_errors())
 }
@@ -520,10 +486,7 @@ pub struct CliOutcome {
 impl CliOutcome {
     /// Texto exacto que se escribe en la salida estándar (con el `\n` final).
     pub fn stdout_text(&self) -> String {
-        self.output
-            .as_ref()
-            .map(|o| format!("{o}\n"))
-            .unwrap_or_default()
+        self.output.as_ref().map(|o| format!("{o}\n")).unwrap_or_default()
     }
 }
 
@@ -618,10 +581,7 @@ fn syntax_text(command: HashCommand, error: Option<&str>) -> String {
         }
         HashCommand::CreateDigest => {
             sb += &format!("{}:\n", m("CommandLine.7"));
-            sb += &format!(
-                "  Autofirma {op} FICHERO [opciones...]\t\t- {}\n",
-                m("CommandLine.110")
-            );
+            sb += &format!("  Autofirma {op} FICHERO [opciones...]\t\t- {}\n", m("CommandLine.110"));
             sb += &format!(
                 "  Autofirma {op} DIRECTORIO [opciones...]\t- {}\n\n",
                 m("CommandLine.111")
@@ -634,11 +594,7 @@ fn syntax_text(command: HashCommand, error: Option<&str>) -> String {
             sb += &format!("  -o FICHERO\t\t ({})\n", m("CommandLine.118"));
             sb += &format!("  -halgorithm ALGORITMO\t ({})\n", m("CommandLine.77"));
             sb += &format!("  -hformat FORMATO\t ({})\n", m("CommandLine.78"));
-            sb += &format!(
-                "  \t hex\t\t ({}) ({})\n",
-                m("CommandLine.81"),
-                m("CommandLine.79")
-            );
+            sb += &format!("  \t hex\t\t ({}) ({})\n", m("CommandLine.81"), m("CommandLine.79"));
             sb += &format!("  \t b64\t\t ({})\n", m("CommandLine.82"));
             sb += &format!("  \t bin\t\t ({})\n\n", m("CommandLine.83"));
             sb += &format!("{}:\n", m("CommandLine.117"));
@@ -646,11 +602,7 @@ fn syntax_text(command: HashCommand, error: Option<&str>) -> String {
             sb += &format!("  -o FICHERO\t\t ({})\n", m("CommandLine.96"));
             sb += &format!("  -halgorithm ALGORITMO\t ({})\n", m("CommandLine.77"));
             sb += &format!("  -hformat FORMATO\t ({})\n", m("CommandLine.78"));
-            sb += &format!(
-                "  \t xml\t\t ({}) ({})\n",
-                m("CommandLine.85"),
-                m("CommandLine.79")
-            );
+            sb += &format!("  \t xml\t\t ({}) ({})\n", m("CommandLine.85"), m("CommandLine.79"));
             sb += &format!("  \t txt\t\t ({})\n", m("CommandLine.86"));
             sb += &format!("  -r\t\t ({})\n", m("CommandLine.92"));
         }
@@ -675,11 +627,7 @@ mod tests {
                 .unwrap()
                 .starts_with("Sintaxis:\n  Autofirma checkdigest [FICHERO]")
         );
-        let out = run(
-            HashCommand::CreateDigest,
-            &s(&["-HELP"]),
-            &CliOptions::default(),
-        );
+        let out = run(HashCommand::CreateDigest, &s(&["-HELP"]), &CliOptions::default());
         assert_eq!(out.status, 0);
         assert!(
             out.output
@@ -743,10 +691,7 @@ mod tests {
                 .unwrap_err()
                 .message
         };
-        assert_eq!(
-            err(&[&fs_, "-i", &fs_, "-i", &fs_]),
-            "Parametro duplicado: -i"
-        );
+        assert_eq!(err(&[&fs_, "-i", &fs_, "-i", &fs_]), "Parametro duplicado: -i");
         assert_eq!(err(&[&fs_, "-x"]), "No se reconoce el parametro -x");
         assert_eq!(err(&[&fs_, "-i"]), "No se ha indicado fichero de entrada");
         assert_eq!(err(&[&fs_, "-o"]), "No se ha indicado fichero de salida");
@@ -768,21 +713,14 @@ mod tests {
             "No se ha indicado valor para el parametro: -halgorithm"
         );
         // En checkdigest el primer argumento no reconocido es el fichero principal.
-        assert_eq!(
-            err(&["-foo"]),
-            "El fichero o directorio indicado no existe: -foo"
-        );
+        assert_eq!(err(&["-foo"]), "El fichero o directorio indicado no existe: -foo");
     }
 
     #[test]
     fn peticion_grafica() {
         let tmp = tempfile::tempdir().unwrap();
         let d = tmp.path().display().to_string();
-        let out = run(
-            HashCommand::CheckDigest,
-            &s(&["-gui", "-d"]),
-            &CliOptions::default(),
-        );
+        let out = run(HashCommand::CheckDigest, &s(&["-gui", "-d"]), &CliOptions::default());
         assert_eq!(out.status, 0);
         assert_eq!(out.output, None);
         assert_eq!(
@@ -816,10 +754,7 @@ mod tests {
         assert!(dispatch(&[], &CliOptions::default()).is_none());
         let out = dispatch(&s(&["CheckDigest"]), &CliOptions::default()).unwrap();
         assert_eq!(out.status, 0);
-        assert_eq!(
-            out.stdout_text(),
-            format!("{}\n", HashCommand::CheckDigest.help_text())
-        );
+        assert_eq!(out.stdout_text(), format!("{}\n", HashCommand::CheckDigest.help_text()));
     }
 
     #[test]

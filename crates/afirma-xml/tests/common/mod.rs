@@ -21,10 +21,7 @@ pub fn key(name: &str) -> SoftwareKey {
 }
 
 pub fn params(pairs: &[(&str, &str)]) -> ExtraParams {
-    pairs
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
 
 fn is_uuid_at(s: &[u8], i: usize) -> bool {

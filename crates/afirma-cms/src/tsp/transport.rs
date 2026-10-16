@@ -34,11 +34,17 @@ impl TsaTransport for DefaultTransport {
 /// petición; se recibe `int32 BE tamaño`, un byte de indicador (5 o 6) y
 /// `tamaño - 1` bytes de respuesta.
 pub fn send_socket(url: &str, request: &[u8]) -> Result<Vec<u8>, String> {
-    let rest = url.strip_prefix("socket://").ok_or_else(|| format!("URL de socket no valida: {url}"))?;
+    let rest = url
+        .strip_prefix("socket://")
+        .ok_or_else(|| format!("URL de socket no valida: {url}"))?;
     let authority = rest.split('/').next().unwrap_or_default();
     let mut stream = TcpStream::connect(authority).map_err(|e| format!("No se pudo conectar con {authority}: {e}"))?;
-    stream.set_read_timeout(Some(SOCKET_TIMEOUT)).map_err(|e| e.to_string())?;
-    stream.set_write_timeout(Some(SOCKET_TIMEOUT)).map_err(|e| e.to_string())?;
+    stream
+        .set_read_timeout(Some(SOCKET_TIMEOUT))
+        .map_err(|e| e.to_string())?;
+    stream
+        .set_write_timeout(Some(SOCKET_TIMEOUT))
+        .map_err(|e| e.to_string())?;
     let len = u32::try_from(request.len() + 1).map_err(|_| "peticion demasiado grande".to_string())?;
     let mut out = Vec::with_capacity(request.len() + 5);
     out.extend_from_slice(&len.to_be_bytes());
@@ -56,7 +62,10 @@ pub fn send_socket(url: &str, request: &[u8]) -> Result<Vec<u8>, String> {
     let mut resp = vec![0u8; size - 1];
     stream.read_exact(&mut resp).map_err(|e| e.to_string())?;
     if flag != 5 && flag != 6 {
-        return Err(format!("Obtenida resuesta incorrecta del servidor TSA: {}", String::from_utf8_lossy(&resp)));
+        return Err(format!(
+            "Obtenida resuesta incorrecta del servidor TSA: {}",
+            String::from_utf8_lossy(&resp)
+        ));
     }
     Ok(resp)
 }
@@ -75,13 +84,20 @@ fn pkcs12_certs(data: &[u8], password: &str) -> Result<Vec<Vec<u8>>, String> {
 fn pkcs12_client(data: &[u8], password: &str) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> {
     let archive = p12_keystore::Pkcs12Archive::from_pkcs12(data, password)
         .map_err(|e| format!("Error obteniendo el almacen de certificados cliente para el SSL: {e}"))?;
-    let key = archive.keys.first().ok_or_else(|| "El almacen de certificado cliente no contiene claves".to_string())?;
+    let key = archive
+        .keys
+        .first()
+        .ok_or_else(|| "El almacen de certificado cliente no contiene claves".to_string())?;
     let id = key.local_key_id.as_ref().map(|k| k.0.clone());
     let mut chain: Vec<Vec<u8>> = Vec::new();
     if let Some(id) = &id
-        && let Some(c) = archive.certs.iter().find(|c| c.local_key_id.as_deref() == Some(id.as_slice())) {
-            chain.push(c.cert.as_der().to_vec());
-        }
+        && let Some(c) = archive
+            .certs
+            .iter()
+            .find(|c| c.local_key_id.as_deref() == Some(id.as_slice()))
+    {
+        chain.push(c.cert.as_der().to_vec());
+    }
     for c in &archive.certs {
         let der = c.cert.as_der().to_vec();
         if !chain.contains(&der) {
@@ -102,7 +118,10 @@ pub fn send_http(params: &TsaParams, request: &[u8]) -> Result<Vec<u8>, String> 
     let mut tls = TlsConfig::builder();
     if let Some(ts) = &params.ssl_truststore {
         if !params.ssl_truststore_type.eq_ignore_ascii_case("PKCS12") {
-            return Err(format!("Tipo de almacen de confianza no soportado: {}", params.ssl_truststore_type));
+            return Err(format!(
+                "Tipo de almacen de confianza no soportado: {}",
+                params.ssl_truststore_type
+            ));
         }
         let roots: Vec<Certificate<'static>> = pkcs12_certs(ts, &params.ssl_truststore_password)?
             .into_iter()
@@ -114,7 +133,10 @@ pub fn send_http(params: &TsaParams, request: &[u8]) -> Result<Vec<u8>, String> 
     }
     if let Some(ks) = &params.ssl_keystore {
         if !params.ssl_keystore_type.eq_ignore_ascii_case("PKCS12") {
-            return Err(format!("Tipo de almacen de claves no soportado: {}", params.ssl_keystore_type));
+            return Err(format!(
+                "Tipo de almacen de claves no soportado: {}",
+                params.ssl_keystore_type
+            ));
         }
         let (key, chain) = pkcs12_client(ks, &params.ssl_keystore_password)?;
         let certs: Vec<Certificate<'static>> = chain.iter().map(|c| Certificate::from_der(c).to_owned()).collect();
@@ -147,8 +169,17 @@ pub fn send_http(params: &TsaParams, request: &[u8]) -> Result<Vec<u8>, String> 
         req = req.header("Authorization", format!("Basic {token}"));
     }
     let mut resp = req.send(request).map_err(|e| e.to_string())?;
-    let encoding = resp.headers().get("Content-Encoding").and_then(|v| v.to_str().ok()).map(str::to_string);
-    let body = resp.body_mut().with_config().limit(64 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())?;
+    let encoding = resp
+        .headers()
+        .get("Content-Encoding")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let body = resp
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024 * 1024)
+        .read_to_vec()
+        .map_err(|e| e.to_string())?;
     if encoding.is_some_and(|e| e.eq_ignore_ascii_case("base64")) {
         let text = String::from_utf8_lossy(&body).to_string();
         return afirma_core::base64_decode_lenient(&text).map_err(|e| format!("Respuesta Base64 no valida: {e}"));

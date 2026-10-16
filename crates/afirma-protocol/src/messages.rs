@@ -83,7 +83,9 @@ pub fn lookup(locale: Locale, key: &str) -> Option<&'static str> {
 
 /// `ProtocolMessages.getString(key)`: el texto o `!key!` si falta.
 pub fn get(locale: Locale, key: &str) -> String {
-    lookup(locale, key).map(str::to_string).unwrap_or_else(|| format!("!{key}!"))
+    lookup(locale, key)
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("!{key}!"))
 }
 
 /// `ProtocolMessages.getString(key, params...)`: sustituye `%0`, `%1`...
@@ -108,7 +110,10 @@ mod tests {
             "La versión de Autofirma instalada no es compatible con este trámite.\nActualice a la última versión disponible."
         );
         assert_eq!(get(Locale::Es, "ProtocolLauncher.63"), "!ProtocolLauncher.63!");
-        assert_eq!(get_with(Locale::Es, "ProtocolLauncher.29", &["AF600105"]), "Error AF600105");
+        assert_eq!(
+            get_with(Locale::Es, "ProtocolLauncher.29", &["AF600105"]),
+            "Error AF600105"
+        );
         // Todos los idiomas cargan la clave genérica.
         for l in [Locale::Ca, Locale::Gl, Locale::Eu, Locale::Va] {
             assert!(lookup(l, "ProtocolLauncher.3").is_some(), "{l:?}");

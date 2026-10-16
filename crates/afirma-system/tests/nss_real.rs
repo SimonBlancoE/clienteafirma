@@ -44,11 +44,7 @@ fn new_db(certutil: &Path, dir: &Path) {
 
 fn list(certutil: &Path, dir: &Path) -> String {
     SystemRunner
-        .run(&Cmd::new(certutil.to_string_lossy().into_owned()).args([
-            "-L",
-            "-d",
-            &format!("sql:{}", dir.display()),
-        ]))
+        .run(&Cmd::new(certutil.to_string_lossy().into_owned()).args(["-L", "-d", &format!("sql:{}", dir.display())]))
         .unwrap()
         .stdout
 }
@@ -66,7 +62,11 @@ fn setup() -> Option<(tempfile::TempDir, Context, PathBuf)> {
     ] {
         let r = home.join(root);
         new_db(&cu, &r.join(prof));
-        std::fs::write(r.join("profiles.ini"), format!("[Profile0]\nName=default\nIsRelative=1\nPath={prof}\nDefault=1\n\n[General]\nVersion=2\n")).unwrap();
+        std::fs::write(
+            r.join("profiles.ini"),
+            format!("[Profile0]\nName=default\nIsRelative=1\nPath={prof}\nDefault=1\n\n[General]\nVersion=2\n"),
+        )
+        .unwrap();
     }
     // Perfil sin base de datos: no se debe crear.
     std::fs::create_dir_all(home.join(".mozilla/firefox/vacio")).unwrap();
@@ -80,33 +80,19 @@ fn setup() -> Option<(tempfile::TempDir, Context, PathBuf)> {
 
 fn run_backend(ctx: &Context, cu: &Path, backend: &Backend) {
     let dir = ctx.paths.root.join("certs");
-    let local = certs::ensure(
-        ctx,
-        &dir,
-        Regenerate::IfInvalid,
-        None,
-        &CertProfile::default(),
-    )
-    .unwrap()
-    .certs;
+    let local = certs::ensure(ctx, &dir, Regenerate::IfInvalid, None, &CertProfile::default())
+        .unwrap()
+        .certs;
     let users = ctx.user_homes(false);
     let dbs = nss::discover(ctx, &users, true, true);
     assert_eq!(dbs.len(), 3, "{dbs:#?}");
-    assert!(
-        !ctx.paths
-            .home
-            .join(".mozilla/firefox/vacio/cert9.db")
-            .exists()
-    );
+    assert!(!ctx.paths.home.join(".mozilla/firefox/vacio/cert9.db").exists());
     // Una CA antigua instalada previamente (como dejaría la versión Java) se sustituye.
     let old = certs::generate(&CertProfile::default()).unwrap();
     let old_file = ctx.paths.root.join("old.cer");
     std::fs::write(&old_file, &old.ca_der).unwrap();
     for db in &dbs {
-        assert_eq!(
-            nss::check(ctx, db, backend, &local.ca_der),
-            TrustCheck::Missing
-        );
+        assert_eq!(nss::check(ctx, db, backend, &local.ca_der), TrustCheck::Missing);
         assert_eq!(
             nss::install(ctx, db, backend, &old.ca_der, &old_file).unwrap(),
             Change::Changed
@@ -139,16 +125,10 @@ fn run_backend(ctx: &Context, cu: &Path, backend: &Backend) {
         } else {
             "CT,C,C"
         };
-        let line = l
-            .lines()
-            .find(|x| x.starts_with("SocketAutoFirma"))
-            .unwrap();
+        let line = l.lines().find(|x| x.starts_with("SocketAutoFirma")).unwrap();
         assert_eq!(line.split_whitespace().last().unwrap(), expected, "{l}");
         assert_eq!(nss::remove(ctx, db, backend).unwrap(), Change::Changed);
-        assert_eq!(
-            nss::check(ctx, db, backend, &local.ca_der),
-            TrustCheck::Missing
-        );
+        assert_eq!(nss::check(ctx, db, backend, &local.ca_der), TrustCheck::Missing);
         assert!(!list(cu, &db.dir).contains("SocketAutoFirma"));
     }
 }
@@ -183,11 +163,7 @@ fn instalacion_diagnostico_y_desinstalacion_reales() {
     assert!(rep.ok(), "{}", rep.to_text());
     let users = ctx.user_homes(false);
     for db in nss::discover(&ctx, &users, true, true) {
-        assert!(
-            list(&cu, &db.dir).contains("SocketAutoFirma"),
-            "{}",
-            db.description
-        );
+        assert!(list(&cu, &db.dir).contains("SocketAutoFirma"), "{}", db.description);
     }
     let d = doctor::run(
         &ctx,

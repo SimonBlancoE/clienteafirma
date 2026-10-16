@@ -10,9 +10,7 @@ const XAP_NS: &str = "http://ns.adobe.com/xap/1.0/";
 /// Prefijo usado en el documento para el espacio de nombres XMP básico.
 fn xap_prefix(xmp: &str) -> Option<String> {
     let needle = format!("=\"{XAP_NS}\"");
-    let pos = xmp
-        .find(&needle)
-        .or_else(|| xmp.find(&format!("='{XAP_NS}'")))?;
+    let pos = xmp.find(&needle).or_else(|| xmp.find(&format!("='{XAP_NS}'")))?;
     let before = &xmp[..pos];
     let start = before.rfind("xmlns:")? + 6;
     Some(before[start..].trim().to_string())
@@ -65,15 +63,16 @@ pub fn update_dates(xmp: &str, t: &SignTime) -> String {
             let tag_start = out[..p].rfind('<');
             let tag_end = out[p..].find('>').map(|e| e + p);
             if let (Some(ts), Some(te)) = (tag_start, tag_end)
-                && out[ts..].starts_with("<rdf:Description") {
-                    let elem = format!("<{prefix}:ModifyDate>{date}</{prefix}:ModifyDate>");
-                    if out.as_bytes()[te - 1] == b'/' {
-                        // `<rdf:Description .../>` → se abre y se cierra.
-                        out.replace_range(te - 1..=te, &format!(">{elem}</rdf:Description>"));
-                    } else {
-                        out.insert_str(te + 1, &elem);
-                    }
+                && out[ts..].starts_with("<rdf:Description")
+            {
+                let elem = format!("<{prefix}:ModifyDate>{date}</{prefix}:ModifyDate>");
+                if out.as_bytes()[te - 1] == b'/' {
+                    // `<rdf:Description .../>` → se abre y se cierra.
+                    out.replace_range(te - 1..=te, &format!(">{elem}</rdf:Description>"));
+                } else {
+                    out.insert_str(te + 1, &elem);
                 }
+            }
         }
     }
     out
@@ -126,9 +125,8 @@ pub fn add_sign_history(xmp: &str, t: &SignTime) -> Option<String> {
         if let Some(seq_end) = section.find("</rdf:Seq>") {
             out.insert_str(hs + seq_end, &item);
         } else {
-            let seq = format!(
-                "<rdf:Seq xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\">{item}</rdf:Seq>"
-            );
+            let seq =
+                format!("<rdf:Seq xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\">{item}</rdf:Seq>");
             out.insert_str(he, &seq);
         }
         return Some(ensure_stevt_ns(out));
@@ -149,12 +147,13 @@ pub fn add_sign_history(xmp: &str, t: &SignTime) -> Option<String> {
 /// Garantiza que el prefijo `stEvt` esté declarado.
 fn ensure_stevt_ns(mut xmp: String) -> String {
     if !xmp.contains("xmlns:stEvt")
-        && let Some(p) = xmp.find("<xmpMM:History") {
-            xmp.insert_str(
-                p + "<xmpMM:History".len(),
-                " xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"",
-            );
-        }
+        && let Some(p) = xmp.find("<xmpMM:History")
+    {
+        xmp.insert_str(
+            p + "<xmpMM:History".len(),
+            " xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"",
+        );
+    }
     xmp
 }
 
@@ -172,9 +171,7 @@ mod tests {
         let y = "<rdf:Description rdf:about='' xmlns:xap=\"http://ns.adobe.com/xap/1.0/\" xap:CreateDate=\"2011\"/>";
         let o = update_dates(y, &t);
         assert!(
-            o.contains(
-                "<xap:ModifyDate>2026-10-16T13:35:34+02:00</xap:ModifyDate></rdf:Description>"
-            ),
+            o.contains("<xap:ModifyDate>2026-10-16T13:35:34+02:00</xap:ModifyDate></rdf:Description>"),
             "{o}"
         );
     }
@@ -184,10 +181,7 @@ mod tests {
         // UUID.nameUUIDFromBytes(new byte[]{0}) = 93b885ad-fe0d-3089-8df6-34904fd59f71
         assert_eq!(history_uuid(0), "93b885ad-fe0d-3089-8df6-34904fd59f71");
         // Valores de Java (UUID.nameUUIDFromBytes(BigInteger.valueOf(v).toByteArray())).
-        assert_eq!(
-            history_uuid(1792150589000),
-            "20486edf-a328-3a03-9254-0b52b2092519"
-        );
+        assert_eq!(history_uuid(1792150589000), "20486edf-a328-3a03-9254-0b52b2092519");
         assert_eq!(history_uuid(-5), "ea8fd1aa-fd5a-3309-b7a2-e12e6ff986d5");
         assert_eq!(history_uuid(127), "83acb6e6-7e50-331d-b6ed-341dd2de1595");
         assert_eq!(history_uuid(128), "f23206ac-6155-3fc3-b5a2-122865ae0770");

@@ -84,10 +84,7 @@ mod tests {
         let xp = parse_config(Some("  format=XAdES Enveloping\\nsignerClaimedRoles = Director \n#comentario\\n\\n xadesNamespace=http://uri.etsi.org/01903/v1.4.1#  ")).unwrap();
         assert_eq!(xp.get("format"), Some("XAdES Enveloping"));
         assert_eq!(xp.get("signerClaimedRoles"), Some("Director"));
-        assert_eq!(
-            xp.get("xadesNamespace"),
-            Some("http://uri.etsi.org/01903/v1.4.1#")
-        );
+        assert_eq!(xp.get("xadesNamespace"), Some("http://uri.etsi.org/01903/v1.4.1#"));
         assert_eq!(xp.len(), 3);
         // El valor puede contener '='.
         assert_eq!(parse_config(Some("a=b=c")).unwrap().get("a"), Some("b=c"));
@@ -97,10 +94,7 @@ mod tests {
 
     #[test]
     fn lineas_sin_igual() {
-        assert_eq!(
-            parse_config(Some("a=1\\nfoo")),
-            Err(ConfigLineError("foo".into()))
-        );
+        assert_eq!(parse_config(Some("a=1\\nfoo")), Err(ConfigLineError("foo".into())));
         assert_eq!(parse_config(Some("=x")), Err(ConfigLineError("=x".into())));
         let xp = parse_config_lenient(Some("a=1\nfoo\n=x\nb = 2"));
         assert_eq!(xp.get("a"), Some("1"));

@@ -161,13 +161,31 @@ impl SignPage {
         let mut actions = Vec::new();
         match self.stage {
             Stage::Empty => {
-                widgets::page_header(ui, p, tr("Firmar documentos"), Some(tr("Firma electrónicamente cualquier documento con tu certificado o DNIe.")));
+                widgets::page_header(
+                    ui,
+                    p,
+                    tr("Firmar documentos"),
+                    Some(tr(
+                        "Firma electrónicamente cualquier documento con tu certificado o DNIe.",
+                    )),
+                );
                 self.empty_view(ui, p, files_hovering, &mut actions);
             }
             Stage::Ready => {
                 let n = self.files.len();
-                let title = if n == 1 { tr("Revisa y firma").to_string() } else { trf("Revisa y firma {0} documentos", &[&n]) };
-                widgets::page_header(ui, p, &title, Some(tr("Comprueba el formato de firma elegido para cada documento y pulsa Firmar.")));
+                let title = if n == 1 {
+                    tr("Revisa y firma").to_string()
+                } else {
+                    trf("Revisa y firma {0} documentos", &[&n])
+                };
+                widgets::page_header(
+                    ui,
+                    p,
+                    &title,
+                    Some(tr(
+                        "Comprueba el formato de firma elegido para cada documento y pulsa Firmar.",
+                    )),
+                );
                 self.ready_view(ui, p, files_hovering, &mut actions);
             }
             Stage::Signing { done, total } => {
@@ -177,7 +195,10 @@ impl SignPage {
                         ui.add_space(20.0);
                         ui.spinner();
                         ui.add_space(8.0);
-                        ui.label(RichText::new(trf("Firmando documento {0} de {1}", &[&(done + 1).min(total), &total])).size(15.0));
+                        ui.label(
+                            RichText::new(trf("Firmando documento {0} de {1}", &[&(done + 1).min(total), &total]))
+                                .size(15.0),
+                        );
                         ui.add_space(8.0);
                         ui.add(egui::ProgressBar::new(done as f32 / total.max(1) as f32).desired_width(360.0));
                         ui.add_space(20.0);
@@ -196,14 +217,29 @@ impl SignPage {
             ui.add_space(26.0);
             widgets::status_circle(ui, icons::UPLOAD_SIMPLE, 64.0, p.primary, p.primary_soft);
             ui.add_space(10.0);
-            ui.label(RichText::new(tr("Arrastra aquí tus documentos o carpetas")).font(FontId::new(18.0, semibold())).color(p.text));
             ui.label(
-                RichText::new(tr("PDF, XML, facturas electrónicas, documentos de Office o cualquier otro fichero"))
-                    .size(13.0)
-                    .color(p.text_muted),
+                RichText::new(tr("Arrastra aquí tus documentos o carpetas"))
+                    .font(FontId::new(18.0, semibold()))
+                    .color(p.text),
+            );
+            ui.label(
+                RichText::new(tr(
+                    "PDF, XML, facturas electrónicas, documentos de Office o cualquier otro fichero",
+                ))
+                .size(13.0)
+                .color(p.text_muted),
             );
             ui.add_space(12.0);
-            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), tr("Seleccionar archivos"), true).clicked() {
+            if widgets::button(
+                ui,
+                p,
+                ButtonKind::Primary,
+                Some(icons::FOLDER_OPEN),
+                tr("Seleccionar archivos"),
+                true,
+            )
+            .clicked()
+            {
                 actions.push(SignAction::PickFiles);
             }
         });
@@ -216,15 +252,28 @@ impl SignPage {
                 ui.horizontal(|ui| {
                     widgets::status_circle(ui, icons::GLOBE, 42.0, p.warning, p.warning_soft);
                     ui.vertical(|ui| {
-                        ui.label(RichText::new(tr("Integra AutoFirma con tu navegador")).font(FontId::new(14.5, semibold())));
                         ui.label(
-                            RichText::new(tr("Necesario para firmar en sedes electrónicas. Solo tarda unos segundos."))
-                                .size(12.5)
-                                .color(p.text_muted),
+                            RichText::new(tr("Integra AutoFirma con tu navegador")).font(FontId::new(14.5, semibold())),
+                        );
+                        ui.label(
+                            RichText::new(tr(
+                                "Necesario para firmar en sedes electrónicas. Solo tarda unos segundos.",
+                            ))
+                            .size(12.5)
+                            .color(p.text_muted),
                         );
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUGS_CONNECTED), tr("Integrar ahora"), true).clicked() {
+                        if widgets::button(
+                            ui,
+                            p,
+                            ButtonKind::Primary,
+                            Some(icons::PLUGS_CONNECTED),
+                            tr("Integrar ahora"),
+                            true,
+                        )
+                        .clicked()
+                        {
                             actions.push(SignAction::RepairIntegration);
                         }
                     });
@@ -251,16 +300,29 @@ impl SignPage {
             ui.horizontal(|ui| {
                 widgets::status_circle(ui, icons::VAULT, 42.0, p.info, p.info_soft);
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(tr("Certificados de firma")).size(12.5).color(p.text_muted));
-                    let label = if self.store_ready { self.store_label.clone() } else { format!("{} · {}", self.store_label, tr("cargando…")) };
                     ui.label(
-                        RichText::new(label)
-                            .font(FontId::new(14.5, semibold()))
-                            .color(p.text),
+                        RichText::new(tr("Certificados de firma"))
+                            .size(12.5)
+                            .color(p.text_muted),
                     );
+                    let label = if self.store_ready {
+                        self.store_label.clone()
+                    } else {
+                        format!("{} · {}", self.store_label, tr("cargando…"))
+                    };
+                    ui.label(RichText::new(label).font(FontId::new(14.5, semibold())).color(p.text));
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::ARROWS_LEFT_RIGHT), tr("Cambiar almacén"), true).clicked() {
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Secondary,
+                        Some(icons::ARROWS_LEFT_RIGHT),
+                        tr("Cambiar almacén"),
+                        true,
+                    )
+                    .clicked()
+                    {
                         actions.push(SignAction::ChangeStore);
                     }
                 });
@@ -307,7 +369,10 @@ impl SignPage {
                                 }
                                 FileStatus::Pending if editable => {
                                     if ui
-                                        .add(egui::Button::new(widgets::icon_text(icons::X, 16.0, p.text_faint)).frame(false))
+                                        .add(
+                                            egui::Button::new(widgets::icon_text(icons::X, 16.0, p.text_faint))
+                                                .frame(false),
+                                        )
                                         .on_hover_text(tr("Quitar de la lista"))
                                         .clicked()
                                     {
@@ -332,7 +397,11 @@ impl SignPage {
                                             .width(200.0)
                                             .truncate()
                                             .show_ui(ui, |ui| {
-                                                for op in [Operation::Cosign, Operation::CountersignLeafs, Operation::CountersignTree] {
+                                                for op in [
+                                                    Operation::Cosign,
+                                                    Operation::CountersignLeafs,
+                                                    Operation::CountersignTree,
+                                                ] {
                                                     ui.selectable_value(&mut f.operation, op, op.label());
                                                 }
                                             })
@@ -357,12 +426,27 @@ impl SignPage {
 
     fn ready_view(&mut self, ui: &mut Ui, p: &Palette, hovering: bool, actions: &mut Vec<SignAction>) {
         if hovering {
-            widgets::callout(ui, p, CalloutKind::Info, tr("Suelta los ficheros para añadirlos a la lista"), None);
+            widgets::callout(
+                ui,
+                p,
+                CalloutKind::Info,
+                tr("Suelta los ficheros para añadirlos a la lista"),
+                None,
+            );
             ui.add_space(8.0);
         }
         self.file_list(ui, p, true, actions);
         ui.horizontal(|ui| {
-            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::PLUS), tr("Añadir más documentos"), true).clicked() {
+            if widgets::button(
+                ui,
+                p,
+                ButtonKind::Ghost,
+                Some(icons::PLUS),
+                tr("Añadir más documentos"),
+                true,
+            )
+            .clicked()
+            {
                 actions.push(SignAction::PickFiles);
             }
             if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::TRASH), tr("Vaciar lista"), true).clicked() {
@@ -371,7 +455,10 @@ impl SignPage {
         });
         ui.add_space(10.0);
 
-        let has_pdf = self.files.iter().any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
+        let has_pdf = self
+            .files
+            .iter()
+            .any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
         widgets::card(ui, p, |ui| {
             widgets::section_title(ui, p, tr("Opciones de firma"));
             ui.add_space(6.0);
@@ -381,17 +468,31 @@ impl SignPage {
                     ui.vertical(|ui| {
                         ui.label(RichText::new(tr("Firma visible en el PDF")).font(FontId::new(14.0, semibold())));
                         ui.label(
-                            RichText::new(tr("Añade un recuadro con los datos del firmante en la página que elijas."))
-                                .size(12.5)
-                                .color(p.text_muted),
+                            RichText::new(tr(
+                                "Añade un recuadro con los datos del firmante en la página que elijas.",
+                            ))
+                            .size(12.5)
+                            .color(p.text_muted),
                         );
                     });
                     if self.visible_signature {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if let Some(i) = self.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF")
-                                && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), tr("Colocar firma"), true).clicked() {
-                                    actions.push(SignAction::ConfigureVisibleSignature(i));
-                                }
+                            if let Some(i) = self
+                                .files
+                                .iter()
+                                .position(|f| f.format == "PAdES" || f.format == "Adobe PDF")
+                                && widgets::button(
+                                    ui,
+                                    p,
+                                    ButtonKind::Secondary,
+                                    Some(icons::SELECTION_PLUS),
+                                    tr("Colocar firma"),
+                                    true,
+                                )
+                                .clicked()
+                            {
+                                actions.push(SignAction::ConfigureVisibleSignature(i));
+                            }
                         });
                     }
                 });
@@ -405,7 +506,9 @@ impl SignPage {
                     ui.horizontal(|ui| {
                         ui.add_enabled_ui(!signed, |ui| toggle(ui, p, &mut self.visible_stamp));
                         ui.vertical(|ui| {
-                            ui.label(RichText::new(tr("Marca de imagen en el PDF")).font(FontId::new(14.0, semibold())));
+                            ui.label(
+                                RichText::new(tr("Marca de imagen en el PDF")).font(FontId::new(14.0, semibold())),
+                            );
                             let hint = if signed {
                                 tr("No se pueden aplicar marcas visibles a documentos ya firmados.")
                             } else {
@@ -415,7 +518,16 @@ impl SignPage {
                         });
                         if self.visible_stamp && !self.visible_signature {
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), tr("Colocar marca"), true).clicked() {
+                                if widgets::button(
+                                    ui,
+                                    p,
+                                    ButtonKind::Secondary,
+                                    Some(icons::SELECTION_PLUS),
+                                    tr("Colocar marca"),
+                                    true,
+                                )
+                                .clicked()
+                                {
                                     actions.push(SignAction::ConfigureVisibleSignature(0));
                                 }
                             });
@@ -451,21 +563,46 @@ impl SignPage {
         });
         ui.add_space(16.0);
         if let Some(e) = &self.last_error {
-            widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido completar la firma"), Some(e));
+            widgets::callout(
+                ui,
+                p,
+                CalloutKind::Error,
+                tr("No se ha podido completar la firma"),
+                Some(e),
+            );
             ui.add_space(12.0);
         }
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
             let n = self.files.len();
-            let label = if n == 1 { tr("Firmar documento").to_string() } else { trf("Firmar {0} documentos", &[&n]) };
+            let label = if n == 1 {
+                tr("Firmar documento").to_string()
+            } else {
+                trf("Firmar {0} documentos", &[&n])
+            };
             let enabled = self.store_ready && n > 0;
-            if widgets::button_sized(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), &label, enabled, 220.0, 46.0).clicked() {
+            if widgets::button_sized(
+                ui,
+                p,
+                ButtonKind::Primary,
+                Some(icons::PEN_NIB),
+                &label,
+                enabled,
+                220.0,
+                46.0,
+            )
+            .clicked()
+            {
                 actions.push(SignAction::StartSigning);
             }
         });
     }
 
     fn finished_view(&mut self, ui: &mut Ui, p: &Palette, actions: &mut Vec<SignAction>) {
-        let ok: Vec<&FileItem> = self.files.iter().filter(|f| matches!(f.status, FileStatus::Done(_))).collect();
+        let ok: Vec<&FileItem> = self
+            .files
+            .iter()
+            .filter(|f| matches!(f.status, FileStatus::Done(_)))
+            .collect();
         let failed = self.files.len() - ok.len();
         widgets::card(ui, p, |ui| {
             ui.vertical_centered(|ui| {
@@ -473,7 +610,11 @@ impl SignPage {
                 if failed == 0 {
                     widgets::status_circle(ui, icons::CHECK_CIRCLE, 72.0, p.success, p.success_soft);
                     ui.add_space(10.0);
-                    let title = if ok.len() == 1 { tr("Documento firmado correctamente").to_string() } else { trf("{0} documentos firmados correctamente", &[&ok.len()]) };
+                    let title = if ok.len() == 1 {
+                        tr("Documento firmado correctamente").to_string()
+                    } else {
+                        trf("{0} documentos firmados correctamente", &[&ok.len()])
+                    };
                     ui.label(RichText::new(title).font(FontId::new(22.0, semibold())).color(p.text));
                 } else {
                     widgets::status_circle(ui, icons::WARNING, 72.0, p.warning, p.warning_soft);
@@ -485,24 +626,58 @@ impl SignPage {
                     );
                 }
                 if let [only] = ok.as_slice()
-                    && let FileStatus::Done(path) = &only.status {
-                        ui.add_space(4.0);
-                        ui.label(RichText::new(path.display().to_string()).size(13.0).color(p.text_muted));
-                        ui.add_space(14.0);
-                        ui.horizontal(|ui| {
-                            let w = 3.0 * 170.0 + 16.0;
-                            ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), tr("Abrir carpeta"), true, 170.0, 40.0).clicked() {
-                                actions.push(SignAction::OpenFolder(path.clone()));
-                            }
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::SEAL_CHECK), tr("Ver la firma"), true, 170.0, 40.0).clicked() {
-                                actions.push(SignAction::VerifyOutput(path.clone()));
-                            }
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::ARROW_SQUARE_OUT), tr("Abrir documento"), true, 170.0, 40.0).clicked() {
-                                actions.push(SignAction::OpenOutput(path.clone()));
-                            }
-                        });
-                    }
+                    && let FileStatus::Done(path) = &only.status
+                {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(path.display().to_string()).size(13.0).color(p.text_muted));
+                    ui.add_space(14.0);
+                    ui.horizontal(|ui| {
+                        let w = 3.0 * 170.0 + 16.0;
+                        ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
+                        if widgets::button_sized(
+                            ui,
+                            p,
+                            ButtonKind::Secondary,
+                            Some(icons::FOLDER_OPEN),
+                            tr("Abrir carpeta"),
+                            true,
+                            170.0,
+                            40.0,
+                        )
+                        .clicked()
+                        {
+                            actions.push(SignAction::OpenFolder(path.clone()));
+                        }
+                        if widgets::button_sized(
+                            ui,
+                            p,
+                            ButtonKind::Secondary,
+                            Some(icons::SEAL_CHECK),
+                            tr("Ver la firma"),
+                            true,
+                            170.0,
+                            40.0,
+                        )
+                        .clicked()
+                        {
+                            actions.push(SignAction::VerifyOutput(path.clone()));
+                        }
+                        if widgets::button_sized(
+                            ui,
+                            p,
+                            ButtonKind::Secondary,
+                            Some(icons::ARROW_SQUARE_OUT),
+                            tr("Abrir documento"),
+                            true,
+                            170.0,
+                            40.0,
+                        )
+                        .clicked()
+                        {
+                            actions.push(SignAction::OpenOutput(path.clone()));
+                        }
+                    });
+                }
                 ui.add_space(10.0);
             });
         });
@@ -512,7 +687,16 @@ impl SignPage {
         }
         ui.add_space(6.0);
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUS), tr("Firmar otros documentos"), true).clicked() {
+            if widgets::button(
+                ui,
+                p,
+                ButtonKind::Primary,
+                Some(icons::PLUS),
+                tr("Firmar otros documentos"),
+                true,
+            )
+            .clicked()
+            {
                 actions.push(SignAction::Clear);
             }
         });
@@ -529,12 +713,17 @@ pub fn toggle(ui: &mut Ui, p: &Palette, on: &mut bool) -> egui::Response {
     }
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, true, *on, ""));
     let t = ui.ctx().animate_bool_responsive(response.id, *on);
-    let off = if p.dark { egui::Color32::from_rgb(0x46, 0x4E, 0x5B) } else { egui::Color32::from_rgb(0xC3, 0xC9, 0xD2) };
+    let off = if p.dark {
+        egui::Color32::from_rgb(0x46, 0x4E, 0x5B)
+    } else {
+        egui::Color32::from_rgb(0xC3, 0xC9, 0xD2)
+    };
     let bg = if *on { p.primary } else { off };
     let bg = if ui.is_enabled() { bg } else { bg.gamma_multiply(0.5) };
     ui.painter().rect_filled(rect, egui::CornerRadius::same(11), bg);
     let x = egui::lerp((rect.left() + 11.0)..=(rect.right() - 11.0), t);
-    ui.painter().circle_filled(egui::pos2(x, rect.center().y), 8.0, egui::Color32::WHITE);
+    ui.painter()
+        .circle_filled(egui::pos2(x, rect.center().y), 8.0, egui::Color32::WHITE);
     let _ = theme::semibold;
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }

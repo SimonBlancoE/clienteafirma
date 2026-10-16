@@ -57,19 +57,12 @@ pub struct PdfInfo {
 
 /// Posición de un campo en la página mostrada (`AcroFields.getFieldPositions`).
 fn field_position(doc: &PdfDoc, f: &FieldItem) -> Option<SignatureFieldInfo> {
-    let r = doc
-        .dict_get(&f.widget, b"Rect")
-        .and_then(Rect::from_object)?;
+    let r = doc.dict_get(&f.widget, b"Rect").and_then(Rect::from_object)?;
     let page_id = *doc.pages().get(f.page.checked_sub(1)?)?;
     let mb = doc.media_box(page_id);
     let r = match doc.rotation(page_id) {
         270 => Rect::new(mb.ury - r.lly, r.llx, mb.ury - r.ury, r.urx),
-        180 => Rect::new(
-            mb.urx - r.llx,
-            mb.ury - r.lly,
-            mb.urx - r.urx,
-            mb.ury - r.ury,
-        ),
+        180 => Rect::new(mb.urx - r.llx, mb.ury - r.lly, mb.urx - r.urx, mb.ury - r.ury),
         90 => Rect::new(r.lly, mb.urx - r.llx, r.ury, mb.urx - r.urx),
         _ => r,
     };
@@ -117,10 +110,7 @@ impl PdfInfo {
             .filter_map(|f| field_position(doc, f))
             .collect();
         let (sigs, _) = doc.signatures();
-        let signature_fields = sigs
-            .iter()
-            .filter_map(|s| field_position(doc, &s.field))
-            .collect();
+        let signature_fields = sigs.iter().filter_map(|s| field_position(doc, &s.field)).collect();
         PdfInfo {
             pages,
             empty_signature_fields,
@@ -150,11 +140,7 @@ pub fn check_signature_dimensions(llx: i64, lly: i64, urx: i64, ury: i64) -> boo
 /// Valida el texto de selección de páginas de la interfaz
 /// (`PdfUtil.checkPagesRangeInputFormat`).
 pub fn check_pages_range_input(text: &str) -> bool {
-    if text.is_empty()
-        || !text
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-' || c == ',')
-    {
+    if text.is_empty() || !text.chars().all(|c| c.is_ascii_digit() || c == '-' || c == ',') {
         return false;
     }
     if text.ends_with(',') || text.contains("---") || text.contains(",,") {
@@ -266,11 +252,7 @@ pub enum PageChoice {
 /// coordenadas). Si la página actual es la página en blanco añadida
 /// (`pages + 1`) se pide `append` (Java añade `,append` al final, que el
 /// firmante ignora, ver desviaciones).
-pub fn visible_area_params(
-    choice: &PageChoice,
-    pages: usize,
-    area: (i64, i64, i64, i64),
-) -> ExtraParams {
+pub fn visible_area_params(choice: &PageChoice, pages: usize, area: (i64, i64, i64, i64)) -> ExtraParams {
     let mut xp = ExtraParams::new();
     let value = match choice {
         PageChoice::All => "all".to_string(),
@@ -295,21 +277,15 @@ mod ui_tests {
         // A4 a 75 ppp: 620x877 píxeles.
         let l = PageLabel::new(620, 877, 595.0, 842.0);
         assert!(l.width <= 466 && l.height <= 400);
-        assert_eq!(
-            l.scale_percent,
-            (100.0 * l.width as f64 / 620.0).round() as i64
-        );
-        let (llx, lly, urx, ury) = l
-            .to_pdf_area(0, 0, l.width, l.height, 595.0, 842.0)
-            .unwrap();
+        assert_eq!(l.scale_percent, (100.0 * l.width as f64 / 620.0).round() as i64);
+        let (llx, lly, urx, ury) = l.to_pdf_area(0, 0, l.width, l.height, 595.0, 842.0).unwrap();
         assert_eq!((llx, lly), (0, 0));
         assert!((urx - 595).abs() <= 2 && (ury - 842).abs() <= 2);
         assert!(l.to_pdf_area(10, 10, 0, 5, 595.0, 842.0).is_none());
         let xp = visible_area_params(&PageChoice::Current(3), 2, (1, 2, 3, 4));
         assert_eq!(xp.get("signaturePages"), Some("append"));
         assert_eq!(
-            visible_area_params(&PageChoice::All, 2, (1, 2, 3, 4))
-                .get("signaturePositionOnPageUpperRightY"),
+            visible_area_params(&PageChoice::All, 2, (1, 2, 3, 4)).get("signaturePositionOnPageUpperRightY"),
             Some("4")
         );
     }

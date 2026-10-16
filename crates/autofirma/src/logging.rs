@@ -21,12 +21,26 @@ pub fn init() {
         let _ = std::fs::create_dir_all(dir);
     }
     let too_big = std::fs::metadata(&path).map(|m| m.len() > MAX_LOG).unwrap_or(false);
-    let file = OpenOptions::new().create(true).append(!too_big).write(true).truncate(too_big).open(&path);
-    let filter = tracing_subscriber::EnvFilter::try_from_env("AUTOFIRMA_LOG").unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let builder = tracing_subscriber::fmt().with_env_filter(filter).with_ansi(false).with_target(true);
+    let file = OpenOptions::new()
+        .create(true)
+        .append(!too_big)
+        .write(true)
+        .truncate(too_big)
+        .open(&path);
+    let filter = tracing_subscriber::EnvFilter::try_from_env("AUTOFIRMA_LOG")
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    let builder = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(false)
+        .with_target(true);
     let _ = match file {
         Ok(f) => builder.with_writer(Mutex::new(f)).try_init(),
         Err(_) => builder.with_writer(std::io::stderr).try_init(),
     };
-    tracing::info!("AutoFirma-rs {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
+    tracing::info!(
+        "AutoFirma-rs {} ({} {})",
+        env!("CARGO_PKG_VERSION"),
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
 }

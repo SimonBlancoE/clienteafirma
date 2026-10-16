@@ -1,7 +1,7 @@
 //! Preferencias reales (afirma-system) para la interfaz: capas de usuario,
 //! sistema y directivas corporativas con bloqueo efectivo.
 
-use afirma_system::prefs::{PreparedImport, Preferences, ResolutionMode};
+use afirma_system::prefs::{Preferences, PreparedImport, ResolutionMode};
 use afirma_system::{AppIdentity, Context};
 
 use crate::i18n::trf;
@@ -20,7 +20,11 @@ pub struct SystemPrefStore {
 impl PrefStore for SystemPrefStore {
     fn get(&self, key: &str) -> Option<String> {
         if UI_KEYS.contains(&key) {
-            return self.prefs.get_node_value(UI_NODE, key).filter(|v| !v.is_empty()).or_else(|| default_values().get(key).cloned());
+            return self
+                .prefs
+                .get_node_value(UI_NODE, key)
+                .filter(|v| !v.is_empty())
+                .or_else(|| default_values().get(key).cloned());
         }
         let value = self.prefs.get(key);
         if key == PROXY_PASSWORD {
@@ -57,7 +61,9 @@ impl PrefStore for SystemPrefStore {
     }
 
     fn prepare_import(&self, data: &[u8]) -> Result<PreparedImport, String> {
-        self.prefs.prepare_import(data, afirma_system::prefs::afconfig::default_verifier()).map_err(|e| e.to_string())
+        self.prefs
+            .prepare_import(data, afirma_system::prefs::afconfig::default_verifier())
+            .map_err(|e| e.to_string())
     }
 
     fn apply_import(&mut self, prepared: &PreparedImport) -> Result<String, String> {
@@ -65,11 +71,17 @@ impl PrefStore for SystemPrefStore {
         let mut text = if rep.cards_added.is_empty() {
             trf("Se han importado {0} preferencias", &[&rep.applied.len()])
         } else {
-            trf("Se han importado {0} preferencias y {1} tarjetas", &[&rep.applied.len(), &rep.cards_added.len()])
+            trf(
+                "Se han importado {0} preferencias y {1} tarjetas",
+                &[&rep.applied.len(), &rep.cards_added.len()],
+            )
         };
         if !rep.skipped.is_empty() {
             text.push_str(". ");
-            text.push_str(&trf("{0} no se han aplicado (bloqueadas o no válidas)", &[&rep.skipped.len()]));
+            text.push_str(&trf(
+                "{0} no se han aplicado (bloqueadas o no válidas)",
+                &[&rep.skipped.len()],
+            ));
         }
         Ok(text)
     }
@@ -92,7 +104,10 @@ pub fn load() -> Box<dyn PrefStore> {
         Ok(prefs) => Box::new(SystemPrefStore { prefs }),
         Err(e) => {
             tracing::warn!("No se han podido cargar las preferencias: {e}");
-            Box::new(MemoryPrefs { defaults: default_values(), ..Default::default() })
+            Box::new(MemoryPrefs {
+                defaults: default_values(),
+                ..Default::default()
+            })
         }
     }
 }

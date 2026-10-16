@@ -75,7 +75,10 @@ fn pades_cms_attributes() {
     let mut b2 = b.clone();
     b2.include_content_type = false;
     let tbs = b2.signed_attributes().unwrap();
-    assert!(!tbs.windows(11).any(|w| w == afirma_cms::asn1::der::oid_str(oids::CONTENT_TYPE).as_slice()));
+    assert!(
+        !tbs.windows(11)
+            .any(|w| w == afirma_cms::asn1::der::oid_str(oids::CONTENT_TYPE).as_slice())
+    );
 }
 
 #[test]
@@ -117,7 +120,9 @@ fn pades_cms_is_byte_identical_to_java() {
         ),
     ] {
         let java = read(file);
-        let md = SignedData::parse(&java).unwrap().signer_infos[0].message_digest().unwrap();
+        let md = SignedData::parse(&java).unwrap().signer_infos[0]
+            .message_digest()
+            .unwrap();
         let extra: ExtraParams = params.into_iter().collect();
         let b = SignedDataBuilder::for_pades(
             &md,

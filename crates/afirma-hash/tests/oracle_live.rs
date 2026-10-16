@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use afirma_hash::{
-    DigestAlgorithm, DirDocumentFormat, FileHashFormat, GUI_ALGORITHMS, HashDocument, HashOptions,
-    check_directory, encode_file_hash, hash_directory, hash_file,
+    DigestAlgorithm, DirDocumentFormat, FileHashFormat, GUI_ALGORITHMS, HashDocument, HashOptions, check_directory,
+    encode_file_hash, hash_directory, hash_file,
 };
 use common::{make_tree, normalize};
 
@@ -39,12 +39,7 @@ fn p(s: &str) -> PathBuf {
 
 /// Java verifica los documentos de directorio que generamos (y su informe es
 /// igual al nuestro).
-fn java_checks_our_documents(
-    oracle: &Path,
-    tree: &Path,
-    out: &Path,
-    formats: &[DirDocumentFormat],
-) {
+fn java_checks_our_documents(oracle: &Path, tree: &Path, out: &Path, formats: &[DirDocumentFormat]) {
     for alg in GUI_ALGORITHMS {
         for recursive in [false, true] {
             for &format in formats {
@@ -52,10 +47,7 @@ fn java_checks_our_documents(
                 let file = out.join(format!("rust-{alg}-{recursive}.{}", format.extension()));
                 fs::write(&file, doc.generate(format).unwrap()).unwrap();
                 let report = out.join("java.hashreport");
-                let (status, stdout) = java(
-                    oracle,
-                    &[&p("checkdigest"), tree, &p("-i"), &file, &p("-o"), &report],
-                );
+                let (status, stdout) = java(oracle, &[&p("checkdigest"), tree, &p("-i"), &file, &p("-o"), &report]);
                 assert_eq!((status, stdout.as_str()), (0, OK), "{}", file.display());
                 let ours = check_directory(tree, &doc, &HashOptions::default()).unwrap();
                 assert_eq!(
@@ -73,12 +65,7 @@ fn we_check_java_documents(oracle: &Path, tree: &Path, out: &Path, formats: &[Di
         for recursive in [false, true] {
             for &format in formats {
                 let file = out.join(format!("java-{alg}-{recursive}.{}", format.extension()));
-                let mut args = vec![
-                    p("createdigest"),
-                    tree.to_path_buf(),
-                    p("-halgorithm"),
-                    p(alg.name()),
-                ];
+                let mut args = vec![p("createdigest"), tree.to_path_buf(), p("-halgorithm"), p(alg.name())];
                 args.extend([p("-hformat"), p(format.cli_name()), p("-o"), file.clone()]);
                 if recursive {
                     args.push(p("-r"));
@@ -120,11 +107,7 @@ fn java_y_rust_se_verifican_mutuamente() {
     for alg in GUI_ALGORITHMS.into_iter().chain([DigestAlgorithm::Sha224]) {
         for format in FileHashFormat::ALL {
             let file = out.join(format!("hola-{alg}.{}", format.extension()));
-            fs::write(
-                &file,
-                encode_file_hash(&hash_file(&hola, alg).unwrap(), format),
-            )
-            .unwrap();
+            fs::write(&file, encode_file_hash(&hash_file(&hola, alg).unwrap(), format)).unwrap();
             let (status, stdout) = java(&oracle, &[&p("checkdigest"), &hola, &p("-i"), &file]);
             assert_eq!((status, stdout.as_str()), (0, OK), "{}", file.display());
         }
@@ -157,12 +140,7 @@ fn nombres_especiales() {
     // TXT: Java separa por el primer `;` y no admite saltos de línea.
     let tree = tmp.path().join("txt");
     fs::create_dir_all(tree.join("sub dir")).unwrap();
-    for name in [
-        "a&b<c>d\"e'f.txt",
-        "tab\tx.txt",
-        "back\\slash.txt",
-        "sub dir/ñ ü €.txt",
-    ] {
+    for name in ["a&b<c>d\"e'f.txt", "tab\tx.txt", "back\\slash.txt", "sub dir/ñ ü €.txt"] {
         fs::write(tree.join(name), name).unwrap();
     }
     java_checks_our_documents(&oracle, &tree, &out, &[DirDocumentFormat::Txt]);

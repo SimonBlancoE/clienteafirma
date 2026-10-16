@@ -117,11 +117,7 @@ pub fn clipboard_text(digest: &[u8], format: FileHashFormat) -> String {
 /// Nombre propuesto para guardar la huella de un fichero:
 /// `<nombre canónico del fichero>.<extensión>`.
 pub fn default_file_hash_name(data_file: &Path, format: FileHashFormat) -> String {
-    format!(
-        "{}.{}",
-        crate::canonical_file_name(data_file),
-        format.extension()
-    )
+    format!("{}.{}", crate::canonical_file_name(data_file), format.extension())
 }
 
 /// Calcula la huella de un fichero (`CreateHashFileDialog.calculateHash`).
@@ -157,21 +153,23 @@ pub struct DecodedFileHash {
 pub fn decode_file_hash(content: &[u8]) -> Result<DecodedFileHash, HashError> {
     let text = trim_ascii_whitespace_end(content);
     if let Some(digest) = decode_hex_text(text)
-        && let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
-            return Ok(DecodedFileHash {
-                digest,
-                encoding: FileHashFormat::Hex,
-                algorithm,
-            });
-        }
+        && let Some(algorithm) = algorithm_for_digest_len(digest.len())
+    {
+        return Ok(DecodedFileHash {
+            digest,
+            encoding: FileHashFormat::Hex,
+            algorithm,
+        });
+    }
     if let Some(digest) = decode_base64_text(text)
-        && let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
-            return Ok(DecodedFileHash {
-                digest,
-                encoding: FileHashFormat::Base64,
-                algorithm,
-            });
-        }
+        && let Some(algorithm) = algorithm_for_digest_len(digest.len())
+    {
+        return Ok(DecodedFileHash {
+            digest,
+            encoding: FileHashFormat::Base64,
+            algorithm,
+        });
+    }
     match algorithm_for_digest_len(content.len()) {
         Some(algorithm) => Ok(DecodedFileHash {
             digest: content.to_vec(),
@@ -208,8 +206,7 @@ fn decode_base64_text(text: &[u8]) -> Option<Vec<u8>> {
     if text.is_empty() {
         return None;
     }
-    let config =
-        GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent);
+    let config = GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent);
     let url_safe = text.iter().any(|b| matches!(b, b'-' | b'_'));
     let engine = if url_safe {
         GeneralPurpose::new(&base64::alphabet::URL_SAFE, config)
@@ -269,10 +266,7 @@ pub fn read_hash_file(hash_file: &Path) -> Result<Vec<u8>, HashError> {
 }
 
 /// Comprueba un fichero de datos contra un fichero de huella en disco.
-pub fn check_file_hash_file(
-    data_file: &Path,
-    hash_file: &Path,
-) -> Result<FileHashCheck, HashError> {
+pub fn check_file_hash_file(data_file: &Path, hash_file: &Path) -> Result<FileHashCheck, HashError> {
     let content = read_hash_file(hash_file)?;
     check_file_hash(data_file, &content, None)
 }
@@ -282,8 +276,7 @@ mod tests {
     use super::*;
 
     /// SHA-256 de un fichero vacío.
-    const EMPTY_SHA256_HEX: &str =
-        "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
+    const EMPTY_SHA256_HEX: &str = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
 
     fn empty_sha256() -> Vec<u8> {
         DigestAlgorithm::Sha256.digest(b"")
@@ -309,10 +302,7 @@ mod tests {
             clipboard_text(&d, FileHashFormat::Binary),
             format!("{EMPTY_SHA256_HEX}h")
         );
-        assert_eq!(
-            clipboard_text(&d, FileHashFormat::Hex),
-            format!("{EMPTY_SHA256_HEX}h")
-        );
+        assert_eq!(clipboard_text(&d, FileHashFormat::Hex), format!("{EMPTY_SHA256_HEX}h"));
         assert_eq!(
             clipboard_text(&d, FileHashFormat::Base64),
             "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
@@ -324,27 +314,12 @@ mod tests {
         assert_eq!(FileHashFormat::Hex.extension(), "hexhash");
         assert_eq!(FileHashFormat::Base64.extension(), "hashb64");
         assert_eq!(FileHashFormat::Binary.extension(), "hash");
-        assert_eq!(
-            FileHashFormat::from_cli_name("b64"),
-            Some(FileHashFormat::Base64)
-        );
+        assert_eq!(FileHashFormat::from_cli_name("b64"), Some(FileHashFormat::Base64));
         assert_eq!(FileHashFormat::from_cli_name("xml"), None);
-        assert_eq!(
-            FileHashFormat::Hex.filter_description(),
-            "Huella digital (*.hexhash)"
-        );
-        assert_eq!(
-            FileHashFormat::from_preference(Some("Binario")),
-            FileHashFormat::Binary
-        );
-        assert_eq!(
-            FileHashFormat::from_preference(Some("B64")),
-            FileHashFormat::Base64
-        );
-        assert_eq!(
-            FileHashFormat::from_preference(Some("binario")),
-            FileHashFormat::Hex
-        );
+        assert_eq!(FileHashFormat::Hex.filter_description(), "Huella digital (*.hexhash)");
+        assert_eq!(FileHashFormat::from_preference(Some("Binario")), FileHashFormat::Binary);
+        assert_eq!(FileHashFormat::from_preference(Some("B64")), FileHashFormat::Base64);
+        assert_eq!(FileHashFormat::from_preference(Some("binario")), FileHashFormat::Hex);
         assert_eq!(FileHashFormat::from_preference(None), FileHashFormat::Hex);
     }
 
@@ -352,24 +327,12 @@ mod tests {
     fn decodificacion_de_ficheros_de_huella() {
         let d = empty_sha256();
         let cases: Vec<(Vec<u8>, FileHashFormat)> = vec![
-            (
-                format!("{EMPTY_SHA256_HEX}h").into_bytes(),
-                FileHashFormat::Hex,
-            ),
+            (format!("{EMPTY_SHA256_HEX}h").into_bytes(), FileHashFormat::Hex),
             // Sin `h` (Java lo tomaría por Base64 y no coincidiría).
             (EMPTY_SHA256_HEX.as_bytes().to_vec(), FileHashFormat::Hex),
-            (
-                EMPTY_SHA256_HEX.to_lowercase().into_bytes(),
-                FileHashFormat::Hex,
-            ),
-            (
-                format!("{EMPTY_SHA256_HEX}h\r\n").into_bytes(),
-                FileHashFormat::Hex,
-            ),
-            (
-                format!("{EMPTY_SHA256_HEX}H\n").into_bytes(),
-                FileHashFormat::Hex,
-            ),
+            (EMPTY_SHA256_HEX.to_lowercase().into_bytes(), FileHashFormat::Hex),
+            (format!("{EMPTY_SHA256_HEX}h\r\n").into_bytes(), FileHashFormat::Hex),
+            (format!("{EMPTY_SHA256_HEX}H\n").into_bytes(), FileHashFormat::Hex),
             (
                 b"47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=".to_vec(),
                 FileHashFormat::Base64,
@@ -417,10 +380,7 @@ mod tests {
                 std::fs::write(&hf, encode_file_hash(&digest, format)).unwrap();
                 let check = check_file_hash_file(&data, &hf).unwrap();
                 assert!(check.matches);
-                assert_eq!(
-                    (check.expected.algorithm, check.expected.encoding),
-                    (alg, format)
-                );
+                assert_eq!((check.expected.algorithm, check.expected.encoding), (alg, format));
             }
         }
         assert_eq!(
@@ -430,10 +390,7 @@ mod tests {
         let hf = tmp.path().join("otro.hexhash");
         std::fs::write(
             &hf,
-            encode_file_hash(
-                &DigestAlgorithm::Sha256.digest(b"adios\n"),
-                FileHashFormat::Hex,
-            ),
+            encode_file_hash(&DigestAlgorithm::Sha256.digest(b"adios\n"), FileHashFormat::Hex),
         )
         .unwrap();
         assert!(!check_file_hash_file(&data, &hf).unwrap().matches);
@@ -456,10 +413,7 @@ mod tests {
 
     #[test]
     fn longitudes_desconocidas() {
-        assert!(matches!(
-            decode_file_hash(b""),
-            Err(HashError::UnknownDigestLength(0))
-        ));
+        assert!(matches!(decode_file_hash(b""), Err(HashError::UnknownDigestLength(0))));
         assert!(matches!(
             decode_file_hash(b"ABCDh"),
             Err(HashError::UnknownDigestLength(5))

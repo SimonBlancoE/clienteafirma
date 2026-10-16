@@ -27,10 +27,7 @@ fn lee_el_arbol_java_util_prefs_del_jdk() {
     }
     let tree = legacy::read_unix_tree(t.path(), NODE_AFIRMA_ROOT).unwrap();
     assert_eq!(tree.get(NODE_MAIN, "preferencesBlocked"), Some("true"));
-    assert_eq!(
-        tree.get(NODE_MAIN, "signatureHashAlgorithm"),
-        Some("SHA512")
-    );
+    assert_eq!(tree.get(NODE_MAIN, "signatureHashAlgorithm"), Some("SHA512"));
     assert_eq!(
         tree.get(NODE_MAIN, "pdfLayer2Text"),
         Some("Firmado por $$SUBJECTCN$$ el día <hoy> & \"mañana\"")
@@ -52,11 +49,7 @@ fn cifrado_de_la_contrasena_del_proxy_igual_que_java() {
     let text = std::fs::read_to_string(testdata("java-proxy-cipher.tsv")).unwrap();
     for line in text.lines().filter(|l| !l.is_empty()) {
         let (plain, ciphered) = line.split_once('\t').unwrap();
-        assert_eq!(
-            proxy::cipher_password(plain).as_deref(),
-            Some(ciphered),
-            "{plain}"
-        );
+        assert_eq!(proxy::cipher_password(plain).as_deref(), Some(ciphered), "{plain}");
         assert_eq!(proxy::decipher_password(ciphered).as_deref(), Some(plain));
     }
 }

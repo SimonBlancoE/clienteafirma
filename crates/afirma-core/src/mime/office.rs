@@ -55,18 +55,38 @@ pub const ODF_MIMETYPES: [&str; 15] = [
 /// Tabla `FILE_EXTENSIONS` / `FILE_DESCRIPTIONS`: (tipo, extensión, descripción).
 pub const FILE_TYPES: [(&str, &str, &str); 17] = [
     ("application/zip", "zip", "Archivo zip"),
-    ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx", "Documento de texto"),
-    ("application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx", "Presentación"),
-    ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx", "Hoja de cálculo"),
+    (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "docx",
+        "Documento de texto",
+    ),
+    (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "pptx",
+        "Presentación",
+    ),
+    (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xlsx",
+        "Hoja de cálculo",
+    ),
     ("application/vnd.oasis.opendocument.text", "odt", "Documento de texto"),
     ("application/vnd.oasis.opendocument.presentation", "odp", "Presentación"),
-    ("application/vnd.oasis.opendocument.spreadsheet", "ods", "Hoja de cálculo"),
+    (
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "ods",
+        "Hoja de cálculo",
+    ),
     ("application/vnd.oasis.opendocument.graphics", "odg", "Gráfico"),
     ("application/vnd.oasis.opendocument.chart", "odc", "Diagrama"),
     ("application/vnd.oasis.opendocument.formula", "odf", "Fórmula"),
     ("application/vnd.oasis.opendocument.database", "odb", "Base de datos"),
     ("application/vnd.oasis.opendocument.image", "odi", "Imagen"),
-    ("application/vnd.oasis.opendocument.text-master", "odm", "Plantilla de documento"),
+    (
+        "application/vnd.oasis.opendocument.text-master",
+        "odm",
+        "Plantilla de documento",
+    ),
     ("application/msword", "doc", "Documento de texto"),
     ("application/vnd.ms-powerpoint", "ppt", "Presentación"),
     ("application/vnd.ms-excel", "xls", "Hoja de cálculo"),
@@ -93,7 +113,9 @@ impl<'a> Zip<'a> {
 
     /// `ZipFile.getEntry(name)`: nombre exacto o, si no existe, `name/`.
     fn index(&self, name: &str) -> Option<usize> {
-        self.0.index_for_name(name).or_else(|| self.0.index_for_name(&format!("{name}/")))
+        self.0
+            .index_for_name(name)
+            .or_else(|| self.0.index_for_name(&format!("{name}/")))
     }
 
     fn has(&self, name: &str) -> bool {
@@ -109,13 +131,27 @@ impl<'a> Zip<'a> {
     }
 
     fn is_odf(&self) -> bool {
-        ["mimetype", "content.xml", "meta.xml", "settings.xml", "styles.xml", "META-INF/manifest.xml"]
-            .iter()
-            .all(|n| self.has(n))
+        [
+            "mimetype",
+            "content.xml",
+            "meta.xml",
+            "settings.xml",
+            "styles.xml",
+            "META-INF/manifest.xml",
+        ]
+        .iter()
+        .all(|n| self.has(n))
     }
 
     fn is_ooxml(&self) -> bool {
-        ["[Content_Types].xml", "_rels/.rels", "docProps/app.xml", "docProps/core.xml"].iter().all(|n| self.has(n))
+        [
+            "[Content_Types].xml",
+            "_rels/.rels",
+            "docProps/app.xml",
+            "docProps/core.xml",
+        ]
+        .iter()
+        .all(|n| self.has(n))
     }
 }
 

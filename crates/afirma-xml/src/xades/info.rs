@@ -56,10 +56,9 @@ pub fn is_sign_doc(doc: &Document) -> bool {
         return false;
     }
     nodes.iter().all(|&s| {
-        SUPPORTED_NAMESPACES.iter().any(|ns| {
-            !doc.find_descendants(s, ns, "QualifyingProperties")
-                .is_empty()
-        })
+        SUPPORTED_NAMESPACES
+            .iter()
+            .any(|ns| !doc.find_descendants(s, ns, "QualifyingProperties").is_empty())
     })
 }
 
@@ -75,9 +74,7 @@ pub(crate) fn first_signature(doc: &Document) -> Option<NodeId> {
     if local_name(doc, root) == Some("Signature") {
         return Some(root);
     }
-    doc.find_descendants(root, DSIG_NS, "Signature")
-        .into_iter()
-        .next()
+    doc.find_descendants(root, DSIG_NS, "Signature").into_iter().next()
 }
 
 /// `SignedInfo` (hijo directo) de una firma.
@@ -86,12 +83,7 @@ pub(crate) fn signed_info(doc: &Document, sig: NodeId) -> Option<NodeId> {
 }
 
 /// `XAdESUtil.findElementById` (atributo `Id` exacto, recorrido en profundidad).
-pub(crate) fn find_element_by_id(
-    doc: &Document,
-    id: &str,
-    from: NodeId,
-    omit_signatures: bool,
-) -> Option<NodeId> {
+pub(crate) fn find_element_by_id(doc: &Document, id: &str, from: NodeId, omit_signatures: bool) -> Option<NodeId> {
     let e = doc.element(from)?;
     if e.attr("Id") == Some(id) {
         return Some(from);
@@ -171,11 +163,7 @@ pub(crate) fn is_enveloped(doc: &Document, sig: NodeId, refs: &[NodeId]) -> bool
                 return true;
             }
             if alg == dsig::XPATH {
-                let text: String = doc
-                    .text_content(t)
-                    .chars()
-                    .filter(|c| !c.is_whitespace())
-                    .collect();
+                let text: String = doc.text_content(t).chars().filter(|c| !c.is_whitespace()).collect();
                 if text == eq1 || text == eq2 {
                     return true;
                 }
@@ -246,9 +234,7 @@ pub fn variant(doc: &Document) -> Option<&'static str> {
 /// `getSignInfo`.
 pub fn sign_info(data: &[u8]) -> afirma_core::Result<SignInfo> {
     let doc = parse(data).ok_or_else(|| {
-        AfirmaError::invalid_signature_format(
-            "Los datos introducidos no se corresponden con un documento XML",
-        )
+        AfirmaError::invalid_signature_format("Los datos introducidos no se corresponden con un documento XML")
     })?;
     if !is_sign_doc(&doc) {
         return Err(AfirmaError::invalid_signature_format(
@@ -354,9 +340,7 @@ fn base64_declared(doc: &Document, reference: NodeId) -> bool {
 fn decode_or_raw(text: &str, decode: bool) -> afirma_core::Result<Vec<u8>> {
     if decode {
         util::b64_decode(text).ok_or_else(|| {
-            AfirmaError::invalid_signature_format(
-                "Error al leer el fichero de firmas: Base64 no valido",
-            )
+            AfirmaError::invalid_signature_format("Error al leer el fichero de firmas: Base64 no valido")
         })
     } else {
         Ok(text.as_bytes().to_vec())
@@ -365,9 +349,7 @@ fn decode_or_raw(text: &str, decode: bool) -> afirma_core::Result<Vec<u8>> {
 
 /// `getData`.
 pub fn get_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
-    let doc = parse(sign).ok_or_else(|| {
-        AfirmaError::invalid_signature_format("Error al leer el fichero de firmas")
-    })?;
+    let doc = parse(sign).ok_or_else(|| AfirmaError::invalid_signature_format("Error al leer el fichero de firmas"))?;
     if !is_sign_doc(&doc) {
         return Err(AfirmaError::invalid_signature_format(
             "El documento no es un documento de firmas valido.",
@@ -398,37 +380,28 @@ pub fn get_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
             .collect();
         if referenced != root
             && let Some(&first) = doc.children(referenced).first()
-                && matches!(doc.kind(first), NodeKind::Text { .. }) {
-                    let mut text = String::new();
-                    for c in doc.descendants(referenced) {
-                        if sigs.iter().any(|s| doc.descendants(*s).contains(&c)) {
-                            continue;
-                        }
-                        if let NodeKind::Text { text: t, .. } = doc.kind(c) {
-                            text.push_str(t);
-                        }
-                    }
-                    return decode_or_raw(&text, base64_declared(&doc, r0)).map(Some);
+            && matches!(doc.kind(first), NodeKind::Text { .. })
+        {
+            let mut text = String::new();
+            for c in doc.descendants(referenced) {
+                if sigs.iter().any(|s| doc.descendants(*s).contains(&c)) {
+                    continue;
                 }
-        return Ok(Some(xml_bytes(&standalone_element(
-            &doc, referenced, &sigs,
-        ))));
+                if let NodeKind::Text { text: t, .. } = doc.kind(c) {
+                    text.push_str(t);
+                }
+            }
+            return decode_or_raw(&text, base64_declared(&doc, r0)).map(Some);
+        }
+        return Ok(Some(xml_bytes(&standalone_element(&doc, referenced, &sigs))));
     }
     if is_internally_detached(&doc, &refs) {
         let first = *doc.children(root).first().ok_or_else(bad)?;
         doc.element(first).ok_or_else(bad)?;
         let inner = *doc.children(first).first().ok_or_else(bad)?;
         if matches!(doc.kind(inner), NodeKind::Text { .. }) {
-            let id = doc
-                .element(first)
-                .and_then(|e| e.attr("Id"))
-                .unwrap_or("")
-                .to_string();
-            return decode_or_raw(
-                &doc.text_content(first),
-                base64_declared_for(&doc, root, &id),
-            )
-            .map(Some);
+            let id = doc.element(first).and_then(|e| e.attr("Id")).unwrap_or("").to_string();
+            return decode_or_raw(&doc.text_content(first), base64_declared_for(&doc, root, &id)).map(Some);
         }
         doc.element(inner).ok_or_else(bad)?;
         return Ok(Some(xml_bytes(&standalone_element(&doc, inner, &[]))));
@@ -446,22 +419,14 @@ pub fn get_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
             return Ok(Some(xml_bytes(&standalone_element(&doc, first, &[]))));
         }
         let id = oe.attr("Id").unwrap_or("").to_string();
-        return decode_or_raw(
-            &doc.text_content(object),
-            base64_declared_for(&doc, root, &id),
-        )
-        .map(Some);
+        return decode_or_raw(&doc.text_content(object), base64_declared_for(&doc, root, &id)).map(Some);
     }
     Ok(None)
 }
 
 /// `Utils.getCounterSignerReferenceId`.
 fn countersigned_reference_id(doc: &Document, sig: NodeId) -> String {
-    let Some(r) = doc
-        .find_descendants(sig, DSIG_NS, "Reference")
-        .into_iter()
-        .next()
-    else {
+    let Some(r) = doc.find_descendants(sig, DSIG_NS, "Reference").into_iter().next() else {
         return String::new();
     };
     let uri = doc.element(r).and_then(|e| e.attr("URI")).unwrap_or("");
@@ -480,32 +445,21 @@ fn countersigned_reference_id(doc: &Document, sig: NodeId) -> String {
 }
 
 /// `Utils.getSimpleSignInfoNode`.
-pub(crate) fn simple_sign_info(
-    doc: &Document,
-    sig: NodeId,
-    xades_ns: Option<&str>,
-) -> SimpleSignInfo {
+pub(crate) fn simple_sign_info(doc: &Document, sig: NodeId, xades_ns: Option<&str>) -> SimpleSignInfo {
     let certs: Vec<Vec<u8>> = doc
         .find_descendants(sig, DSIG_NS, "X509Certificate")
         .into_iter()
         .filter_map(|c| util::b64_decode(&doc.text_content(c)))
         .collect();
     let signing_time = xades_ns.and_then(|ns| {
-        let st = doc
-            .find_descendants(sig, ns, "SigningTime")
-            .into_iter()
-            .next()?;
+        let st = doc.find_descendants(sig, ns, "SigningTime").into_iter().next()?;
         parse_java_local_time(doc.text_content(st).trim())
     });
     let sign_algorithm = doc
         .find_descendants(sig, DSIG_NS, "SignatureMethod")
         .into_iter()
         .next()
-        .and_then(|m| {
-            doc.element(m)
-                .and_then(|e| e.attr("Algorithm"))
-                .map(str::to_string)
-        });
+        .and_then(|m| doc.element(m).and_then(|e| e.attr("Algorithm")).map(str::to_string));
     let pkcs1 = doc
         .find_descendants(sig, DSIG_NS, "SignatureValue")
         .into_iter()
@@ -582,13 +536,7 @@ impl Arena {
 }
 
 /// `generateSignsTree` (portado literalmente).
-pub(crate) fn generate_signs_tree(
-    i: usize,
-    j: isize,
-    arena: &mut Arena,
-    ids: &[String],
-    refs: &[String],
-) {
+pub(crate) fn generate_signs_tree(i: usize, j: isize, arena: &mut Arena, ids: &[String], refs: &[String]) {
     let max = ids.len();
     if i < max && j > 0 {
         let ju = j as usize;
@@ -609,9 +557,7 @@ pub(crate) fn generate_signs_tree(
 /// `getSignersStructure`.
 pub fn signers_structure(sign: &[u8]) -> afirma_core::Result<SignersTree> {
     let doc = parse(sign).ok_or_else(|| {
-        AfirmaError::invalid_signature_format(
-            "Los datos indicados no son una firma XAdES compatible",
-        )
+        AfirmaError::invalid_signature_format("Los datos indicados no son una firma XAdES compatible")
     })?;
     signers_structure_doc(&doc)
 }
@@ -632,12 +578,7 @@ pub fn signers_structure_doc(doc: &Document) -> afirma_core::Result<SignersTree>
     let mut refs = Vec::new();
     let mut infos = Vec::new();
     for &s in &all {
-        ids.push(
-            doc.element(s)
-                .and_then(|e| e.attr("Id"))
-                .unwrap_or("")
-                .to_string(),
-        );
+        ids.push(doc.element(s).and_then(|e| e.attr("Id")).unwrap_or("").to_string());
         infos.push(simple_sign_info(doc, s, xades_ns.as_deref()));
         if doc.parent(s).and_then(|p| local_name(doc, p)) == Some("CounterSignature") {
             refs.push(countersigned_reference_id(doc, s));
@@ -663,13 +604,11 @@ pub fn signers_structure_doc(doc: &Document) -> afirma_core::Result<SignersTree>
 /// Referencia a `SignedProperties` de una firma.
 pub(crate) fn signed_properties_reference(doc: &Document, sig: NodeId) -> Option<NodeId> {
     let si = signed_info(doc, sig)?;
-    doc.find_descendants(si, DSIG_NS, "Reference")
-        .into_iter()
-        .find(|&r| {
-            doc.element(r)
-                .and_then(|e| e.attr("Type"))
-                .is_some_and(|t| SIGNED_PROPERTIES_TYPES.contains(&t))
-        })
+    doc.find_descendants(si, DSIG_NS, "Reference").into_iter().find(|&r| {
+        doc.element(r)
+            .and_then(|e| e.attr("Type"))
+            .is_some_and(|t| SIGNED_PROPERTIES_TYPES.contains(&t))
+    })
 }
 
 /// Elemento `SignedProperties` de una firma.
@@ -695,16 +634,10 @@ pub fn check_compatibility(doc: &Document) -> afirma_core::Result<bool> {
             .descendants(s)
             .into_iter()
             .skip(1)
-            .filter(|&n| {
-                doc.element(n)
-                    .is_some_and(|e| e.local == "QualifyingProperties")
-            })
+            .filter(|&n| doc.element(n).is_some_and(|e| e.local == "QualifyingProperties"))
             .collect();
         for qp in qps {
-            let ns = doc
-                .element(qp)
-                .and_then(|e| e.ns.clone())
-                .unwrap_or_default();
+            let ns = doc.element(qp).and_then(|e| e.ns.clone()).unwrap_or_default();
             if !SUPPORTED_NAMESPACES.contains(&ns.as_str()) {
                 return Err(AfirmaError::invalid_signature_format(
                     "Una de las firmas encontradas en el documento contiene una version inexistente de XAdES",
@@ -718,9 +651,10 @@ pub fn check_compatibility(doc: &Document) -> afirma_core::Result<bool> {
                 .and_then(|ssp| doc.child_elements(ssp).nth(1));
             match second {
                 Some(n) => {
-                    if doc.element(n).is_some_and(|e| {
-                        e.local == "SigningCertificateV2" && e.ns.as_deref() == Some(ns.as_str())
-                    }) {
+                    if doc
+                        .element(n)
+                        .is_some_and(|e| e.local == "SigningCertificateV2" && e.ns.as_deref() == Some(ns.as_str()))
+                    {
                         baseline = true;
                     }
                 }

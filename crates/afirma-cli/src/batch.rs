@@ -51,9 +51,7 @@ pub fn batch_by_command_line(p: &Params, env: &CliEnv, m: &Messages) -> Result<S
         return Err(CliError::plain(m.fmt(61, &[&alias])));
     }
     // Cada PKCS#1 se verifica con el certificado (`AOPkcs1Signer`).
-    let key = afirma_keystores::VerifyingKey::new(
-        store.signing_key(&alias).map_err(|e| fail(e.to_string()))?,
-    );
+    let key = afirma_keystores::VerifyingKey::new(store.signing_key(&alias).map_err(|e| fail(e.to_string()))?);
 
     let raw = std::fs::read(input).map_err(|e| fail(java_io_message(input, &e)))?;
     let batch = if afirma_core::base64::is_base64_bytes(&raw) {

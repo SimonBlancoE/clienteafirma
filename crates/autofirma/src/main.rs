@@ -43,8 +43,15 @@ fn main() {
             run_gui(start)
         }
         Launch::Protocol(url) => {
-            let code = run_gui(GuiStart { protocol_url: Some(url), ..Default::default() });
-            if code == 0 { ui::protocol_flow::EXIT_CODE.load(std::sync::atomic::Ordering::SeqCst) } else { code }
+            let code = run_gui(GuiStart {
+                protocol_url: Some(url),
+                ..Default::default()
+            });
+            if code == 0 {
+                ui::protocol_flow::EXIT_CODE.load(std::sync::atomic::Ordering::SeqCst)
+            } else {
+                code
+            }
         }
         Launch::Cli(args) => cli::run(&args),
     };
@@ -52,7 +59,11 @@ fn main() {
 }
 
 fn native_options(renderer: eframe::Renderer, compact: bool, hidden: bool) -> eframe::NativeOptions {
-    let (size, min) = if compact { ([560.0, 700.0], [460.0, 520.0]) } else { ([1100.0, 740.0], [760.0, 560.0]) };
+    let (size, min) = if compact {
+        ([560.0, 700.0], [460.0, 520.0])
+    } else {
+        ([1100.0, 740.0], [760.0, 560.0])
+    };
     let mut viewport = eframe::egui::ViewportBuilder::default();
     if compact {
         // Como los diálogos de AutoFirma invocada desde el navegador: delante

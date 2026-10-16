@@ -26,9 +26,7 @@ pub fn signer_for_cli_format(format: &str) -> Option<Box<dyn Signer>> {
         "cades" => SignerKind::Cades,
         "xades" => SignerKind::Xades,
         "pades" => {
-            return Some(Box::new(
-                afirma_pdf::PadesSigner::new().with_secure_mode(false),
-            ));
+            return Some(Box::new(afirma_pdf::PadesSigner::new().with_secure_mode(false)));
         }
         "facturae" => SignerKind::FacturaE,
         "ooxml" => SignerKind::Ooxml,
@@ -45,9 +43,7 @@ pub fn signer_for_cli_format(format: &str) -> Option<Box<dyn Signer>> {
 /// `selectFormatByData`: PDF → `pades`, XML → `xades`, cualquier otra cosa →
 /// `cades` (OOXML, ODF y FacturaE no se eligen nunca automáticamente).
 pub fn select_format_by_data(data: &[u8]) -> Result<&'static str, String> {
-    let ext = MimeHelper::new(data)
-        .extension()
-        .map_err(|e| e.to_string())?;
+    let ext = MimeHelper::new(data).extension().map_err(|e| e.to_string())?;
     Ok(match ext.as_deref() {
         Some("pdf") => "pades",
         Some("xml") => "xades",
@@ -56,12 +52,7 @@ pub fn select_format_by_data(data: &[u8]) -> Result<&'static str, String> {
 }
 
 /// `signByCommandLine`.
-pub fn sign_by_command_line(
-    command: Command,
-    p: &Params,
-    env: &CliEnv,
-    m: &Messages,
-) -> Result<String, CliError> {
+pub fn sign_by_command_line(command: Command, p: &Params, env: &CliEnv, m: &Messages) -> Result<String, CliError> {
     let Some(input) = p.input.as_deref() else {
         return Err(CliError::syntax_plain(m.get(5)));
     };
@@ -131,11 +122,7 @@ fn is_visible_position_error(e: &AfirmaError) -> bool {
 /// Clave privada de una entrada (`ksm.getKeyEntry(alias)`). Cada firma
 /// PKCS#1 se verifica con el certificado, como hace `AOPkcs1Signer` en Java
 /// (detecta tarjetas o controladores que firman mal).
-pub(crate) fn key_entry(
-    store: &Arc<dyn KeyStore>,
-    alias: &str,
-    m: &Messages,
-) -> Result<Box<dyn SigningKey>, CliError> {
+pub(crate) fn key_entry(store: &Arc<dyn KeyStore>, alias: &str, m: &Messages) -> Result<Box<dyn SigningKey>, CliError> {
     match store.entry(alias) {
         Err(KeyStoreError::AliasNotFound(_)) => return Err(CliError::plain(m.fmt(148, &[alias]))),
         Err(e) => return Err(CliError::plain(e.to_string())),
@@ -185,20 +172,11 @@ fn sign(
     let mut retried = false;
     loop {
         let xp = parse_config(config.as_deref()).map_err(|e| config_error(&e.0))?;
-        match run_operation(
-            command,
-            signer.as_ref(),
-            &data,
-            &signature_algorithm,
-            key.as_ref(),
-            &xp,
-        ) {
+        match run_operation(command, signer.as_ref(), &data, &signature_algorithm, key.as_ref(), &xp) {
             Ok(sig) => return Ok(sig),
             Err(e) if is_visible_position_error(&e) && !retried => {
                 // Se vuelve a firmar de forma invisible.
-                tracing::info!(
-                    "Posicion de firma visible no valida; se firma de forma invisible: {e}"
-                );
+                tracing::info!("Posicion de firma visible no valida; se firma de forma invisible: {e}");
                 config = remove_visible_signature_lines(config.as_deref());
                 retried = true;
             }
@@ -240,11 +218,7 @@ fn run_operation(
 /// Diferencia con Java: si se indica un formato distinto de `auto` se usa
 /// ese formato (Java tenía la condición invertida: ignoraba el formato
 /// pedido y elegía uno por el contenido).
-pub fn sign_gui_request(
-    command: Command,
-    p: &Params,
-    m: &Messages,
-) -> Result<GuiRequest, CliError> {
+pub fn sign_gui_request(command: Command, p: &Params, m: &Messages) -> Result<GuiRequest, CliError> {
     let Some(file) = p.input.clone() else {
         return Err(CliError::command(m.get(5), true));
     };
@@ -291,10 +265,7 @@ mod tests {
             select_format_by_data(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n"),
             Ok("pades")
         );
-        assert_eq!(
-            select_format_by_data(b"<?xml version=\"1.0\"?><a/>"),
-            Ok("xades")
-        );
+        assert_eq!(select_format_by_data(b"<?xml version=\"1.0\"?><a/>"), Ok("xades"));
         assert_eq!(select_format_by_data(b"hola"), Ok("cades"));
     }
 
@@ -304,16 +275,10 @@ mod tests {
             assert!(signer_for_cli_format(f).is_some(), "{f}");
         }
         assert!(signer_for_cli_format("auto").is_none());
-        assert_eq!(
-            signer_for_cli_format("pades").unwrap().format_name(),
-            "PAdES"
-        );
+        assert_eq!(signer_for_cli_format("pades").unwrap().format_name(), "PAdES");
         for f in ["ooxml", "odf"] {
             let canonical = canonical_format(f);
-            assert!(
-                afirma_core::formats::find_format(canonical).is_some(),
-                "{canonical}"
-            );
+            assert!(afirma_core::formats::find_format(canonical).is_some(), "{canonical}");
         }
     }
 }

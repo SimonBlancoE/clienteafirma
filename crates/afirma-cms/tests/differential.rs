@@ -26,7 +26,11 @@ fn signer(format: &str) -> Box<dyn Signer> {
 }
 
 fn inner(format: &str, sign: &[u8]) -> Vec<u8> {
-    if format == "CAdES-ASiC-S" { asics::get_binary_signature(sign).unwrap() } else { sign.to_vec() }
+    if format == "CAdES-ASiC-S" {
+        asics::get_binary_signature(sign).unwrap()
+    } else {
+        sign.to_vec()
+    }
 }
 
 fn run_case(case: &Case, cases: &[Case]) -> afirma_core::Result<Vec<u8>> {
@@ -40,7 +44,13 @@ fn run_case(case: &Case, cases: &[Case]) -> afirma_core::Result<Vec<u8>> {
     let s = signer(&case.format);
     match case.op.as_str() {
         "sign" => s.sign(data.as_deref().unwrap(), &case.algorithm, &key, &extra),
-        "cosign" => s.cosign(data.as_deref(), sign_input.as_deref().unwrap(), &case.algorithm, &key, &extra),
+        "cosign" => s.cosign(
+            data.as_deref(),
+            sign_input.as_deref().unwrap(),
+            &case.algorithm,
+            &key,
+            &extra,
+        ),
         "countersign" => {
             let target = match case.target.as_str() {
                 "nodes" => {
@@ -59,17 +69,26 @@ fn run_case(case: &Case, cases: &[Case]) -> afirma_core::Result<Vec<u8>> {
 /// `digestAlgorithms` la huella del nuevo firmante si no estaba (Java no lo
 /// hace). Si esa es la única diferencia, se acepta.
 fn normalize_digest_algorithms(java: &str, rust: &str, case: &Case) -> String {
-    let line = |s: &str| s.lines().find(|l| l.starts_with(" digestAlgorithms:")).unwrap_or_default().to_string();
+    let line = |s: &str| {
+        s.lines()
+            .find(|l| l.starts_with(" digestAlgorithms:"))
+            .unwrap_or_default()
+            .to_string()
+    };
     let (jl, rl) = (line(java), line(rust));
     if jl == rl || case.op != "cosign" {
         return rust.to_string();
     }
     let items = |l: &str| -> Vec<String> {
-        l.trim_start_matches(" digestAlgorithms:").split_whitespace().map(String::from).collect()
+        l.trim_start_matches(" digestAlgorithms:")
+            .split_whitespace()
+            .map(String::from)
+            .collect()
     };
     let (ji, ri) = (items(&jl), items(&rl));
-    let new_alg =
-        hex::encode(afirma_cms::alg::digest_alg_id(afirma_cms::alg::digest_from_java_name(&case.algorithm).unwrap()));
+    let new_alg = hex::encode(afirma_cms::alg::digest_alg_id(
+        afirma_cms::alg::digest_from_java_name(&case.algorithm).unwrap(),
+    ));
     let extra: Vec<&String> = ri.iter().filter(|x| !ji.contains(x)).collect();
     if ji.iter().all(|x| ri.contains(x)) && extra.len() == 1 && *extra[0] == new_alg {
         rust.replace(&rl, &jl)
@@ -89,7 +108,10 @@ fn new_signing_time(java: &[u8], input: Option<&[u8]>) -> Option<chrono::DateTim
         })
         .unwrap_or_default();
     let sd = afirma_cms::cms::SignedData::parse(java).ok()?;
-    sd.all_signer_infos().iter().filter(|s| !old.contains(&s.signature_value())).find_map(|s| s.signing_time())
+    sd.all_signer_infos()
+        .iter()
+        .filter(|s| !old.contains(&s.signature_value()))
+        .find_map(|s| s.signing_time())
 }
 
 /// Repite el caso con el mismo instante de firma que la salida Java.
@@ -109,9 +131,14 @@ fn run_case_at(case: &Case, cases: &[Case], now: chrono::DateTime<chrono::Utc>) 
     };
     match (case.format.as_str(), case.op.as_str()) {
         ("CAdES", "sign") => cades::sign_at(data.as_deref().unwrap(), &case.algorithm, &key, &extra, now),
-        ("CAdES", "cosign") => {
-            cades::cosign_at(data.as_deref(), input.as_deref().unwrap(), &case.algorithm, &key, &extra, now)
-        }
+        ("CAdES", "cosign") => cades::cosign_at(
+            data.as_deref(),
+            input.as_deref().unwrap(),
+            &case.algorithm,
+            &key,
+            &extra,
+            now,
+        ),
         ("CAdES", "countersign") => {
             cades::countersign_at(input.as_deref().unwrap(), &case.algorithm, &target(), &key, &extra, now)
         }
@@ -199,7 +226,10 @@ fn java_golden_parity() {
         let js = structure_summary(&inner(&case.format, &java)).unwrap();
         let rs = normalize_digest_algorithms(&js, &structure_summary(&inner(&case.format, &ours)).unwrap(), case);
         if js != rs {
-            failures.push(format!("{}: resumen distinto\n--- java\n{js}\n--- rust\n{rs}", case.name));
+            failures.push(format!(
+                "{}: resumen distinto\n--- java\n{js}\n--- rust\n{rs}",
+                case.name
+            ));
             continue;
         }
         // La firma Rust debe validar (salvo las que Java también genera inválidas).
@@ -219,13 +249,23 @@ fn java_golden_parity() {
                 (afirma_cms::detect::obtain_data(&inner_sig).ok().flatten().is_none())
                     .then(|| read("cades/data/hola.txt"))
             });
-            let content =
-                if afirma_cms::detect::obtain_data(&inner_sig).ok().flatten().is_some() { None } else { content };
+            let content = if afirma_cms::detect::obtain_data(&inner_sig).ok().flatten().is_some() {
+                None
+            } else {
+                content
+            };
             if let Some((ok, msg)) = openssl_verify(&case.name, &inner_sig, content.as_deref())
-                && !ok && !expected_invalid {
-                    failures.push(format!("{}: OpenSSL no verifica la firma Rust: {msg}", case.name));
-                }
+                && !ok
+                && !expected_invalid
+            {
+                failures.push(format!("{}: OpenSSL no verifica la firma Rust: {msg}", case.name));
+            }
         }
     }
-    assert!(failures.is_empty(), "{} fallos:\n{}", failures.len(), failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} fallos:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }

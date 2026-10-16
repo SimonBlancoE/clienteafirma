@@ -15,7 +15,10 @@ pub fn verify_file(path: &Path, params: &ExtraParams) -> Result<SignatureReport,
 }
 
 pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> SignatureReport {
-    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let validity = afirma_signers::validate(data, params);
     let detected = afirma_signers::detect(data, params);
     let mut report = SignatureReport {
@@ -40,12 +43,13 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
                     | ValidityError::CantValidateExternallyDetached
                     | ValidityError::NoData
                     | ValidityError::SignProfileNotChecked
-            ) {
-                let text = capitalize(e.message());
-                if !report.global_issues.contains(&text) {
-                    report.global_issues.push(text);
-                }
+            )
+        {
+            let text = capitalize(e.message());
+            if !report.global_issues.contains(&text) {
+                report.global_issues.push(text);
             }
+        }
     }
     let Some((kind, signer)) = detected else {
         if report.overall.is_none() {
@@ -81,18 +85,21 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
     for s in &mut report.signatures {
         let mut v = Vec::new();
         if let Some(na) = s.cert_not_after
-            && na < now {
-                v.push(SignValidity::ko(ValidityError::CertificateExpired));
-            }
+            && na < now
+        {
+            v.push(SignValidity::ko(ValidityError::CertificateExpired));
+        }
         if v.is_empty() {
             v.push(SignValidity::ok());
         }
         s.validity = v;
     }
     if let Some(o) = &report.overall
-        && o.validity == Validity::Ko && report.signatures.len() == 1 {
-            report.signatures[0].validity = vec![o.clone()];
-        }
+        && o.validity == Validity::Ko
+        && report.signatures.len() == 1
+    {
+        report.signatures[0].validity = vec![o.clone()];
+    }
     report
 }
 
@@ -117,7 +124,10 @@ fn flatten(node: &SignerNode, depth: usize, out: &mut Vec<SignatureDetail>) {
     out.push(SignatureDetail {
         depth,
         signer: info.signer_name(),
-        signer_id: cert.as_ref().and_then(|c| c.subject_serial_number.clone()).map(|s| s.trim_start_matches("IDCES-").to_string()),
+        signer_id: cert
+            .as_ref()
+            .and_then(|c| c.subject_serial_number.clone())
+            .map(|s| s.trim_start_matches("IDCES-").to_string()),
         issuer: cert.as_ref().map(|c| c.issuer_cn.clone()).unwrap_or_default(),
         cert_not_after: cert.as_ref().map(|c| c.not_after),
         cert_status,

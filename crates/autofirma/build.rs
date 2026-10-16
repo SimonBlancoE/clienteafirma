@@ -32,9 +32,7 @@ fn main() {
         return;
     }
     if env::var("AUTOFIRMA_SKIP_WINRES").is_ok_and(|v| v == "1") {
-        println!(
-            "cargo:warning=AUTOFIRMA_SKIP_WINRES=1: el ejecutable no llevará icono, versión ni manifiesto"
-        );
+        println!("cargo:warning=AUTOFIRMA_SKIP_WINRES=1: el ejecutable no llevará icono, versión ni manifiesto");
         return;
     }
 
@@ -47,10 +45,7 @@ fn main() {
         .nth(2)
         .expect("crates/autofirma está dos niveles por debajo de la raíz");
     let icon = root.join("packaging").join("icons").join("autofirma.ico");
-    let manifest = root
-        .join("packaging")
-        .join("windows")
-        .join("autofirma.exe.manifest");
+    let manifest = root.join("packaging").join("windows").join("autofirma.exe.manifest");
     println!("cargo:rerun-if-changed={}", icon.display());
     println!("cargo:rerun-if-changed={}", manifest.display());
 
@@ -78,7 +73,10 @@ fn main() {
         // tareas, diálogo «Abrir con», avisos de SmartScreen).
         .set("FileDescription", "AutoFirma")
         .set("CompanyName", "AutoFirma-rs")
-        .set("LegalCopyright", "AutoFirma-rs (GPL-2.0-or-later OR EUPL-1.1). Basado en Autofirma (C) Gobierno de España")
+        .set(
+            "LegalCopyright",
+            "AutoFirma-rs (GPL-2.0-or-later OR EUPL-1.1). Basado en Autofirma (C) Gobierno de España",
+        )
         .set("OriginalFilename", "autofirma.exe")
         .set("InternalName", "autofirma")
         .set("FileVersion", &version)

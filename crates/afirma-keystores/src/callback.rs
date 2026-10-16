@@ -166,7 +166,14 @@ impl PasswordRequest {
             (false, None) => prompts::CARD_PIN.to_string(),
         };
         PasswordRequest {
-            title: Some(if dnie { prompts::DNIE_PIN_TITLE } else { prompts::CARD_PIN_TITLE }.to_string()),
+            title: Some(
+                if dnie {
+                    prompts::DNIE_PIN_TITLE
+                } else {
+                    prompts::CARD_PIN_TITLE
+                }
+                .to_string(),
+            ),
             retries_left,
             smartcard: true,
             allow_remember: true,
@@ -215,7 +222,10 @@ pub enum PasswordResponse {
 
 impl PasswordResponse {
     pub fn provided(secret: impl Into<Secret>) -> Self {
-        PasswordResponse::Provided { secret: secret.into(), remember: false }
+        PasswordResponse::Provided {
+            secret: secret.into(),
+            remember: false,
+        }
     }
 }
 
@@ -351,7 +361,11 @@ impl PinCache {
     }
 
     pub fn with_ttl(inner: Arc<dyn PasswordCallback>, ttl: Duration) -> Self {
-        PinCache { inner, ttl, state: Mutex::new(PinCacheState::default()) }
+        PinCache {
+            inner,
+            ttl,
+            state: Mutex::new(PinCacheState::default()),
+        }
     }
 
     /// Vacía la caché (PIN y confirmación) y reinicia el temporizador.
@@ -373,9 +387,10 @@ impl PinCache {
 
     fn expire(&self, s: &mut PinCacheState) {
         if let Some(t) = s.first_request
-            && t.elapsed() >= self.ttl {
-                *s = PinCacheState::default();
-            }
+            && t.elapsed() >= self.ttl
+        {
+            *s = PinCacheState::default();
+        }
     }
 }
 
@@ -390,7 +405,10 @@ impl PasswordCallback for PinCache {
                 // PIN erróneo: se olvida el guardado y se pregunta de nuevo.
                 s.pin = None;
             } else if let Some(pin) = &s.pin {
-                return PasswordResponse::Provided { secret: pin.clone(), remember: true };
+                return PasswordResponse::Provided {
+                    secret: pin.clone(),
+                    remember: true,
+                };
             }
             if s.first_request.is_none() {
                 s.first_request = Some(Instant::now());
@@ -398,9 +416,10 @@ impl PasswordCallback for PinCache {
         }
         let response = self.inner.request_password(request);
         if let PasswordResponse::Provided { secret, remember: true } = &response
-            && let Ok(mut s) = self.state.lock() {
-                s.pin = Some(secret.clone());
-            }
+            && let Ok(mut s) = self.state.lock()
+        {
+            s.pin = Some(secret.clone());
+        }
         response
     }
 
@@ -412,13 +431,12 @@ impl PasswordCallback for PinCache {
             }
         }
         let ok = self.inner.confirm_signature(request);
-        if ok
-            && let Ok(mut s) = self.state.lock() {
-                // Como `DnieCacheCallbackHandler`: una vez autorizada, no se
-                // vuelve a preguntar mientras viva la caché (se vacía con el
-                // temporizador de 1 h o al recargar el almacén).
-                s.confirmed = true;
-            }
+        if ok && let Ok(mut s) = self.state.lock() {
+            // Como `DnieCacheCallbackHandler`: una vez autorizada, no se
+            // vuelve a preguntar mientras viva la caché (se vacía con el
+            // temporizador de 1 h o al recargar el almacén).
+            s.confirmed = true;
+        }
         ok
     }
 
@@ -440,17 +458,29 @@ mod tests {
     impl PasswordCallback for Counting {
         fn request_password(&self, _r: &PasswordRequest) -> PasswordResponse {
             self.calls.fetch_add(1, Ordering::SeqCst);
-            PasswordResponse::Provided { secret: "1234".into(), remember: self.remember }
+            PasswordResponse::Provided {
+                secret: "1234".into(),
+                remember: self.remember,
+            }
         }
     }
 
     #[test]
     fn pin_cache_remembers_only_when_asked() {
-        let inner = Arc::new(Counting { calls: AtomicUsize::new(0), remember: true });
+        let inner = Arc::new(Counting {
+            calls: AtomicUsize::new(0),
+            remember: true,
+        });
         let cache = PinCache::new(inner.clone());
         let req = PasswordRequest::card_pin(KeyStoreKind::DnieJava, true, None);
-        assert!(matches!(cache.request_password(&req), PasswordResponse::Provided { .. }));
-        assert!(matches!(cache.request_password(&req), PasswordResponse::Provided { .. }));
+        assert!(matches!(
+            cache.request_password(&req),
+            PasswordResponse::Provided { .. }
+        ));
+        assert!(matches!(
+            cache.request_password(&req),
+            PasswordResponse::Provided { .. }
+        ));
         assert_eq!(inner.calls.load(Ordering::SeqCst), 1);
         // Reintento por PIN erróneo: vuelve a preguntar.
         let mut retry = req.clone();
@@ -458,7 +488,10 @@ mod tests {
         cache.request_password(&retry);
         assert_eq!(inner.calls.load(Ordering::SeqCst), 2);
 
-        let inner2 = Arc::new(Counting { calls: AtomicUsize::new(0), remember: false });
+        let inner2 = Arc::new(Counting {
+            calls: AtomicUsize::new(0),
+            remember: false,
+        });
         let cache2 = PinCache::new(inner2.clone());
         cache2.request_password(&req);
         cache2.request_password(&req);
@@ -467,10 +500,16 @@ mod tests {
 
     #[test]
     fn pin_cache_expires_from_first_request() {
-        let inner = Arc::new(Counting { calls: AtomicUsize::new(0), remember: true });
+        let inner = Arc::new(Counting {
+            calls: AtomicUsize::new(0),
+            remember: true,
+        });
         let cache = PinCache::with_ttl(inner.clone(), Duration::from_millis(30));
         let req = PasswordRequest::card_pin(KeyStoreKind::Ceres, false, Some(3));
-        assert_eq!(req.prompt, "Por favor, introduzca el PIN de la tarjeta.\nIntentos restantes: 3");
+        assert_eq!(
+            req.prompt,
+            "Por favor, introduzca el PIN de la tarjeta.\nIntentos restantes: 3"
+        );
         cache.request_password(&req);
         assert!(cache.has_pin());
         std::thread::sleep(Duration::from_millis(40));

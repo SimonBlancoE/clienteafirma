@@ -41,7 +41,11 @@ pub fn parse_pkcs11_txt(text: &str) -> Result<Vec<ExternalModule>, String> {
             name = None;
             continue;
         }
-        let lib_pos = if line.starts_with(LIB) { Some(LIB.len()) } else { line.find(" library=").map(|p| p + " library=".len()) };
+        let lib_pos = if line.starts_with(LIB) {
+            Some(LIB.len())
+        } else {
+            line.find(" library=").map(|p| p + " library=".len())
+        };
         if let Some(lp) = lib_pos {
             match line[lp..].find(NAME).map(|p| p + lp) {
                 Some(np) => {
@@ -59,11 +63,16 @@ pub fn parse_pkcs11_txt(text: &str) -> Result<Vec<ExternalModule>, String> {
             name = Some(n.trim().to_string());
         }
         if let (Some(l), Some(n)) = (&lib, &name)
-            && !l.is_empty() && !n.is_empty() {
-                out.push(ExternalModule { description: n.clone(), lib: l.clone() });
-                lib = None;
-                name = None;
-            }
+            && !l.is_empty()
+            && !n.is_empty()
+        {
+            out.push(ExternalModule {
+                description: n.clone(),
+                lib: l.clone(),
+            });
+            lib = None;
+            name = None;
+        }
     }
     Ok(out)
 }
@@ -77,10 +86,14 @@ pub fn parse_secmod_db(data: &[u8], os: Os, resolve: &dyn Fn(&str) -> Option<Str
     let be16 = |i: usize| -> Option<usize> { Some((usize::from(*data.get(i)?) << 8) | usize::from(*data.get(i + 1)?)) };
     for i in 0..data.len() {
         let Some(len1) = be16(i) else { continue };
-        let Some(name_bytes) = data.get(i + 2..i + 2 + len1) else { continue };
+        let Some(name_bytes) = data.get(i + 2..i + 2 + len1) else {
+            continue;
+        };
         let next = i + 2 + len1;
         let Some(len2) = be16(next) else { continue };
-        let Some(lib_bytes) = data.get(next + 2..next + 2 + len2) else { continue };
+        let Some(lib_bytes) = data.get(next + 2..next + 2 + len2) else {
+            continue;
+        };
         let lib = String::from_utf8_lossy(lib_bytes).to_string();
         let is_lib = match os {
             Os::Windows => lib.ends_with(".dll") || lib.ends_with(".DLL"),
@@ -92,10 +105,18 @@ pub fn parse_secmod_db(data: &[u8], os: Os, resolve: &dyn Fn(&str) -> Option<Str
         let Some(true_lib) = resolve(&lib) else { continue };
         let name = String::from_utf8_lossy(name_bytes).to_string();
         // Se descarta hasta el último carácter no imprimible.
-        let offset = name.char_indices().rev().find(|(_, c)| (*c as u32) < 32 || (*c as u32) > 126).map(|(i, c)| i + c.len_utf8()).unwrap_or(0);
+        let offset = name
+            .char_indices()
+            .rev()
+            .find(|(_, c)| (*c as u32) < 32 || (*c as u32) > 126)
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(0);
         let description = name[offset..].to_string();
         if !out.iter().any(|m| m.lib == true_lib) {
-            out.push(ExternalModule { description, lib: true_lib });
+            out.push(ExternalModule {
+                description,
+                lib: true_lib,
+            });
         }
     }
     out
@@ -109,10 +130,18 @@ pub fn resolve_library(lib: &str) -> Option<String> {
         return Some(lib.to_string());
     }
     let name = Path::new(lib).file_name()?;
-    let mut dirs: Vec<PathBuf> = std::env::var_os("LD_LIBRARY_PATH").map(|v| std::env::split_paths(&v).collect()).unwrap_or_default();
+    let mut dirs: Vec<PathBuf> = std::env::var_os("LD_LIBRARY_PATH")
+        .map(|v| std::env::split_paths(&v).collect())
+        .unwrap_or_default();
     dirs.extend(["/usr/lib64", "/usr/lib", "/lib64", "/lib", "/usr/local/lib"].map(PathBuf::from));
-    dirs.push(PathBuf::from(format!("/usr/lib/{}", crate::pkcs11::known::multiarch_triple())));
-    dirs.into_iter().map(|d| d.join(name)).find(|p| p.is_file()).map(|p| p.to_string_lossy().into_owned())
+    dirs.push(PathBuf::from(format!(
+        "/usr/lib/{}",
+        crate::pkcs11::known::multiarch_triple()
+    )));
+    dirs.into_iter()
+        .map(|d| d.join(name))
+        .find(|p| p.is_file())
+        .map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Módulos registrados en un directorio de perfil NSS: `pkcs11.txt` si
@@ -121,9 +150,14 @@ pub fn resolve_library(lib: &str) -> Option<String> {
 pub fn read_profile_modules(profile_dir: &Path, os: Os, nss_default_db_sql: bool) -> Vec<ExternalModule> {
     let txt = profile_dir.join("pkcs11.txt");
     if nss_default_db_sql || txt.exists() {
-        match std::fs::read(&txt).map_err(|e| e.to_string()).and_then(|b| parse_pkcs11_txt(&String::from_utf8_lossy(&b))) {
+        match std::fs::read(&txt)
+            .map_err(|e| e.to_string())
+            .and_then(|b| parse_pkcs11_txt(&String::from_utf8_lossy(&b)))
+        {
             Ok(m) => return m,
-            Err(e) => tracing::error!("No se han podido obtener los modulos externos de Mozilla desde 'pkcs11.txt': {e}"),
+            Err(e) => {
+                tracing::error!("No se han podido obtener los modulos externos de Mozilla desde 'pkcs11.txt': {e}")
+            }
         }
     }
     match std::fs::read(profile_dir.join("secmod.db")) {
@@ -173,7 +207,9 @@ pub fn filter_modules(modules: Vec<ExternalModule>, opts: &ModuleFilter, os: Os)
             if opts.exclude_native_dnie && is_dnie(k.lib) {
                 continue;
             }
-            let included = snapshot.iter().any(|m| m.lib.to_lowercase().ends_with(&k.lib.to_lowercase()));
+            let included = snapshot
+                .iter()
+                .any(|m| m.lib.to_lowercase().ends_with(&k.lib.to_lowercase()));
             if included {
                 continue;
             }
@@ -184,7 +220,10 @@ pub fn filter_modules(modules: Vec<ExternalModule>, opts: &ModuleFilter, os: Os)
             if k.always || Path::new(&path).exists() {
                 match by_desc.iter_mut().find(|x| x.description == k.description) {
                     Some(x) => x.lib = path,
-                    None => by_desc.push(ExternalModule { description: k.description.to_string(), lib: path }),
+                    None => by_desc.push(ExternalModule {
+                        description: k.description.to_string(),
+                        lib: path,
+                    }),
                 }
             }
         }
@@ -193,7 +232,11 @@ pub fn filter_modules(modules: Vec<ExternalModule>, opts: &ModuleFilter, os: Os)
     let mut seen: Vec<String> = Vec::new();
     let mut out = Vec::new();
     for m in by_desc {
-        let key = if m.lib.to_lowercase().ends_with(".dll") { m.lib.to_lowercase() } else { m.lib.clone() };
+        let key = if m.lib.to_lowercase().ends_with(".dll") {
+            m.lib.to_lowercase()
+        } else {
+            m.lib.clone()
+        };
         if seen.contains(&key) || is_nss_root_module(&m.lib) {
             tracing::warn!(
                 "Se eliminara el modulo '{}' porque ya existe uno con la misma biblioteca o es un modulo de certificados raiz: {}",
@@ -230,8 +273,22 @@ mod tests {
         );
         let f = filter_modules(m.clone(), &ModuleFilter::default(), Os::Linux);
         let libs: Vec<&str> = f.iter().map(|x| x.lib.as_str()).collect();
-        assert_eq!(libs, vec!["/usr/lib64/opensc-pkcs11.so", "/opt/fnmt/libpkcs11-fnmtdnie.so", "/usr/lib/libpkcs11-dnie.so"]);
-        let f = filter_modules(m, &ModuleFilter { exclude_native_dnie: true, ..Default::default() }, Os::Linux);
+        assert_eq!(
+            libs,
+            vec![
+                "/usr/lib64/opensc-pkcs11.so",
+                "/opt/fnmt/libpkcs11-fnmtdnie.so",
+                "/usr/lib/libpkcs11-dnie.so"
+            ]
+        );
+        let f = filter_modules(
+            m,
+            &ModuleFilter {
+                exclude_native_dnie: true,
+                ..Default::default()
+            },
+            Os::Linux,
+        );
         assert!(!f.iter().any(|x| x.lib.ends_with("libpkcs11-dnie.so")));
         let too_long = format!("library={}\nname=x\n", "a".repeat(5000));
         assert!(parse_pkcs11_txt(&too_long).is_err());
@@ -239,8 +296,15 @@ mod tests {
 
     #[test]
     fn windows_known_modules() {
-        let m = vec![ExternalModule { description: "FNMT".into(), lib: "C:\\Windows\\System32\\FNMT_P11_x64.DLL".into() }];
-        let opts = ModuleFilter { include_known_modules: true, windows_system_dir: Some(PathBuf::from("C:\\Windows\\System32")), ..Default::default() };
+        let m = vec![ExternalModule {
+            description: "FNMT".into(),
+            lib: "C:\\Windows\\System32\\FNMT_P11_x64.DLL".into(),
+        }];
+        let opts = ModuleFilter {
+            include_known_modules: true,
+            windows_system_dir: Some(PathBuf::from("C:\\Windows\\System32")),
+            ..Default::default()
+        };
         let f = filter_modules(m, &opts, Os::Windows);
         let descs: Vec<&str> = f.iter().map(|x| x.description.as_str()).collect();
         // FNMT 64 ya incluido (por nombre de biblioteca); FNMT 32 se añade
@@ -248,8 +312,14 @@ mod tests {
         assert_eq!(descs, vec!["FNMT", "FNMT-RCM Modulo PKCS#11 32bits"]);
         // DNIe nativo excluido incluso entre los conocidos (TIF no está).
         let f = filter_modules(
-            vec![ExternalModule { description: "DNIe".into(), lib: "C:\\x\\DNIe_P11_priv.dll".into() }],
-            &ModuleFilter { exclude_native_dnie: true, ..opts },
+            vec![ExternalModule {
+                description: "DNIe".into(),
+                lib: "C:\\x\\DNIe_P11_priv.dll".into(),
+            }],
+            &ModuleFilter {
+                exclude_native_dnie: true,
+                ..opts
+            },
             Os::Windows,
         );
         assert!(!f.iter().any(|x| x.description == "DNIe"));
@@ -268,7 +338,13 @@ mod tests {
         push(&mut data, b"Otro");
         push(&mut data, b"/opt/x/libmimodulo.so");
         let m = parse_secmod_db(&data, Os::Linux, &|l| Some(l.to_string()));
-        assert_eq!(m, vec![ExternalModule { description: "Mi modulo".into(), lib: "/opt/x/libmimodulo.so".into() }]);
+        assert_eq!(
+            m,
+            vec![ExternalModule {
+                description: "Mi modulo".into(),
+                lib: "/opt/x/libmimodulo.so".into()
+            }]
+        );
         assert!(parse_secmod_db(&data, Os::Linux, &|_| None).is_empty());
         assert!(parse_secmod_db(&data, Os::Windows, &|l| Some(l.to_string())).is_empty());
     }

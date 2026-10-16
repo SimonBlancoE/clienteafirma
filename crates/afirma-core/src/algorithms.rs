@@ -112,7 +112,9 @@ impl DigestAlgorithm {
     /// Prefijo DigestInfo (PKCS#1 v1.5) para este algoritmo.
     pub fn digest_info_prefix(self) -> &'static [u8] {
         match self {
-            Self::Sha1 => &[0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14],
+            Self::Sha1 => &[
+                0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14,
+            ],
             Self::Sha224 => &[
                 0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00,
                 0x04, 0x1c,
@@ -151,7 +153,12 @@ impl FromStr for DigestAlgorithm {
 
     /// Acepta `SHA1`, `SHA-1`, `sha-256`, `SHA256`, `SHA512`... y sus OID.
     fn from_str(s: &str) -> Result<Self, String> {
-        let norm: String = s.trim().to_ascii_uppercase().chars().filter(|c| *c != '-' && *c != '_').collect();
+        let norm: String = s
+            .trim()
+            .to_ascii_uppercase()
+            .chars()
+            .filter(|c| *c != '-' && *c != '_')
+            .collect();
         Ok(match norm.as_str() {
             "SHA1" | "SHA" => Self::Sha1,
             "SHA224" => Self::Sha224,
@@ -354,14 +361,20 @@ mod tests {
 
     #[test]
     fn digests() {
-        assert_eq!(hex::encode(DigestAlgorithm::Sha256.digest(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        assert_eq!(
+            hex::encode(DigestAlgorithm::Sha256.digest(b"abc")),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
         let mut h = DigestAlgorithm::Sha1.hasher();
         h.update(b"a");
         h.update(b"bc");
         assert_eq!(hex::encode(h.finalize()), "a9993e364706816aba3e25717850c26c9cd0d89d");
         for d in DigestAlgorithm::ALL {
             assert_eq!(d.digest(b"").len(), d.output_len());
-            assert_eq!(d.digest_info(&d.digest(b"")).len(), d.digest_info_prefix().len() + d.output_len());
+            assert_eq!(
+                d.digest_info(&d.digest(b"")).len(),
+                d.digest_info_prefix().len() + d.output_len()
+            );
             assert_eq!(DigestAlgorithm::from_xml_uri(d.xml_uri()), Some(d));
             assert_eq!(d.name().parse::<DigestAlgorithm>().unwrap(), d);
         }
@@ -373,16 +386,29 @@ mod tests {
 /// `SHA-384`, `SHA-512`, `RIPEMD160` o el nombre original si no se reconoce).
 pub fn java_digest_algorithm_name(pseudo_name: &str) -> String {
     let u = pseudo_name.to_uppercase();
-    if u == "SHA" || u == "HTTP://WWW.W3.ORG/2000/09/XMLDSIG#SHA1" || u == "1.3.14.3.2.26" || u.starts_with("SHA1") || u.starts_with("SHA-1") {
+    if u == "SHA"
+        || u == "HTTP://WWW.W3.ORG/2000/09/XMLDSIG#SHA1"
+        || u == "1.3.14.3.2.26"
+        || u.starts_with("SHA1")
+        || u.starts_with("SHA-1")
+    {
         return "SHA1".into();
     }
-    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA256" || u == "2.16.840.1.101.3.4.2.1" || u.starts_with("SHA256") || u.starts_with("SHA-256") {
+    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA256"
+        || u == "2.16.840.1.101.3.4.2.1"
+        || u.starts_with("SHA256")
+        || u.starts_with("SHA-256")
+    {
         return "SHA-256".into();
     }
     if u.starts_with("SHA384") || u == "2.16.840.1.101.3.4.2.2" || u.starts_with("SHA-384") {
         return "SHA-384".into();
     }
-    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA512" || u == "2.16.840.1.101.3.4.2.3" || u.starts_with("SHA512") || u.starts_with("SHA-512") {
+    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA512"
+        || u == "2.16.840.1.101.3.4.2.3"
+        || u.starts_with("SHA512")
+        || u.starts_with("SHA-512")
+    {
         return "SHA-512".into();
     }
     if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#RIPEMD160" || u.starts_with("RIPEMD160") || u.starts_with("RIPEMD-160") {
@@ -397,9 +423,10 @@ pub fn java_digest_algorithm_name(pseudo_name: &str) -> String {
         "http://www.w3.org/2009/xmldsig11#",
     ] {
         if pseudo_name.starts_with(prefix)
-            && let Some(idx) = pseudo_name.rfind('-') {
-                return java_digest_algorithm_name(&pseudo_name[idx + 1..]);
-            }
+            && let Some(idx) = pseudo_name.rfind('-')
+        {
+            return java_digest_algorithm_name(&pseudo_name[idx + 1..]);
+        }
     }
     pseudo_name.to_string()
 }
@@ -427,12 +454,20 @@ mod java_name_tests {
     fn java_normalisation() {
         assert_eq!(java_digest_algorithm_name("SHA512withRSA"), "SHA-512");
         assert_eq!(java_digest_algorithm_name("sha-256"), "SHA-256");
-        assert_eq!(java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"), "SHA-256");
+        assert_eq!(
+            java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"),
+            "SHA-256"
+        );
         assert_eq!(java_digest_algorithm_name("SHA1"), "SHA1");
         assert_eq!(java_digest_algorithm_name("MD5withRSA"), "MD5");
         let a = compose_signature_algorithm("SHA512withRSA", KeyAlgorithm::Ec).unwrap();
         assert_eq!(a.java_name(), "SHA512withECDSA");
-        assert_eq!(compose_signature_algorithm("SHA-256", KeyAlgorithm::Rsa).unwrap().java_name(), "SHA256withRSA");
+        assert_eq!(
+            compose_signature_algorithm("SHA-256", KeyAlgorithm::Rsa)
+                .unwrap()
+                .java_name(),
+            "SHA256withRSA"
+        );
         assert!(compose_signature_algorithm("MD5withRSA", KeyAlgorithm::Rsa).is_err());
     }
 }
@@ -445,11 +480,15 @@ mod java_name_tests {
 /// `key_type` es el valor de `Key.getAlgorithm()` de Java: `RSA`, `DSA` o un
 /// texto que empiece por `EC`. Los errores reproducen las
 /// `IllegalArgumentException` de Java.
-pub fn compose_signature_algorithm_name(algorithm: Option<&str>, key_type: Option<&str>) -> crate::error::Result<String> {
-    let algorithm =
-        algorithm.ok_or_else(|| crate::error::AfirmaError::invalid_argument("El nombre del algoritmo no puede ser nulo"))?;
-    let key_type = key_type
-        .ok_or_else(|| crate::error::AfirmaError::invalid_argument("El tipo de clave de certificado no puede ser nulo"))?;
+pub fn compose_signature_algorithm_name(
+    algorithm: Option<&str>,
+    key_type: Option<&str>,
+) -> crate::error::Result<String> {
+    let algorithm = algorithm
+        .ok_or_else(|| crate::error::AfirmaError::invalid_argument("El nombre del algoritmo no puede ser nulo"))?;
+    let key_type = key_type.ok_or_else(|| {
+        crate::error::AfirmaError::invalid_argument("El tipo de clave de certificado no puede ser nulo")
+    })?;
     let digest = java_digest_algorithm_name(algorithm).replace('-', "");
     let suffix = if key_type == "RSA" {
         "withRSA"
@@ -458,7 +497,9 @@ pub fn compose_signature_algorithm_name(algorithm: Option<&str>, key_type: Optio
     } else if key_type.starts_with("EC") {
         "withECDSA"
     } else {
-        return Err(crate::error::AfirmaError::invalid_argument(format!("Tipo de clave de firma no soportado: {key_type}")));
+        return Err(crate::error::AfirmaError::invalid_argument(format!(
+            "Tipo de clave de firma no soportado: {key_type}"
+        )));
     };
     Ok(format!("{digest}{suffix}"))
 }
@@ -522,7 +563,10 @@ mod predicate_tests {
         assert_eq!(c("SHA-256", "RSA"), "SHA256withRSA");
         assert_eq!(c("SHA224withECDSA", "EC"), "SHA224withECDSA");
         assert_eq!(c("MD5withRSA", "RSA"), "MD5withRSA");
-        assert_eq!(c("http://www.w3.org/2001/04/xmlenc#ripemd160", "DSA"), "RIPEMD160withDSA");
+        assert_eq!(
+            c("http://www.w3.org/2001/04/xmlenc#ripemd160", "DSA"),
+            "RIPEMD160withDSA"
+        );
         assert_eq!(c("SHA1", "ECDSA"), "SHA1withECDSA");
         let e = compose_signature_algorithm_name(Some("SHA1"), Some("Ed25519")).unwrap_err();
         assert_eq!(e.message, "Tipo de clave de firma no soportado: Ed25519");
@@ -530,7 +574,10 @@ mod predicate_tests {
         assert!(compose_signature_algorithm_name(Some("SHA1"), None).is_err());
         assert_eq!(KeyAlgorithm::Ec.java_key_type(), "EC");
         // GOTCHA documentado: el URI XML de SHA-384 se convierte en "more#sha384".
-        assert_eq!(java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#sha384"), "more#sha384");
+        assert_eq!(
+            java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#sha384"),
+            "more#sha384"
+        );
         assert_eq!(java_digest_algorithm_name("SHA224withECDSA"), "SHA224");
     }
 }

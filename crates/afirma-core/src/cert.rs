@@ -27,13 +27,20 @@ pub fn attr_string(v: &x509_parser::der_parser::asn1_rs::Any<'_>) -> Option<Stri
     let data = v.data;
     match v.tag() {
         Tag::BmpString => {
-            let units: Vec<u16> = data.chunks(2).map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)])).collect();
+            let units: Vec<u16> = data
+                .chunks(2)
+                .map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+                .collect();
             Some(String::from_utf16_lossy(&units))
         }
         Tag::T61String => Some(data.iter().map(|&b| b as char).collect()),
         Tag::UniversalString => Some(
             data.chunks(4)
-                .filter_map(|c| (c.len() == 4).then(|| char::from_u32(u32::from_be_bytes([c[0], c[1], c[2], c[3]]))).flatten())
+                .filter_map(|c| {
+                    (c.len() == 4)
+                        .then(|| char::from_u32(u32::from_be_bytes([c[0], c[1], c[2], c[3]])))
+                        .flatten()
+                })
                 .collect(),
         ),
         _ => std::str::from_utf8(data).ok().map(str::to_string),
@@ -183,7 +190,11 @@ mod tests {
 
     #[test]
     fn reads_test_certificate() {
-        let pem = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let pem = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/pki/firmante-rsa.crt"
+        ))
+        .unwrap();
         let der = decode_certificate(&pem).unwrap();
         let info = CertInfo::parse(&der).unwrap();
         assert_eq!(info.subject_cn, "ESPAÑOL ESPAÑOL JUAN - 00000000T");
@@ -209,11 +220,17 @@ pub struct KeyUsage {
 
 impl KeyUsage {
     /// Firma: `nonRepudiation`.
-    pub const SIGN: KeyUsage = KeyUsage { usage: Some([None, Some(true), None, None, None, None, None, None, None]) };
+    pub const SIGN: KeyUsage = KeyUsage {
+        usage: Some([None, Some(true), None, None, None, None, None, None, None]),
+    };
     /// Autenticación: `digitalSignature`.
-    pub const AUTH: KeyUsage = KeyUsage { usage: Some([Some(true), None, None, None, None, None, None, None, None]) };
+    pub const AUTH: KeyUsage = KeyUsage {
+        usage: Some([Some(true), None, None, None, None, None, None, None, None]),
+    };
     /// Cifrado: `dataEncipherment`.
-    pub const CYPH: KeyUsage = KeyUsage { usage: Some([None, None, None, Some(true), None, None, None, None, None]) };
+    pub const CYPH: KeyUsage = KeyUsage {
+        usage: Some([None, None, None, Some(true), None, None, None, None, None]),
+    };
 
     /// Uso de clave de un certificado (`new KeyUsage(X509Certificate)`).
     pub fn from_flags(flags: Option<&KeyUsageFlags>) -> Self {
@@ -253,7 +270,11 @@ impl KeyUsage {
         if self.usage.is_none() {
             return "Desconocido";
         }
-        let (s, a, c) = (self.includes(&Self::SIGN), self.includes(&Self::AUTH), self.includes(&Self::CYPH));
+        let (s, a, c) = (
+            self.includes(&Self::SIGN),
+            self.includes(&Self::AUTH),
+            self.includes(&Self::CYPH),
+        );
         if s && a && c {
             "Firma, autenticación y cifrado"
         } else if a && c {
@@ -284,7 +305,11 @@ mod key_usage_tests {
 
     #[test]
     fn key_usage_filters() {
-        let pem = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let pem = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/pki/firmante-rsa.crt"
+        ))
+        .unwrap();
         let der = decode_certificate(&pem).unwrap();
         let ku = KeyUsage::from_certificate(&der).unwrap();
         assert!(ku.includes(&KeyUsage::SIGN));
@@ -293,9 +318,13 @@ mod key_usage_tests {
         assert_eq!(ku.description(), "Firma y autenticación");
         assert_eq!(KeyUsage { usage: None }.to_string(), "Desconocido");
         assert!(!KeyUsage { usage: None }.includes(&KeyUsage::SIGN));
-        let all = KeyUsage { usage: Some([Some(true); 9]) };
+        let all = KeyUsage {
+            usage: Some([Some(true); 9]),
+        };
         assert_eq!(all.description(), "Firma, autenticación y cifrado");
-        let none = KeyUsage { usage: Some([Some(false); 9]) };
+        let none = KeyUsage {
+            usage: Some([Some(false); 9]),
+        };
         assert_eq!(none.description(), "Otros");
         let mut cyph = [Some(false); 9];
         cyph[3] = Some(true);

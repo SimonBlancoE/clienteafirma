@@ -36,7 +36,11 @@ enum Node {
     And(Vec<Node>),
     Or(Vec<Node>),
     Not(Box<Node>),
-    Atomic { attr: String, value: String, kind: MatchType },
+    Atomic {
+        attr: String,
+        value: String,
+        kind: MatchType,
+    },
 }
 
 /// Filtro RFC 2254 analizado.
@@ -68,7 +72,10 @@ fn err(msg: impl Into<String>) -> SearchFilterError {
 
 impl Parser {
     fn cur(&self) -> PResult<char> {
-        self.f.get(self.pos).copied().ok_or_else(|| err(format!("fin inesperado del filtro en la posicion {}", self.pos)))
+        self.f
+            .get(self.pos)
+            .copied()
+            .ok_or_else(|| err(format!("fin inesperado del filtro en la posicion {}", self.pos)))
     }
 
     fn skip_ws(&mut self) -> PResult<()> {
@@ -92,7 +99,10 @@ impl Parser {
         if idx < 0 {
             return Err(err("indice negativo"));
         }
-        self.f.get(idx as usize).copied().ok_or_else(|| err("indice fuera de rango"))
+        self.f
+            .get(idx as usize)
+            .copied()
+            .ok_or_else(|| err("indice fuera de rango"))
     }
 
     fn rel_substring(&self, b: isize, e: isize) -> PResult<String> {
@@ -143,24 +153,47 @@ impl Parser {
         let i = self.rel_index_of('=');
         let qualifier = self.rel_char_at(i - 1)?;
         let (kind, attr, value) = match qualifier {
-            '~' => (MatchType::Approx, self.rel_substring(0, i - 1)?, self.rel_substring(i + 1, end_pos)?),
-            '>' => (MatchType::Greater, self.rel_substring(0, i - 1)?, self.rel_substring(i + 1, end_pos)?),
-            '<' => (MatchType::Less, self.rel_substring(0, i - 1)?, self.rel_substring(i + 1, end_pos)?),
+            '~' => (
+                MatchType::Approx,
+                self.rel_substring(0, i - 1)?,
+                self.rel_substring(i + 1, end_pos)?,
+            ),
+            '>' => (
+                MatchType::Greater,
+                self.rel_substring(0, i - 1)?,
+                self.rel_substring(i + 1, end_pos)?,
+            ),
+            '<' => (
+                MatchType::Less,
+                self.rel_substring(0, i - 1)?,
+                self.rel_substring(i + 1, end_pos)?,
+            ),
             ':' => return Err(err("Extensible match not supported")),
-            _ => (MatchType::Equal, self.rel_substring(0, i)?, self.rel_substring(i + 1, end_pos)?),
+            _ => (
+                MatchType::Equal,
+                self.rel_substring(0, i)?,
+                self.rel_substring(i + 1, end_pos)?,
+            ),
         };
         if end_pos < 0 {
             return Err(err("falta \")\""));
         }
         self.pos = (self.pos as isize + end_pos) as usize;
-        Ok(Node::Atomic { attr: java_trim(&attr), value: java_trim(&value), kind })
+        Ok(Node::Atomic {
+            attr: java_trim(&attr),
+            value: java_trim(&value),
+            kind,
+        })
     }
 }
 
 impl SearchFilter {
     /// Analiza un filtro como el constructor de `SearchFilter`.
     pub fn parse(filter: &str) -> Result<SearchFilter, SearchFilterError> {
-        let mut p = Parser { f: filter.chars().collect(), pos: 0 };
+        let mut p = Parser {
+            f: filter.chars().collect(),
+            pos: 0,
+        };
         // normalizeFilter(): la posición queda tras los espacios iniciales.
         p.skip_ws()?;
         if p.cur()? != '(' {
@@ -222,14 +255,19 @@ fn substring_match(proto: &str, val: &str) -> bool {
     let mut tokens = proto.split('*').filter(|t| !t.is_empty());
     let mut current_pos = 0usize;
     if !proto.starts_with('*') {
-        let first: Vec<char> = tokens.next().map(|t| java_lower(t).chars().collect()).unwrap_or_default();
+        let first: Vec<char> = tokens
+            .next()
+            .map(|t| java_lower(t).chars().collect())
+            .unwrap_or_default();
         if !lval.starts_with(&first) {
             return false;
         }
     }
     for tok in tokens {
         let t: Vec<char> = java_lower(tok).chars().collect();
-        match (current_pos..=lval.len().saturating_sub(t.len())).find(|&i| lval.len() >= t.len() && lval[i..].starts_with(&t)) {
+        match (current_pos..=lval.len().saturating_sub(t.len()))
+            .find(|&i| lval.len() >= t.len() && lval[i..].starts_with(&t))
+        {
             Some(p) => current_pos = p + t.len(),
             None => return false,
         }
@@ -255,7 +293,10 @@ pub fn filter_name(filter: &Result<SearchFilter, SearchFilterError>, name: &Dist
     match filter {
         Ok(f) => f.check(&name.ldap_attributes()),
         Err(e) => {
-            tracing::warn!("No ha sido posible filtrar el certificado, no se eliminara del listado: {}", e.0);
+            tracing::warn!(
+                "No ha sido posible filtrar el certificado, no se eliminara del listado: {}",
+                e.0
+            );
             true
         }
     }
@@ -266,7 +307,10 @@ mod tests {
     use super::*;
 
     fn attrs(pairs: &[(&str, &str)]) -> Vec<(String, LdapValue)> {
-        pairs.iter().map(|(t, v)| (t.to_string(), LdapValue::Text(v.to_string()))).collect()
+        pairs
+            .iter()
+            .map(|(t, v)| (t.to_string(), LdapValue::Text(v.to_string())))
+            .collect()
     }
 
     fn check(f: &str, a: &[(String, LdapValue)]) -> Option<bool> {
@@ -275,10 +319,24 @@ mod tests {
 
     #[test]
     fn basic_operators() {
-        let a = attrs(&[("CN", "AC DNIE 004"), ("OU", "DNIE"), ("O", "DIRECCION GENERAL DE LA POLICIA"), ("C", "ES")]);
-        assert_eq!(check("(&(cn=AC DNIE *)(ou=DNIE)(o=DIRECCION GENERAL DE LA POLICIA)(c=ES))", &a), Some(true));
+        let a = attrs(&[
+            ("CN", "AC DNIE 004"),
+            ("OU", "DNIE"),
+            ("O", "DIRECCION GENERAL DE LA POLICIA"),
+            ("C", "ES"),
+        ]);
+        assert_eq!(
+            check(
+                "(&(cn=AC DNIE *)(ou=DNIE)(o=DIRECCION GENERAL DE LA POLICIA)(c=ES))",
+                &a
+            ),
+            Some(true)
+        );
         assert_eq!(check("(&(cn=AC DNIE *)(ou=CNP))", &a), Some(false));
-        assert_eq!(check("(|(o=FNMT-RCM)(o=direccion general de la policia))", &a), Some(true));
+        assert_eq!(
+            check("(|(o=FNMT-RCM)(o=direccion general de la policia))", &a),
+            Some(true)
+        );
         assert_eq!(check("(!(c=ES))", &a), Some(false));
         assert_eq!(check("cn=ac dnie*", &a), Some(true));
         assert_eq!(check("(cn=*)", &a), Some(true));
@@ -327,7 +385,10 @@ mod tests {
 
     #[test]
     fn binary_values_and_missing() {
-        let a = vec![("ST".to_string(), LdapValue::Binary(vec![0x1a, 0x01, 0x41])), ("CN".to_string(), LdapValue::Text("x".into()))];
+        let a = vec![
+            ("ST".to_string(), LdapValue::Binary(vec![0x1a, 0x01, 0x41])),
+            ("CN".to_string(), LdapValue::Text("x".into())),
+        ];
         assert_eq!(check("(st=*)", &a), Some(true));
         assert_eq!(check("(st=A)", &a), Some(false));
         assert_eq!(check("(=x)", &a), Some(false));

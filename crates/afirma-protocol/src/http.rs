@@ -23,7 +23,12 @@ pub type Method = HttpMethod;
 pub enum HttpError {
     /// Estado 4xx/5xx (`HttpError` de Java).
     #[error("Error HTTP con codigo  {code}{} y descripcion '{reason}' para la direccion: {url}", body_suffix(.body))]
-    Status { code: u16, reason: String, body: Vec<u8>, url: String },
+    Status {
+        code: u16,
+        reason: String,
+        body: Vec<u8>,
+        url: String,
+    },
     /// Tiempo de espera agotado (`SocketTimeoutException`).
     #[error("tiempo de espera agotado: {0}")]
     Timeout(String),
@@ -45,7 +50,11 @@ pub enum HttpError {
 fn body_suffix(body: &[u8]) -> String {
     let t = String::from_utf8_lossy(body);
     let t = t.trim();
-    if t.is_empty() { String::new() } else { format!(", cuerpo '{t}'") }
+    if t.is_empty() {
+        String::new()
+    } else {
+        format!(", cuerpo '{t}'")
+    }
 }
 
 impl HttpError {
@@ -64,11 +73,16 @@ impl HttpError {
 impl From<HttpClientError> for HttpError {
     fn from(e: HttpClientError) -> Self {
         match e {
-            HttpClientError::Http(h) => {
-                HttpError::Status { code: h.status, reason: h.reason.unwrap_or_default(), body: h.body, url: h.url }
-            }
+            HttpClientError::Http(h) => HttpError::Status {
+                code: h.status,
+                reason: h.reason.unwrap_or_default(),
+                body: h.body,
+                url: h.url,
+            },
             HttpClientError::Timeout { url, message } => HttpError::Timeout(format!("{url}: {message}")),
-            HttpClientError::InvalidDomainCertificate { url, host } => HttpError::CertificateHostMismatch { host, detail: url },
+            HttpClientError::InvalidDomainCertificate { url, host } => {
+                HttpError::CertificateHostMismatch { host, detail: url }
+            }
             HttpClientError::Tls { url, message, .. } => HttpError::Tls(format!("{url}: {message}")),
             HttpClientError::InvalidUrl(m) => HttpError::InvalidUrl(m),
             HttpClientError::Io { url, message } => HttpError::Io(format!("{url}: {message}")),
@@ -103,13 +117,21 @@ pub struct HttpClient {
 
 impl std::fmt::Debug for HttpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HttpClient").field("read_timeout", &self.read_timeout).field("connect_timeout", &self.connect_timeout).finish_non_exhaustive()
+        f.debug_struct("HttpClient")
+            .field("read_timeout", &self.read_timeout)
+            .field("connect_timeout", &self.connect_timeout)
+            .finish_non_exhaustive()
     }
 }
 
 impl HttpClient {
     pub fn new(inner: Arc<dyn CoreHttpClient>) -> Self {
-        HttpClient { inner, read_timeout: None, connect_timeout: None, ssl_error_handling: SslErrorHandling::None }
+        HttpClient {
+            inner,
+            read_timeout: None,
+            connect_timeout: None,
+            ssl_error_handling: SslErrorHandling::None,
+        }
     }
 
     /// Cliente sobre el gestor instalado en el proceso
@@ -189,11 +211,19 @@ pub(crate) mod testing {
 
     impl MockTransport {
         pub fn new(handler: impl Fn(&Recorded) -> Result<Reply, HttpClientError> + Send + Sync + 'static) -> Arc<Self> {
-            Arc::new(MockTransport { requests: Mutex::new(Vec::new()), handler: Box::new(handler) })
+            Arc::new(MockTransport {
+                requests: Mutex::new(Vec::new()),
+                handler: Box::new(handler),
+            })
         }
 
         pub fn bodies(&self) -> Vec<String> {
-            self.requests.lock().unwrap().iter().map(|r| String::from_utf8_lossy(r.body.as_deref().unwrap_or(&[])).into_owned()).collect()
+            self.requests
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|r| String::from_utf8_lossy(r.body.as_deref().unwrap_or(&[])).into_owned())
+                .collect()
         }
     }
 
@@ -229,20 +259,32 @@ pub(crate) mod testing {
     }
 
     pub fn ok(body: impl Into<Vec<u8>>) -> Result<Reply, HttpClientError> {
-        Ok(Reply { status: 200, body: body.into() })
+        Ok(Reply {
+            status: 200,
+            body: body.into(),
+        })
     }
 
     pub fn status(code: u16) -> Result<Reply, HttpClientError> {
-        Ok(Reply { status: code, body: b"err".to_vec() })
+        Ok(Reply {
+            status: code,
+            body: b"err".to_vec(),
+        })
     }
 
     pub fn timeout() -> Result<Reply, HttpClientError> {
-        Err(HttpClientError::Timeout { url: "u".into(), message: "t".into() })
+        Err(HttpClientError::Timeout {
+            url: "u".into(),
+            message: "t".into(),
+        })
     }
 
     #[allow(dead_code)]
     pub fn io_error() -> Result<Reply, HttpClientError> {
-        Err(HttpClientError::Io { url: "u".into(), message: "conexion rehusada".into() })
+        Err(HttpClientError::Io {
+            url: "u".into(),
+            message: "conexion rehusada".into(),
+        })
     }
 }
 
@@ -255,7 +297,10 @@ mod tests {
     fn post_body_from_query() {
         let t = MockTransport::new(|_| ok("R"));
         let c = HttpClient::new(t.clone());
-        assert_eq!(c.read_url("https://h/s?op=put&v=1_0?ignored", Method::Post).unwrap(), b"R");
+        assert_eq!(
+            c.read_url("https://h/s?op=put&v=1_0?ignored", Method::Post).unwrap(),
+            b"R"
+        );
         let reqs = t.requests.lock().unwrap();
         assert_eq!(reqs[0].url, "https://h/s");
         assert_eq!(reqs[0].body.as_deref(), Some(&b"op=put&v=1_0"[..]));
@@ -274,7 +319,10 @@ mod tests {
 
     #[test]
     fn hosts() {
-        assert_eq!(host_of("https://user:pw@www.a.es:8443/x?y").as_deref(), Some("www.a.es"));
+        assert_eq!(
+            host_of("https://user:pw@www.a.es:8443/x?y").as_deref(),
+            Some("www.a.es")
+        );
         assert_eq!(host_of("http://[::1]:80/").as_deref(), Some("[::1]"));
         assert_eq!(host_of("nada"), None);
     }

@@ -51,21 +51,13 @@ impl ConfigError {
         let message = match code {
             codes::CANT_READ_PREFERENCES_FILE => "No se pudo leer el fichero de preferencias",
             codes::INVALID_XML_PREFERENCES_FILE => "El fichero de preferencias no es un XML válido",
-            codes::INVALID_FORMAT_PREFERENCES_FILE => {
-                "El fichero de preferencias no tiene un formato válido"
-            }
-            codes::INVALID_CERTIFICATE_SIGNER => {
-                "El certificado firmante del fichero de configuración no es válido"
-            }
-            codes::INVALID_PREFERENCES_FILE_SIGNATURE => {
-                "La firma del fichero de configuración no es válida"
-            }
+            codes::INVALID_FORMAT_PREFERENCES_FILE => "El fichero de preferencias no tiene un formato válido",
+            codes::INVALID_CERTIFICATE_SIGNER => "El certificado firmante del fichero de configuración no es válido",
+            codes::INVALID_PREFERENCES_FILE_SIGNATURE => "La firma del fichero de configuración no es válida",
             codes::INVALID_PREFERENCES_FILE_SIGNER => {
                 "El certificado firmante del fichero de configuración no está autorizado"
             }
-            codes::UNSIGNED_PREFERENCES_FILE => {
-                "No se permite la importación de ficheros de preferencias sin firmar"
-            }
+            codes::UNSIGNED_PREFERENCES_FILE => "No se permite la importación de ficheros de preferencias sin firmar",
             _ => "Error desconocido importando las preferencias",
         };
         Self {
@@ -125,8 +117,7 @@ struct Elem {
 /// (Java la rechazaba con 230302); nunca resuelve entidades externas.
 pub fn parse(xml: &[u8]) -> Result<AfconfigContent, ConfigError> {
     if xml.len() > MAX_AFCONFIG_SIZE {
-        return Err(ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE)
-            .with_detail("fichero demasiado grande"));
+        return Err(ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE).with_detail("fichero demasiado grande"));
     }
     let (root, has_signature) = build_dom(xml)?;
     if !root.name.eq_ignore_ascii_case("plist") {
@@ -137,9 +128,7 @@ pub fn parse(xml: &[u8]) -> Result<AfconfigContent, ConfigError> {
         .children
         .iter()
         .find(|c| c.name == "dict")
-        .ok_or_else(|| {
-            ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE).with_detail("sin diccionario")
-        })?;
+        .ok_or_else(|| ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE).with_detail("sin diccionario"))?;
     let PlistValue::Dict(entries) = parse_value(dict, 0)? else {
         return Err(ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE));
     };
@@ -328,9 +317,7 @@ fn parse_value(e: &Elem, depth: usize) -> Result<PlistValue, ConfigError> {
                 if k.name != "key" {
                     return Err(fmt(format!("se esperaba <key> y se encontró <{}>", k.name)));
                 }
-                let v = it
-                    .next()
-                    .ok_or_else(|| fmt(format!("clave «{}» sin valor", k.text)))?;
+                let v = it.next().ok_or_else(|| fmt(format!("clave «{}» sin valor", k.text)))?;
                 out.push((k.text.clone(), parse_value(v, depth + 1)?));
             }
             PlistValue::Dict(out)
@@ -367,8 +354,7 @@ fn push_elem(out: &mut String, name: &str, text: &str) {
 /// exactamente `true`/`false` como `<true/>`/`<false/>` y el resto como `<string>`. Las claves
 /// se ordenan alfabéticamente (Java usaba el orden de un `HashMap`).
 pub fn export(prefs: &BTreeMap<String, String>, smartcards: &BTreeMap<String, String>) -> String {
-    let mut out =
-        String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict>");
+    let mut out = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict>");
     for (k, v) in prefs {
         push_elem(&mut out, "key", k);
         match v.as_str() {
@@ -414,8 +400,7 @@ impl ConfigSigner {
 
     /// Base64(SHA-256(DER)), el formato de `certHashToSignedPrerefences`.
     pub fn pin_hash(&self) -> String {
-        base64::engine::general_purpose::STANDARD
-            .encode(sha2::Sha256::digest(&self.certificate_der))
+        base64::engine::general_purpose::STANDARD.encode(sha2::Sha256::digest(&self.certificate_der))
     }
 }
 
@@ -485,9 +470,8 @@ pub fn check_signature(
     let signer = v.verify(xml)?;
     {
         use x509_parser::prelude::*;
-        let (_, cert) = X509Certificate::from_der(&signer.certificate_der).map_err(|e| {
-            ConfigError::new(codes::INVALID_PREFERENCES_FILE_SIGNATURE).with_detail(e.to_string())
-        })?;
+        let (_, cert) = X509Certificate::from_der(&signer.certificate_der)
+            .map_err(|e| ConfigError::new(codes::INVALID_PREFERENCES_FILE_SIGNATURE).with_detail(e.to_string()))?;
         let ts = now.timestamp();
         let v = cert.validity();
         if ts < v.not_before.timestamp() || ts > v.not_after.timestamp() {
@@ -624,9 +608,7 @@ mod tests {
             pinned_cert_hash: None,
         };
         assert_eq!(
-            check_signature(b"", &unsigned, None, &req, now)
-                .unwrap_err()
-                .code,
+            check_signature(b"", &unsigned, None, &req, now).unwrap_err().code,
             codes::UNSIGNED_PREFERENCES_FILE
         );
         assert_eq!(
@@ -646,18 +628,14 @@ mod tests {
         let pack = crate::certs::generate(&crate::certs::CertProfile::default()).unwrap();
         let v = FixedVerifier(pack.ca_der.clone());
         let st = check_signature(b"", &signed, Some(&v), &req, now).unwrap();
-        let SignatureStatus::Signed(s) = &st else {
-            panic!()
-        };
+        let SignatureStatus::Signed(s) = &st else { panic!() };
         assert_eq!(s.common_name(), "Autofirma ROOT");
         let bad_pin = SignaturePolicy {
             require_signed: true,
             pinned_cert_hash: Some("AAAA".into()),
         };
         assert_eq!(
-            check_signature(b"", &signed, Some(&v), &bad_pin, now)
-                .unwrap_err()
-                .code,
+            check_signature(b"", &signed, Some(&v), &bad_pin, now).unwrap_err().code,
             codes::INVALID_PREFERENCES_FILE_SIGNER
         );
         let good_pin = SignaturePolicy {

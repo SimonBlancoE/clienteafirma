@@ -29,15 +29,9 @@ pub fn requestor_message(key: &str) -> Option<&'static str> {
         REQ_MODIFIED_FORM => {
             "Se han detectado cambios en un formulario posteriores a la primera firma.\n¿Desea continuar?"
         }
-        REQ_PSA => {
-            "El PDF es sospechoso de haber sido modificado tras la última firma. ¿Desea continuar?"
-        }
-        REQ_PASSWORD_PROTECTED => {
-            "El PDF está protegido por contraseña. Introduzca de la contraseña del PDF."
-        }
-        REQ_BAD_PASSWORD => {
-            "La contraseña introducida es incorrecta. Introduzca de la contraseña del PDF."
-        }
+        REQ_PSA => "El PDF es sospechoso de haber sido modificado tras la última firma. ¿Desea continuar?",
+        REQ_PASSWORD_PROTECTED => "El PDF está protegido por contraseña. Introduzca de la contraseña del PDF.",
+        REQ_BAD_PASSWORD => "La contraseña introducida es incorrecta. Introduzca de la contraseña del PDF.",
         _ => return None,
     })
 }

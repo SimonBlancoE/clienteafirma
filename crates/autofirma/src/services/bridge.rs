@@ -9,11 +9,25 @@ use eframe::egui;
 
 /// Petición a la interfaz.
 pub enum UiRequest {
-    Password { request: PasswordRequest, reply: Sender<PasswordResponse> },
-    ConfirmSignature { message: String, reply: Sender<bool> },
-    Confirm { title: String, message: String, reply: Sender<bool> },
+    Password {
+        request: PasswordRequest,
+        reply: Sender<PasswordResponse>,
+    },
+    ConfirmSignature {
+        message: String,
+        reply: Sender<bool>,
+    },
+    Confirm {
+        title: String,
+        message: String,
+        reply: Sender<bool>,
+    },
     /// Texto libre (p. ej. la contraseña de un PDF). `None` = cancelado.
-    Text { prompt: String, secret: bool, reply: Sender<Option<String>> },
+    Text {
+        prompt: String,
+        secret: bool,
+        reply: Sender<Option<String>>,
+    },
 }
 
 /// Extremo que usan los hilos de trabajo.
@@ -41,7 +55,14 @@ impl UiBridge {
     /// Pide una contraseña genérica (p. ej. la de un PDF protegido).
     pub fn ask_password(&self, prompt: &str) -> Option<String> {
         let prompt = prompt.to_string();
-        self.ask(|reply| UiRequest::Text { prompt, secret: true, reply }, None)
+        self.ask(
+            |reply| UiRequest::Text {
+                prompt,
+                secret: true,
+                reply,
+            },
+            None,
+        )
     }
 
     /// Pregunta sí/no al usuario.
@@ -54,7 +75,10 @@ impl UiBridge {
 impl PasswordCallback for UiBridge {
     fn request_password(&self, request: &PasswordRequest) -> PasswordResponse {
         let request = request.clone();
-        self.ask(|reply| UiRequest::Password { request, reply }, PasswordResponse::Cancelled)
+        self.ask(
+            |reply| UiRequest::Password { request, reply },
+            PasswordResponse::Cancelled,
+        )
     }
 
     fn confirm_signature(&self, request: &ConfirmRequest) -> bool {
@@ -74,17 +98,22 @@ pub struct UiInbox {
 
 impl UiInbox {
     pub fn new(rx: Receiver<UiRequest>) -> Self {
-        UiInbox { rx, current: None, secret: String::new(), remember: false }
+        UiInbox {
+            rx,
+            current: None,
+            secret: String::new(),
+            remember: false,
+        }
     }
 
     /// Toma la siguiente petición si no hay ninguna en curso.
     pub fn pump(&mut self) {
         if self.current.is_none()
-            && let Ok(r) = self.rx.try_recv() {
-                self.secret.clear();
-                self.remember = false;
-                self.current = Some(r);
-            }
+            && let Ok(r) = self.rx.try_recv()
+        {
+            self.secret.clear();
+            self.remember = false;
+            self.current = Some(r);
+        }
     }
 }
-

@@ -43,7 +43,11 @@ pub struct TriSign {
 impl TriSign {
     /// Crea una firma (con un UUID aleatorio si no se indica identificador).
     pub fn new(id: Option<String>, signature_id: Option<String>) -> Self {
-        TriSign { id: id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()), signature_id, params: Vec::new() }
+        TriSign {
+            id: id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+            signature_id,
+            params: Vec::new(),
+        }
     }
 
     /// Valor de un parámetro.
@@ -127,7 +131,10 @@ impl TriphaseData {
             .find(|n| n.is_element())
             .filter(|n| crate::mime::xml::qualified_name(n).eq_ignore_ascii_case("firmas"))
             .ok_or_else(|| AfirmaError::invalid_argument("No se encontro el nodo 'firmas' en el XML proporcionado"))?;
-        let mut data = TriphaseData { format: signs_node.attribute("format").map(str::to_string), signs: Vec::new() };
+        let mut data = TriphaseData {
+            format: signs_node.attribute("format").map(str::to_string),
+            signs: Vec::new(),
+        };
         for sign_node in signs_node.children().filter(|n| n.is_element()) {
             let mut sign = TriSign::new(
                 sign_node.attribute("Id").map(str::to_string),
@@ -137,7 +144,11 @@ impl TriphaseData {
                 let key = param
                     .attribute("n")
                     .ok_or_else(|| AfirmaError::invalid_argument("Parametro de firma trifasica sin atributo 'n'"))?;
-                let value: String = param.descendants().filter(|n| n.is_text()).filter_map(|n| n.text()).collect();
+                let value: String = param
+                    .descendants()
+                    .filter(|n| n.is_text())
+                    .filter_map(|n| n.text())
+                    .collect();
                 sign.add_property(key, value.trim_matches(|c: char| c <= ' '));
             }
             data.signs.push(sign);
@@ -180,13 +191,19 @@ impl std::fmt::Display for TriphaseData {
 /// separada por comas.
 pub fn prepare_cert_chain_param(cert_chain: &[Vec<u8>], extra_params: Option<&ExtraParams>) -> Result<String> {
     if cert_chain.is_empty() {
-        return Err(AfirmaError::invalid_argument("La cadena de certificados no puede ser nula ni vacia"));
+        return Err(AfirmaError::invalid_argument(
+            "La cadena de certificados no puede ser nula ni vacia",
+        ));
     }
     let only_first = extra_params.is_none_or(|p| p.get_bool(EXTRA_PARAM_INCLUDE_ONLY_SIGNING_CERTIFICATE, false));
     if only_first {
         return Ok(crate::base64::encode_url_safe(&cert_chain[0]));
     }
-    Ok(cert_chain.iter().map(|c| crate::base64::encode_url_safe(c)).collect::<Vec<_>>().join(","))
+    Ok(cert_chain
+        .iter()
+        .map(|c| crate::base64::encode_url_safe(c))
+        .collect::<Vec<_>>()
+        .join(","))
 }
 
 /// `TriphaseDataSigner.doSign`: firma (PKCS#1 con autoverificación) la
@@ -194,7 +211,10 @@ pub fn prepare_cert_chain_param(cert_chain: &[Vec<u8>], extra_params: Option<&Ex
 /// firma tenga `NEED_PRE=true`.
 pub fn do_sign(data: &mut TriphaseData, algorithm: &str, key: &dyn SigningKey, cert_chain: &[Vec<u8>]) -> Result<()> {
     if data.signs.is_empty() {
-        return Err(AfirmaError::new(codes::PRESIGNS_NOT_FOUND, "No se han recibido prefirmas que firmar"));
+        return Err(AfirmaError::new(
+            codes::PRESIGNS_NOT_FOUND,
+            "No se han recibido prefirmas que firmar",
+        ));
     }
     for (i, sign) in data.signs.iter_mut().enumerate() {
         let pre = sign.property(PROPERTY_NAME_PRESIGN).ok_or_else(|| {
@@ -204,11 +224,16 @@ pub fn do_sign(data: &mut TriphaseData, algorithm: &str, key: &dyn SigningKey, c
             )
         })?;
         let pre = crate::base64::decode(pre).map_err(|e| {
-            AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, format!("Error decodificando la prefirma: {e}"))
+            AfirmaError::new(
+                codes::MALFORMED_PRESIGN_RESPONSE,
+                format!("Error decodificando la prefirma: {e}"),
+            )
         })?;
         let pk1 = crate::pkcs1::pkcs1_sign(&pre, algorithm, key, cert_chain)?;
         sign.add_property(PROPERTY_NAME_PKCS1_SIGN, crate::base64::encode(&pk1));
-        let need_pre = sign.property(PROPERTY_NAME_NEED_PRE).is_some_and(|v| v.eq_ignore_ascii_case("true"));
+        let need_pre = sign
+            .property(PROPERTY_NAME_NEED_PRE)
+            .is_some_and(|v| v.eq_ignore_ascii_case("true"));
         if !need_pre {
             sign.delete_property(PROPERTY_NAME_PRESIGN);
         }
@@ -252,7 +277,10 @@ mod tests {
     fn cert_chain_param() {
         let chain = vec![vec![0xfb, 0xff], vec![1, 2, 3]];
         assert_eq!(prepare_cert_chain_param(&chain, None).unwrap(), "-_8=");
-        assert_eq!(prepare_cert_chain_param(&chain, Some(&ExtraParams::new())).unwrap(), "-_8=,AQID");
+        assert_eq!(
+            prepare_cert_chain_param(&chain, Some(&ExtraParams::new())).unwrap(),
+            "-_8=,AQID"
+        );
         let p: ExtraParams = [("includeOnlySignningCertificate", "TRUE")].into_iter().collect();
         assert_eq!(prepare_cert_chain_param(&chain, Some(&p)).unwrap(), "-_8=");
         assert!(prepare_cert_chain_param(&[], None).is_err());

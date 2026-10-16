@@ -46,7 +46,12 @@ pub struct ProtocolError {
 
 impl ProtocolError {
     pub fn new(code: ErrorCode, message: impl Into<String>, origin: ErrorOrigin) -> Self {
-        ProtocolError { code, message: message.into(), origin, dialog_params: Vec::new() }
+        ProtocolError {
+            code,
+            message: message.into(),
+            origin,
+            dialog_params: Vec::new(),
+        }
     }
 
     /// Error de parámetros (`ParameterException`).
@@ -125,7 +130,11 @@ pub fn wire_description(code: ErrorCode) -> String {
 pub fn format_error(version: Option<ProtocolVersion>, code: ErrorCode, locale: Locale) -> String {
     match version {
         Some(v) if v.uses_error_codes() => {
-            let prefix = if code == codes::CANCELLED_OPERATION { "err-11:=" } else { "err-00:=" };
+            let prefix = if code == codes::CANCELLED_OPERATION {
+                "err-11:="
+            } else {
+                "err-00:="
+            };
             format!("{prefix}AF{:06} - {}", code.code, wire_description(code))
         }
         _ => {
@@ -147,10 +156,10 @@ pub fn saf_code(code: ErrorCode) -> &'static str {
         200003 => "SAF_00",
         620012 => "SAF_01",
         620009 => "SAF_02",
-        200115 | 200201 | 200305 | 200413 | 200600 | 420502 | 600009 | 600100 | 600101 | 600102 | 600104 | 600106 | 600107
-        | 600110 | 600111 | 600112 | 600113 | 600116 | 600117 | 600118 | 600120 | 600121 | 600200 | 600201 | 600202 | 600300
-        | 600301 | 600302 | 600303 | 600304 | 600306 | 600307 | 600402 | 600403 | 600405 | 600406 | 600410 | 600411 | 600413
-        | 600415 | 600417 | 600420 | 600501 | 600701 | 600702 | 620013 | 620016 => "SAF_03",
+        200115 | 200201 | 200305 | 200413 | 200600 | 420502 | 600009 | 600100 | 600101 | 600102 | 600104 | 600106
+        | 600107 | 600110 | 600111 | 600112 | 600113 | 600116 | 600117 | 600118 | 600120 | 600121 | 600200 | 600201
+        | 600202 | 600300 | 600301 | 600302 | 600303 | 600304 | 600306 | 600307 | 600402 | 600403 | 600405 | 600406
+        | 600410 | 600411 | 600413 | 600415 | 600417 | 600420 | 600501 | 600701 | 600702 | 620013 | 620016 => "SAF_03",
         600002 => "SAF_04",
         200301 => "SAF_05",
         600105 => "SAF_06",
@@ -285,7 +294,10 @@ mod tests {
             format_error(v, codes::UNSUPPORTED_SIGNATURE_FORMAT, Locale::Es),
             "err-00:=AF600105 - El formato de firma indicado en la operacion de firma no esta soportado"
         );
-        assert_eq!(format_error(v, codes::CANCELLED_OPERATION, Locale::Es), "err-11:=AF500001 - Operacion cancelada por el usuario");
+        assert_eq!(
+            format_error(v, codes::CANCELLED_OPERATION, Locale::Es),
+            "err-11:=AF500001 - Operacion cancelada por el usuario"
+        );
         // Doble espacio por la descripción Java con espacio inicial.
         assert_eq!(
             format_error(v, codes::LOADING_LOCAL_FILE_ERROR, Locale::Es),
@@ -302,27 +314,62 @@ mod tests {
         let v = Some(ProtocolVersion::V4);
         assert_eq!(format_error(v, codes::CANCELLED_OPERATION, Locale::Es), "CANCEL");
         assert_eq!(format_error(None, codes::CANCELLED_OPERATION, Locale::En), "CANCEL");
-        assert_eq!(format_error(v, codes::SIGNATURE_FORMAT_NOT_FOUND, Locale::Es), "SAF_03: Error en los parámetros de entrada");
-        assert_eq!(format_error(v, codes::SIGNATURE_FORMAT_NOT_FOUND, Locale::En), "SAF_03: Error in input parameters");
         assert_eq!(
-            format_error(Some(ProtocolVersion::V3), codes::UNSUPPORTED_PROTOCOL_VERSION, Locale::Es),
+            format_error(v, codes::SIGNATURE_FORMAT_NOT_FOUND, Locale::Es),
+            "SAF_03: Error en los parámetros de entrada"
+        );
+        assert_eq!(
+            format_error(v, codes::SIGNATURE_FORMAT_NOT_FOUND, Locale::En),
+            "SAF_03: Error in input parameters"
+        );
+        assert_eq!(
+            format_error(
+                Some(ProtocolVersion::V3),
+                codes::UNSUPPORTED_PROTOCOL_VERSION,
+                Locale::Es
+            ),
             "SAF_21: La versión de Autofirma instalada no es compatible con este trámite.\nActualice a la última versión disponible."
         );
         // Código no asociado → SAF_53.
-        assert_eq!(format_error(v, codes::TSA_CONNECTION_ERROR, Locale::Es), "SAF_53: Error desconocido");
+        assert_eq!(
+            format_error(v, codes::TSA_CONNECTION_ERROR, Locale::Es),
+            "SAF_53: Error desconocido"
+        );
         assert_eq!(saf_code(codes::UNKNOWN_SIGNING_ERROR), "SAF_03");
         assert_eq!(saf_code(codes::UNSUPPORTED_HASH_ALGORITHM), "SAF_09");
-        assert_eq!(format_error(v, codes::INVALID_SESSION_ID, Locale::Es), "SAF_46: Id de sesión inválido");
+        assert_eq!(
+            format_error(v, codes::INVALID_SESSION_ID, Locale::Es),
+            "SAF_46: Id de sesión inválido"
+        );
     }
 
     #[test]
     fn dialogs() {
-        assert_eq!(dialog_title(Some(ProtocolVersion::V4_1), codes::INVALID_SESSION_ID, Locale::Es), "Error");
-        assert_eq!(dialog_title(None, codes::INVALID_SESSION_ID, Locale::Es), "Error AF620010");
-        assert_eq!(dialog_text(codes::INVALID_SESSION_ID, Locale::Es, &[]), "La petición no es válida.");
-        assert!(dialog_text(codes::INVALID_DOMAIN_SSL_CERTIFICATE_ERROR, Locale::Es, &["h.example".into()]).ends_with("h.example"));
+        assert_eq!(
+            dialog_title(Some(ProtocolVersion::V4_1), codes::INVALID_SESSION_ID, Locale::Es),
+            "Error"
+        );
+        assert_eq!(
+            dialog_title(None, codes::INVALID_SESSION_ID, Locale::Es),
+            "Error AF620010"
+        );
+        assert_eq!(
+            dialog_text(codes::INVALID_SESSION_ID, Locale::Es, &[]),
+            "La petición no es válida."
+        );
+        assert!(
+            dialog_text(
+                codes::INVALID_DOMAIN_SSL_CERTIFICATE_ERROR,
+                Locale::Es,
+                &["h.example".into()]
+            )
+            .ends_with("h.example")
+        );
         // 2xxxxx sin texto propio → "Error" genérico (fallo reproducido de Java).
-        assert_eq!(dialog_text(codes::UNKNOWN_SIGNING_ERROR, Locale::Es, &[]), "Se ha encontrado un error durante la operaci&oacute;n.");
+        assert_eq!(
+            dialog_text(codes::UNKNOWN_SIGNING_ERROR, Locale::Es, &[]),
+            "Se ha encontrado un error durante la operaci&oacute;n."
+        );
         assert!(dialog_text(codes::SOCKET_INITIALIZING_ERROR, Locale::Es, &[]).starts_with("Autofirma no ha podido"));
     }
 }

@@ -46,12 +46,30 @@ impl OperationKind {
     /// (E/S genérica, tiempo de espera).
     pub fn retrieve_errors(self) -> (ErrorCode, ErrorCode) {
         match self {
-            OperationKind::Sign => (codes::RECIVING_DATA_OF_SIGN_OPERATION, codes::RECIVING_DATA_OF_SIGN_TIMEOUT),
-            OperationKind::SelectCert => (codes::RECIVING_DATA_OF_CERT_OPERATION, codes::RECIVING_DATA_OF_CERT_TIMEOUT),
-            OperationKind::Batch => (codes::RECIVING_DATA_OF_BATCH_OPERATION, codes::RECIVING_DATA_OF_BATCH_TIMEOUT),
-            OperationKind::Save => (codes::RECIVING_DATA_OF_SAVE_OPERATION, codes::RECIVING_DATA_OF_SAVE_TIMEOUT),
-            OperationKind::Load => (codes::RECIVING_DATA_OF_LOAD_OPERATION, codes::RECIVING_DATA_OF_LOAD_TIMEOUT),
-            OperationKind::SignAndSave => (codes::RECIVING_DATA_OF_SIGN_AND_SAVE_OPERATION, codes::RECIVING_DATA_OF_SIGN_AND_SAVE_TIMEOUT),
+            OperationKind::Sign => (
+                codes::RECIVING_DATA_OF_SIGN_OPERATION,
+                codes::RECIVING_DATA_OF_SIGN_TIMEOUT,
+            ),
+            OperationKind::SelectCert => (
+                codes::RECIVING_DATA_OF_CERT_OPERATION,
+                codes::RECIVING_DATA_OF_CERT_TIMEOUT,
+            ),
+            OperationKind::Batch => (
+                codes::RECIVING_DATA_OF_BATCH_OPERATION,
+                codes::RECIVING_DATA_OF_BATCH_TIMEOUT,
+            ),
+            OperationKind::Save => (
+                codes::RECIVING_DATA_OF_SAVE_OPERATION,
+                codes::RECIVING_DATA_OF_SAVE_TIMEOUT,
+            ),
+            OperationKind::Load => (
+                codes::RECIVING_DATA_OF_LOAD_OPERATION,
+                codes::RECIVING_DATA_OF_LOAD_TIMEOUT,
+            ),
+            OperationKind::SignAndSave => (
+                codes::RECIVING_DATA_OF_SIGN_AND_SAVE_OPERATION,
+                codes::RECIVING_DATA_OF_SIGN_AND_SAVE_TIMEOUT,
+            ),
         }
     }
 
@@ -151,7 +169,10 @@ pub const KEYSTORE_NAMES: &[(&str, &str)] = &[
     ("JCEKS", "Java Cryptography Extension KeyStore (JCEKS)"),
     ("JAVACE", "Java KeyStore / JKS (Case Exact)"),
     ("TEMD", "TEMD (Tarjeta del Ministerio de Defensa)"),
-    ("WINADDRESSBOOK", "Windows / Internet Explorer (otras personas / libreta de direcciones)"),
+    (
+        "WINADDRESSBOOK",
+        "Windows / Internet Explorer (otras personas / libreta de direcciones)",
+    ),
     ("WINCA", "Windows / Internet Explorer (CA intermedias)"),
     ("CERES", "Tarjeta FNMT-RCM CERES"),
     ("DNIEJAVA", "DNIe y tarjetas FNMT-TIF"),
@@ -326,8 +347,18 @@ pub enum UrlError {
 /// `localhost` y `127.0.0.1` exactos; aquí se bloquea cualquier variante de
 /// bucle local (desviación de seguridad documentada).
 pub fn is_loopback_host(host: &str) -> bool {
-    let h = host.trim_start_matches('[').trim_end_matches(']').trim_end_matches('.').to_ascii_lowercase();
-    if h == "localhost" || h.ends_with(".localhost") || h == "0.0.0.0" || h == "::" || h == "::1" || h == "0:0:0:0:0:0:0:1" {
+    let h = host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    if h == "localhost"
+        || h.ends_with(".localhost")
+        || h == "0.0.0.0"
+        || h == "::"
+        || h == "::1"
+        || h == "0:0:0:0:0:0:0:1"
+    {
         return true;
     }
     if let Ok(ip) = h.parse::<std::net::IpAddr>() {
@@ -345,12 +376,22 @@ pub fn is_loopback_host(host: &str) -> bool {
 /// rechaza los hosts locales y las URL con `?` o `=`. Devuelve la URL
 /// decodificada.
 pub fn validate_url(value: &str) -> Result<String, UrlError> {
-    let decoded = url_decode(value).map_err(|e| UrlError::Invalid(format!("La URL proporcionada para el servlet no es valida ({value}): {e}")))?;
-    let invalid = |m: &str| UrlError::Invalid(format!("La URL proporcionada para el servlet no es valida ({value}): {m}"));
+    let decoded = url_decode(value).map_err(|e| {
+        UrlError::Invalid(format!(
+            "La URL proporcionada para el servlet no es valida ({value}): {e}"
+        ))
+    })?;
+    let invalid = |m: &str| {
+        UrlError::Invalid(format!(
+            "La URL proporcionada para el servlet no es valida ({value}): {m}"
+        ))
+    };
     let colon = decoded.find(':').ok_or_else(|| invalid("no protocol"))?;
     let scheme = &decoded[..colon];
     if !scheme.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
-        || !scheme.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+        || !scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
     {
         return Err(invalid("no protocol"));
     }
@@ -359,7 +400,9 @@ pub fn validate_url(value: &str) -> Result<String, UrlError> {
         return Err(invalid(&format!("unknown protocol: {scheme}")));
     }
     if scheme != "http" && scheme != "https" {
-        return Err(UrlError::Invalid(format!("El protocolo de la URL proporcionada para el servlet no esta soportado: {scheme}")));
+        return Err(UrlError::Invalid(format!(
+            "El protocolo de la URL proporcionada para el servlet no esta soportado: {scheme}"
+        )));
     }
     if !decoded[colon..].starts_with("://") {
         return Err(invalid("falta la autoridad"));
@@ -372,7 +415,9 @@ pub fn validate_url(value: &str) -> Result<String, UrlError> {
         return Err(UrlError::Local);
     }
     if decoded.contains('?') || decoded.contains('=') {
-        return Err(UrlError::Invalid("Se han encontrado parametros en la URL del servlet".into()));
+        return Err(UrlError::Invalid(
+            "Se han encontrado parametros en la URL del servlet".into(),
+        ));
     }
     Ok(decoded)
 }
@@ -380,27 +425,45 @@ pub fn validate_url(value: &str) -> Result<String, UrlError> {
 /// Comprueba un identificador de operación: como mucho 20 caracteres
 /// (UTF-16) y, en minúsculas, solo `a-z0-9`.
 pub fn is_valid_operation_id(id: &str) -> bool {
-    id.encode_utf16().count() <= MAX_ID_LENGTH && id.chars().flat_map(char::to_lowercase).all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+    id.encode_utf16().count() <= MAX_ID_LENGTH
+        && id
+            .chars()
+            .flat_map(char::to_lowercase)
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
 /// Clave DES válida (`verifyDESCipherKey`): `None` si falta o está vacía.
 fn verify_des_key(p: &Params) -> Result<Option<String>, ParseFailure> {
-    let Some(key) = p.get_base64("key").map_err(|e| unexpected_escape(e, OperationKind::Sign))? else { return Ok(None) };
+    let Some(key) = p
+        .get_base64("key")
+        .map_err(|e| unexpected_escape(e, OperationKind::Sign))?
+    else {
+        return Ok(None);
+    };
     if key.is_empty() {
         return Ok(None);
     }
     if key.encode_utf16().count() != 8 {
-        return Err(param_err(codes::UNSUPPORTED_CIPHER_KEY, "La longitud de la clave de cifrado no es correcta"));
+        return Err(param_err(
+            codes::UNSUPPORTED_CIPHER_KEY,
+            "La longitud de la clave de cifrado no es correcta",
+        ));
     }
     Ok(Some(key))
 }
 
 fn param_err(code: ErrorCode, msg: impl Into<String>) -> ParseFailure {
-    ParseFailure { error: ProtocolError::parameter(code, msg), reply: None }
+    ParseFailure {
+        error: ProtocolError::parameter(code, msg),
+        reply: None,
+    }
 }
 
 fn unexpected_escape(e: MalformedEscape, kind: OperationKind) -> ParseFailure {
-    ParseFailure { error: ProtocolError::unexpected(kind.generic_error(), e.to_string()), reply: None }
+    ParseFailure {
+        error: ProtocolError::unexpected(kind.generic_error(), e.to_string()),
+        reply: None,
+    }
 }
 
 /// Lector de parámetros con el código genérico de la operación para los
@@ -434,7 +497,9 @@ pub fn download_data(dat: &str, gzip: bool, http: &HttpClient) -> Result<Vec<u8>
         let compressed = jbase64::decode_normalized(dat).map_err(|e| e.to_string())?;
         let mut out = Vec::new();
         use std::io::Read;
-        flate2::read::GzDecoder::new(&compressed[..]).read_to_end(&mut out).map_err(|e| e.to_string())?;
+        flate2::read::GzDecoder::new(&compressed[..])
+            .read_to_end(&mut out)
+            .map_err(|e| e.to_string())?;
         return Ok(out);
     }
     let s = crate::triphase::data::java_trim(dat);
@@ -448,9 +513,10 @@ pub fn download_data(dat: &str, gzip: bool, http: &HttpClient) -> Result<Vec<u8>
         return Err("No se soporta la descarga de datos por FTP".into());
     }
     if jbase64::is_base64(s)
-        && let Ok(v) = jbase64::decode_normalized(s) {
-            return Ok(v);
-        }
+        && let Ok(v) = jbase64::decode_normalized(s)
+    {
+        return Ok(v);
+    }
     Ok(s.as_bytes().to_vec())
 }
 
@@ -460,7 +526,9 @@ fn keystore_param(r: &Reader<'_>) -> Result<Option<KeyStoreParam>, ParseFailure>
     } else if let Some(b) = r.get_b64("ksb64")? {
         // Java usa el decodificador estándar sin normalizar, por lo que un
         // valor URL-safe con '-' o '_' se descartaba; aquí se normaliza.
-        jbase64::decode_normalized(&b).ok().map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+        jbase64::decode_normalized(&b)
+            .ok()
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
     } else {
         None
     };
@@ -468,10 +536,16 @@ fn keystore_param(r: &Reader<'_>) -> Result<Option<KeyStoreParam>, ParseFailure>
     let (name, library) = match v.find(':') {
         None => (Some(v.clone()), None),
         Some(i) => {
-            let name = if v.chars().count() > 1 { Some(v[..i].trim().to_string()) } else { None };
+            let name = if v.chars().count() > 1 {
+                Some(v[..i].trim().to_string())
+            } else {
+                None
+            };
             let lib = if i < v.len() - 1 {
                 let cleaned = v[i + 1..].trim().replace(['"', '\''], "");
-                std::path::absolute(&cleaned).ok().map(|p| p.to_string_lossy().into_owned())
+                std::path::absolute(&cleaned)
+                    .ok()
+                    .map(|p| p.to_string_lossy().into_owned())
             } else {
                 None
             };
@@ -493,7 +567,10 @@ fn extra_params(r: &Reader<'_>) -> Result<ExtraParams, ParseFailure> {
 
 /// `setCommonParameters`.
 fn parse_common(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<CommonParams, ParseFailure> {
-    let mut c = CommonParams { requested_version: "0".into(), ..Default::default() };
+    let mut c = CommonParams {
+        requested_version: "0".into(),
+        ..Default::default()
+    };
     if let Some(cipher) = r.get_b64("cipher")? {
         let decoded = match jbase64::decode_normalized(&cipher) {
             Ok(v) => v,
@@ -503,18 +580,25 @@ fn parse_common(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<CommonParams, 
                     reply: None,
                 });
             }
-            Err(_) => return Err(param_err(codes::UNSUPPORTED_CIPHER_KEY, "El JSON para la clave de cifrado no esta formado correctamente")),
+            Err(_) => {
+                return Err(param_err(
+                    codes::UNSUPPORTED_CIPHER_KEY,
+                    "El JSON para la clave de cifrado no esta formado correctamente",
+                ));
+            }
         };
         let mut config = decoded;
         if r.contains("key")
-            && let Some(des) = verify_des_key(r.p)? {
-                config = crate::cipher::add_legacy_des(&config, &des);
-            }
+            && let Some(des) = verify_des_key(r.p)?
+        {
+            config = crate::cipher::add_legacy_des(&config, &des);
+        }
         c.cipher_config = Some(config);
     } else if r.contains("key")
-        && let Some(des) = verify_des_key(r.p)? {
-            c.cipher_config = Some(crate::cipher::des_config(&des));
-        }
+        && let Some(des) = verify_des_key(r.p)?
+    {
+        c.cipher_config = Some(crate::cipher::des_config(&des));
+    }
     c.active_waiting = r.bool("aw")?;
     c.min_client_version = r.get("mcv")?;
     if let Some(t) = r.get("servicetimeout")? {
@@ -539,33 +623,49 @@ fn parse_common(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<CommonParams, 
                 ));
             };
             c.retrieve_servlet = Some(validate_url(&rt).map_err(|e| match e {
-                UrlError::Local => param_err(codes::LOCAL_RETRIEVE_URL, "La URL del servicio de recuperacion de datos no puede ser local"),
-                UrlError::Invalid(m) => {
-                    param_err(codes::INVALID_RETRIEVE_URL_TO_SIGN, format!("Error al validar la URL del servlet de recuperacion: {m}"))
-                }
+                UrlError::Local => param_err(
+                    codes::LOCAL_RETRIEVE_URL,
+                    "La URL del servicio de recuperacion de datos no puede ser local",
+                ),
+                UrlError::Invalid(m) => param_err(
+                    codes::INVALID_RETRIEVE_URL_TO_SIGN,
+                    format!("Error al validar la URL del servlet de recuperacion: {m}"),
+                ),
             })?);
         }
     } else {
-        let dat = r.p.get_data("dat").map_err(|e| unexpected_escape(e, r.kind))?.unwrap_or_default();
+        let dat =
+            r.p.get_data("dat")
+                .map_err(|e| unexpected_escape(e, r.kind))?
+                .unwrap_or_default();
         // Java solo comprobaba el prefijo exacto antes de recortar, de modo
         // que " file:/..." acababa leyendo el fichero local. Aquí se rechaza
         // cualquier variante (desviación de seguridad documentada).
         let trimmed = crate::triphase::data::java_trim(&dat);
         if dat.starts_with("file:/") || trimmed.get(..5).is_some_and(|p| p.eq_ignore_ascii_case("file:")) {
-            return Err(param_err(codes::RETRIEVE_URL_TO_SIGN_CANT_BE_LOCAL, format!("No se permite la lectura de ficheros locales: {dat}")));
+            return Err(param_err(
+                codes::RETRIEVE_URL_TO_SIGN_CANT_BE_LOCAL,
+                format!("No se permite la lectura de ficheros locales: {dat}"),
+            ));
         }
         let gzip = r.bool("gzip")?;
-        c.data = Some(
-            download_data(&dat, gzip, ctx.http)
-                .map_err(|e| param_err(codes::LOADING_LOCAL_FILE_ERROR, format!("No se han podido obtener los datos: {e}")))?,
-        );
+        c.data = Some(download_data(&dat, gzip, ctx.http).map_err(|e| {
+            param_err(
+                codes::LOADING_LOCAL_FILE_ERROR,
+                format!("No se han podido obtener los datos: {e}"),
+            )
+        })?);
     }
     Ok(c)
 }
 
 /// Valida `id` (o `fileid`) con el código de la operación.
 fn parse_id(r: &Reader<'_>, c: &mut CommonParams, code: ErrorCode) -> Result<(), ParseFailure> {
-    let id = if r.contains("id") { r.get("id")? } else { r.get("fileid")? };
+    let id = if r.contains("id") {
+        r.get("id")?
+    } else {
+        r.get("fileid")?
+    };
     if let Some(id) = id {
         if !is_valid_operation_id(&id) {
             return Err(param_err(code, "El identificador de la operacion no es valido"));
@@ -583,10 +683,14 @@ fn parse_storage(r: &Reader<'_>, c: &mut CommonParams, ctx: &ParseContext<'_>) -
     }
     if let Some(st) = r.get("stservlet")? {
         let url = validate_url(&st).map_err(|e| match e {
-            UrlError::Local => param_err(codes::LOCAL_STORAGE_URL_TO_SIGN_BATCH, "La URL del servicio de guardado no puede ser local"),
-            UrlError::Invalid(m) => {
-                param_err(codes::INVALID_STORAGE_URL_TO_SIGN_BATCH, format!("Error al validar la URL del servicio de guardado: {m}"))
-            }
+            UrlError::Local => param_err(
+                codes::LOCAL_STORAGE_URL_TO_SIGN_BATCH,
+                "La URL del servicio de guardado no puede ser local",
+            ),
+            UrlError::Invalid(m) => param_err(
+                codes::INVALID_STORAGE_URL_TO_SIGN_BATCH,
+                format!("Error al validar la URL del servicio de guardado: {m}"),
+            ),
         })?;
         c.storage_servlet = Some(url);
     } else if r.contains("id") {
@@ -599,17 +703,55 @@ fn parse_storage(r: &Reader<'_>, c: &mut CommonParams, ctx: &ParseContext<'_>) -
 }
 
 fn reply_of(c: &CommonParams) -> Option<ReplyChannel> {
-    Some(ReplyChannel { id: c.id.clone()?, storage_servlet: c.storage_servlet.clone()? })
+    Some(ReplyChannel {
+        id: c.id.clone()?,
+        storage_servlet: c.storage_servlet.clone()?,
+    })
 }
 
 const SIGN_ALGORITHMS: &[&str] = &[
-    "SHA1", "SHA256", "SHA384", "SHA512", "SHA1withRSA", "SHA256withRSA", "SHA384withRSA", "SHA512withRSA", "SHA1withECDSA",
-    "SHA256withECDSA", "SHA384withECDSA", "SHA512withECDSA",
+    "SHA1",
+    "SHA256",
+    "SHA384",
+    "SHA512",
+    "SHA1withRSA",
+    "SHA256withRSA",
+    "SHA384withRSA",
+    "SHA512withRSA",
+    "SHA1withECDSA",
+    "SHA256withECDSA",
+    "SHA384withECDSA",
+    "SHA512withECDSA",
 ];
-const SIGN_AND_SAVE_ALGORITHMS: &[&str] = &["SHA1", "SHA256", "SHA384", "SHA512", "SHA1withRSA", "SHA256withRSA", "SHA384withRSA", "SHA512withRSA"];
+const SIGN_AND_SAVE_ALGORITHMS: &[&str] = &[
+    "SHA1",
+    "SHA256",
+    "SHA384",
+    "SHA512",
+    "SHA1withRSA",
+    "SHA256withRSA",
+    "SHA384withRSA",
+    "SHA512withRSA",
+];
 const SIGN_KNOWN_PARAMS: &[&str] = &[
-    "format", "algorithm", "id", "ver", "sticky", "resetsticky", "properties", "dat", "gzip", "rtservlet", "stservlet", "key", "fileid",
-    "keystore", "ksb64", "aw", "mcv", "appname",
+    "format",
+    "algorithm",
+    "id",
+    "ver",
+    "sticky",
+    "resetsticky",
+    "properties",
+    "dat",
+    "gzip",
+    "rtservlet",
+    "stservlet",
+    "key",
+    "fileid",
+    "keystore",
+    "ksb64",
+    "aw",
+    "mcv",
+    "appname",
 ];
 const INVALID_FILENAME_CHARS: &str = "\\/:*?\"<>|";
 
@@ -625,7 +767,9 @@ fn parse_sign(r: &Reader<'_>, ctx: &ParseContext<'_>, and_save: bool) -> Result<
             None => None,
         }
     };
-    let operation = r.get(if and_save { "cop" } else { "op" })?.and_then(|o| CryptoOperation::parse(&o));
+    let operation = r
+        .get(if and_save { "cop" } else { "op" })?
+        .and_then(|o| CryptoOperation::parse(&o));
     let mut sp = SignParams {
         common,
         operation,
@@ -644,12 +788,32 @@ fn parse_sign(r: &Reader<'_>, ctx: &ParseContext<'_>, and_save: bool) -> Result<
     }
     parse_storage(r, &mut sp.common, ctx)?;
     let reply = reply_of(&sp.common);
-    let fail = |code: ErrorCode, msg: &str| ParseFailure { error: ProtocolError::parameter(code, msg), reply: reply.clone() };
-    sp.format = r.get("format")?.ok_or_else(|| fail(codes::SIGNATURE_FORMAT_NOT_FOUND, "No se ha recibido el formato de firma"))?;
-    let algo = r.get("algorithm")?.ok_or_else(|| fail(codes::SIGNATURE_ALGORITHM_NOT_FOUND, "No se ha recibido el algoritmo de firma"))?;
-    let allowed = if and_save { SIGN_AND_SAVE_ALGORITHMS } else { SIGN_ALGORITHMS };
+    let fail = |code: ErrorCode, msg: &str| ParseFailure {
+        error: ProtocolError::parameter(code, msg),
+        reply: reply.clone(),
+    };
+    sp.format = r.get("format")?.ok_or_else(|| {
+        fail(
+            codes::SIGNATURE_FORMAT_NOT_FOUND,
+            "No se ha recibido el formato de firma",
+        )
+    })?;
+    let algo = r.get("algorithm")?.ok_or_else(|| {
+        fail(
+            codes::SIGNATURE_ALGORITHM_NOT_FOUND,
+            "No se ha recibido el algoritmo de firma",
+        )
+    })?;
+    let allowed = if and_save {
+        SIGN_AND_SAVE_ALGORITHMS
+    } else {
+        SIGN_ALGORITHMS
+    };
     if !allowed.contains(&algo.as_str()) {
-        return Err(fail(codes::UNSUPPORTED_SIGNATURE_ALGORITHM, &format!("Algoritmo de firma no soportado: {algo}")));
+        return Err(fail(
+            codes::UNSUPPORTED_SIGNATURE_ALGORITHM,
+            &format!("Algoritmo de firma no soportado: {algo}"),
+        ));
     }
     sp.algorithm = algo;
     sp.extra_params = extra_params(r)?;
@@ -659,16 +823,20 @@ fn parse_sign(r: &Reader<'_>, ctx: &ParseContext<'_>, and_save: bool) -> Result<
     if and_save {
         if let Some(f) = r.get("filename")? {
             if let Some(c) = f.chars().find(|c| INVALID_FILENAME_CHARS.contains(*c)) {
-                return Err(fail(codes::FILENAME_TO_SAVE_NOT_FOUND, &format!("Se ha indicado un nombre de fichero con el caracter invalido: {c}")));
+                return Err(fail(
+                    codes::FILENAME_TO_SAVE_NOT_FOUND,
+                    &format!("Se ha indicado un nombre de fichero con el caracter invalido: {c}"),
+                ));
             }
             sp.filename = Some(f);
         }
     } else {
         for k in r.p.keys() {
             if !SIGN_KNOWN_PARAMS.contains(&k)
-                && let Ok(Some(v)) = r.p.get(k) {
-                    sp.other_params.insert(k.to_string(), v);
-                }
+                && let Ok(Some(v)) = r.p.get(k)
+            {
+                sp.other_params.insert(k.to_string(), v);
+            }
         }
     }
     Ok(sp)
@@ -678,7 +846,13 @@ fn parse_select_cert(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<SelectCer
     let mut common = parse_common(r, ctx)?;
     parse_id(r, &mut common, codes::INVALID_SESSION_ID_TO_SELECT_CERT)?;
     common.requested_version = r.get("ver")?.unwrap_or_else(|| "0".into());
-    let mut p = SelectCertParams { common, extra_params: ExtraParams::new(), sticky: false, reset_sticky: false, keystore: None };
+    let mut p = SelectCertParams {
+        common,
+        extra_params: ExtraParams::new(),
+        sticky: false,
+        reset_sticky: false,
+        keystore: None,
+    };
     if p.common.file_id.is_some() {
         return Ok(p);
     }
@@ -716,15 +890,37 @@ fn parse_batch(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<BatchParams, Pa
     }
     p.local_batch_process = r.bool("localBatchProcess")?;
     if !p.local_batch_process {
-        let post = r.get("batchpostsignerurl")?.ok_or_else(|| param_err(codes::POSTSIGN_BATCH_URL_NOT_FOUND, "No se ha recibido la URL del postprocesador de lotes"))?;
-        let pre = r.get("batchpresignerurl")?.ok_or_else(|| param_err(codes::PRESIGN_BATCH_URL_NOT_FOUND, "No se ha recibido la URL del preprocesador de lotes"))?;
+        let post = r.get("batchpostsignerurl")?.ok_or_else(|| {
+            param_err(
+                codes::POSTSIGN_BATCH_URL_NOT_FOUND,
+                "No se ha recibido la URL del postprocesador de lotes",
+            )
+        })?;
+        let pre = r.get("batchpresignerurl")?.ok_or_else(|| {
+            param_err(
+                codes::PRESIGN_BATCH_URL_NOT_FOUND,
+                "No se ha recibido la URL del preprocesador de lotes",
+            )
+        })?;
         p.postsigner_url = Some(validate_url(&post).map_err(|e| match e {
-            UrlError::Local => param_err(codes::LOCAL_POSTSIGN_BATCH_URL, "La URL del servicio de postfirma de lote no puede ser local"),
-            UrlError::Invalid(m) => param_err(codes::INVALID_POSTSIGN_BATCH_URL, format!("Error al validar la URL de postfirma de lote: {m}")),
+            UrlError::Local => param_err(
+                codes::LOCAL_POSTSIGN_BATCH_URL,
+                "La URL del servicio de postfirma de lote no puede ser local",
+            ),
+            UrlError::Invalid(m) => param_err(
+                codes::INVALID_POSTSIGN_BATCH_URL,
+                format!("Error al validar la URL de postfirma de lote: {m}"),
+            ),
         })?);
         p.presigner_url = Some(validate_url(&pre).map_err(|e| match e {
-            UrlError::Local => param_err(codes::LOCAL_PRESIGN_BATCH_URL, "La URL del servicio de prefirma de lote no puede ser local"),
-            UrlError::Invalid(m) => param_err(codes::INVALID_PRESIGN_BATCH_URL, format!("Error al validar la URL de prefirma de lote: {m}")),
+            UrlError::Local => param_err(
+                codes::LOCAL_PRESIGN_BATCH_URL,
+                "La URL del servicio de prefirma de lote no puede ser local",
+            ),
+            UrlError::Invalid(m) => param_err(
+                codes::INVALID_PRESIGN_BATCH_URL,
+                format!("Error al validar la URL de prefirma de lote: {m}"),
+            ),
         })?);
     }
     parse_storage(r, &mut p.common, ctx)?;
@@ -750,27 +946,40 @@ pub fn default_save_title(locale: Locale) -> &'static str {
 fn parse_save(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<SaveParams, ParseFailure> {
     let mut common = parse_common(r, ctx)?;
     if !r.contains("fileid") && !r.contains("dat") {
-        return Err(param_err(codes::DATA_TO_SAVE_NOT_FOUND, "No se ha proporcionado el identificador de fichero ni los datos a guardar"));
+        return Err(param_err(
+            codes::DATA_TO_SAVE_NOT_FOUND,
+            "No se ha proporcionado el identificador de fichero ni los datos a guardar",
+        ));
     }
     parse_id(r, &mut common, codes::INVALID_SESSION_ID_TO_SAVE)?;
     common.requested_version = r.get("ver")?.unwrap_or_else(|| "0".into());
     parse_storage(r, &mut common, ctx)?;
     let reply = reply_of(&common);
-    let fail = |code: ErrorCode, msg: String| ParseFailure { error: ProtocolError::parameter(code, msg), reply: reply.clone() };
-    let title = r.get("title")?.unwrap_or_else(|| default_save_title(ctx.locale).to_string());
+    let fail = |code: ErrorCode, msg: String| ParseFailure {
+        error: ProtocolError::parameter(code, msg),
+        reply: reply.clone(),
+    };
+    let title = r
+        .get("title")?
+        .unwrap_or_else(|| default_save_title(ctx.locale).to_string());
     let filename = r.get("filename")?;
     if let Some(f) = &filename
-        && let Some(c) = f.chars().find(|c| INVALID_FILENAME_CHARS.contains(*c)) {
-            return Err(fail(codes::FILENAME_TO_SAVE_NOT_FOUND, format!("Se ha indicado un nombre de fichero con el caracter invalido: {c}")));
-        }
+        && let Some(c) = f.chars().find(|c| INVALID_FILENAME_CHARS.contains(*c))
+    {
+        return Err(fail(
+            codes::FILENAME_TO_SAVE_NOT_FOUND,
+            format!("Se ha indicado un nombre de fichero con el caracter invalido: {c}"),
+        ));
+    }
     let extensions = r.get("exts")?;
     if let Some(e) = &extensions
-        && let Some(c) = e.chars().find(|c| "\\/:*?\"<>|; ".contains(*c)) {
-            return Err(fail(
-                codes::FILE_EXTENSION_TO_SAVE_NOT_FOUND,
-                format!("Se ha indicado una lista de extensiones de nombre de fichero con caracteres invalidos: {c}"),
-            ));
-        }
+        && let Some(c) = e.chars().find(|c| "\\/:*?\"<>|; ".contains(*c))
+    {
+        return Err(fail(
+            codes::FILE_EXTENSION_TO_SAVE_NOT_FOUND,
+            format!("Se ha indicado una lista de extensiones de nombre de fichero con caracteres invalidos: {c}"),
+        ));
+    }
     let description = r.get("desc")?.map(|d| match &extensions {
         Some(exts) if !d.ends_with(')') => {
             let mut s = format!("{d} (");
@@ -783,7 +992,13 @@ fn parse_save(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<SaveParams, Pars
         }
         _ => d,
     });
-    Ok(SaveParams { common, title, filename, extensions, description })
+    Ok(SaveParams {
+        common,
+        title,
+        filename,
+        extensions,
+        description,
+    })
 }
 
 fn parse_load(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<LoadParams, ParseFailure> {
@@ -824,7 +1039,10 @@ pub fn reply_channel_hint(params: &Params) -> Option<ReplyChannel> {
         return None;
     }
     let st = validate_url(&params.get("stservlet").ok()??).ok()?;
-    Some(ReplyChannel { id, storage_servlet: st })
+    Some(ReplyChannel {
+        id,
+        storage_servlet: st,
+    })
 }
 
 #[cfg(test)]
@@ -832,12 +1050,22 @@ mod tests {
     use super::*;
     use crate::http::testing::{MockTransport, ok};
     fn http() -> HttpClient {
-        HttpClient::new(MockTransport::new(|r| if r.url.contains("doc") { ok("REMOTO") } else { crate::http::testing::status(404) }))
+        HttpClient::new(MockTransport::new(|r| {
+            if r.url.contains("doc") {
+                ok("REMOTO")
+            } else {
+                crate::http::testing::status(404)
+            }
+        }))
     }
 
     fn parse(url: &str, direct: bool) -> Result<Request, ParseFailure> {
         let h = http();
-        let ctx = ParseContext { services_required: direct, http: &h, locale: Locale::Es };
+        let ctx = ParseContext {
+            services_required: direct,
+            http: &h,
+            locale: Locale::Es,
+        };
         let kind = match dispatch(url) {
             Dispatch::Operation(k) => k,
             other => panic!("{other:?}"),
@@ -853,9 +1081,18 @@ mod tests {
     fn dispatching() {
         assert_eq!(dispatch("afirma://websocket?v=4"), Dispatch::WebSocket);
         assert_eq!(dispatch("afirma://service/?v=4"), Dispatch::Service);
-        assert_eq!(dispatch("afirma://sign?op=sign"), Dispatch::Operation(OperationKind::Sign));
-        assert_eq!(dispatch("afirma://countersign/?op=x"), Dispatch::Operation(OperationKind::Sign));
-        assert_eq!(dispatch("afirma://signandsave?x"), Dispatch::Operation(OperationKind::SignAndSave));
+        assert_eq!(
+            dispatch("afirma://sign?op=sign"),
+            Dispatch::Operation(OperationKind::Sign)
+        );
+        assert_eq!(
+            dispatch("afirma://countersign/?op=x"),
+            Dispatch::Operation(OperationKind::Sign)
+        );
+        assert_eq!(
+            dispatch("afirma://signandsave?x"),
+            Dispatch::Operation(OperationKind::SignAndSave)
+        );
         assert_eq!(dispatch("afirma://SIGN?op=sign"), Dispatch::UnsupportedOperation);
         assert_eq!(dispatch("afirma://sign"), Dispatch::UnsupportedOperation);
         assert_eq!(dispatch("AFIRMA://sign?x"), Dispatch::UnsupportedScheme);
@@ -866,8 +1103,14 @@ mod tests {
 
     #[test]
     fn url_validation() {
-        assert_eq!(validate_url("https://s.gob.es/afirma-signature-storage/StorageService").unwrap(), "https://s.gob.es/afirma-signature-storage/StorageService");
-        assert_eq!(validate_url("https%3A%2F%2Fs.gob.es%2FSt").unwrap(), "https://s.gob.es/St");
+        assert_eq!(
+            validate_url("https://s.gob.es/afirma-signature-storage/StorageService").unwrap(),
+            "https://s.gob.es/afirma-signature-storage/StorageService"
+        );
+        assert_eq!(
+            validate_url("https%3A%2F%2Fs.gob.es%2FSt").unwrap(),
+            "https://s.gob.es/St"
+        );
         assert_eq!(validate_url("http://localhost/x"), Err(UrlError::Local));
         assert_eq!(validate_url("http://127.0.0.1:8080/x"), Err(UrlError::Local));
         assert_eq!(validate_url("http://LOCALHOST/x"), Err(UrlError::Local));
@@ -892,7 +1135,9 @@ mod tests {
     #[test]
     fn sign_param_order_and_codes() {
         let base = "afirma://sign?op=sign&format=CAdES&algorithm=SHA256withRSA&dat=SG9sYQ==";
-        let Request::Sign(p) = parse(base, false).unwrap() else { panic!() };
+        let Request::Sign(p) = parse(base, false).unwrap() else {
+            panic!()
+        };
         assert_eq!(p.common.data.as_deref(), Some(&b"Hola"[..]));
         assert_eq!(p.operation, Some(CryptoOperation::Sign));
         assert_eq!(p.common.requested_version, "0");
@@ -905,28 +1150,73 @@ mod tests {
         assert_eq!(code("afirma://sign?dat=FILE:///etc/passwd", false), 600117);
         assert_eq!(code("afirma://sign?dat=https://h/notfound", false), 200102);
         assert_eq!(code("afirma://sign?fileid=abc", false), 600101);
-        assert_eq!(code("afirma://sign?fileid=abc&rtservlet=http://localhost/r", false), 600010);
+        assert_eq!(
+            code("afirma://sign?fileid=abc&rtservlet=http://localhost/r", false),
+            600010
+        );
         assert_eq!(code("afirma://sign?fileid=abc&rtservlet=nourl", false), 600116);
         assert_eq!(code("afirma://sign?id=no-valido&dat=SG9sYQ==", false), 600120);
         assert_eq!(code("afirma://sign?op=sign&dat=SG9sYQ==", false), 600104);
         assert_eq!(code("afirma://sign?op=sign&format=CAdES&dat=SG9sYQ==", false), 600106);
-        assert_eq!(code("afirma://sign?op=sign&format=CAdES&algorithm=MD5withRSA&dat=SG9sYQ==", false), 600107);
-        assert_eq!(code("afirma://sign?op=sign&format=CAdES&algorithm=sha256withrsa&dat=SG9sYQ==", false), 600107);
+        assert_eq!(
+            code(
+                "afirma://sign?op=sign&format=CAdES&algorithm=MD5withRSA&dat=SG9sYQ==",
+                false
+            ),
+            600107
+        );
+        assert_eq!(
+            code(
+                "afirma://sign?op=sign&format=CAdES&algorithm=sha256withrsa&dat=SG9sYQ==",
+                false
+            ),
+            600107
+        );
         // Directa: stservlet.
-        assert_eq!(code("afirma://sign?id=abc&op=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==", true), 600402);
-        assert_eq!(code("afirma://sign?id=abc&stservlet=http://127.0.0.1/s&op=sign&dat=SG9sYQ==", true), 600412);
-        assert_eq!(code("afirma://sign?id=abc&stservlet=https://h/s?x&op=sign&dat=SG9sYQ==", true), 600411);
+        assert_eq!(
+            code(
+                "afirma://sign?id=abc&op=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==",
+                true
+            ),
+            600402
+        );
+        assert_eq!(
+            code(
+                "afirma://sign?id=abc&stservlet=http://127.0.0.1/s&op=sign&dat=SG9sYQ==",
+                true
+            ),
+            600412
+        );
+        assert_eq!(
+            code(
+                "afirma://sign?id=abc&stservlet=https://h/s?x&op=sign&dat=SG9sYQ==",
+                true
+            ),
+            600411
+        );
         let f = parse("afirma://sign?id=abc&stservlet=https://h/s&op=sign&dat=SG9sYQ==", true).unwrap_err();
         assert_eq!(f.error.code.code, 600104);
-        assert_eq!(f.reply, Some(ReplyChannel { id: "abc".into(), storage_servlet: "https://h/s".into() }));
+        assert_eq!(
+            f.reply,
+            Some(ReplyChannel {
+                id: "abc".into(),
+                storage_servlet: "https://h/s".into()
+            })
+        );
         // Escape mal formado → error genérico de la operación.
         let f = parse("afirma://sign?op=sign&format=%zz", false).unwrap_err();
         assert_eq!(f.error.code.code, 200115);
         // Con fileid se detiene antes de format.
-        let Request::Sign(p) = parse("afirma://sign?fileid=abc&rtservlet=https://h/r&key=12345678", true).unwrap() else { panic!() };
+        let Request::Sign(p) = parse("afirma://sign?fileid=abc&rtservlet=https://h/r&key=12345678", true).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(p.common.file_id.as_deref(), Some("abc"));
         assert_eq!(p.common.id.as_deref(), Some("abc"));
-        assert_eq!(p.common.cipher_config.as_deref(), Some(&b"{algo:\"DES\", key:\"12345678\"}"[..]));
+        assert_eq!(
+            p.common.cipher_config.as_deref(),
+            Some(&b"{algo:\"DES\", key:\"12345678\"}"[..])
+        );
         // URL remota descargada.
         let Request::Sign(p) =
             parse("afirma://sign?op=cosign&format=CAdES&algorithm=SHA256&dat=https://h/doc&properties=bW9kZT1pbXBsaWNpdA==&other=1", false).unwrap()
@@ -942,9 +1232,25 @@ mod tests {
 
     #[test]
     fn signandsave_specifics() {
-        assert_eq!(code("afirma://signandsave?cop=sign&format=CAdES&algorithm=SHA256withECDSA&dat=SG9sYQ==", false), 600107);
-        assert_eq!(code("afirma://signandsave?cop=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==&filename=a/b", false), 600306);
-        let Request::SignAndSave(p) = parse("afirma://signandsave?cop=countersign&op=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==&filename=x.csig", false).unwrap() else {
+        assert_eq!(
+            code(
+                "afirma://signandsave?cop=sign&format=CAdES&algorithm=SHA256withECDSA&dat=SG9sYQ==",
+                false
+            ),
+            600107
+        );
+        assert_eq!(
+            code(
+                "afirma://signandsave?cop=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==&filename=a/b",
+                false
+            ),
+            600306
+        );
+        let Request::SignAndSave(p) = parse(
+            "afirma://signandsave?cop=countersign&op=sign&format=CAdES&algorithm=SHA256&dat=SG9sYQ==&filename=x.csig",
+            false,
+        )
+        .unwrap() else {
             panic!()
         };
         assert_eq!(p.operation, Some(CryptoOperation::CounterSign));
@@ -955,26 +1261,76 @@ mod tests {
     #[test]
     fn selectcert_batch_save_load() {
         assert_eq!(code("afirma://selectcert?id=a_b", false), 600201);
-        let Request::SelectCert(p) = parse("afirma://selectcert?op=selectcert&ksb64=TU9aX1VOSQ==&sticky=TRUE", false).unwrap() else { panic!() };
+        let Request::SelectCert(p) = parse(
+            "afirma://selectcert?op=selectcert&ksb64=TU9aX1VOSQ==&sticky=TRUE",
+            false,
+        )
+        .unwrap() else {
+            panic!()
+        };
         assert!(p.sticky);
-        assert_eq!(p.keystore.as_ref().unwrap().resolved_constant(), Some("MOZ_UNI_WITH_OS"));
+        assert_eq!(
+            p.keystore.as_ref().unwrap().resolved_constant(),
+            Some("MOZ_UNI_WITH_OS")
+        );
         assert_eq!(code("afirma://batch?id=a_b", false), 600410);
         assert_eq!(code("afirma://batch?op=batch&dat=e30=", false), 600406);
-        assert_eq!(code("afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post", false), 600405);
-        assert_eq!(code("afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://localhost/post&batchpresignerurl=x", false), 600416);
-        assert_eq!(code("afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post&batchpresignerurl=http://127.0.0.1/p", false), 600414);
-        assert_eq!(code("afirma://batch?op=batch&dat=e30=&batchpostsignerurl=x&batchpresignerurl=http://127.0.0.1/p", false), 600415);
-        assert_eq!(code("afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post&batchpresignerurl=x", false), 600413);
-        let Request::Batch(p) = parse("afirma://batch?op=batch&dat=e30=&localBatchProcess=true&jsonbatch=true&needcert=true", false).unwrap() else { panic!() };
+        assert_eq!(
+            code(
+                "afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post",
+                false
+            ),
+            600405
+        );
+        assert_eq!(
+            code(
+                "afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://localhost/post&batchpresignerurl=x",
+                false
+            ),
+            600416
+        );
+        assert_eq!(
+            code(
+                "afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post&batchpresignerurl=http://127.0.0.1/p",
+                false
+            ),
+            600414
+        );
+        assert_eq!(
+            code(
+                "afirma://batch?op=batch&dat=e30=&batchpostsignerurl=x&batchpresignerurl=http://127.0.0.1/p",
+                false
+            ),
+            600415
+        );
+        assert_eq!(
+            code(
+                "afirma://batch?op=batch&dat=e30=&batchpostsignerurl=https://h/post&batchpresignerurl=x",
+                false
+            ),
+            600413
+        );
+        let Request::Batch(p) = parse(
+            "afirma://batch?op=batch&dat=e30=&localBatchProcess=true&jsonbatch=true&needcert=true",
+            false,
+        )
+        .unwrap() else {
+            panic!()
+        };
         assert!(p.local_batch_process && p.json_batch && p.need_cert);
         assert_eq!(code("afirma://save?op=save", false), 600300);
         assert_eq!(code("afirma://save?op=save&dat=SG9sYQ==&id=a_b", false), 600303);
         assert_eq!(code("afirma://save?op=save&dat=SG9sYQ==&filename=a:b", false), 600306);
         assert_eq!(code("afirma://save?op=save&dat=SG9sYQ==&exts=p%20df", false), 600307);
-        let Request::Save(p) = parse("afirma://save?op=save&dat=SG9sYQ==&exts=pdf,xml&desc=Docs", false).unwrap() else { panic!() };
+        let Request::Save(p) = parse("afirma://save?op=save&dat=SG9sYQ==&exts=pdf,xml&desc=Docs", false).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(p.title, "Guardar fichero");
         assert_eq!(p.description.as_deref(), Some("Docs (*.pdf*.xml)"));
-        let Request::Load(p) = parse("afirma://load?op=load&multiload=true&exts=pdf&filePath=", false).unwrap() else { panic!() };
+        let Request::Load(p) = parse("afirma://load?op=load&multiload=true&exts=pdf&filePath=", false).unwrap() else {
+            panic!()
+        };
         assert!(p.multiload);
         assert_eq!(p.file_path, None);
     }
@@ -983,7 +1339,11 @@ mod tests {
     fn keystore_params() {
         let ks = |url: &str| {
             let p = Params::from_query(url);
-            keystore_param(&Reader { p: &p, kind: OperationKind::SelectCert }).unwrap()
+            keystore_param(&Reader {
+                p: &p,
+                kind: OperationKind::SelectCert,
+            })
+            .unwrap()
         };
         let k = ks("x?keystore=PKCS11:%22/usr/lib/a.so%22&ksb64=TU9aX1VOSQ==").unwrap();
         assert_eq!(k.name.as_deref(), Some("PKCS11"));
@@ -991,7 +1351,10 @@ mod tests {
         assert_eq!(ks("x?ksb64=bm9iYXNlNjQ").map(|k| k.name), Some(Some("nobase".into())));
         assert_eq!(ks("x?keystore=%3A"), None);
         assert_eq!(ks("x?keystore=windows").unwrap().resolved_constant(), Some("WINDOWS"));
-        assert_eq!(ks("x?keystore=Llavero%20de%20Mac").unwrap().resolved_constant(), Some("APPLE"));
+        assert_eq!(
+            ks("x?keystore=Llavero%20de%20Mac").unwrap().resolved_constant(),
+            Some("APPLE")
+        );
         assert_eq!(ks("x?keystore=moz_uni").unwrap().resolved_constant(), None);
     }
 

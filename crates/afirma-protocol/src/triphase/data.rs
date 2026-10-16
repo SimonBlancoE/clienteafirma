@@ -26,7 +26,11 @@ pub struct TriSign {
 
 impl TriSign {
     pub fn new(id: Option<String>, signid: Option<String>) -> Self {
-        TriSign { id, signid, params: Vec::new() }
+        TriSign {
+            id,
+            signid,
+            params: Vec::new(),
+        }
     }
 
     pub fn get(&self, key: &str) -> Option<&str> {
@@ -56,7 +60,10 @@ impl TriSign {
     /// Parámetros en el orden de iteración de `ConcurrentHashMap` de Java.
     pub fn params_java_order(&self) -> Vec<(&str, &str)> {
         let keys: Vec<&str> = self.params.iter().map(|(k, _)| k.as_str()).collect();
-        java_hash_order(&keys).into_iter().map(|i| (self.params[i].0.as_str(), self.params[i].1.as_str())).collect()
+        java_hash_order(&keys)
+            .into_iter()
+            .map(|i| (self.params[i].0.as_str(), self.params[i].1.as_str()))
+            .collect()
     }
 }
 
@@ -73,7 +80,11 @@ pub struct TriphaseData {
 pub struct TriphaseParseError(pub String);
 
 fn element_children(doc: &Document, id: NodeId) -> Vec<NodeId> {
-    doc.children(id).iter().copied().filter(|c| matches!(doc.kind(*c), NodeKind::Element(_))).collect()
+    doc.children(id)
+        .iter()
+        .copied()
+        .filter(|c| matches!(doc.kind(*c), NodeKind::Element(_)))
+        .collect()
 }
 
 /// `String.trim()` de Java (elimina los caracteres <= U+0020 de los extremos).
@@ -84,11 +95,16 @@ pub(crate) fn java_trim(s: &str) -> &str {
 impl TriphaseData {
     /// Analiza el XML de sesión (`TriphaseData.parser`).
     pub fn parse_xml(xml: &[u8]) -> Result<TriphaseData, TriphaseParseError> {
-        let (doc, _) = Document::parse_bytes(xml).map_err(|e| TriphaseParseError(format!("Error al cargar el fichero XML: {e}")))?;
+        let (doc, _) = Document::parse_bytes(xml)
+            .map_err(|e| TriphaseParseError(format!("Error al cargar el fichero XML: {e}")))?;
         if doc.doctype.is_some() {
-            return Err(TriphaseParseError("Error al cargar el fichero XML: DOCTYPE no permitido".into()));
+            return Err(TriphaseParseError(
+                "Error al cargar el fichero XML: DOCTYPE no permitido".into(),
+            ));
         }
-        let root = doc.document_element().ok_or_else(|| TriphaseParseError("XML sin elemento raíz".into()))?;
+        let root = doc
+            .document_element()
+            .ok_or_else(|| TriphaseParseError("XML sin elemento raíz".into()))?;
         let not_found = || TriphaseParseError("No se encontro el nodo 'firmas' en el XML proporcionado".into());
         let firmas = *element_children(&doc, root).first().ok_or_else(not_found)?;
         let firmas_el = doc.element(firmas).ok_or_else(not_found)?;
@@ -203,7 +219,10 @@ impl TriphaseData {
     /// añade `PK1` y elimina `PRE` salvo que `NEED_PRE` sea `true`.
     pub fn sign_all(&mut self, key: &dyn SigningKey, algorithm: &str) -> Result<(), AfirmaError> {
         if self.signs.is_empty() {
-            return Err(AfirmaError::new(codes::PRESIGNS_NOT_FOUND, "No se han recibido prefirmas que firmar"));
+            return Err(AfirmaError::new(
+                codes::PRESIGNS_NOT_FOUND,
+                "No se han recibido prefirmas que firmar",
+            ));
         }
         for (i, s) in self.signs.iter_mut().enumerate() {
             let pk1 = sign_pre(s, i, key, algorithm)?;
@@ -230,11 +249,18 @@ impl TriphaseData {
 }
 
 fn sign_pre(s: &TriSign, i: usize, key: &dyn SigningKey, algorithm: &str) -> Result<String, AfirmaError> {
-    let pre = s
-        .get(PARAM_PRE)
-        .ok_or_else(|| AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, format!("El servidor no ha devuelto la prefirma numero {i}")))?;
-    let pre = jbase64::decode(pre)
-        .map_err(|e| AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, format!("Error decodificando la prefirma: {e}")))?;
+    let pre = s.get(PARAM_PRE).ok_or_else(|| {
+        AfirmaError::new(
+            codes::MALFORMED_PRESIGN_RESPONSE,
+            format!("El servidor no ha devuelto la prefirma numero {i}"),
+        )
+    })?;
+    let pre = jbase64::decode(pre).map_err(|e| {
+        AfirmaError::new(
+            codes::MALFORMED_PRESIGN_RESPONSE,
+            format!("Error decodificando la prefirma: {e}"),
+        )
+    })?;
     let sig = crate::pkcs1::sign(key, algorithm, &pre)?;
     Ok(jbase64::encode(&sig))
 }
@@ -260,7 +286,10 @@ mod tests {
             td.to_xml(),
             "<xml>\n <firmas>\n  <firma Id=\"a1\">\n   <param n=\"PRE\">AAEC</param>\n   <param n=\"NEED_PRE\">true</param>\n  </firma>\n </firmas>\n</xml>"
         );
-        let td = TriphaseData::parse_xml(b"<r><!--c--><FIRMAS format=\"XAdES\"><x signid=\"s\"><p n=\"k\">v</p></x></FIRMAS></r>").unwrap();
+        let td = TriphaseData::parse_xml(
+            b"<r><!--c--><FIRMAS format=\"XAdES\"><x signid=\"s\"><p n=\"k\">v</p></x></FIRMAS></r>",
+        )
+        .unwrap();
         assert_eq!(td.format.as_deref(), Some("XAdES"));
         assert_eq!(td.signs[0].signid.as_deref(), Some("s"));
         // Sin Id: UUID.

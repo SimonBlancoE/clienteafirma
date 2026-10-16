@@ -42,7 +42,11 @@ impl Os {
         if os_name.contains("indows") {
             Os::Windows
         } else if os_name.contains("inux") {
-            if java_vm_name == Some("Dalvik") { Os::Android } else { Os::Linux }
+            if java_vm_name == Some("Dalvik") {
+                Os::Android
+            } else {
+                Os::Linux
+            }
         } else if os_name.contains("SunOS") || os_name.contains("olaris") {
             Os::Solaris
         } else if os_name.starts_with("Mac OS X") {
@@ -160,7 +164,11 @@ pub fn user_home() -> PathBuf {
 fn strip_trailing_separator(p: PathBuf) -> PathBuf {
     let s = p.to_string_lossy();
     let trimmed = s.trim_end_matches(['/', '\\']);
-    if trimmed.is_empty() || trimmed.len() == s.len() || trimmed.ends_with(':') { p } else { PathBuf::from(trimmed) }
+    if trimmed.is_empty() || trimmed.len() == s.len() || trimmed.ends_with(':') {
+        p
+    } else {
+        PathBuf::from(trimmed)
+    }
 }
 
 /// Directorio temporal (`java.io.tmpdir`).
@@ -212,7 +220,11 @@ pub fn system_lib_dir() -> PathBuf {
         return root.join("System32");
     }
     let canonical = PathBuf::from(format!("/usr/lib{}", java_arch()));
-    if canonical.exists() { canonical } else { PathBuf::from("/usr/lib") }
+    if canonical.exists() {
+        canonical
+    } else {
+        PathBuf::from("/usr/lib")
+    }
 }
 
 #[cfg(test)]
@@ -231,9 +243,15 @@ mod tests {
         assert_eq!(Machine::from_java_os_arch("arm64e"), Machine::Arm64);
         assert_eq!(Machine::from_java_os_arch("i386"), Machine::Other);
         assert_eq!(Machine::from_java_os_arch("x86"), Machine::X86);
-        assert_eq!(browser(Some("Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537")), Browser::Chrome);
+        assert_eq!(
+            browser(Some("Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537")),
+            Browser::Chrome
+        );
         assert_eq!(browser(Some("Mozilla/5.0 Firefox/120")), Browser::Firefox);
-        assert_eq!(browser(Some("Mozilla/4.0 (compatible; MSIE 8.0)")), Browser::InternetExplorer);
+        assert_eq!(
+            browser(Some("Mozilla/4.0 (compatible; MSIE 8.0)")),
+            Browser::InternetExplorer
+        );
         assert_eq!(browser(None), Browser::Other);
         assert!(is_unix_system(Os::MacOsX));
         assert!(!is_unix_system(Os::Windows));
@@ -250,7 +268,10 @@ mod tests {
             assert_eq!(system_root(), PathBuf::from("/"));
             assert!(system_lib_dir().to_string_lossy().starts_with("/usr/lib"));
         }
-        assert_eq!(strip_trailing_separator(PathBuf::from("/home/u/")), PathBuf::from("/home/u"));
+        assert_eq!(
+            strip_trailing_separator(PathBuf::from("/home/u/")),
+            PathBuf::from("/home/u")
+        );
         assert_eq!(strip_trailing_separator(PathBuf::from("/")), PathBuf::from("/"));
         assert!(java_arch() == "64" || java_arch() == "32");
         let _ = machine();

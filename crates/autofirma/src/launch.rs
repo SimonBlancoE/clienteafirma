@@ -60,7 +60,9 @@ impl GuiStart {
 ///   (mejora: asociación de ficheros y "Abrir con" en Linux y macOS).
 /// - Cualquier otra cosa: línea de comandos.
 pub fn classify(args: &[String]) -> Launch {
-    let Some(first) = args.first() else { return Launch::Gui(GuiStart::default()) };
+    let Some(first) = args.first() else {
+        return Launch::Gui(GuiStart::default());
+    };
     if first.to_lowercase().starts_with("afirma://") {
         return Launch::Protocol(first.clone());
     }
@@ -70,7 +72,10 @@ pub fn classify(args: &[String]) -> Launch {
     }
     let paths: Vec<PathBuf> = args.iter().map(PathBuf::from).collect();
     if !first.starts_with('-') && paths.iter().all(|p| p.exists()) {
-        return Launch::Gui(GuiStart { sign_files: paths, ..Default::default() });
+        return Launch::Gui(GuiStart {
+            sign_files: paths,
+            ..Default::default()
+        });
     }
     Launch::Cli(args.to_vec())
 }
@@ -86,8 +91,14 @@ mod tests {
     #[test]
     fn classification() {
         assert_eq!(classify(&[]), Launch::Gui(GuiStart::default()));
-        assert_eq!(classify(&s(&["AFIRMA://websocket?v=4"])), Launch::Protocol("AFIRMA://websocket?v=4".into()));
-        assert_eq!(classify(&s(&["sign", "-gui", "-i", "/tmp/x.pdf"])), Launch::Cli(s(&["sign", "-gui", "-i", "/tmp/x.pdf"])));
+        assert_eq!(
+            classify(&s(&["AFIRMA://websocket?v=4"])),
+            Launch::Protocol("AFIRMA://websocket?v=4".into())
+        );
+        assert_eq!(
+            classify(&s(&["sign", "-gui", "-i", "/tmp/x.pdf"])),
+            Launch::Cli(s(&["sign", "-gui", "-i", "/tmp/x.pdf"]))
+        );
         assert_eq!(classify(&s(&["sign", "-i", "a"])), Launch::Cli(s(&["sign", "-i", "a"])));
         assert_eq!(classify(&s(&["-help"])), Launch::Cli(s(&["-help"])));
         assert_eq!(classify(&s(&["-psn_0_123"])), Launch::Gui(GuiStart::default()));

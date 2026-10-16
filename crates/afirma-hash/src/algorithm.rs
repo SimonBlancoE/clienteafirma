@@ -83,9 +83,7 @@ pub fn is_xml_algorithm(alg: DigestAlgorithm) -> bool {
 
 /// Tamaño de búfer adecuado para un fichero de `len` bytes.
 pub(crate) fn buffer_size_for(len: u64) -> usize {
-    usize::try_from(len)
-        .unwrap_or(CHUNK_SIZE)
-        .clamp(MIN_BUFFER, CHUNK_SIZE)
+    usize::try_from(len).unwrap_or(CHUNK_SIZE).clamp(MIN_BUFFER, CHUNK_SIZE)
 }
 
 /// Calcula la huella de un flujo de datos leyendo con el búfer indicado y
@@ -155,10 +153,7 @@ pub(crate) fn digest_file_with_buffer(
         source,
     };
     let mut file = File::open(path).map_err(io_err)?;
-    let len = file
-        .metadata()
-        .map(|m| m.len())
-        .unwrap_or(CHUNK_SIZE as u64);
+    let len = file.metadata().map(|m| m.len()).unwrap_or(CHUNK_SIZE as u64);
     let wanted = buffer_size_for(len);
     if buf.len() < wanted {
         buf.resize(wanted, 0);

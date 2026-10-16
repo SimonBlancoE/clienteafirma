@@ -2,8 +2,7 @@
 //! (`OutputKeys.INDENT = yes`, UTF-8).
 
 /// Declaración XML que escribe el JDK (seguida de salto de línea).
-pub(crate) const XML_DECLARATION: &str =
-    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n";
+pub(crate) const XML_DECLARATION: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n";
 
 /// Añade el valor de un atributo escapado como lo hace el serializador del
 /// JDK: `&`, `<`, `>`, `"` como entidades y tabulador, salto de línea y
@@ -41,10 +40,7 @@ mod tests {
     fn escapado_de_atributos() {
         let mut s = String::new();
         push_attr(&mut s, "a&b<c>d\"e'f\tg\nh\ri\u{85}j\u{2028}k").unwrap();
-        assert_eq!(
-            s,
-            "a&amp;b&lt;c&gt;d&quot;e'f&#9;g&#10;h&#13;i\u{85}j\u{2028}k"
-        );
+        assert_eq!(s, "a&amp;b&lt;c&gt;d&quot;e'f&#9;g&#10;h&#13;i\u{85}j\u{2028}k");
         assert_eq!(push_attr(&mut s, "x\u{1}"), Err('\u{1}'));
         assert_eq!(push_attr(&mut s, "x\u{FFFE}"), Err('\u{FFFE}'));
     }

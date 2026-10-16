@@ -23,11 +23,19 @@ pub struct Tag {
 
 impl Tag {
     pub const fn universal(number: u32, constructed: bool) -> Self {
-        Tag { class: Class::Universal, constructed, number }
+        Tag {
+            class: Class::Universal,
+            constructed,
+            number,
+        }
     }
 
     pub const fn context(number: u32, constructed: bool) -> Self {
-        Tag { class: Class::Context, constructed, number }
+        Tag {
+            class: Class::Context,
+            constructed,
+            number,
+        }
     }
 
     /// Codificación de la etiqueta.
@@ -63,7 +71,11 @@ impl Tag {
 
     /// Misma etiqueta con otro indicador de construcción.
     pub const fn with_constructed(self, constructed: bool) -> Self {
-        Tag { class: self.class, constructed, number: self.number }
+        Tag {
+            class: self.class,
+            constructed,
+            number: self.number,
+        }
     }
 
     /// Compara ignorando el indicador primitivo/construido.
@@ -80,7 +92,13 @@ impl fmt::Debug for Tag {
             Class::Context => "C",
             Class::Private => "P",
         };
-        write!(f, "[{}{}{}]", class, self.number, if self.constructed { "c" } else { "" })
+        write!(
+            f,
+            "[{}{}{}]",
+            class,
+            self.number,
+            if self.constructed { "c" } else { "" }
+        )
     }
 }
 
@@ -136,7 +154,14 @@ fn read_tag(input: &[u8]) -> Result<(Tag, usize)> {
             }
         }
     }
-    Ok((Tag { class, constructed, number }, pos))
+    Ok((
+        Tag {
+            class,
+            constructed,
+            number,
+        },
+        pos,
+    ))
 }
 
 /// Devuelve `(longitud, bytes de cabecera de longitud)`; `None` = indefinida.
@@ -150,7 +175,11 @@ fn read_length(input: &[u8]) -> Result<(Option<usize>, usize)> {
     }
     let n = usize::from(first & 0x7f);
     if n > 8 || input.len() < 1 + n {
-        return Err(if n > 8 { Asn1Error::BadLength } else { Asn1Error::Truncated });
+        return Err(if n > 8 {
+            Asn1Error::BadLength
+        } else {
+            Asn1Error::Truncated
+        });
     }
     let mut len: usize = 0;
     for &b in &input[1..=n] {
@@ -179,7 +208,12 @@ impl<'a> Tlv<'a> {
                     return Err(Asn1Error::Truncated);
                 }
                 Ok((
-                    Tlv { tag, value: &input[header..end], raw: &input[..end], indefinite: false },
+                    Tlv {
+                        tag,
+                        value: &input[header..end],
+                        raw: &input[..end],
+                        indefinite: false,
+                    },
                     &input[end..],
                 ))
             }
@@ -242,7 +276,10 @@ impl<'a> Tlv<'a> {
         if self.tag == tag {
             Ok(self)
         } else {
-            Err(Asn1Error::UnexpectedTag { expected: tag.to_string(), found: self.tag.to_string() })
+            Err(Asn1Error::UnexpectedTag {
+                expected: tag.to_string(),
+                found: self.tag.to_string(),
+            })
         }
     }
 
@@ -332,7 +369,10 @@ impl<'a> Tlv<'a> {
     /// Contenido de un BIT STRING (sin el byte de bits no usados).
     pub fn bit_string_content(&self) -> Result<&'a [u8]> {
         self.expect(tags::BIT_STRING)?;
-        self.value.split_first().map(|(_, rest)| rest).ok_or(Asn1Error::Truncated)
+        self.value
+            .split_first()
+            .map(|(_, rest)| rest)
+            .ok_or(Asn1Error::Truncated)
     }
 
     /// Interpreta una cadena de caracteres ASN.1 de cualquier tipo habitual.
@@ -347,8 +387,10 @@ impl<'a> Tlv<'a> {
             }
             (Class::Universal, 30) => {
                 let bytes = self.flatten_content()?;
-                let units: Vec<u16> =
-                    bytes.chunks(2).map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)])).collect();
+                let units: Vec<u16> = bytes
+                    .chunks(2)
+                    .map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+                    .collect();
                 Ok(String::from_utf16_lossy(&units))
             }
             (Class::Universal, 28) => {
@@ -370,14 +412,16 @@ impl<'a> Tlv<'a> {
 
     /// Interpreta un UTCTime o GeneralizedTime.
     pub fn as_time(&self) -> Result<DateTime<Utc>> {
-        let s = std::str::from_utf8(self.value)
-            .map_err(|_| Asn1Error::Invalid("fecha no ASCII".into()))?;
+        let s = std::str::from_utf8(self.value).map_err(|_| Asn1Error::Invalid("fecha no ASCII".into()))?;
         if self.tag == tags::UTC_TIME {
             parse_utc_time(s)
         } else if self.tag == tags::GENERALIZED_TIME {
             parse_generalized_time(s)
         } else {
-            Err(Asn1Error::UnexpectedTag { expected: "Time".into(), found: self.tag.to_string() })
+            Err(Asn1Error::UnexpectedTag {
+                expected: "Time".into(),
+                found: self.tag.to_string(),
+            })
         }
     }
 }
@@ -387,7 +431,10 @@ fn bad_time(s: &str) -> Asn1Error {
 }
 
 fn digits(s: &str, from: usize, len: usize) -> Option<u32> {
-    s.get(from..from + len).filter(|d| d.bytes().all(|b| b.is_ascii_digit()))?.parse().ok()
+    s.get(from..from + len)
+        .filter(|d| d.bytes().all(|b| b.is_ascii_digit()))?
+        .parse()
+        .ok()
 }
 
 /// Aplica un desplazamiento horario `+hhmm`/`-hhmm` o `Z` del final de la cadena.

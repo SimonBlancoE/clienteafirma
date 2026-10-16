@@ -11,7 +11,10 @@ pub const SIGNED_SUFFIX: &str = "_signed";
 
 /// Ruta de salida para un fichero firmado en `out_dir`.
 pub fn output_path(signer: &dyn Signer, input: &Path, out_dir: &Path, overwrite: bool) -> PathBuf {
-    let name = input.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = input
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let signed = signer.signed_name(Some(&name), Some(SIGNED_SUFFIX));
     let candidate = out_dir.join(&signed);
     if overwrite || !candidate.exists() {
@@ -35,7 +38,10 @@ pub fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
 /// Ruta de salida para la firma de un único fichero en el escritorio: el
 /// nombre que propone el firmador, junto al original.
 pub fn single_output_path(signer: &dyn Signer, input: &Path) -> PathBuf {
-    let name = input.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = input
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let dir = input.parent().unwrap_or_else(|| Path::new("."));
     dir.join(signer.signed_name(Some(&name), Some(SIGNED_SUFFIX)))
 }

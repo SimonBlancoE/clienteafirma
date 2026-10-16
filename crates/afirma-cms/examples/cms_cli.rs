@@ -47,7 +47,11 @@ fn run(a: &[String]) -> afirma_core::Result<()> {
             println!("OK {}", out.len());
         }
         "cosign" => {
-            let data = if a[5] == "-" { None } else { Some(std::fs::read(&a[5]).unwrap()) };
+            let data = if a[5] == "-" {
+                None
+            } else {
+                Some(std::fs::read(&a[5]).unwrap())
+            };
             let out = signer(&a[1]).cosign(
                 data.as_deref(),
                 &std::fs::read(&a[4]).unwrap(),
@@ -93,7 +97,10 @@ fn run(a: &[String]) -> afirma_core::Result<()> {
                     "{} | {} | {} | {}",
                     n.info.signer_name(),
                     n.info.sign_algorithm.clone().unwrap_or_default(),
-                    n.info.signing_time.map(|t| t.timestamp().to_string()).unwrap_or_else(|| "null".into()),
+                    n.info
+                        .signing_time
+                        .map(|t| t.timestamp().to_string())
+                        .unwrap_or_else(|| "null".into()),
                     n.info.pkcs1.len()
                 ));
             }
@@ -113,16 +120,29 @@ fn run(a: &[String]) -> afirma_core::Result<()> {
             }
         }
         "summary" => {
-            print!("{}", afirma_cms::inspect::structure_summary(&std::fs::read(&a[1]).unwrap())?);
+            print!(
+                "{}",
+                afirma_cms::inspect::structure_summary(&std::fs::read(&a[1]).unwrap())?
+            );
         }
         "signinfo" => {
-            println!("FORMAT {}", signer(&a[1]).sign_info(&std::fs::read(&a[2]).unwrap(), &ExtraParams::new())?.format);
+            println!(
+                "FORMAT {}",
+                signer(&a[1])
+                    .sign_info(&std::fs::read(&a[2]).unwrap(), &ExtraParams::new())?
+                    .format
+            );
         }
         "validate" => {
             let s = std::fs::read(&a[1]).unwrap();
             let d = a.get(2).map(|p| std::fs::read(p).unwrap());
             for v in afirma_cms::validation::validate(&s, d.as_deref(), true) {
-                println!("VALIDITY {:?} {:?} {}", v.validity, v.error, v.detail.unwrap_or_default());
+                println!(
+                    "VALIDITY {:?} {:?} {}",
+                    v.validity,
+                    v.error,
+                    v.detail.unwrap_or_default()
+                );
             }
         }
         other => panic!("operación desconocida: {other}"),

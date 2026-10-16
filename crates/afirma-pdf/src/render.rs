@@ -18,11 +18,10 @@ impl RgbaImage {
     /// Convierte a escala de grises (un byte por píxel, luminancia BT.601).
     pub fn to_gray(&self) -> Vec<u8> {
         self.data
-            .as_chunks::<4>().0.iter()
-            .map(|p| {
-                ((u32::from(p[0]) * 299 + u32::from(p[1]) * 587 + u32::from(p[2]) * 114 + 500)
-                    / 1000) as u8
-            })
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|p| ((u32::from(p[0]) * 299 + u32::from(p[1]) * 587 + u32::from(p[2]) * 114 + 500) / 1000) as u8)
             .collect()
     }
 
@@ -49,11 +48,8 @@ pub struct RenderDocument {
 impl RenderDocument {
     /// Abre un PDF (con contraseña si está cifrado).
     pub fn open(data: &[u8], password: Option<&str>) -> Result<RenderDocument, AfirmaError> {
-        let pdf = Pdf::new_with_password(data.to_vec(), password.unwrap_or("")).map_err(|e| {
-            AfirmaError::msg(format!(
-                "No se ha podido abrir el PDF para renderizarlo: {e:?}"
-            ))
-        })?;
+        let pdf = Pdf::new_with_password(data.to_vec(), password.unwrap_or(""))
+            .map_err(|e| AfirmaError::msg(format!("No se ha podido abrir el PDF para renderizarlo: {e:?}")))?;
         Ok(RenderDocument { pdf })
     }
 
@@ -120,9 +116,7 @@ pub fn blank_pdf(w: i64, h: i64) -> Vec<u8> {
     for off in offsets {
         out.extend_from_slice(format!("{off:010} 00000 n \n").as_bytes());
     }
-    out.extend_from_slice(
-        format!("trailer\n<</Size 4/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n").as_bytes(),
-    );
+    out.extend_from_slice(format!("trailer\n<</Size 4/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n").as_bytes());
     out
 }
 

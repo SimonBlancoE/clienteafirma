@@ -131,11 +131,7 @@ const INSTALL_VALUES: &[&str] = &[
 /// Opciones avanzadas de `uninstall`.
 const UNINSTALL_FLAGS: &[&str] = &["--keep-certs", "--keep-system-prefs", "--revert-firefox-roots"];
 
-pub fn parse(
-    command: SystemCommand,
-    args: &[String],
-    m: &Messages,
-) -> Result<SystemRequest, String> {
+pub fn parse(command: SystemCommand, args: &[String], m: &Messages) -> Result<SystemRequest, String> {
     if args
         .first()
         .is_some_and(|a| a.eq_ignore_ascii_case("-help") || a.eq_ignore_ascii_case("--help"))
@@ -178,13 +174,7 @@ pub fn parse(
             continue;
         }
         let allowed: &[&str] = match command {
-            SystemCommand::Install => &[
-                "--system",
-                "--user",
-                "--browser-policies",
-                "--origins",
-                "--dry-run",
-            ],
+            SystemCommand::Install => &["--system", "--user", "--browser-policies", "--origins", "--dry-run"],
             SystemCommand::Uninstall => &["--system", "--user", "--dry-run"],
             SystemCommand::Doctor => &["--json"],
             SystemCommand::RestoreConfig => &[],
@@ -194,11 +184,7 @@ pub fn parse(
         }
         match name {
             "--system" | "--user" => {
-                let s = if name == "--system" {
-                    Scope::System
-                } else {
-                    Scope::User
-                };
+                let s = if name == "--system" { Scope::System } else { Scope::User };
                 match scope {
                     Some(prev) if prev == s => return Err(m.fmt(26, &[name])),
                     Some(_) => return Err(text(m, Text::ScopeExclusive).to_string()),
@@ -280,11 +266,7 @@ pub fn run(
     };
     (
         outcome.status,
-        outcome
-            .output
-            .strip_suffix('\n')
-            .unwrap_or(&outcome.output)
-            .to_string(),
+        outcome.output.strip_suffix('\n').unwrap_or(&outcome.output).to_string(),
     )
 }
 
@@ -306,12 +288,7 @@ mod tests {
         assert_eq!(
             p(
                 SystemCommand::Install,
-                &[
-                    "--system",
-                    "--origins",
-                    "https://a.es, https://*.b.es,",
-                    "--dry-run"
-                ]
+                &["--system", "--origins", "https://a.es, https://*.b.es,", "--dry-run"]
             ),
             Ok(SystemRequest::Install(InstallRequest {
                 scope: Scope::System,
@@ -358,10 +335,7 @@ mod tests {
             p(SystemCommand::Install, &["--user", "--dry-run=1"]),
             Err("No se reconoce el parametro --dry-run=1".into())
         );
-        assert_eq!(
-            p(SystemCommand::Install, &["-help"]),
-            Ok(SystemRequest::Help)
-        );
+        assert_eq!(p(SystemCommand::Install, &["-help"]), Ok(SystemRequest::Help));
     }
 
     #[test]
@@ -369,7 +343,13 @@ mod tests {
         assert_eq!(
             p(
                 SystemCommand::Install,
-                &["--system", "--firefox-roots", "--config-path", r"https:\\intra\c.afconfig", "--default-language=ca_ES"]
+                &[
+                    "--system",
+                    "--firefox-roots",
+                    "--config-path",
+                    r"https:\\intra\c.afconfig",
+                    "--default-language=ca_ES"
+                ]
             ),
             Ok(SystemRequest::Install(InstallRequest {
                 scope: Scope::System,

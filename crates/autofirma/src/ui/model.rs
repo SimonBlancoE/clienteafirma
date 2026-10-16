@@ -5,8 +5,8 @@ use afirma_core::cert::CertInfo;
 use chrono::{DateTime, Local, Utc};
 
 use super::icons;
-use crate::i18n::tr;
 use super::theme::Palette;
+use crate::i18n::tr;
 use eframe::egui::Color32;
 
 /// Familia del emisor de un certificado (para el icono), como
@@ -56,7 +56,14 @@ impl CertItem {
     pub fn from_der(alias: impl Into<String>, der: Vec<u8>) -> Option<CertItem> {
         let info = CertInfo::parse(&der)?;
         let (subject_o, subject_ou, pseudonym) = subject_extra(&der);
-        Some(CertItem { alias: alias.into(), der, info, subject_o, pseudonym, subject_ou })
+        Some(CertItem {
+            alias: alias.into(),
+            der,
+            info,
+            subject_o,
+            pseudonym,
+            subject_ou,
+        })
     }
 
     pub fn family(&self) -> CertFamily {
@@ -97,7 +104,9 @@ impl CertItem {
 
     /// Texto de uso de la clave como `KeyUsage.toString` de AutoFirma.
     pub fn usage_text(&self) -> &'static str {
-        let Some(ku) = self.info.key_usage else { return tr("Desconocido") };
+        let Some(ku) = self.info.key_usage else {
+            return tr("Desconocido");
+        };
         let (s, a, c) = (ku.non_repudiation, ku.digital_signature, ku.data_encipherment);
         match (s, a, c) {
             (true, true, true) => tr("Firma, autenticación y cifrado"),
@@ -155,14 +164,23 @@ pub fn state_colors(state: CertState, p: &Palette) -> (Color32, Color32) {
 /// Organización, unidad y título/seudónimo del titular.
 fn subject_extra(der: &[u8]) -> (Option<String>, Option<String>, Option<String>) {
     use x509_parser::prelude::*;
-    let Ok((_, cert)) = X509Certificate::from_der(der) else { return (None, None, None) };
+    let Ok((_, cert)) = X509Certificate::from_der(der) else {
+        return (None, None, None);
+    };
     let get = |oid: &x509_parser::der_parser::oid::Oid| {
-        cert.subject().iter_by_oid(oid).next().and_then(|a| afirma_core::cert::attr_string(a.attr_value()))
+        cert.subject()
+            .iter_by_oid(oid)
+            .next()
+            .and_then(|a| afirma_core::cert::attr_string(a.attr_value()))
     };
     let o = get(&x509_parser::oid_registry::OID_X509_ORGANIZATION_NAME);
     let ou = get(&x509_parser::oid_registry::OID_X509_ORGANIZATIONAL_UNIT);
-    let pseudonym = x509_parser::der_parser::oid::Oid::from(&[2, 5, 4, 65]).ok().and_then(|oid| get(&oid));
-    let title = x509_parser::der_parser::oid::Oid::from(&[2, 5, 4, 12]).ok().and_then(|oid| get(&oid));
+    let pseudonym = x509_parser::der_parser::oid::Oid::from(&[2, 5, 4, 65])
+        .ok()
+        .and_then(|oid| get(&oid));
+    let title = x509_parser::der_parser::oid::Oid::from(&[2, 5, 4, 12])
+        .ok()
+        .and_then(|oid| get(&oid));
     let pseudo = match (title, pseudonym) {
         (Some(t), Some(p)) => Some(format!("{t} ({p})")),
         (Some(t), None) => Some(t),
@@ -191,5 +209,9 @@ pub fn fmt_size(bytes: u64) -> String {
         v /= 1024.0;
         u += 1;
     }
-    if u == 0 { format!("{bytes} B") } else { format!("{v:.1} {}", UNITS[u]).replace('.', ",") }
+    if u == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{v:.1} {}", UNITS[u]).replace('.', ",")
+    }
 }

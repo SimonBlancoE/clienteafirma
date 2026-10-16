@@ -41,9 +41,7 @@ pub fn write_atomic(path: &Path, data: &[u8], mode: Option<u32>) -> Result<()> {
         let m = match mode {
             Some(m) => Some(m),
             // Conserva los permisos del fichero que se reemplaza.
-            None => fs::metadata(path)
-                .ok()
-                .map(|md| md.permissions().mode() & 0o7777),
+            None => fs::metadata(path).ok().map(|md| md.permissions().mode() & 0o7777),
         };
         if let Some(m) = m {
             let _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(m));

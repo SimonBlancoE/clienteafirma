@@ -19,16 +19,17 @@ use crate::cipher::ServerCipher;
 use crate::envelope;
 use crate::errors::{self, ErrorOrigin, ProtocolError};
 use crate::handler::{
-    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner, OpenFileRequest, OperationHandler,
-    PasswordRequest, ProgressEvent, RequestInfo, RequestOrigin, SaveFileRequest, VisibleSignatureRequest,
+    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner,
+    OpenFileRequest, OperationHandler, PasswordRequest, ProgressEvent, RequestInfo, RequestOrigin, SaveFileRequest,
+    VisibleSignatureRequest,
 };
 use crate::http::HttpClient;
 use crate::intermediate::{self, ActiveWaiting, Uploader};
 use crate::messages::{self, Locale};
 use crate::query::Params;
 use crate::request::{
-    self, BatchParams, Dispatch, KeyStoreParam, LoadParams, OperationKind, ParseContext, ReplyChannel, Request, SaveParams, SelectCertParams,
-    SignParams,
+    self, BatchParams, Dispatch, KeyStoreParam, LoadParams, OperationKind, ParseContext, ReplyChannel, Request,
+    SaveParams, SelectCertParams, SignParams,
 };
 use crate::response;
 use crate::triphase::{CryptoOperation, TriphaseClient, TriphaseFormat};
@@ -132,7 +133,9 @@ impl ProtocolLauncher {
     }
 
     fn progress(&self, extra: &ExtraParams, e: ProgressEvent, info: Option<&RequestInfo>) {
-        if e == ProgressEvent::Hide || (self.progress_dialogs.load(Ordering::Relaxed) && !extra.get_bool("headless", false)) {
+        if e == ProgressEvent::Hide
+            || (self.progress_dialogs.load(Ordering::Relaxed) && !extra.get_bool("headless", false))
+        {
             self.handler.progress(e, info);
         }
     }
@@ -163,23 +166,44 @@ impl ProtocolLauncher {
         if jvc < 1 {
             self.handler.warn_insecure_javascript();
         }
-        if params.get("dlgload").ok().flatten().is_some_and(|v| v.eq_ignore_ascii_case("false")) {
+        if params
+            .get("dlgload")
+            .ok()
+            .flatten()
+            .is_some_and(|v| v.eq_ignore_ascii_case("false"))
+        {
             self.progress_dialogs.store(false, Ordering::Relaxed);
         }
         match request::dispatch(url) {
-            Dispatch::UnsupportedScheme => {
-                LaunchOutcome::Finished(self.error_response(&ProtocolError::parameter(codes::UNSUPPORTED_REQUEST_SCHEME, "Esquema no soportado"), None))
+            Dispatch::UnsupportedScheme => LaunchOutcome::Finished(self.error_response(
+                &ProtocolError::parameter(codes::UNSUPPORTED_REQUEST_SCHEME, "Esquema no soportado"),
+                None,
+            )),
+            Dispatch::UnsupportedOperation => LaunchOutcome::Finished(self.error_response(
+                &ProtocolError::parameter(codes::UNSUPPORTED_OPERATION, "Operacion no soportada"),
+                None,
+            )),
+            Dispatch::WebSocket => {
+                LaunchOutcome::OpenWebSocket(crate::channel::ChannelRequest::from_params(&params, jvc))
             }
-            Dispatch::UnsupportedOperation => {
-                LaunchOutcome::Finished(self.error_response(&ProtocolError::parameter(codes::UNSUPPORTED_OPERATION, "Operacion no soportada"), None))
-            }
-            Dispatch::WebSocket => LaunchOutcome::OpenWebSocket(crate::channel::ChannelRequest::from_params(&params, jvc)),
             Dispatch::Service => LaunchOutcome::OpenService(crate::channel::ChannelRequest::from_params(&params, jvc)),
             Dispatch::Operation(kind) => {
                 let host = ["stservlet", "rtservlet"].iter().find_map(|k| {
-                    params.get(k).ok().flatten().and_then(|u| crate::query::url_decode(&u).ok()).and_then(|u| crate::http::host_of(&u))
+                    params
+                        .get(k)
+                        .ok()
+                        .flatten()
+                        .and_then(|u| crate::query::url_decode(&u).ok())
+                        .and_then(|u| crate::http::host_of(&u))
                 });
-                LaunchOutcome::Finished(self.run_operation(kind, &params, None, jvc, false, RequestOrigin::IntermediateServer { host }))
+                LaunchOutcome::Finished(self.run_operation(
+                    kind,
+                    &params,
+                    None,
+                    jvc,
+                    false,
+                    RequestOrigin::IntermediateServer { host },
+                ))
             }
         }
     }
@@ -193,17 +217,24 @@ impl ProtocolLauncher {
 
     /// Como [`Self::process_socket_message`], indicando el origen de la
     /// petición (cabecera `Origin` del WebSocket o de la petición HTTP).
-    pub fn process_socket_message_from(&self, message: &str, version: ProtocolVersion, origin: RequestOrigin) -> String {
+    pub fn process_socket_message_from(
+        &self,
+        message: &str,
+        version: ProtocolVersion,
+        origin: RequestOrigin,
+    ) -> String {
         let v = Some(version);
         match request::dispatch(message) {
-            Dispatch::UnsupportedScheme => {
-                self.error_response(&ProtocolError::parameter(codes::UNSUPPORTED_REQUEST_SCHEME, "Esquema no soportado"), v)
-            }
+            Dispatch::UnsupportedScheme => self.error_response(
+                &ProtocolError::parameter(codes::UNSUPPORTED_REQUEST_SCHEME, "Esquema no soportado"),
+                v,
+            ),
             // Una petición de apertura de canal por un canal ya abierto no
             // tiene sentido (Java intentaba abrir otro servidor).
-            Dispatch::UnsupportedOperation | Dispatch::WebSocket | Dispatch::Service => {
-                self.error_response(&ProtocolError::parameter(codes::UNSUPPORTED_OPERATION, "Operacion no soportada"), v)
-            }
+            Dispatch::UnsupportedOperation | Dispatch::WebSocket | Dispatch::Service => self.error_response(
+                &ProtocolError::parameter(codes::UNSUPPORTED_OPERATION, "Operacion no soportada"),
+                v,
+            ),
             Dispatch::Operation(kind) => {
                 let params = Params::from_query(message);
                 let jvc = version::parse_jvc(params.get("jvc").ok().flatten().as_deref());
@@ -227,7 +258,10 @@ impl ProtocolLauncher {
     }
 
     fn upload(&self, reply: &ReplyChannel, payload: &str, version: Option<ProtocolVersion>) {
-        if let Err(e) = self.uploader.store(&self.config.http, &reply.storage_servlet, &reply.id, payload) {
+        if let Err(e) = self
+            .uploader
+            .store(&self.config.http, &reply.storage_servlet, &reply.id, payload)
+        {
             let err = intermediate::store_error(&e);
             self.show_error(&err, version);
         }
@@ -243,17 +277,23 @@ impl ProtocolLauncher {
         origin: RequestOrigin,
     ) -> String {
         let http = self.config.http.clone();
-        let ctx = ParseContext { services_required: !by_socket, http: &http, locale: self.config.locale };
+        let ctx = ParseContext {
+            services_required: !by_socket,
+            http: &http,
+            locale: self.config.locale,
+        };
         // Errores previos a la operación: Java los muestra y los devuelve
         // con la versión del canal (o el formato antiguo en invocación
         // directa), pero no los sube.
         let early_failure = |err: &ProtocolError, reply: Option<ReplyChannel>| -> String {
             let text = self.error_response(err, channel);
-            if !by_socket && self.config.upload_all_errors
-                && let Some(r) = reply.or_else(|| request::reply_channel_hint(params)) {
-                    let hv = Self::hint_version(params, jvc);
-                    self.upload(&r, &err.response(Some(hv), self.config.locale), Some(hv));
-                }
+            if !by_socket
+                && self.config.upload_all_errors
+                && let Some(r) = reply.or_else(|| request::reply_channel_hint(params))
+            {
+                let hv = Self::hint_version(params, jvc);
+                self.upload(&r, &err.response(Some(hv), self.config.locale), Some(hv));
+            }
             text
         };
         let mut req = match request::parse_request(kind, params, &ctx) {
@@ -268,22 +308,30 @@ impl ProtocolLauncher {
                     // Java solo mostraba el error (y en `save` lo subía con el
                     // identificador del fichero, que la página no consulta).
                     let text = self.error_response(&ProtocolError::parameter(e.code, e.message.clone()), channel);
-                    if !by_socket && self.config.upload_all_errors
-                        && let Some(r) = request::reply_channel_hint(params) {
-                            let hv = Self::hint_version(params, jvc);
-                            self.upload(&r, &e.response(Some(hv), self.config.locale), Some(hv));
-                        }
+                    if !by_socket
+                        && self.config.upload_all_errors
+                        && let Some(r) = request::reply_channel_hint(params)
+                    {
+                        let hv = Self::hint_version(params, jvc);
+                        self.upload(&r, &e.response(Some(hv), self.config.locale), Some(hv));
+                    }
                     return text;
                 }
             };
-            let env_ctx = ParseContext { services_required: true, ..ctx };
+            let env_ctx = ParseContext {
+                services_required: true,
+                ..ctx
+            };
             req = match request::parse_request(kind, &env, &env_ctx) {
                 Ok(r) => r,
                 Err(f) => return early_failure(&f.error, f.reply.or_else(|| request::reply_channel_hint(&env))),
             };
             if req.common().file_id.is_some() && req.common().data.is_none() {
                 // Un sobre que remite a otro sobre no está soportado.
-                return early_failure(&ProtocolError::unexpected(kind.generic_error(), "Sobre anidado"), request::reply_channel_hint(&env));
+                return early_failure(
+                    &ProtocolError::unexpected(kind.generic_error(), "Sobre anidado"),
+                    request::reply_channel_hint(&env),
+                );
             }
         }
         let version = match channel {
@@ -294,12 +342,18 @@ impl ProtocolLauncher {
         // (Java fallaba al final con 200600 tras mostrar el diálogo).
         if !by_socket && kind == OperationKind::Load {
             return self.error_response(
-                &ProtocolError::unexpected(codes::UNKNOWN_LOADING_DATA_ERROR, "La carga de ficheros no esta disponible por servidor intermedio"),
+                &ProtocolError::unexpected(
+                    codes::UNKNOWN_LOADING_DATA_ERROR,
+                    "La carga de ficheros no esta disponible por servidor intermedio",
+                ),
                 None,
             );
         }
         let reply = match (&req.common().id, &req.common().storage_servlet) {
-            (Some(id), Some(st)) if !by_socket => Some(ReplyChannel { id: id.clone(), storage_servlet: st.clone() }),
+            (Some(id), Some(st)) if !by_socket => Some(ReplyChannel {
+                id: id.clone(),
+                storage_servlet: st.clone(),
+            }),
             _ => None,
         };
         let waiting: Option<ActiveWaiting> = match &reply {
@@ -326,7 +380,10 @@ impl ProtocolLauncher {
         }
         let (text, upload) = match &result {
             Ok(s) => (s.clone(), true),
-            Err(e) => (self.error_response(e, Some(version)), e.origin == ErrorOrigin::Operation || self.config.upload_all_errors),
+            Err(e) => (
+                self.error_response(e, Some(version)),
+                e.origin == ErrorOrigin::Operation || self.config.upload_all_errors,
+            ),
         };
         if let (Some(r), true) = (&reply, upload) {
             self.upload(r, &text, Some(version));
@@ -334,7 +391,12 @@ impl ProtocolLauncher {
         text
     }
 
-    fn check_versions(&self, version: ProtocolVersion, mcv: Option<&str>, kind: OperationKind) -> Result<(), ProtocolError> {
+    fn check_versions(
+        &self,
+        version: ProtocolVersion,
+        mcv: Option<&str>,
+        kind: OperationKind,
+    ) -> Result<(), ProtocolError> {
         if !version.is_supported_by_app() {
             return Err(ProtocolError::op_code(codes::UNSUPPORTED_PROTOCOL_VERSION));
         }
@@ -350,11 +412,18 @@ impl ProtocolLauncher {
 
     /// Selección de certificado con el firmante persistente. Devuelve la
     /// clave y si se mostró el diálogo.
-    fn select_key(&self, sel: &KeySelection<'_>, restrict: Option<&[u8]>) -> Result<(Arc<dyn SigningKey>, bool), ProtocolError> {
-        if restrict.is_none() && sel.sticky && !sel.reset_sticky
-            && let Some(k) = self.sticky_key() {
-                return Ok((k, false));
-            }
+    fn select_key(
+        &self,
+        sel: &KeySelection<'_>,
+        restrict: Option<&[u8]>,
+    ) -> Result<(Arc<dyn SigningKey>, bool), ProtocolError> {
+        if restrict.is_none()
+            && sel.sticky
+            && !sel.reset_sticky
+            && let Some(k) = self.sticky_key()
+        {
+            return Ok((k, false));
+        }
         self.progress(sel.extra, ProgressEvent::LoadingKeyStore, Some(sel.info));
         let req = CertificateRequest {
             info: sel.info,
@@ -397,12 +466,18 @@ impl ProtocolLauncher {
         loop {
             match op(extra) {
                 Err(e) => {
-                    let ErrorKind::NeedsIntervention { intervention, denied } = &e.kind else { return Err(e) };
+                    let ErrorKind::NeedsIntervention { intervention, denied } = &e.kind else {
+                        return Err(e);
+                    };
                     if *denied || extra.get_bool("headless", false) {
                         return Err(e);
                     }
                     match intervention {
-                        UserIntervention::Confirm { requestor_text, param, effect } => {
+                        UserIntervention::Confirm {
+                            requestor_text,
+                            param,
+                            effect,
+                        } => {
                             if !self.handler.confirm(&ConfirmRequest {
                                 origin: origin.cloned(),
                                 requestor_text: requestor_text.clone(),
@@ -415,7 +490,13 @@ impl ProtocolLauncher {
                                     extra.set(param.clone(), "true");
                                 }
                                 ConfirmEffect::RemovePolicyParams => {
-                                    for k in ["policyIdentifier", "policyIdentifierHash", "policyIdentifierHashAlgorithm", "policyDescription", "policyQualifier"] {
+                                    for k in [
+                                        "policyIdentifier",
+                                        "policyIdentifierHash",
+                                        "policyIdentifierHashAlgorithm",
+                                        "policyDescription",
+                                        "policyQualifier",
+                                    ] {
                                         extra.remove(k);
                                     }
                                 }
@@ -456,14 +537,30 @@ impl ProtocolLauncher {
         tri_http: &HttpClient,
         origin: Option<&RequestOrigin>,
     ) -> Result<Vec<u8>, AfirmaError> {
-        let target = if extra.get("target").is_some_and(|t| t.eq_ignore_ascii_case("tree")) { CounterSignTarget::Tree } else { CounterSignTarget::Leafs };
+        let target = if extra.get("target").is_some_and(|t| t.eq_ignore_ascii_case("tree")) {
+            CounterSignTarget::Tree
+        } else {
+            CounterSignTarget::Leafs
+        };
         if let Some(tf) = TriphaseFormat::from_format_name(format) {
-            let client = TriphaseClient::new(tri_http.with_ssl_error_handling(afirma_core::http::SslErrorHandling::from_extra_params(extra)));
-            return self.with_interventions(origin, extra, |ep| client.sign(tf, op, data, algorithm, key, ep, Some(&target)));
+            let client = TriphaseClient::new(
+                tri_http.with_ssl_error_handling(afirma_core::http::SslErrorHandling::from_extra_params(extra)),
+            );
+            return self.with_interventions(origin, extra, |ep| {
+                client.sign(tf, op, data, algorithm, key, ep, Some(&target))
+            });
         }
         let data = data.unwrap_or(&[]);
         self.with_interventions(origin, extra, |ep| {
-            self.signer.sign(&LocalSignRequest { operation: op, format, data, algorithm, key, extra_params: ep, target: target.clone() })
+            self.signer.sign(&LocalSignRequest {
+                operation: op,
+                format,
+                data,
+                algorithm,
+                key,
+                extra_params: ep,
+                target: target.clone(),
+            })
         })
     }
 
@@ -489,12 +586,25 @@ impl ProtocolLauncher {
 
     /// Firma, cofirma y contrafirma (`ProtocolInvocationLauncherSign`) y
     /// `signandsave`.
-    fn process_sign(&self, p: &SignParams, version: ProtocolVersion, and_save: bool, info: &mut RequestInfo) -> Result<String, ProtocolError> {
-        let kind = if and_save { OperationKind::SignAndSave } else { OperationKind::Sign };
+    fn process_sign(
+        &self,
+        p: &SignParams,
+        version: ProtocolVersion,
+        and_save: bool,
+        info: &mut RequestInfo,
+    ) -> Result<String, ProtocolError> {
+        let kind = if and_save {
+            OperationKind::SignAndSave
+        } else {
+            OperationKind::Sign
+        };
         info.app_name = p.app_name.clone();
         info.crypto_operation = p.operation;
         info.format = Some(p.format.clone());
-        info.file_name = p.filename.clone().or_else(|| p.extra_params.get("filenameActualName").map(str::to_string));
+        info.file_name = p
+            .filename
+            .clone()
+            .or_else(|| p.extra_params.get("filenameActualName").map(str::to_string));
         self.check_versions(version, p.common.min_client_version.as_deref(), kind)?;
         let mut extra = p.extra_params.clone();
         extra.remove("profile");
@@ -504,7 +614,12 @@ impl ProtocolLauncher {
         if !is_auto && tri.is_none() && !self.signer.supports_format(&p.format) {
             return Err(ProtocolError::op_code(codes::UNSUPPORTED_SIGNATURE_FORMAT));
         }
-        let op = p.operation.ok_or_else(|| ProtocolError::operation(codes::UNKNOWN_SIGNING_ERROR, "No se ha indicado la operacion criptografica"))?;
+        let op = p.operation.ok_or_else(|| {
+            ProtocolError::operation(
+                codes::UNKNOWN_SIGNING_ERROR,
+                "No se ha indicado la operacion criptografica",
+            )
+        })?;
         // Datos (o diálogo de selección de fichero).
         let mut data = p.common.data.clone();
         let mut input_filename = None;
@@ -519,7 +634,9 @@ impl ProtocolLauncher {
         // AUTO.
         let format = if is_auto {
             let d = data.as_deref().unwrap_or(&[]);
-            self.signer.detect_format(op, d).ok_or_else(|| ProtocolError::op_code(codes::CANT_IDENTIFY_SIGNATURE_FORMAT))?
+            self.signer
+                .detect_format(op, d)
+                .ok_or_else(|| ProtocolError::op_code(codes::CANT_IDENTIFY_SIGNATURE_FORMAT))?
         } else {
             p.format.clone()
         };
@@ -535,33 +652,50 @@ impl ProtocolLauncher {
             && extra.get("mode").is_some_and(|m| m.eq_ignore_ascii_case("explicit"))
             && !extra.get_bool("useManifest", false)
             && !format.eq_ignore_ascii_case("XAdEStri")
-            && let Some(d) = &data {
-                data = Some(afirma_core::DigestAlgorithm::Sha1.digest(d));
-                extra.set("mimeType", "hash/sha1");
-            }
+            && let Some(d) = &data
+        {
+            data = Some(afirma_core::DigestAlgorithm::Sha1.digest(d));
+            extra.set("mimeType", "hash/sha1");
+        }
         // Validación previa de las firmas.
         if let Some(d) = &data
-            && extra.get_bool("checkSignatures", false) {
-                self.progress(&extra, ProgressEvent::CheckingSignatures, Some(info));
-                if PADES_FORMATS.contains(&format.as_str()) && !extra.get_bool("allowShadowAttack", false) && !extra.contains("pagesToCheckShadowAttack") {
-                    extra.set("pagesToCheckShadowAttack", "10");
-                }
-                let signer = self.signer.clone();
-                let fmt = format.clone();
-                let r = self.with_interventions(Some(&info.origin), &mut extra, |ep| signer.check_signatures(op, &fmt, d, ep));
-                self.progress(&extra, ProgressEvent::Hide, Some(info));
-                if let Err(e) = r {
-                    if e.is_cancelled() {
-                        return Err(ProtocolError::cancelled());
-                    }
-                    let code = if and_save { codes::INVALID_SIGNATURE } else { e.code.unwrap_or(codes::INVALID_SIGNATURE) };
-                    return Err(ProtocolError::operation(code, e.to_string()));
-                }
+            && extra.get_bool("checkSignatures", false)
+        {
+            self.progress(&extra, ProgressEvent::CheckingSignatures, Some(info));
+            if PADES_FORMATS.contains(&format.as_str())
+                && !extra.get_bool("allowShadowAttack", false)
+                && !extra.contains("pagesToCheckShadowAttack")
+            {
+                extra.set("pagesToCheckShadowAttack", "10");
             }
+            let signer = self.signer.clone();
+            let fmt = format.clone();
+            let r = self.with_interventions(Some(&info.origin), &mut extra, |ep| {
+                signer.check_signatures(op, &fmt, d, ep)
+            });
+            self.progress(&extra, ProgressEvent::Hide, Some(info));
+            if let Err(e) = r {
+                if e.is_cancelled() {
+                    return Err(ProtocolError::cancelled());
+                }
+                let code = if and_save {
+                    codes::INVALID_SIGNATURE
+                } else {
+                    e.code.unwrap_or(codes::INVALID_SIGNATURE)
+                };
+                return Err(ProtocolError::operation(code, e.to_string()));
+            }
+        }
         // Políticas.
-        extra = self.signer.expand_extra_params(&extra, data.as_deref(), &format).map_err(|e| {
-            ProtocolError::operation(e.code.unwrap_or(codes::SIGNING_WITH_POLICY_INCOMPATIBILITY), e.to_string())
-        })?;
+        extra = self
+            .signer
+            .expand_extra_params(&extra, data.as_deref(), &format)
+            .map_err(|e| {
+                ProtocolError::operation(
+                    e.code.unwrap_or(codes::SIGNING_WITH_POLICY_INCOMPATIBILITY),
+                    e.to_string(),
+                )
+            })?;
         // Firma visible PDF.
         if PADES_FORMATS.contains(&format.as_str()) {
             let vs = extra.get("visibleSignature").map(str::to_ascii_lowercase);
@@ -573,21 +707,34 @@ impl ProtocolLauncher {
                     data: d,
                     extra_params: &extra,
                     mandatory,
-                    custom_appearance: extra.get("visibleAppearance").is_some_and(|v| v.eq_ignore_ascii_case("custom")),
+                    custom_appearance: extra
+                        .get("visibleAppearance")
+                        .is_some_and(|v| v.eq_ignore_ascii_case("custom")),
                 };
                 match self.handler.visible_signature(&req) {
                     Ok(Some(new)) => extra.extend(&new),
                     Ok(None) => {
-                        let has_area = ["signaturePositionOnPageLowerLeftX", "signaturePositionOnPageLowerLeftY", "signaturePositionOnPageUpperRightX", "signaturePositionOnPageUpperRightY"]
-                            .iter()
-                            .all(|k| extra.contains(k))
+                        let has_area = [
+                            "signaturePositionOnPageLowerLeftX",
+                            "signaturePositionOnPageLowerLeftY",
+                            "signaturePositionOnPageUpperRightX",
+                            "signaturePositionOnPageUpperRightY",
+                        ]
+                        .iter()
+                        .all(|k| extra.contains(k))
                             && (extra.contains("signaturePage") || extra.contains("signaturePages"));
                         if mandatory && !has_area {
-                            return Err(ProtocolError::operation(codes::VISIBLE_SIGNATURE_IS_MANDATORY, "Es obligatorio mostrar la firma en el documento PDF"));
+                            return Err(ProtocolError::operation(
+                                codes::VISIBLE_SIGNATURE_IS_MANDATORY,
+                                "Es obligatorio mostrar la firma en el documento PDF",
+                            ));
                         }
                     }
                     Err(e) if e.is_cancelled() => {
-                        return Err(ProtocolError::operation(codes::VISIBLE_SIGNATURE_IS_MANDATORY, "Es obligatorio mostrar la firma en el documento PDF"));
+                        return Err(ProtocolError::operation(
+                            codes::VISIBLE_SIGNATURE_IS_MANDATORY,
+                            "Es obligatorio mostrar la firma en el documento PDF",
+                        ));
                     }
                     Err(e) => return Err(ProtocolError::from_afirma(&e, codes::UNKNOWN_SIGNING_ERROR)),
                 }
@@ -595,14 +742,23 @@ impl ProtocolLauncher {
         }
         // Certificado y firma (con reintento por PIN erróneo).
         let info_snapshot = info.clone();
-        let sel = KeySelection { info: &info_snapshot, kind, extra: &extra, keystore: p.keystore.as_ref(), sticky: p.sticky, reset_sticky: p.reset_sticky };
+        let sel = KeySelection {
+            info: &info_snapshot,
+            kind,
+            extra: &extra,
+            keystore: p.keystore.as_ref(),
+            sticky: p.sticky,
+            reset_sticky: p.reset_sticky,
+        };
         let (mut key, _) = self.select_key(&sel, None)?;
         // Java no aplica `servicetimeout` a los firmadores trifásicos en
         // `signandsave`.
         let tri_http = if and_save {
             self.config.http.clone()
         } else {
-            self.config.http.with_read_timeout(p.common.service_timeout.map(|ms| Duration::from_millis(u64::from(ms))))
+            self.config
+                .http
+                .with_read_timeout(p.common.service_timeout.map(|ms| Duration::from_millis(u64::from(ms))))
         };
         let signature = loop {
             let algorithm = afirma_core::algorithms::compose_signature_algorithm(&p.algorithm, key.key_algorithm())
@@ -613,7 +769,16 @@ impl ProtocolLauncher {
             }
             self.progress(&extra, ProgressEvent::Signing, Some(&info_snapshot));
             let mut ep = extra.clone();
-            let r = self.execute_sign(op, &format, data.as_deref(), &algorithm, key.as_ref(), &mut ep, &tri_http, Some(&info_snapshot.origin));
+            let r = self.execute_sign(
+                op,
+                &format,
+                data.as_deref(),
+                &algorithm,
+                key.as_ref(),
+                &mut ep,
+                &tri_http,
+                Some(&info_snapshot.origin),
+            );
             self.progress(&extra, ProgressEvent::Hide, Some(&info_snapshot));
             match r {
                 Ok(s) => break s,
@@ -623,25 +788,53 @@ impl ProtocolLauncher {
                 }
                 Err(e) if e.code == Some(codes::KEYSTORE_LOCKED) || e.code == Some(codes::SMARTCARD_LOCKED) => {
                     self.set_sticky_key(None);
-                    return Err(ProtocolError::operation(e.code.unwrap_or(codes::KEYSTORE_LOCKED), e.to_string()));
+                    return Err(ProtocolError::operation(
+                        e.code.unwrap_or(codes::KEYSTORE_LOCKED),
+                        e.to_string(),
+                    ));
                 }
                 Err(e) => return Err(Self::map_sign_error(e, codes::UNKNOWN_SIGNING_ERROR)),
             }
         };
         if and_save {
             self.set_sticky_key(if p.sticky { Some(key.clone()) } else { None });
-            self.save_signature(p, &extra, &format, input_filename.as_deref(), &signature, &info_snapshot)?;
+            self.save_signature(
+                p,
+                &extra,
+                &format,
+                input_filename.as_deref(),
+                &signature,
+                &info_snapshot,
+            )?;
         }
-        response::sign_result(key.certificate(), &signature, input_filename.as_deref(), version.major, cipher.as_ref())
+        response::sign_result(
+            key.certificate(),
+            &signature,
+            input_filename.as_deref(),
+            version.major,
+            cipher.as_ref(),
+        )
     }
 
-    fn choose_file(&self, op: CryptoOperation, extra: &ExtraParams, info: &RequestInfo) -> Result<FileData, ProtocolError> {
+    fn choose_file(
+        &self,
+        op: CryptoOperation,
+        extra: &ExtraParams,
+        info: &RequestInfo,
+    ) -> Result<FileData, ProtocolError> {
         let locale = self.config.locale;
-        let title_key = if op == CryptoOperation::Sign { "ProtocolLauncher.25" } else { "ProtocolLauncher.26" };
+        let title_key = if op == CryptoOperation::Sign {
+            "ProtocolLauncher.25"
+        } else {
+            "ProtocolLauncher.26"
+        };
         let exts = extra.get("filenameExts").map(str::to_string);
         let desc = format!(
             "{}{}",
-            extra.get("filenameDescription").map(str::to_string).unwrap_or_else(|| messages::get(locale, "ProtocolLauncher.32")),
+            extra
+                .get("filenameDescription")
+                .map(str::to_string)
+                .unwrap_or_else(|| messages::get(locale, "ProtocolLauncher.32")),
             match &exts {
                 None => " (*.*)".to_string(),
                 Some(e) => format!(" (*.{})", e.replace(',', ",*.")),
@@ -657,7 +850,11 @@ impl ProtocolLauncher {
             file_name: extra.get("filenameActualName").map(str::to_string),
         };
         self.handler.choose_file_to_sign(&req).map_err(|e| {
-            if e.is_cancelled() { ProtocolError::cancelled() } else { ProtocolError::operation(codes::LOADING_DATA_ERROR, e.to_string()) }
+            if e.is_cancelled() {
+                ProtocolError::cancelled()
+            } else {
+                ProtocolError::operation(codes::LOADING_DATA_ERROR, e.to_string())
+            }
         })
     }
 
@@ -674,7 +871,10 @@ impl ProtocolLauncher {
         let exts = extra.get("filenameSaveExts").map(str::to_string);
         let desc = format!(
             "{}{}",
-            extra.get("filenameSaveDescription").map(str::to_string).unwrap_or_else(|| messages::get(locale, "ProtocolLauncher.30")),
+            extra
+                .get("filenameSaveDescription")
+                .map(str::to_string)
+                .unwrap_or_else(|| messages::get(locale, "ProtocolLauncher.30")),
             match &exts {
                 None => " (*.*)".to_string(),
                 Some(e) => format!(" (*.{})", e.replace(',', ",*.")),
@@ -706,13 +906,26 @@ impl ProtocolLauncher {
             current_dir: extra.get("filenameSaveCurrentDir").map(str::to_string),
         };
         self.handler.save_file(&req).map_err(|e| {
-            if e.is_cancelled() { ProtocolError::cancelled() } else { ProtocolError::operation(codes::CANT_SAVE_FILE, e.to_string()) }
+            if e.is_cancelled() {
+                ProtocolError::cancelled()
+            } else {
+                ProtocolError::operation(codes::CANT_SAVE_FILE, e.to_string())
+            }
         })
     }
 
     /// Selección de certificado (`ProtocolInvocationLauncherSelectCert`).
-    fn process_select_cert(&self, p: &SelectCertParams, version: ProtocolVersion, info: &RequestInfo) -> Result<String, ProtocolError> {
-        self.check_versions(version, p.common.min_client_version.as_deref(), OperationKind::SelectCert)?;
+    fn process_select_cert(
+        &self,
+        p: &SelectCertParams,
+        version: ProtocolVersion,
+        info: &RequestInfo,
+    ) -> Result<String, ProtocolError> {
+        self.check_versions(
+            version,
+            p.common.min_client_version.as_deref(),
+            OperationKind::SelectCert,
+        )?;
         let sel = KeySelection {
             info,
             kind: OperationKind::SelectCert,
@@ -730,7 +943,12 @@ impl ProtocolLauncher {
     }
 
     /// Firma de lotes (`ProtocolInvocationLauncherBatch`).
-    fn process_batch(&self, p: &BatchParams, version: ProtocolVersion, info: &mut RequestInfo) -> Result<String, ProtocolError> {
+    fn process_batch(
+        &self,
+        p: &BatchParams,
+        version: ProtocolVersion,
+        info: &mut RequestInfo,
+    ) -> Result<String, ProtocolError> {
         self.check_versions(version, p.common.min_client_version.as_deref(), OperationKind::Batch)?;
         info.app_name = p.app_name.clone();
         if let Some(d) = &p.common.data {
@@ -759,7 +977,10 @@ impl ProtocolLauncher {
         if dialog {
             self.set_sticky_key(if p.sticky { Some(key.clone()) } else { None });
         }
-        let http = self.config.http.with_read_timeout(p.common.service_timeout.map(|ms| Duration::from_millis(u64::from(ms))));
+        let http = self
+            .config
+            .http
+            .with_read_timeout(p.common.service_timeout.map(|ms| Duration::from_millis(u64::from(ms))));
         let result = loop {
             self.progress(&p.extra_params, ProgressEvent::Signing, Some(info));
             let r = self.sign_batch(p, key.as_ref(), &http, info);
@@ -772,9 +993,14 @@ impl ProtocolLauncher {
                     key = self.select_key(&sel, Some(&cert))?.0;
                 }
                 Err(BatchError::Afirma(e)) if e.is_cancelled() => return Err(ProtocolError::cancelled()),
-                Err(BatchError::Afirma(e)) if e.code == Some(codes::KEYSTORE_LOCKED) || e.code == Some(codes::SMARTCARD_LOCKED) => {
+                Err(BatchError::Afirma(e))
+                    if e.code == Some(codes::KEYSTORE_LOCKED) || e.code == Some(codes::SMARTCARD_LOCKED) =>
+                {
                     self.set_sticky_key(None);
-                    return Err(ProtocolError::operation(e.code.unwrap_or(codes::KEYSTORE_LOCKED), e.to_string()));
+                    return Err(ProtocolError::operation(
+                        e.code.unwrap_or(codes::KEYSTORE_LOCKED),
+                        e.to_string(),
+                    ));
                 }
                 Err(BatchError::Afirma(e)) => {
                     let code = match (&e.kind, e.code) {
@@ -788,7 +1014,9 @@ impl ProtocolLauncher {
                     }
                     return Err(err);
                 }
-                Err(BatchError::InvalidArgument(m)) => return Err(ProtocolError::operation(codes::INVALID_FORMAT_SIGN_BATCH_PARAM, m)),
+                Err(BatchError::InvalidArgument(m)) => {
+                    return Err(ProtocolError::operation(codes::INVALID_FORMAT_SIGN_BATCH_PARAM, m));
+                }
                 Err(BatchError::Internal(m)) => {
                     let err = ProtocolError::operation(generic, m);
                     self.show_error(&err, Some(version));
@@ -796,29 +1024,53 @@ impl ProtocolLauncher {
                 }
             }
         };
-        let cert = if p.need_cert { Some(key.certificate().to_vec()) } else { None };
+        let cert = if p.need_cert {
+            Some(key.certificate().to_vec())
+        } else {
+            None
+        };
         let cipher = self.cipher(p.common.cipher_config.as_deref(), codes::ENCRIPTING_BATCH_RESULT)?;
         response::batch_result(&result, cert.as_deref(), cipher.as_ref())
     }
 
-    fn sign_batch(&self, p: &BatchParams, key: &dyn SigningKey, http: &HttpClient, info: &RequestInfo) -> Result<String, BatchError> {
+    fn sign_batch(
+        &self,
+        p: &BatchParams,
+        key: &dyn SigningKey,
+        http: &HttpClient,
+        info: &RequestInfo,
+    ) -> Result<String, BatchError> {
         let data = p.common.data.as_deref();
         if p.json_batch && p.local_batch_process {
-            let Some(d) = data else { return Err(BatchError::Internal("No se ha proporcionado el lote".into())) };
+            let Some(d) = data else {
+                return Err(BatchError::Internal("No se ha proporcionado el lote".into()));
+            };
             let lb = match batch::parse_local_batch(d) {
                 Ok(b) => b,
                 Err(LocalBatchParseError::InvalidJson(m)) => return Err(BatchError::Internal(m)),
                 Err(LocalBatchParseError::Malformed(m)) => {
-                    return Err(BatchError::Afirma(AfirmaError::new(codes::MALFORMED_JSON_BATCH, "La declaracion del lote suministrada no es correcta").with_cause(m)));
+                    return Err(BatchError::Afirma(
+                        AfirmaError::new(
+                            codes::MALFORMED_JSON_BATCH,
+                            "La declaracion del lote suministrada no es correcta",
+                        )
+                        .with_cause(m),
+                    ));
                 }
             };
             let results = batch::run_local_batch(&lb, |s| self.sign_local_batch_item(s, key, http, info));
             return Ok(batch::local_batch_result_json(&results));
         }
         let (Some(pre), Some(post)) = (p.presigner_url.as_deref(), p.postsigner_url.as_deref()) else {
-            return Err(BatchError::InvalidArgument("La URL de preproceso de lotes no puede se nula ni vacia".into()));
+            return Err(BatchError::InvalidArgument(
+                "La URL de preproceso de lotes no puede se nula ni vacia".into(),
+            ));
         };
-        let Some(d) = data else { return Err(BatchError::InvalidArgument("El lote de firma no puede ser nulo ni vacio".into())) };
+        let Some(d) = data else {
+            return Err(BatchError::InvalidArgument(
+                "El lote de firma no puede ser nulo ni vacio".into(),
+            ));
+        };
         if p.json_batch {
             batch::sign_json_batch(http, d, pre, post, key, &p.extra_params)
         } else {
@@ -828,31 +1080,60 @@ impl ProtocolLauncher {
 
     /// Firma de un elemento del lote local (`LocalBatchSigner.processSign`).
     /// El error es la descripción del resultado (`ERROR_PRE`).
-    fn sign_local_batch_item(&self, s: &batch::LocalSingleSign, key: &dyn SigningKey, http: &HttpClient, info: &RequestInfo) -> Result<Vec<u8>, String> {
-        let describe = |e: ProtocolError| if e.message.is_empty() { e.code.code_str() } else { e.message };
+    fn sign_local_batch_item(
+        &self,
+        s: &batch::LocalSingleSign,
+        key: &dyn SigningKey,
+        http: &HttpClient,
+        info: &RequestInfo,
+    ) -> Result<Vec<u8>, String> {
+        let describe = |e: ProtocolError| {
+            if e.message.is_empty() {
+                e.code.code_str()
+            } else {
+                e.message
+            }
+        };
         let algorithm = afirma_core::algorithms::compose_signature_algorithm(&s.algorithm, key.key_algorithm())
             .map_err(|e| describe(ProtocolError::operation(codes::INVALID_SIGNING_KEY, e.to_string())))?
             .java_name();
         let is_auto = s.format.eq_ignore_ascii_case("AUTO");
-        if !is_auto && TriphaseFormat::from_format_name(&s.format).is_none() && !self.signer.supports_format(&s.format) {
+        if !is_auto && TriphaseFormat::from_format_name(&s.format).is_none() && !self.signer.supports_format(&s.format)
+        {
             return Err(describe(ProtocolError::op_code(codes::UNSUPPORTED_SIGNATURE_FORMAT)));
         }
         let Some(op) = s.operation else {
             return Err(codes::INTERNAL_LOCAL_BATCH_ERROR.code_str());
         };
         let format = if is_auto {
-            self.signer.detect_format(op, &s.data).ok_or_else(|| describe(ProtocolError::op_code(codes::CANT_IDENTIFY_SIGNATURE_FORMAT)))?
+            self.signer
+                .detect_format(op, &s.data)
+                .ok_or_else(|| describe(ProtocolError::op_code(codes::CANT_IDENTIFY_SIGNATURE_FORMAT)))?
         } else {
             s.format.clone()
         };
         let mut extra = s.extra_params.clone();
         extra.set("headless", "true");
-        self.execute_sign(op, &format, Some(&s.data), &algorithm, key, &mut extra, http, Some(&info.origin))
-            .map_err(|e| describe(Self::map_sign_error(e, codes::INTERNAL_LOCAL_BATCH_ERROR)))
+        self.execute_sign(
+            op,
+            &format,
+            Some(&s.data),
+            &algorithm,
+            key,
+            &mut extra,
+            http,
+            Some(&info.origin),
+        )
+        .map_err(|e| describe(Self::map_sign_error(e, codes::INTERNAL_LOCAL_BATCH_ERROR)))
     }
 
     /// Guardado de datos (`ProtocolInvocationLauncherSave`).
-    fn process_save(&self, p: &SaveParams, version: ProtocolVersion, info: &mut RequestInfo) -> Result<String, ProtocolError> {
+    fn process_save(
+        &self,
+        p: &SaveParams,
+        version: ProtocolVersion,
+        info: &mut RequestInfo,
+    ) -> Result<String, ProtocolError> {
         self.check_versions(version, p.common.min_client_version.as_deref(), OperationKind::Save)?;
         let data = p.common.data.clone().unwrap_or_default();
         info.file_name = p.filename.clone();
@@ -868,13 +1149,22 @@ impl ProtocolLauncher {
             current_dir: None,
         };
         self.handler.save_file(&req).map_err(|e| {
-            if e.is_cancelled() { ProtocolError::cancelled() } else { ProtocolError::operation(codes::CANT_SAVE_FILE, e.to_string()) }
+            if e.is_cancelled() {
+                ProtocolError::cancelled()
+            } else {
+                ProtocolError::operation(codes::CANT_SAVE_FILE, e.to_string())
+            }
         })?;
         Ok(response::SAVE_OK.to_string())
     }
 
     /// Carga de ficheros (`ProtocolInvocationLauncherLoad`).
-    fn process_load(&self, p: &LoadParams, version: ProtocolVersion, info: &RequestInfo) -> Result<String, ProtocolError> {
+    fn process_load(
+        &self,
+        p: &LoadParams,
+        version: ProtocolVersion,
+        info: &RequestInfo,
+    ) -> Result<String, ProtocolError> {
         self.check_versions(version, p.common.min_client_version.as_deref(), OperationKind::Load)?;
         let req = LoadRequest {
             info: info.clone(),
@@ -885,9 +1175,15 @@ impl ProtocolLauncher {
             multiple: p.multiload,
         };
         let files = self.handler.load_files(&req).map_err(|e| {
-            if e.is_cancelled() { ProtocolError::cancelled() } else { ProtocolError::operation(codes::CANT_LOAD_FILE, e.to_string()) }
+            if e.is_cancelled() {
+                ProtocolError::cancelled()
+            } else {
+                ProtocolError::operation(codes::CANT_LOAD_FILE, e.to_string())
+            }
         })?;
-        Ok(response::load_result(&files.into_iter().map(|f| (f.name, f.data)).collect::<Vec<_>>()))
+        Ok(response::load_result(
+            &files.into_iter().map(|f| (f.name, f.data)).collect::<Vec<_>>(),
+        ))
     }
 }
 
@@ -901,10 +1197,15 @@ fn batch_summary(data: &[u8], json: bool) -> (Option<String>, Option<usize>) {
     } else {
         match afirma_xml::dom::Document::parse_bytes(data) {
             Ok((doc, _)) => {
-                let Some(root) = doc.document_element() else { return (None, None) };
+                let Some(root) = doc.document_element() else {
+                    return (None, None);
+                };
                 let singles: Vec<_> = doc
                     .child_elements(root)
-                    .filter(|c| doc.element(*c).is_some_and(|e| e.local.eq_ignore_ascii_case("singlesign")))
+                    .filter(|c| {
+                        doc.element(*c)
+                            .is_some_and(|e| e.local.eq_ignore_ascii_case("singlesign"))
+                    })
                     .collect();
                 let format = singles.first().and_then(|s| {
                     doc.child_elements(*s)
@@ -919,4 +1220,11 @@ fn batch_summary(data: &[u8], json: bool) -> (Option<String>, Option<usize>) {
 }
 
 /// Formatos en los que se ofrece la firma visible PDF (lista exacta de Java).
-const PADES_FORMATS: &[&str] = &["Adobe PDF", "Adobe PDF TriPhase", "PAdES", "PAdEStri", "ETSI.CAdES.detached", "adbe.pkcs7.detached"];
+const PADES_FORMATS: &[&str] = &[
+    "Adobe PDF",
+    "Adobe PDF TriPhase",
+    "PAdES",
+    "PAdEStri",
+    "ETSI.CAdES.detached",
+    "adbe.pkcs7.detached",
+];

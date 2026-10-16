@@ -60,7 +60,11 @@ pub fn signature_oid(alg: SignatureAlgorithm) -> &'static str {
 /// CAdES o por cualquier operación CMS: `rsaEncryption` si el nombre del
 /// algoritmo contiene `withRSA`; si no, el OID del algoritmo de firma.
 pub fn sign_signature_alg_oid(alg: SignatureAlgorithm) -> &'static str {
-    if alg.java_name().contains("withRSA") { oids::RSA_ENCRYPTION } else { signature_oid(alg) }
+    if alg.java_name().contains("withRSA") {
+        oids::RSA_ENCRYPTION
+    } else {
+        signature_oid(alg)
+    }
 }
 
 /// OID del `signatureAlgorithm` en las cofirmas y contrafirmas CAdES:
@@ -190,7 +194,10 @@ mod tests {
     fn names() {
         assert_eq!(digest_from_java_name("SHA256withRSA"), Some(DigestAlgorithm::Sha256));
         assert_eq!(digest_from_java_name("SHA-512"), Some(DigestAlgorithm::Sha512));
-        assert_eq!(digest_from_java_name("http://www.w3.org/2000/09/xmldsig#sha1"), Some(DigestAlgorithm::Sha1));
+        assert_eq!(
+            digest_from_java_name("http://www.w3.org/2000/09/xmldsig#sha1"),
+            Some(DigestAlgorithm::Sha1)
+        );
         assert_eq!(digest_from_java_name("1.3.14.3.2.26"), Some(DigestAlgorithm::Sha1));
         assert_eq!(digest_from_java_name("SHA224withRSA"), Some(DigestAlgorithm::Sha224));
         assert_eq!(digest_from_java_name("MD5withRSA"), None);
@@ -199,12 +206,21 @@ mod tests {
         let ec = SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Ec);
         assert_eq!(sign_signature_alg_oid(rsa), oids::RSA_ENCRYPTION);
         assert_eq!(sign_signature_alg_oid(ec), "1.2.840.10045.4.3.2");
-        assert_eq!(multisign_signature_alg_oid(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa), "1.2.840.113549.1.1.11");
-        assert_eq!(tree_signature_algorithm_name("2.16.840.1.101.3.4.2.1", oids::RSA_ENCRYPTION), "SHA256withRSA");
+        assert_eq!(
+            multisign_signature_alg_oid(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa),
+            "1.2.840.113549.1.1.11"
+        );
+        assert_eq!(
+            tree_signature_algorithm_name("2.16.840.1.101.3.4.2.1", oids::RSA_ENCRYPTION),
+            "SHA256withRSA"
+        );
         assert_eq!(
             tree_signature_algorithm_name("2.16.840.1.101.3.4.2.4", "1.2.840.10045.4.3.1"),
             "2.16.840.1.101.3.4.2.4withECDSA"
         );
-        assert_eq!(signer_signature_algorithm("2.16.840.1.101.3.4.2.1", oids::RSA_ENCRYPTION), Some(rsa));
+        assert_eq!(
+            signer_signature_algorithm("2.16.840.1.101.3.4.2.1", oids::RSA_ENCRYPTION),
+            Some(rsa)
+        );
     }
 }

@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use std::io::{Cursor, Write};
 use std::sync::Arc;
 
-use afirma_core::constants::{
-    ASIC_ENTRY_NAME_MIMETYPE, ASIC_ENTRY_NAME_XML_SIGNATURE, ASIC_S_MIMETYPE,
-};
+use afirma_core::constants::{ASIC_ENTRY_NAME_MIMETYPE, ASIC_ENTRY_NAME_XML_SIGNATURE, ASIC_S_MIMETYPE};
 use afirma_core::error::{AfirmaError, codes};
 use afirma_core::extra_params::ExtraParams;
 use afirma_core::key::SigningKey;
@@ -50,11 +48,7 @@ fn zip_now() -> zip::DateTime {
 }
 
 /// `ASiCUtil.createSContainer` con `mimetype` sin comprimir.
-pub fn create_container(
-    signature: &[u8],
-    data: &[u8],
-    data_name: &str,
-) -> afirma_core::Result<Vec<u8>> {
+pub fn create_container(signature: &[u8], data: &[u8], data_name: &str) -> afirma_core::Result<Vec<u8>> {
     let io = |e: zip::result::ZipError| {
         AfirmaError::new(
             codes::UNKWNON_XML_SIGNING_ERROR,
@@ -74,15 +68,12 @@ pub fn create_container(
         .compression_method(zip::CompressionMethod::Stored)
         .last_modified_time(zip_now());
     let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
-    zw.set_comment(format!("mimetype={ASIC_S_MIMETYPE}"))
-        .map_err(io)?;
-    zw.start_file(ASIC_ENTRY_NAME_MIMETYPE, stored)
-        .map_err(io)?;
+    zw.set_comment(format!("mimetype={ASIC_S_MIMETYPE}")).map_err(io)?;
+    zw.start_file(ASIC_ENTRY_NAME_MIMETYPE, stored).map_err(io)?;
     zw.write_all(ASIC_S_MIMETYPE.as_bytes()).map_err(io2)?;
     zw.start_file(data_name, deflated).map_err(io)?;
     zw.write_all(data).map_err(io2)?;
-    zw.start_file(ASIC_ENTRY_NAME_XML_SIGNATURE, deflated)
-        .map_err(io)?;
+    zw.start_file(ASIC_ENTRY_NAME_XML_SIGNATURE, deflated).map_err(io)?;
     zw.write_all(signature).map_err(io2)?;
     Ok(zw.finish().map_err(io)?.into_inner())
 }
@@ -122,9 +113,7 @@ pub fn xml_signature(sign: &[u8]) -> afirma_core::Result<Vec<u8>> {
         .find(|(n, _)| n == ASIC_ENTRY_NAME_XML_SIGNATURE)
         .map(|(_, d)| d)
         .ok_or_else(|| {
-            AfirmaError::invalid_signature_format(
-                "No se ha encontrado la firma XML en el contenedor ASiC-S",
-            )
+            AfirmaError::invalid_signature_format("No se ha encontrado la firma XML en el contenedor ASiC-S")
         })
 }
 
@@ -136,17 +125,13 @@ fn unpack(sign: &[u8]) -> afirma_core::Result<(Vec<u8>, String, Vec<u8>)> {
         .find(|(n, _)| n == ASIC_ENTRY_NAME_XML_SIGNATURE)
         .map(|(_, d)| d.clone())
         .ok_or_else(|| {
-            AfirmaError::invalid_signature_format(
-                "No se ha encontrado la firma XML en el contenedor ASiC-S",
-            )
+            AfirmaError::invalid_signature_format("No se ha encontrado la firma XML en el contenedor ASiC-S")
         })?;
     let (name, data) = entries
         .into_iter()
         .find(|(n, _)| afirma_core::asic::is_data_entry(n))
         .ok_or_else(|| {
-            AfirmaError::invalid_signature_format(
-                "No se han encontrado los datos en el contenedor ASiC-S",
-            )
+            AfirmaError::invalid_signature_format("No se han encontrado los datos en el contenedor ASiC-S")
         })?;
     let name = name.rsplit('/').next().unwrap_or(&name).to_string();
     Ok((xml, name, data))
@@ -171,11 +156,7 @@ pub fn validate_container(
 ) -> afirma_core::Result<Vec<afirma_core::validity::SignValidity>> {
     let (xml, name, data) = unpack(sign)?;
     let resolver = DataResolver(HashMap::from([(name, data)]));
-    Ok(crate::validation::validate(
-        &xml,
-        check_certificates,
-        &resolver,
-    ))
+    Ok(crate::validation::validate(&xml, check_certificates, &resolver))
 }
 
 /// Firmador XAdES-ASiC-S.
@@ -211,16 +192,15 @@ impl Signer for XadesAsicSigner {
             .get("precalculatedHashAlgorithm")
             .unwrap_or(&digest_method)
             .to_string();
-        let alg: afirma_core::DigestAlgorithm =
-            afirma_core::algorithms::java_digest_algorithm_name(&ext)
-                .replace('-', "")
-                .parse()
-                .map_err(|_| {
-                    AfirmaError::new(
-                        codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
-                        "No se reconoce el algoritmo de huella digital",
-                    )
-                })?;
+        let alg: afirma_core::DigestAlgorithm = afirma_core::algorithms::java_digest_algorithm_name(&ext)
+            .replace('-', "")
+            .parse()
+            .map_err(|_| {
+                AfirmaError::new(
+                    codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
+                    "No se reconoce el algoritmo de huella digital",
+                )
+            })?;
         let digest = alg.digest(data);
         let signature = XadesSigner::new().sign_optional(Some(&digest), algorithm, key, &p)?;
         create_container(&signature, data, p.get("uri").unwrap_or("dataobject.bin"))
@@ -261,11 +241,7 @@ impl Signer for XadesAsicSigner {
         create_container(&cs, &data, &name)
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         xades::info::signers_structure(&xml_signature(sign)?)
     }
 
@@ -278,11 +254,7 @@ impl Signer for XadesAsicSigner {
     }
 
     fn signed_name(&self, original: Option<&str>, in_text: Option<&str>) -> String {
-        format!(
-            "{}{}.asics",
-            original.unwrap_or("null"),
-            in_text.unwrap_or("")
-        )
+        format!("{}{}.asics", original.unwrap_or("null"), in_text.unwrap_or(""))
     }
 
     fn get_data(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<Option<Vec<u8>>> {

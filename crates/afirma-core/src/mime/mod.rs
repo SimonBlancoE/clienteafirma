@@ -145,12 +145,19 @@ impl<'a> MimeHelper<'a> {
         } else {
             None
         };
-        Ok(verified.or(self.magic_description).unwrap_or(DEFAULT_CONTENT_DESCRIPTION).to_string())
+        Ok(verified
+            .or(self.magic_description)
+            .unwrap_or(DEFAULT_CONTENT_DESCRIPTION)
+            .to_string())
     }
 
     /// Tipo, extensión y descripción.
     pub fn info(&self) -> Result<MimeInfo, MimeError> {
-        Ok(MimeInfo { mime: self.mime_type()?, extension: self.extension()?, description: self.description()? })
+        Ok(MimeInfo {
+            mime: self.mime_type()?,
+            extension: self.extension()?,
+            description: self.description()?,
+        })
     }
 
     /// `MimeHelper.isZipData()`: en Java solo devuelve si JMimeMagic detectó
@@ -210,17 +217,23 @@ pub fn transform_mime_type_to_oid(mime: Option<&str>) -> &'static str {
 /// `MimeHelper.transformOidToMimeType`: tipo MIME del OID (`data` para
 /// id-data) o `application/octet-stream` si es nulo o desconocido.
 pub fn transform_oid_to_mime_type(oid: Option<&str>) -> &'static str {
-    oid.and_then(|o| MIMETYPE_OIDS.iter().find(|(x, _)| *x == o).map(|(_, m)| *m)).unwrap_or(DEFAULT_MIMETYPE)
+    oid.and_then(|o| MIMETYPE_OIDS.iter().find(|(x, _)| *x == o).map(|(_, m)| *m))
+        .unwrap_or(DEFAULT_MIMETYPE)
 }
 
 /// Nombre por defecto de los datos dentro de un contenedor ASiC-S
 /// (`dataobject.<ext>`, con `bin` si no se conoce la extensión).
 pub fn asic_default_data_filename(data: &[u8]) -> String {
-    let ext = MimeHelper::new(data).extension().ok().flatten().filter(|e| !e.is_empty());
+    let ext = MimeHelper::new(data)
+        .extension()
+        .ok()
+        .flatten()
+        .filter(|e| !e.is_empty());
     format!(
         "{}.{}",
         crate::constants::ASIC_DEFAULT_DATA_OBJECT_NAME,
-        ext.as_deref().unwrap_or(crate::constants::ASIC_DEFAULT_DATA_OBJECT_EXTENSION)
+        ext.as_deref()
+            .unwrap_or(crate::constants::ASIC_DEFAULT_DATA_OBJECT_EXTENSION)
     )
 }
 
@@ -239,7 +252,11 @@ mod tests {
             let cols: Vec<&str> = line.split('\t').collect();
             let data = std::fs::read(format!("{root}/mime/{}", cols[0])).unwrap();
             let h = MimeHelper::new(&data);
-            let ext = h.extension().unwrap().map(|e| esc(&e)).unwrap_or_else(|| "<null>".into());
+            let ext = h
+                .extension()
+                .unwrap()
+                .map(|e| esc(&e))
+                .unwrap_or_else(|| "<null>".into());
             let got = format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                 cols[0],
@@ -259,12 +276,21 @@ mod tests {
 
     #[test]
     fn oid_table_and_helpers() {
-        assert_eq!(transform_mime_type_to_oid(Some("application/pdf")), "1.2.840.10003.5.109.1");
+        assert_eq!(
+            transform_mime_type_to_oid(Some("application/pdf")),
+            "1.2.840.10003.5.109.1"
+        );
         assert_eq!(transform_mime_type_to_oid(Some("data")), "1.2.840.113549.1.7.1");
-        assert_eq!(transform_mime_type_to_oid(Some("application/x-foo")), "1.2.840.113549.1.7.1");
+        assert_eq!(
+            transform_mime_type_to_oid(Some("application/x-foo")),
+            "1.2.840.113549.1.7.1"
+        );
         assert_eq!(transform_mime_type_to_oid(None), "1.2.840.113549.1.7.1");
         assert_eq!(transform_oid_to_mime_type(Some("1.2.840.113549.1.7.1")), "data");
-        assert_eq!(transform_oid_to_mime_type(Some("1.2.840.113556.4.3")), "application/vnd.ms-excel");
+        assert_eq!(
+            transform_oid_to_mime_type(Some("1.2.840.113556.4.3")),
+            "application/vnd.ms-excel"
+        );
         assert_eq!(transform_oid_to_mime_type(Some("1.2.3")), "application/octet-stream");
         assert_eq!(transform_oid_to_mime_type(None), "application/octet-stream");
         assert!(is_zip(b"PK\x03\x04"));
@@ -333,6 +359,9 @@ mod tests {
             None
         );
         assert_eq!(office_mime_type(b"no es un zip").unwrap(), "application/octect-stream");
-        assert_eq!(office_mime_type(b"xx Microsoft Visio yy").unwrap(), "application/vnd.visio");
+        assert_eq!(
+            office_mime_type(b"xx Microsoft Visio yy").unwrap(),
+            "application/vnd.visio"
+        );
     }
 }

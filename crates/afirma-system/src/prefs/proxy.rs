@@ -35,8 +35,8 @@ pub fn cipher_password(password: &str) -> Option<String> {
         return None;
     }
     let (k, iv) = aes_key_iv();
-    let enc = cbc::Encryptor::<aes::Aes256>::new(&k.into(), &iv.into())
-        .encrypt_padded_vec::<Pkcs7>(password.as_bytes());
+    let enc =
+        cbc::Encryptor::<aes::Aes256>::new(&k.into(), &iv.into()).encrypt_padded_vec::<Pkcs7>(password.as_bytes());
     Some(base64::engine::general_purpose::URL_SAFE.encode(enc))
 }
 
@@ -48,8 +48,7 @@ pub fn decipher_password(ciphered: &str) -> Option<String> {
     let std_b64 = ciphered.replace('_', "/").replace('-', "+");
     if let Ok(data) = b64().decode(std_b64.trim()) {
         let (k, iv) = aes_key_iv();
-        if let Ok(p) = cbc::Decryptor::<aes::Aes256>::new(&k.into(), &iv.into())
-            .decrypt_padded_vec::<Pkcs7>(&data)
+        if let Ok(p) = cbc::Decryptor::<aes::Aes256>::new(&k.into(), &iv.into()).decrypt_padded_vec::<Pkcs7>(&data)
             && let Ok(s) = String::from_utf8(p)
         {
             return Some(s);
@@ -65,9 +64,7 @@ fn decipher_des(ciphered: &str) -> Option<String> {
     } else {
         (0, ciphered)
     };
-    let data = b64()
-        .decode(body.replace('-', "+").replace('_', "/").trim())
-        .ok()?;
+    let data = b64().decode(body.replace('-', "+").replace('_', "/").trim()).ok()?;
     if data.is_empty() || data.len() % 8 != 0 {
         return None;
     }
@@ -105,10 +102,7 @@ mod tests {
         data[..pwd.len()].copy_from_slice(pwd);
         let c = des::Des::new_from_slice(DES_KEY).unwrap();
         c.encrypt_block((&mut data).into());
-        let s = format!(
-            "2.{}",
-            base64::engine::general_purpose::URL_SAFE.encode(data)
-        );
+        let s = format!("2.{}", base64::engine::general_purpose::URL_SAFE.encode(data));
         assert_eq!(decipher_password(&s).as_deref(), Some("proxy1"));
     }
 }

@@ -50,13 +50,22 @@ pub fn acquire(files: &[PathBuf]) -> Instance {
     if std::fs::create_dir_all(&dir).is_err() {
         return Instance::Unknown;
     }
-    let Ok(lock) = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(dir.join(LOCK_NAME)) else {
+    let Ok(lock) = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(dir.join(LOCK_NAME))
+    else {
         return Instance::Unknown;
     };
     match lock.try_lock() {
         Ok(()) => match serve(&dir) {
             Some(info) => Instance::Primary(PrimaryGuard { _lock: lock, info }),
-            None => Instance::Primary(PrimaryGuard { _lock: lock, info: PathBuf::new() }),
+            None => Instance::Primary(PrimaryGuard {
+                _lock: lock,
+                info: PathBuf::new(),
+            }),
         },
         Err(TryLockError::WouldBlock) => {
             if forward(&dir, files) {
@@ -118,13 +127,17 @@ fn handle(stream: TcpStream, token: &str) {
 }
 
 fn forward(dir: &Path, files: &[PathBuf]) -> bool {
-    let Ok(info) = std::fs::read_to_string(dir.join(INFO_NAME)) else { return false };
+    let Ok(info) = std::fs::read_to_string(dir.join(INFO_NAME)) else {
+        return false;
+    };
     let mut parts = info.split_whitespace();
     let (Some(port), Some(token)) = (parts.next().and_then(|p| p.parse::<u16>().ok()), parts.next()) else {
         return false;
     };
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
-    let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_secs(2)) else { return false };
+    let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_secs(2)) else {
+        return false;
+    };
     let mut msg = format!("{token}\n");
     for f in files {
         let abs = std::path::absolute(f).unwrap_or_else(|_| f.clone());

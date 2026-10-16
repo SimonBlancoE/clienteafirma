@@ -93,11 +93,7 @@ pub fn labels(locale: &str) -> Labels {
             "Signatura binària CMS/CAdES",
             "Signatura XMLDSig/XAdES",
         ),
-        "gl_ES" => (
-            "Asinar con Autofirma",
-            "Firma binaria CMS/CAdES",
-            "Firma XMLDSig/XAdES",
-        ),
+        "gl_ES" => ("Asinar con Autofirma", "Firma binaria CMS/CAdES", "Firma XMLDSig/XAdES"),
         "eu_ES" => (
             "Autofirmarekin sinatu",
             "CMS/CAdES sinadura bitarra",
@@ -108,11 +104,7 @@ pub fn labels(locale: &str) -> Labels {
             "Binary signature CMS/CAdES",
             "Signature XMLDSig/XAdES",
         ),
-        _ => (
-            "Firmar con Autofirma",
-            "Firma binaria CMS/CAdES",
-            "Firma XMLDSig/XAdES",
-        ),
+        _ => ("Firmar con Autofirma", "Firma binaria CMS/CAdES", "Firma XMLDSig/XAdES"),
     };
     // El verbo «Verificar» de Java estaba siempre en castellano.
     Labels {
@@ -171,11 +163,7 @@ pub fn windows_entries(ctx: &Context, opts: &ProtocolOptions) -> Vec<RegEntry> {
     put(SCHEME, "", "URL:Afirma Protocol");
     put(SCHEME, "URL Protocol", "");
     put(&format!(r"{SCHEME}\DefaultIcon"), "", &icon);
-    put(
-        &format!(r"{SCHEME}\shell\open\command"),
-        "",
-        &format!("{exe} \"%1\""),
-    );
+    put(&format!(r"{SCHEME}\shell\open\command"), "", &format!("{exe} \"%1\""));
     if opts.menus.sign {
         put(r"*\shell\afirma.sign", "", l.sign);
         put(r"*\shell\afirma.sign", "Icon", &exe);
@@ -292,10 +280,7 @@ fn register_windows(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
         if let Ok(Some(cmd)) = ctx.registry.read_string(hive, &format!(r"{k}\command"), "")
             && is_autofirma_command(&cmd)
         {
-            changed |= ctx
-                .registry
-                .delete_tree(hive, k)
-                .map_err(|e| reg_err(k, e))?;
+            changed |= ctx.registry.delete_tree(hive, k).map_err(|e| reg_err(k, e))?;
         }
     }
     for e in windows_entries(ctx, opts) {
@@ -336,11 +321,7 @@ fn register_windows(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
     if changed {
         notify_assoc_changed();
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn unregister_windows(ctx: &Context, scope: TrustScope) -> Result<Change> {
@@ -350,17 +331,14 @@ fn unregister_windows(ctx: &Context, scope: TrustScope) -> Result<Change> {
         let full = format!(r"Software\Classes\{k}");
         // El esquema afirma:// solo se borra si apunta a AutoFirma.
         if *k == "afirma"
-            && let Ok(Some(cmd)) =
-                ctx.registry
-                    .read_string(hive, &format!(r"{full}\shell\open\command"), "")
+            && let Ok(Some(cmd)) = ctx
+                .registry
+                .read_string(hive, &format!(r"{full}\shell\open\command"), "")
             && !is_autofirma_command(&cmd)
         {
             continue;
         }
-        changed |= ctx
-            .registry
-            .delete_tree(hive, &full)
-            .map_err(|e| reg_err(&full, e))?;
+        changed |= ctx.registry.delete_tree(hive, &full).map_err(|e| reg_err(&full, e))?;
     }
     for ext in ["csig", "xsig"] {
         let k = format!(r"Software\Classes\.{ext}");
@@ -369,18 +347,8 @@ fn unregister_windows(ctx: &Context, scope: TrustScope) -> Result<Change> {
             .registry
             .delete_value(hive, &format!(r"{k}\OpenWithProgids"), &progid)
             .map_err(|e| reg_err(&k, e))?;
-        if ctx
-            .registry
-            .read_string(hive, &k, "")
-            .ok()
-            .flatten()
-            .as_deref()
-            == Some(progid.as_str())
-        {
-            changed |= ctx
-                .registry
-                .delete_value(hive, &k, "")
-                .map_err(|e| reg_err(&k, e))?;
+        if ctx.registry.read_string(hive, &k, "").ok().flatten().as_deref() == Some(progid.as_str()) {
+            changed |= ctx.registry.delete_value(hive, &k, "").map_err(|e| reg_err(&k, e))?;
         }
         // Clave de extensión vacía que dejaba Java o la nuestra.
         if ctx
@@ -389,17 +357,10 @@ fn unregister_windows(ctx: &Context, scope: TrustScope) -> Result<Change> {
             .ok()
             .flatten()
             .is_some_and(|v| v.is_empty())
-            && ctx
-                .registry
-                .subkeys(hive, &k)
-                .ok()
-                .flatten()
-                .is_some_and(|s| {
-                    s.iter().all(|x| {
-                        x.eq_ignore_ascii_case("OpenWithProgids")
-                            || x.eq_ignore_ascii_case("DefaultIcon")
-                    })
-                })
+            && ctx.registry.subkeys(hive, &k).ok().flatten().is_some_and(|s| {
+                s.iter()
+                    .all(|x| x.eq_ignore_ascii_case("OpenWithProgids") || x.eq_ignore_ascii_case("DefaultIcon"))
+            })
         {
             let _ = ctx.registry.delete_tree(hive, &k);
         }
@@ -407,11 +368,7 @@ fn unregister_windows(ctx: &Context, scope: TrustScope) -> Result<Change> {
     if changed {
         notify_assoc_changed();
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 /// Notifica al Explorador el cambio de asociaciones (`SHChangeNotify`).
@@ -445,11 +402,10 @@ fn status_windows(ctx: &Context) -> ProtocolStatus {
         (Hive::CurrentUser, TrustScope::User),
         (Hive::LocalMachine, TrustScope::Machine),
     ] {
-        if let Ok(Some(cmd)) = ctx.registry.read_string(
-            hive,
-            &format!(r"Software\Classes\{SCHEME}\shell\open\command"),
-            "",
-        ) {
+        if let Ok(Some(cmd)) =
+            ctx.registry
+                .read_string(hive, &format!(r"Software\Classes\{SCHEME}\shell\open\command"), "")
+        {
             let expected = format!("{} \"%1\"", win_quote(&ctx.app.exe));
             let url_protocol = ctx
                 .registry
@@ -572,11 +528,7 @@ pub fn linux_files(ctx: &Context, opts: &ProtocolOptions) -> Vec<(PathBuf, Strin
         && opts.desktop_dir.is_none()
         && ctx.sys(&format!("/usr/share/applications/{id}.desktop")).is_file();
     if opts.write_desktop_file && !packaged {
-        v.push((
-            apps.join(format!("{id}.desktop")),
-            desktop_entry(ctx),
-            0o644,
-        ));
+        v.push((apps.join(format!("{id}.desktop")), desktop_entry(ctx), 0o644));
     }
     if opts.menus.sign {
         v.push((
@@ -602,18 +554,13 @@ pub fn linux_files(ctx: &Context, opts: &ProtocolOptions) -> Vec<(PathBuf, Strin
         };
         v.push((mime_dir.join("autofirma.xml"), mime_package_xml(&l), 0o644));
     }
-    if opts.menus.sign
-        && opts.scope == TrustScope::User
-        && ctx.paths.home.join(".local/share/nautilus").is_dir()
-    {
+    if opts.menus.sign && opts.scope == TrustScope::User && ctx.paths.home.join(".local/share/nautilus").is_dir() {
         let script = format!(
             "#!/bin/sh\n# Generado por AutoFirma\nfor f in \"$@\"; do exec {} sign -gui -i \"$f\"; done\n",
             shell_quote(&ctx.app.exe.to_string_lossy())
         );
         v.push((
-            ctx.paths
-                .home
-                .join(format!(".local/share/nautilus/scripts/{}", l.sign)),
+            ctx.paths.home.join(format!(".local/share/nautilus/scripts/{}", l.sign)),
             script,
             0o755,
         ));
@@ -665,11 +612,7 @@ pub fn edit_mimeapps(text: &str, mime: &str, set: Option<&str>, ours: &str) -> O
                     done = true;
                 }
                 None => {
-                    if v.trim()
-                        .trim_end_matches(';')
-                        .split(';')
-                        .any(|x| x.trim() == ours)
-                    {
+                    if v.trim().trim_end_matches(';').split(';').any(|x| x.trim() == ours) {
                         changed = true;
                     } else {
                         out.push(line.to_string());
@@ -701,9 +644,7 @@ pub fn edit_mimeapps(text: &str, mime: &str, set: Option<&str>, ours: &str) -> O
 
 fn refresh_desktop_db(ctx: &Context, dir: &Path) {
     if ctx.runner.which("update-desktop-database").is_some() {
-        let _ = ctx
-            .runner
-            .run(&Cmd::new("update-desktop-database").arg_path(dir));
+        let _ = ctx.runner.run(&Cmd::new("update-desktop-database").arg_path(dir));
     }
 }
 
@@ -737,15 +678,9 @@ fn register_linux(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
             TrustScope::Machine => ctx.sys("/usr/local/share/mime"),
             TrustScope::User => ctx.paths.home.join(".local/share/mime"),
         };
-        let _ = ctx
-            .runner
-            .run(&Cmd::new("update-mime-database").arg_path(&mime_root));
+        let _ = ctx.runner.run(&Cmd::new("update-mime-database").arg_path(&mime_root));
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn unregister_linux(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
@@ -760,14 +695,12 @@ fn unregister_linux(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
         ..opts.clone()
     };
     // Los scripts de Nautilus se buscan aunque el directorio padre se haya borrado.
-    let mut files: Vec<PathBuf> = linux_files(ctx, &all)
-        .into_iter()
-        .map(|(p, _, _)| p)
-        .collect();
-    files.push(ctx.paths.home.join(format!(
-        ".local/share/nautilus/scripts/{}",
-        labels(&opts.locale).sign
-    )));
+    let mut files: Vec<PathBuf> = linux_files(ctx, &all).into_iter().map(|(p, _, _)| p).collect();
+    files.push(
+        ctx.paths
+            .home
+            .join(format!(".local/share/nautilus/scripts/{}", labels(&opts.locale).sign)),
+    );
     for p in files {
         // Solo ficheros generados por nosotros.
         if let Some(t) = fsutil::read_text_opt(&p)?
@@ -790,11 +723,7 @@ fn unregister_linux(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
     if changed {
         refresh_desktop_db(ctx, &linux_apps_dir(ctx, opts));
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn status_linux(ctx: &Context) -> ProtocolStatus {
@@ -858,11 +787,7 @@ fn status_linux(ctx: &Context) -> ProtocolStatus {
     let exec = file
         .as_ref()
         .and_then(|f| std::fs::read_to_string(f).ok())
-        .and_then(|t| {
-            t.lines()
-                .find(|l| l.starts_with("Exec="))
-                .map(|l| l[5..].to_string())
-        });
+        .and_then(|t| t.lines().find(|l| l.starts_with("Exec=")).map(|l| l[5..].to_string()));
     let points = exec
         .as_ref()
         .is_some_and(|e| e.contains(&*ctx.app.exe.to_string_lossy()));
@@ -895,19 +820,18 @@ pub fn macos_info_plist_fragment() -> String {
 }
 
 /// Herramienta `lsregister`.
-pub const LSREGISTER: &str = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
+pub const LSREGISTER: &str =
+    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
 fn register_macos(ctx: &Context) -> Result<Change> {
-    let bundle = ctx.app.macos_bundle.clone().ok_or_else(|| {
-        SystemError::Other("la aplicación no se ejecuta desde un paquete .app".into())
-    })?;
+    let bundle = ctx
+        .app
+        .macos_bundle
+        .clone()
+        .ok_or_else(|| SystemError::Other("la aplicación no se ejecuta desde un paquete .app".into()))?;
     let o = ctx
         .runner
-        .run(
-            &Cmd::new(LSREGISTER)
-                .args(["-f", "-R", "-trusted"])
-                .arg_path(&bundle),
-        )
+        .run(&Cmd::new(LSREGISTER).args(["-f", "-R", "-trusted"]).arg_path(&bundle))
         .map_err(|e| SystemError::Command {
             program: "lsregister".into(),
             detail: e.to_string(),
@@ -968,17 +892,14 @@ mod macos_ls {
         }
         #[link(name = "CoreServices", kind = "framework")]
         unsafe extern "C" {
-            pub fn LSSetDefaultHandlerForURLScheme(scheme: CFStringRef, bundle: CFStringRef)
-            -> i32;
+            pub fn LSSetDefaultHandlerForURLScheme(scheme: CFStringRef, bundle: CFStringRef) -> i32;
             pub fn LSCopyDefaultHandlerForURLScheme(scheme: CFStringRef) -> CFStringRef;
         }
         pub const UTF8: u32 = 0x0800_0100;
 
         pub fn cf(s: &str) -> CFStringRef {
             // SAFETY: bytes válidos durante la llamada; el resultado se libera con CFRelease.
-            unsafe {
-                CFStringCreateWithBytes(std::ptr::null(), s.as_ptr(), s.len() as isize, UTF8, 0)
-            }
+            unsafe { CFStringCreateWithBytes(std::ptr::null(), s.as_ptr(), s.len() as isize, UTF8, 0) }
         }
     }
 
@@ -1049,9 +970,7 @@ pub fn register(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
     match ctx.os {
         Os::Windows => {
             if opts.scope == TrustScope::Machine && !ctx.elevated {
-                return Err(SystemError::NotElevated(
-                    "registro del protocolo en HKLM".into(),
-                ));
+                return Err(SystemError::NotElevated("registro del protocolo en HKLM".into()));
             }
             register_windows(ctx, opts)
         }
@@ -1107,9 +1026,7 @@ pub fn firefox_pref_dirs(ctx: &Context) -> Vec<PathBuf> {
 /// de «Restaurar instalación» en Linux, que en Java fallaba siempre por un recurso ausente).
 pub fn install_firefox_protocol_prefs(ctx: &Context) -> Result<Change> {
     if !ctx.elevated {
-        return Err(SystemError::NotElevated(
-            "preferencias de Firefox del sistema".into(),
-        ));
+        return Err(SystemError::NotElevated("preferencias de Firefox del sistema".into()));
     }
     let content = firefox_protocol_prefs(&ctx.app.exe);
     let mut changed = false;
@@ -1120,11 +1037,7 @@ pub fn install_firefox_protocol_prefs(ctx: &Context) -> Result<Change> {
             changed = true;
         }
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 /// Retira `autofirma.js` de los directorios de preferencias de Firefox.
@@ -1133,11 +1046,7 @@ pub fn remove_firefox_protocol_prefs(ctx: &Context) -> Result<Change> {
     for d in firefox_pref_dirs(ctx) {
         changed |= fsutil::remove_file_if_exists(&d.join("autofirma.js"))?;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 #[cfg(test)]
@@ -1154,23 +1063,15 @@ mod tests {
         assert_eq!(register(&ctx, &opts).unwrap(), Change::Unchanged);
         let r = &ctx.registry;
         assert_eq!(
-            r.read_string(
-                Hive::CurrentUser,
-                r"Software\Classes\afirma\shell\open\command",
-                ""
-            )
-            .unwrap()
-            .unwrap(),
+            r.read_string(Hive::CurrentUser, r"Software\Classes\afirma\shell\open\command", "")
+                .unwrap()
+                .unwrap(),
             "\"C:\\Program Files\\Autofirma\\Autofirma.exe\" \"%1\""
         );
         assert_eq!(
-            r.read_string(
-                Hive::CurrentUser,
-                r"Software\Classes\*\shell\afirma.sign\command",
-                ""
-            )
-            .unwrap()
-            .unwrap(),
+            r.read_string(Hive::CurrentUser, r"Software\Classes\*\shell\afirma.sign\command", "")
+                .unwrap()
+                .unwrap(),
             "\"C:\\Program Files\\Autofirma\\Autofirma.exe\" sign -gui -i \"%1\""
         );
         assert_eq!(
@@ -1208,20 +1109,14 @@ mod tests {
             "OtraApp.xsig"
         );
         assert_eq!(unregister(&ctx, &opts).unwrap(), Change::Changed);
-        assert!(
-            !r.key_exists(Hive::CurrentUser, r"Software\Classes\afirma")
-                .unwrap()
-        );
+        assert!(!r.key_exists(Hive::CurrentUser, r"Software\Classes\afirma").unwrap());
         assert_eq!(
             r.read_string(Hive::CurrentUser, r"Software\Classes\.xsig", "")
                 .unwrap()
                 .unwrap(),
             "OtraApp.xsig"
         );
-        assert!(
-            !r.key_exists(Hive::CurrentUser, r"Software\Classes\.csig")
-                .unwrap()
-        );
+        assert!(!r.key_exists(Hive::CurrentUser, r"Software\Classes\.csig").unwrap());
         assert!(!status(&ctx).registered);
     }
 
@@ -1242,9 +1137,7 @@ mod tests {
             Hive::LocalMachine,
             r"Software\Classes\.csig\shell\Verify\command",
             "",
-            &RegValue::Sz(
-                r"C:\Program Files\Autofirma\Autofirma\Autofirma.exe verify -gui -i %1".into(),
-            ),
+            &RegValue::Sz(r"C:\Program Files\Autofirma\Autofirma\Autofirma.exe verify -gui -i %1".into()),
         )
         .unwrap();
         register(
@@ -1277,8 +1170,7 @@ mod tests {
         std::fs::write(home.join(".config/mimeapps.list"), "[Added Associations]\ntext/plain=gedit.desktop;\n\n[Default Applications]\nx-scheme-handler/afirma=afirma.desktop;\ntext/html=firefox.desktop;\n").unwrap();
         let opts = ProtocolOptions::default();
         assert_eq!(register(&ctx, &opts).unwrap(), Change::Changed);
-        let d = std::fs::read_to_string(home.join(".local/share/applications/autofirma.desktop"))
-            .unwrap();
+        let d = std::fs::read_to_string(home.join(".local/share/applications/autofirma.desktop")).unwrap();
         assert!(d.contains("Exec=\"/opt/Auto Firma/autofirma\" %u"), "{d}");
         assert!(d.contains("MimeType=x-scheme-handler/afirma;"));
         let ml = std::fs::read_to_string(home.join(".config/mimeapps.list")).unwrap();
@@ -1291,32 +1183,17 @@ mod tests {
         assert_eq!(register(&ctx, &opts).unwrap(), Change::Unchanged);
         let st = status(&ctx);
         assert!(st.registered && st.points_to_current, "{st:?}");
-        assert!(
-            home.join(".local/share/mime/packages/autofirma.xml")
-                .is_file()
-        );
+        assert!(home.join(".local/share/mime/packages/autofirma.xml").is_file());
         assert_eq!(unregister(&ctx, &opts).unwrap(), Change::Changed);
         let ml = std::fs::read_to_string(home.join(".config/mimeapps.list")).unwrap();
-        assert!(
-            !ml.contains("x-scheme-handler/afirma") && ml.contains("text/html=firefox.desktop;")
-        );
-        assert!(
-            !home
-                .join(".local/share/applications/autofirma.desktop")
-                .exists()
-        );
+        assert!(!ml.contains("x-scheme-handler/afirma") && ml.contains("text/html=firefox.desktop;"));
+        assert!(!home.join(".local/share/applications/autofirma.desktop").exists());
     }
 
     #[test]
     fn mimeapps_crea_seccion() {
         assert_eq!(
-            edit_mimeapps(
-                "",
-                "x-scheme-handler/afirma",
-                Some("a.desktop"),
-                "a.desktop"
-            )
-            .unwrap(),
+            edit_mimeapps("", "x-scheme-handler/afirma", Some("a.desktop"), "a.desktop").unwrap(),
             "[Default Applications]\nx-scheme-handler/afirma=a.desktop;\n"
         );
         let t = "[Added Associations]\nx=y;\n";
@@ -1325,13 +1202,7 @@ mod tests {
             "[Added Associations]\nx=y;\n\n[Default Applications]\nm=a.desktop;\n"
         );
         assert!(
-            edit_mimeapps(
-                "[Default Applications]\nm=otra.desktop;\n",
-                "m",
-                None,
-                "a.desktop"
-            )
-            .is_none(),
+            edit_mimeapps("[Default Applications]\nm=otra.desktop;\n", "m", None, "a.desktop").is_none(),
             "no se quita lo ajeno"
         );
     }
@@ -1339,10 +1210,7 @@ mod tests {
     #[test]
     fn plist_de_macos() {
         assert!(macos_info_plist_fragment().contains("<string>afirma</string>"));
-        assert_eq!(
-            desktop_exec_quote("/usr/bin/autofirma"),
-            "/usr/bin/autofirma"
-        );
+        assert_eq!(desktop_exec_quote("/usr/bin/autofirma"), "/usr/bin/autofirma");
         assert_eq!(desktop_exec_quote("/a b/$x"), "\"/a b/\\\\$x\"");
     }
 }

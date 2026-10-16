@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use afirma_cli::{
-    CertificateChoice, CertificateChooser, CertificateRequest, CliEnv, DoctorRequest, GuiRequest,
-    InstallRequest, RestoreRequest, Scope, SystemOps, SystemOutcome, UninstallRequest, run,
+    CertificateChoice, CertificateChooser, CertificateRequest, CliEnv, DoctorRequest, GuiRequest, InstallRequest,
+    RestoreRequest, Scope, SystemOps, SystemOutcome, UninstallRequest, run,
 };
 use afirma_core::http::{HttpClient as CoreHttpClient, HttpClientError, HttpMethod, HttpRequest};
 use afirma_keystores::PasswordResponse;
@@ -43,10 +43,7 @@ const OK: &str = "La operacion ha terminado correctamente \n";
 fn clave_ausente_en_ingles_usa_el_espanol() {
     let c = case("sign_unknown_alias_en");
     let (java_status, java_text) = golden(&c.name);
-    assert_eq!(
-        (java_status, java_text.as_str()),
-        (255, "!CommandLineLauncher.148!\n")
-    );
+    assert_eq!((java_status, java_text.as_str()), (255, "!CommandLineLauncher.148!\n"));
     let (o, text, _) = run_case(&c);
     assert_eq!(o.status, -1);
     assert_eq!(
@@ -67,10 +64,7 @@ fn config_sin_igual_da_un_error_claro() {
     );
     let (o, text, _) = run_case(&c);
     assert_eq!(o.status, -1);
-    assert_eq!(
-        text,
-        "La configuracion indicada no tiene el formato clave=valor: foo\n"
-    );
+    assert_eq!(text, "La configuracion indicada no tiene el formato clave=valor: foo\n");
 }
 
 #[test]
@@ -91,16 +85,11 @@ struct Chooser {
 
 impl CertificateChooser for Chooser {
     fn choose(&self, request: &CertificateRequest) -> Result<Option<CertificateChoice>, String> {
-        let first = request
-            .candidates
-            .first()
-            .map(|e| e.alias.clone())
-            .unwrap_or_default();
-        self.seen.lock().unwrap().push((
-            request.candidates.len(),
-            request.allow_external_stores,
-            first.clone(),
-        ));
+        let first = request.candidates.first().map(|e| e.alias.clone()).unwrap_or_default();
+        self.seen
+            .lock()
+            .unwrap()
+            .push((request.candidates.len(), request.allow_external_stores, first.clone()));
         if self.cancel || request.candidates.is_empty() {
             return Ok(None);
         }
@@ -146,10 +135,7 @@ fn certgui_con_selector() {
         &[(1, false, "firmante-rsa".to_string())]
     );
     let tree = structure(&std::fs::read(&out).unwrap()).1;
-    assert_eq!(
-        tree,
-        vec![(0, "ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string())]
-    );
+    assert_eq!(tree, vec![(0, "ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string())]);
 
     // -filter sustituye a los filtros de -config.
     let chooser = Arc::new(Chooser {
@@ -162,10 +148,7 @@ fn certgui_con_selector() {
     let o = run(&args2, &env2);
     assert_eq!(
         (o.status, o.output.as_str()),
-        (
-            -1,
-            "Error no reconocido: No se ha seleccionado certificado\n"
-        )
+        (-1, "Error no reconocido: No se ha seleccionado certificado\n")
     );
     // Sin candidatos el selector recibe la lista vacía (el diálogo avisaría).
     assert_eq!(chooser.seen.lock().unwrap()[0].0, 0);
@@ -178,10 +161,7 @@ fn certgui_con_selector() {
     let o = run(&args, &env3);
     assert_eq!(
         (o.status, o.output.as_str()),
-        (
-            -1,
-            "Error no reconocido: No se ha seleccionado certificado\n"
-        )
+        (-1, "Error no reconocido: No se ha seleccionado certificado\n")
     );
     let mut xml = args.clone();
     xml.push("-xml".into());
@@ -232,18 +212,11 @@ fn ooxml_sin_interfaz() {
     let sig = std::fs::read(out.path().join("out.docx")).unwrap();
     let (kind, tree, _) = structure(&sig);
     assert!(kind.eq_ignore_ascii_case("ooxml"), "{kind}");
-    assert_eq!(
-        tree,
-        vec![(0, "ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string())]
-    );
+    assert_eq!(tree, vec![(0, "ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string())]);
     dump("sign_ooxml", ".docx", &sig);
     // verify: validación incompleta (como un OOXML firmado en Java).
     let o = run(
-        &s(&[
-            "verify",
-            "-i",
-            out.path().join("out.docx").to_str().unwrap(),
-        ]),
+        &s(&["verify", "-i", out.path().join("out.docx").to_str().unwrap()]),
         &env(),
     );
     assert_eq!(o.output, golden("verify_word_signed").1);
@@ -263,10 +236,7 @@ impl CoreHttpClient for MockServer {
         assert_eq!(req.method, HttpMethod::Post);
         let (url, body) = afirma_core::http::split_post_url(&req.url);
         let body = body.unwrap_or_default();
-        self.requests
-            .lock()
-            .unwrap()
-            .push((url.clone(), body.clone()));
+        self.requests.lock().unwrap().push((url.clone(), body.clone()));
         let pre = afirma_core::base64_encode(b"datos a firmar");
         let json = body.starts_with("json=");
         if url.ends_with("/pre") {
@@ -349,11 +319,7 @@ fn batchsign_xml_y_json() {
 
     // Lote en Base64: se decodifica antes de enviarlo.
     let b64 = dir.path().join("lote.b64");
-    std::fs::write(
-        &b64,
-        afirma_core::base64_encode(&std::fs::read(&xml_batch).unwrap()),
-    )
-    .unwrap();
+    std::fs::write(&b64, afirma_core::base64_encode(&std::fs::read(&xml_batch).unwrap())).unwrap();
     let (env, server) = batch_env(false);
     let o = run(&batch_args(&b64, None, &["-xml"]), &env);
     assert_eq!(o.status, 0, "{}", o.output);
@@ -410,11 +376,7 @@ fn batchsign_errores_con_estado() {
     );
 
     // Casos del oráculo en los que Java no imprimía nada y salía con 0.
-    for name in [
-        "batch_conn_error",
-        "batch_bad_password",
-        "batch_xml_no_output",
-    ] {
+    for name in ["batch_conn_error", "batch_bad_password", "batch_xml_no_output"] {
         assert_eq!(golden(name), (0, String::new()), "{name}");
     }
     let (o, text, _) = run_case(&case("batch_conn_error"));
@@ -435,10 +397,7 @@ fn batchsign_errores_con_estado() {
     );
     assert_eq!(
         (o.status, o.output.as_str()),
-        (
-            -1,
-            "Error en la llamada al servicio de prefirma de lotes XML\n"
-        )
+        (-1, "Error en la llamada al servicio de prefirma de lotes XML\n")
     );
     let (o, text, _) = run_case(&case("batch_bad_password"));
     assert_eq!(
@@ -493,11 +452,7 @@ fn peticiones_de_interfaz() {
         panic!("{o:?}")
     };
     assert_eq!(
-        (
-            req.format,
-            req.digest_algorithm.as_str(),
-            req.algorithm_explicit
-        ),
+        (req.format, req.digest_algorithm.as_str(), req.algorithm_explicit),
         (None, "SHA-512", false)
     );
 
@@ -538,10 +493,7 @@ fn peticiones_de_interfaz() {
     );
     // Antes de -gui no hay diálogo (depende del orden, como en Java).
     let o = run(&s(&["sign", "-foo", "-gui"]), &env());
-    assert_eq!(
-        (o.output.as_str(), o.gui),
-        ("No se reconoce el parametro -foo\n", None)
-    );
+    assert_eq!((o.output.as_str(), o.gui), ("No se reconoce el parametro -foo\n", None));
     // cosign ignora -gui.
     let o = run(&s(&["cosign", "-gui", "-i", &hola()]), &env());
     assert!(o.gui.is_none() && o.status == -1);
@@ -559,29 +511,16 @@ fn huellas_digitales() {
     // SHA-256("hola") en hexadecimal en mayúsculas seguido de 'h'.
     assert_eq!(
         (o.status, o.output.as_str()),
-        (
-            0,
-            "B221D9DBB083A7F33428D7C2A3C3198AE925614D70210E28716CCAA7CD4DDB79h\n"
-        )
+        (0, "B221D9DBB083A7F33428D7C2A3C3198AE925614D70210E28716CCAA7CD4DDB79h\n")
     );
     let hash = dir.path().join("a.txt.hexhash");
     let o = run(
-        &s(&[
-            "CreateDigest",
-            f.to_str().unwrap(),
-            "-o",
-            hash.to_str().unwrap(),
-        ]),
+        &s(&["CreateDigest", f.to_str().unwrap(), "-o", hash.to_str().unwrap()]),
         &env(),
     );
     assert_eq!((o.status, o.output.as_str()), (0, OK));
     let o = run(
-        &s(&[
-            "checkdigest",
-            f.to_str().unwrap(),
-            "-i",
-            hash.to_str().unwrap(),
-        ]),
+        &s(&["checkdigest", f.to_str().unwrap(), "-i", hash.to_str().unwrap()]),
         &env(),
     );
     assert_eq!(
@@ -590,12 +529,7 @@ fn huellas_digitales() {
     );
     std::fs::write(&f, b"adios").unwrap();
     let o = run(
-        &s(&[
-            "checkdigest",
-            f.to_str().unwrap(),
-            "-i",
-            hash.to_str().unwrap(),
-        ]),
+        &s(&["checkdigest", f.to_str().unwrap(), "-i", hash.to_str().unwrap()]),
         &env(),
     );
     assert_eq!(
@@ -608,12 +542,7 @@ fn huellas_digitales() {
     let mut java_env = env();
     java_env.hash_java_exit_codes = true;
     let o = run(
-        &s(&[
-            "checkdigest",
-            f.to_str().unwrap(),
-            "-i",
-            hash.to_str().unwrap(),
-        ]),
+        &s(&["checkdigest", f.to_str().unwrap(), "-i", hash.to_str().unwrap()]),
         &java_env,
     );
     assert_eq!(o.status, 0);
@@ -621,9 +550,7 @@ fn huellas_digitales() {
     assert!(
         matches!(
             o.gui,
-            Some(GuiRequest::Hash(
-                afirma_hash::GuiRequest::CreateDigest { .. }
-            ))
+            Some(GuiRequest::Hash(afirma_hash::GuiRequest::CreateDigest { .. }))
         ),
         "{o:?}"
     );
@@ -731,22 +658,21 @@ fn comandos_de_sistema() {
     // Errores de sintaxis: mensaje y ayuda, sin llamar a la implementación.
     let o = run(&s(&["install"]), &env);
     assert_eq!(o.status, -1);
-    assert!(o.output.starts_with("Se tiene que indicar una de las opciones '--system' o '--user'\nSintaxis: autofirma.jar install"), "{}", o.output);
-    assert_eq!(ops.calls.lock().unwrap().len(), 4);
-    let o = run(&s(&["install", "-help"]), &env);
     assert!(
-        o.status == 0 && o.output.contains("--browser-policies"),
+        o.output.starts_with(
+            "Se tiene que indicar una de las opciones '--system' o '--user'\nSintaxis: autofirma.jar install"
+        ),
         "{}",
         o.output
     );
+    assert_eq!(ops.calls.lock().unwrap().len(), 4);
+    let o = run(&s(&["install", "-help"]), &env);
+    assert!(o.status == 0 && o.output.contains("--browser-policies"), "{}", o.output);
     // Sin implementación conectada.
     let o = run(&s(&["doctor"]), &env_for(None));
     assert_eq!(
         (o.status, o.output.as_str()),
-        (
-            -1,
-            "La integracion con el sistema no esta disponible en esta version\n"
-        )
+        (-1, "La integracion con el sistema no esta disponible en esta version\n")
     );
 }
 
@@ -758,11 +684,7 @@ fn idioma_por_preferencia_o_sistema() {
     let mut env = env_for(None);
     env.os_locale = Some("ca_ES.UTF-8".into());
     let o = run(&s(&["-help"]), &env);
-    assert!(
-        o.output.starts_with("Eina de signatura de documents."),
-        "{}",
-        o.output
-    );
+    assert!(o.output.starts_with("Eina de signatura de documents."), "{}", o.output);
     // La preferencia manda sobre el sistema.
     let mut env = env_for(Some("gl_ES"));
     env.os_locale = Some("en_US".into());
@@ -781,10 +703,7 @@ fn idioma_por_preferencia_o_sistema() {
     );
     // Validación en inglés.
     let o = run(&s(&["verify", "-i", &hola()]), &env_for(Some("en_US")));
-    assert_eq!(
-        o.output,
-        "Invalid signature: No signature found within document\n\n"
-    );
+    assert_eq!(o.output, "Invalid signature: No signature found within document\n\n");
 }
 
 #[test]

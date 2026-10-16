@@ -64,7 +64,11 @@ impl FromStr for ProtocolVersion {
 
 impl fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.minor != 0 { write!(f, "{}.{}", self.major, self.minor) } else { write!(f, "{}", self.major) }
+        if self.minor != 0 {
+            write!(f, "{}.{}", self.major, self.minor)
+        } else {
+            write!(f, "{}", self.major)
+        }
     }
 }
 

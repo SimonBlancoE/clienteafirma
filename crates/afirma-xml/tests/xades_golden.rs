@@ -149,10 +149,7 @@ const CASES: &[Case] = &[
         input: "xpathnodenveloped.xml",
         params: &[
             ("format", "XAdES Enveloped"),
-            (
-                "insertEnvelopedSignatureOnNodeByXPath",
-                "/bookstore/book[1]/title",
-            ),
+            ("insertEnvelopedSignatureOnNodeByXPath", "/bookstore/book[1]/title"),
         ],
         key: RSA,
     },
@@ -266,14 +263,8 @@ const CASES: &[Case] = &[
         op: Op::Sign,
         input: "doc.xml",
         params: &[
-            (
-                "canonicalizationAlgorithm",
-                "http://www.w3.org/2001/10/xml-exc-c14n#",
-            ),
-            (
-                "referencesDigestMethod",
-                "http://www.w3.org/2000/09/xmldsig#sha1",
-            ),
+            ("canonicalizationAlgorithm", "http://www.w3.org/2001/10/xml-exc-c14n#"),
+            ("referencesDigestMethod", "http://www.w3.org/2000/09/xmldsig#sha1"),
             ("xadesNamespace", "http://uri.etsi.org/01903/v1.2.2#"),
         ],
         key: RSA,
@@ -284,10 +275,7 @@ const CASES: &[Case] = &[
         input: "doc.xml",
         params: &[
             ("xmlTransforms", "1"),
-            (
-                "xmlTransform0Type",
-                "http://www.w3.org/2002/06/xmldsig-filter2",
-            ),
+            ("xmlTransform0Type", "http://www.w3.org/2002/06/xmldsig-filter2"),
             ("xmlTransform0Subtype", "subtract"),
             ("xmlTransform0Body", "/doc"),
         ],
@@ -464,26 +452,11 @@ fn java_signatures_validate_with_rust() {
     for case in CASES {
         let v = validation::validate(&golden(case.name), false, &NoResolver);
         if case.name == "xades-extdet" {
-            assert_eq!(
-                v[0].error,
-                Some(ValidityError::BadBuildSign),
-                "{}: {v:?}",
-                case.name
-            );
+            assert_eq!(v[0].error, Some(ValidityError::BadBuildSign), "{}: {v:?}", case.name);
         } else if case.name == "xades-cosign-noxpath" {
-            assert_eq!(
-                v[0].error,
-                Some(ValidityError::NoMatchData),
-                "{}: {v:?}",
-                case.name
-            );
+            assert_eq!(v[0].error, Some(ValidityError::NoMatchData), "{}: {v:?}", case.name);
         } else {
-            assert_eq!(
-                v,
-                vec![afirma_core::validity::SignValidity::ok()],
-                "{}",
-                case.name
-            );
+            assert_eq!(v, vec![afirma_core::validity::SignValidity::ok()], "{}", case.name);
         }
     }
 }
@@ -549,16 +522,10 @@ fn get_data_returns_original_content() {
     }
     // Base64 declarado por el usuario: se devuelve el texto Base64.
     assert_eq!(
-        signer
-            .get_data(&golden("xades-enveloping-b64"), &none)
-            .unwrap(),
+        signer.get_data(&golden("xades-enveloping-b64"), &none).unwrap(),
         Some(b"QUJD".to_vec())
     );
-    for name in [
-        "xades-enveloping-xml",
-        "xades-detached-xml",
-        "xades-enveloped",
-    ] {
+    for name in ["xades-enveloping-xml", "xades-detached-xml", "xades-enveloped"] {
         let data = signer.get_data(&golden(name), &none).unwrap().unwrap();
         let s = String::from_utf8(data).unwrap();
         assert!(
@@ -567,14 +534,8 @@ fn get_data_returns_original_content() {
         );
         assert!(!s.contains("Signature"), "{name}: {s}");
     }
-    assert_eq!(
-        signer.get_data(&golden("xades-extdet"), &none).unwrap(),
-        None
-    );
-    assert_eq!(
-        signer.get_data(&golden("xades-manifest"), &none).unwrap(),
-        None
-    );
+    assert_eq!(signer.get_data(&golden("xades-extdet"), &none).unwrap(), None);
+    assert_eq!(signer.get_data(&golden("xades-manifest"), &none).unwrap(), None);
 }
 
 #[test]

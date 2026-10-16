@@ -31,14 +31,12 @@ pub mod tree;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use afconfig::{
-    AfconfigContent, ConfigError, ConfigSignatureVerifier, SignaturePolicy, SignatureStatus,
-};
+use afconfig::{AfconfigContent, ConfigError, ConfigSignatureVerifier, SignaturePolicy, SignatureStatus};
 use keys::{AuxKey, Key, KeyInfo, PrefValue, Section};
 use policy::PolicySet;
 use tree::{
-    JsonTreeStore, NODE_INTERNAL, NODE_KEYSTORES, NODE_MAIN, NODE_UPDATED_SYSTEM,
-    NODE_UPDATED_SYSTEM_KEYSTORES, PrefsFile, PrefsTree,
+    JsonTreeStore, NODE_INTERNAL, NODE_KEYSTORES, NODE_MAIN, NODE_UPDATED_SYSTEM, NODE_UPDATED_SYSTEM_KEYSTORES,
+    PrefsFile, PrefsTree,
 };
 
 use crate::ctx::Context;
@@ -196,13 +194,7 @@ pub fn build_system_layer(
             .get(keys::ALLOW_UPDATE_CONFIG.name())
             .map(String::as_str),
     )
-    .or_else(|| {
-        parse_bool(
-            internal
-                .get(keys::ALLOW_UPDATE_CONFIG.name())
-                .map(String::as_str),
-        )
-    })
+    .or_else(|| parse_bool(internal.get(keys::ALLOW_UPDATE_CONFIG.name()).map(String::as_str)))
     .unwrap_or(false);
     let mut using_updated_copy = false;
     if allow_update {
@@ -240,11 +232,7 @@ impl Preferences {
             Ok(None) => {
                 let (legacy, src) = legacy::read_legacy(ctx, legacy::LegacyScope::User);
                 let f = PrefsFile {
-                    migrated_from: Some(if legacy.is_empty() {
-                        "ninguno".into()
-                    } else {
-                        src
-                    }),
+                    migrated_from: Some(if legacy.is_empty() { "ninguno".into() } else { src }),
                     nodes: legacy,
                     ..Default::default()
                 };
@@ -281,12 +269,7 @@ impl Preferences {
     }
 
     /// Construye un gestor en memoria a partir de capas explícitas (pruebas y herramientas).
-    pub fn from_layers(
-        mode: ResolutionMode,
-        user: PrefsTree,
-        system: SystemLayer,
-        policy: PolicySet,
-    ) -> Self {
+    pub fn from_layers(mode: ResolutionMode, user: PrefsTree, system: SystemLayer, policy: PolicySet) -> Self {
         Self {
             mode,
             store: JsonTreeStore::new(PathBuf::new()),
@@ -372,20 +355,14 @@ impl Preferences {
         if let Some(i) = info
             && i.internal
         {
-            let sys = (
-                Layer::System,
-                self.system.internal.get(name).map(String::as_str),
-            );
+            let sys = (Layer::System, self.system.internal.get(name).map(String::as_str));
             let user = (Layer::User, self.file.nodes.get(NODE_INTERNAL, name));
             if i.system_exclusive || (self.mode == ResolutionMode::Strict && i.admin_only) {
                 return vec![sys, default];
             }
             return vec![user, sys, default];
         }
-        let sys = (
-            Layer::System,
-            self.system.main.get(name).map(String::as_str),
-        );
+        let sys = (Layer::System, self.system.main.get(name).map(String::as_str));
         let user = (Layer::User, self.user_main(name));
         if self.mode == ResolutionMode::Strict
             && let Some(i) = info
@@ -398,9 +375,7 @@ impl Preferences {
 
     /// Valor efectivo (cadena) de una clave: `get` de Java.
     pub fn get(&self, name: &str) -> Option<String> {
-        self.chain(name)
-            .into_iter()
-            .find_map(|(_, v)| v.map(str::to_string))
+        self.chain(name).into_iter().find_map(|(_, v)| v.map(str::to_string))
     }
 
     /// Valor efectivo y su capa.
@@ -541,11 +516,10 @@ impl Preferences {
         let (always, unless_blocked) = keys::tab_restore_keys(section);
         let blocked = self.is_blocked() && section != Section::Keystores;
         let mut removed = Vec::new();
-        for k in always.iter().chain(if blocked {
-            [].iter()
-        } else {
-            unless_blocked.iter()
-        }) {
+        for k in always
+            .iter()
+            .chain(if blocked { [].iter() } else { unless_blocked.iter() })
+        {
             if self.file.nodes.remove(NODE_MAIN, k) {
                 removed.push(*k);
             }
@@ -553,9 +527,7 @@ impl Preferences {
         if section == Section::Keystores {
             let children = self.file.nodes.children(NODE_KEYSTORES);
             for c in children {
-                self.file
-                    .nodes
-                    .remove_subtree(&format!("{NODE_KEYSTORES}/{c}"));
+                self.file.nodes.remove_subtree(&format!("{NODE_KEYSTORES}/{c}"));
             }
         }
         self.persist()?;
@@ -667,28 +639,17 @@ impl Preferences {
 
     fn insert_user_card(&mut self, name: &str, library: &str) {
         let mut n = 1;
-        while self
-            .file
-            .nodes
-            .node_exists(&format!("{NODE_KEYSTORES}/{n}"))
-        {
+        while self.file.nodes.node_exists(&format!("{NODE_KEYSTORES}/{n}")) {
             n += 1;
         }
-        self.file
-            .nodes
-            .put(&format!("{NODE_KEYSTORES}/{n}"), name, library);
+        self.file.nodes.put(&format!("{NODE_KEYSTORES}/{n}"), name, library);
     }
 
     /// Elimina una tarjeta de usuario; `true` si existía.
     pub fn remove_smart_card(&mut self, name: &str) -> Result<bool> {
         for c in self.file.nodes.children(NODE_KEYSTORES) {
             let node = format!("{NODE_KEYSTORES}/{c}");
-            if self
-                .file
-                .nodes
-                .node(&node)
-                .is_some_and(|m| m.contains_key(name))
-            {
+            if self.file.nodes.node(&node).is_some_and(|m| m.contains_key(name)) {
                 self.file.nodes.remove_subtree(&node);
                 self.persist()?;
                 return Ok(true);
@@ -721,13 +682,8 @@ impl Preferences {
         verifier: Option<&dyn ConfigSignatureVerifier>,
     ) -> std::result::Result<PreparedImport, ConfigError> {
         let content = afconfig::parse(data)?;
-        let signature = afconfig::check_signature(
-            data,
-            &content,
-            verifier,
-            &self.signature_policy(),
-            chrono::Utc::now(),
-        )?;
+        let signature =
+            afconfig::check_signature(data, &content, verifier, &self.signature_policy(), chrono::Utc::now())?;
         Ok(PreparedImport { content, signature })
     }
 
@@ -737,11 +693,8 @@ impl Preferences {
         let was_persist = self.persist;
         self.persist = false;
         if let Some(cards) = &prepared.content.smartcards {
-            let mut registered: BTreeMap<String, String> = self
-                .smart_cards()
-                .into_iter()
-                .map(|c| (c.name, c.library))
-                .collect();
+            let mut registered: BTreeMap<String, String> =
+                self.smart_cards().into_iter().map(|c| (c.name, c.library)).collect();
             for (name, lib) in cards {
                 if registered.values().any(|l| l == lib) {
                     continue;
@@ -815,10 +768,7 @@ mod tests {
 
     fn sys(pairs: &[(&str, &str)]) -> SystemLayer {
         SystemLayer {
-            main: pairs
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
+            main: pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
             ..Default::default()
         }
     }
@@ -827,10 +777,7 @@ mod tests {
     fn resolucion_java_en_modo_compatible() {
         let p = Preferences::from_layers(
             ResolutionMode::Compat,
-            tree(&[
-                ("signatureHashAlgorithm", "SHA1"),
-                ("preferencesBlocked", "false"),
-            ]),
+            tree(&[("signatureHashAlgorithm", "SHA1"), ("preferencesBlocked", "false")]),
             sys(&[
                 ("signatureHashAlgorithm", "SHA512"),
                 ("preferencesBlocked", "true"),
@@ -843,10 +790,7 @@ mod tests {
             Some("SHA1"),
             "el usuario gana en Java"
         );
-        assert!(
-            !p.is_blocked(),
-            "Java resuelve el bloqueo primero en el usuario"
-        );
+        assert!(!p.is_blocked(), "Java resuelve el bloqueo primero en el usuario");
         assert_eq!(p.get("xadesSignFormat").as_deref(), Some("XAdES Enveloped"));
         assert_eq!(p.get("cadesMultisign").as_deref(), Some("cosign"));
         assert_eq!(p.get("noExiste"), None);
@@ -876,10 +820,7 @@ mod tests {
             p.value(keys::SIGNATURE_HASH_ALGORITHM),
             Some(keys::HashAlgorithm::Sha512)
         );
-        assert_eq!(
-            p.lock("signatureHashAlgorithm"),
-            Some(LockReason::AdminBlock)
-        );
+        assert_eq!(p.lock("signatureHashAlgorithm"), Some(LockReason::AdminBlock));
         assert!(matches!(
             p.put("signatureHashAlgorithm", "SHA1"),
             Err(SystemError::Locked(_))
@@ -906,10 +847,8 @@ mod tests {
     fn directiva_obligatoria_bloquea_en_ambos_modos() {
         for mode in [ResolutionMode::Compat, ResolutionMode::Strict] {
             let mut pol = PolicySet::default();
-            pol.mandatory
-                .insert("secureConnections".into(), "true".into());
-            pol.mandatory
-                .insert("default.locale".into(), "eu_ES".into());
+            pol.mandatory.insert("secureConnections".into(), "true".into());
+            pol.mandatory.insert("default.locale".into(), "eu_ES".into());
             let mut p = Preferences::from_layers(
                 mode,
                 tree(&[("secureConnections", "false"), ("default.locale", "es_ES")]),
@@ -935,10 +874,7 @@ mod tests {
             PolicySet::default(),
         );
         p.put("xadesSignFormat", "XAdES Detached").unwrap();
-        assert_eq!(
-            p.user_tree().get(NODE_MAIN, "xadesSignFormat"),
-            Some("XAdES Detached")
-        );
+        assert_eq!(p.user_tree().get(NODE_MAIN, "xadesSignFormat"), Some("XAdES Detached"));
         p.put("xadesSignFormat", "XAdES Enveloped").unwrap();
         assert_eq!(
             p.user_tree().get(NODE_MAIN, "xadesSignFormat"),
@@ -959,10 +895,7 @@ mod tests {
         ));
         p.set(keys::CADES_MULTISIGN, &keys::MultisignOp::CountersignTree)
             .unwrap();
-        assert_eq!(
-            p.value(keys::CADES_MULTISIGN),
-            Some(keys::MultisignOp::CountersignTree)
-        );
+        assert_eq!(p.value(keys::CADES_MULTISIGN), Some(keys::MultisignOp::CountersignTree));
     }
 
     #[test]
@@ -985,16 +918,9 @@ mod tests {
         native.put(NODE_MAIN, "signatureHashAlgorithm", "SHA512");
         native.put(NODE_INTERNAL, "allowUpdateConfig", "true");
         native.put(&format!("{NODE_KEYSTORES}/1"), "Corp", "/usr/lib/corp.so");
-        let layer = build_system_layer(
-            &user,
-            &native,
-            &PrefsTree::new(),
-            &PolicySet::default(),
-            vec![],
-        );
+        let layer = build_system_layer(&user, &native, &PrefsTree::new(), &PolicySet::default(), vec![]);
         assert!(layer.using_updated_copy);
-        let mut p =
-            Preferences::from_layers(ResolutionMode::Strict, user, layer, PolicySet::default());
+        let mut p = Preferences::from_layers(ResolutionMode::Strict, user, layer, PolicySet::default());
         assert_eq!(p.get("signatureHashAlgorithm").as_deref(), Some("SHA384"));
         assert!(p.get_bool("allowUpdateConfig"));
         let cards = p.smart_cards();
@@ -1002,11 +928,7 @@ mod tests {
         assert!(p.add_smart_card("Corp", "/otra.so").is_err());
         assert!(p.add_smart_card("Nueva", "/usr/lib/corp.so").is_err());
         p.add_smart_card("Nueva", "/usr/lib/nueva.so").unwrap();
-        assert!(
-            p.user_tree()
-                .get(&format!("{NODE_KEYSTORES}/2"), "Nueva")
-                .is_some()
-        );
+        assert!(p.user_tree().get(&format!("{NODE_KEYSTORES}/2"), "Nueva").is_some());
         assert!(p.remove_smart_card("Mía").unwrap());
         assert_eq!(p.smart_cards().len(), 2);
     }
@@ -1029,9 +951,7 @@ mod tests {
         let exp = p.export_afconfig();
         assert!(exp.contains("<key>omitAskOnClose</key><true/>"));
         assert!(exp.contains("<key>preferencesBlocked</key><true/>"));
-        assert!(
-            exp.contains("<key>smartcards</key><dict><key>T</key><string>/t.so</string></dict>")
-        );
+        assert!(exp.contains("<key>smartcards</key><dict><key>T</key><string>/t.so</string></dict>"));
     }
 
     #[test]

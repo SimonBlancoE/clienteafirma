@@ -228,7 +228,11 @@ pub enum HttpClientError {
     /// `untrusted_certificate` indica que el certificado del servidor no es de
     /// confianza (y que, por tanto, se puede ofrecer importarlo).
     #[error("Error en la conexion segura con {url}: {message}")]
-    Tls { url: String, message: String, untrusted_certificate: bool },
+    Tls {
+        url: String,
+        message: String,
+        untrusted_certificate: bool,
+    },
     /// El certificado del servidor no corresponde al dominio
     /// (`InvalidDomainSSLCertificateException`, error 400004).
     #[error("El certificado SSL no se corresponde con el dominio {host} ({url})")]
@@ -405,14 +409,20 @@ pub fn is_secure_domain(host: &str, secure_domains: &[String]) -> bool {
 pub fn split_post_url(url: &str) -> (String, Option<String>) {
     let mut tokens = url.split('?').filter(|t| !t.is_empty());
     let target = tokens.next().unwrap_or("").to_string();
-    if url.contains('?') { (target, Some(tokens.next().unwrap_or("").to_string())) } else { (target, None) }
+    if url.contains('?') {
+        (target, Some(tokens.next().unwrap_or("").to_string()))
+    } else {
+        (target, None)
+    }
 }
 
 /// Credenciales incluidas en la URL (`URLName`): devuelve la URL sin ellas
 /// (`proto://host[:puerto]/fichero`, sin el fragmento) y el valor de la
 /// cabecera `Authorization: Basic`. Si no hay credenciales, la URL no cambia.
 pub fn extract_url_credentials(url: &str) -> Result<(String, Option<String>), HttpClientError> {
-    let Some(proto_end) = url.find(':') else { return Ok((url.to_string(), None)) };
+    let Some(proto_end) = url.find(':') else {
+        return Ok((url.to_string(), None));
+    };
     if url.get(proto_end + 1..proto_end + 3) != Some("//") {
         return Ok((url.to_string(), None));
     }
@@ -422,7 +432,9 @@ pub fn extract_url_credentials(url: &str) -> Result<(String, Option<String>), Ht
         Some(i) => (&after[..i], Some(&after[i + 1..])),
         None => (after, None),
     };
-    let Some(at) = full_host.find('@') else { return Ok((url.to_string(), None)) };
+    let Some(at) = full_host.find('@') else {
+        return Ok((url.to_string(), None));
+    };
     let userpass = &full_host[..at];
     let hostport = &full_host[at + 1..];
     let (user, pass) = match userpass.find(':') {
@@ -467,7 +479,9 @@ fn url_name_decode(s: &str) -> Result<String, String> {
         match c {
             '+' => bytes.push(b' '),
             '%' => {
-                let hex = s.get(i + 1..i + 3).ok_or_else(|| format!("Escape no valido en la URL: {s}"))?;
+                let hex = s
+                    .get(i + 1..i + 3)
+                    .ok_or_else(|| format!("Escape no valido en la URL: {s}"))?;
                 let v = u8::from_str_radix(hex, 16).map_err(|e| format!("Escape no valido en la URL: {e}"))?;
                 bytes.push(v);
                 chars.next();
@@ -499,7 +513,11 @@ pub fn is_loopback_host(host: &str) -> bool {
         return true;
     }
     use std::net::ToSocketAddrs;
-    (bare, 0u16).to_socket_addrs().ok().and_then(|mut a| a.next()).is_some_and(|a| a.ip().is_loopback())
+    (bare, 0u16)
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut a| a.next())
+        .is_some_and(|a| a.ip().is_loopback())
 }
 
 static INSTALLED: OnceLock<RwLock<Option<Arc<dyn HttpClient>>>> = OnceLock::new();
@@ -524,7 +542,9 @@ pub fn installed_http_client() -> Arc<dyn HttpClient> {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
     };
-    guard.get_or_insert_with(|| Arc::new(UreqHttpClient::new(HttpSettings::default()))).clone()
+    guard
+        .get_or_insert_with(|| Arc::new(UreqHttpClient::new(HttpSettings::default())))
+        .clone()
 }
 
 /// Error de [`download_data`].
@@ -581,9 +601,10 @@ pub fn download_data(
         return crate::aoutil::load_file(&uri, client).map_err(|e| DownloadError::Io(e.to_string()));
     }
     if crate::base64::is_base64(ds)
-        && let Ok(d) = crate::base64::decode(&ds.replace('_', "/").replace('-', "+")) {
-            return Ok(d);
-        }
+        && let Ok(d) = crate::base64::decode(&ds.replace('_', "/").replace('-', "+"))
+    {
+        return Ok(d);
+    }
     Ok(ds.as_bytes().to_vec())
 }
 
@@ -602,18 +623,33 @@ mod tests {
         assert!(!is_secure_domain("EXACTO.es", &d));
         assert!(!is_secure_domain("otro.es", &d));
         // Las entradas no se recortan.
-        assert!(!is_secure_domain("exacto.es", &HttpSettings::parse_secure_domains(" exacto.es")));
+        assert!(!is_secure_domain(
+            "exacto.es",
+            &HttpSettings::parse_secure_domains(" exacto.es")
+        ));
         assert!(is_secure_domain("cualquiera", &HttpSettings::parse_secure_domains("*")));
         assert!(HttpSettings::parse_secure_domains("").is_empty());
     }
 
     #[test]
     fn post_splitting() {
-        assert_eq!(split_post_url("https://s/tri?op=pre&doc=x"), ("https://s/tri".into(), Some("op=pre&doc=x".into())));
-        assert_eq!(split_post_url("https://s/tri?a=1?b=2"), ("https://s/tri".into(), Some("a=1".into())));
-        assert_eq!(split_post_url("https://s/tri??a=1"), ("https://s/tri".into(), Some("a=1".into())));
+        assert_eq!(
+            split_post_url("https://s/tri?op=pre&doc=x"),
+            ("https://s/tri".into(), Some("op=pre&doc=x".into()))
+        );
+        assert_eq!(
+            split_post_url("https://s/tri?a=1?b=2"),
+            ("https://s/tri".into(), Some("a=1".into()))
+        );
+        assert_eq!(
+            split_post_url("https://s/tri??a=1"),
+            ("https://s/tri".into(), Some("a=1".into()))
+        );
         assert_eq!(split_post_url("https://s/tri"), ("https://s/tri".into(), None));
-        assert_eq!(split_post_url("https://s/tri?"), ("https://s/tri".into(), Some(String::new())));
+        assert_eq!(
+            split_post_url("https://s/tri?"),
+            ("https://s/tri".into(), Some(String::new()))
+        );
     }
 
     #[test]
@@ -641,8 +677,16 @@ mod tests {
             e.to_string(),
             "Error HTTP con codigo  404, cuerpo 'no existe' y descripcion 'Not Found' para la direccion: https://x/y"
         );
-        let e = HttpError { status: 500, reason: None, body: Vec::new(), url: "u".into() };
-        assert_eq!(e.to_string(), "Error HTTP con codigo  500 y descripcion 'null' para la direccion: u");
+        let e = HttpError {
+            status: 500,
+            reason: None,
+            body: Vec::new(),
+            url: "u".into(),
+        };
+        assert_eq!(
+            e.to_string(),
+            "Error HTTP con codigo  500 y descripcion 'null' para la direccion: u"
+        );
     }
 
     #[test]
@@ -664,10 +708,19 @@ mod tests {
     #[test]
     fn data_downloader() {
         let m = Mock;
-        assert_eq!(download_data(&m, None, false, false).unwrap_err(), DownloadError::NullSource);
-        assert_eq!(download_data(&m, Some(" https://x/d "), false, false).unwrap(), b"GET https://x/d");
+        assert_eq!(
+            download_data(&m, None, false, false).unwrap_err(),
+            DownloadError::NullSource
+        );
+        assert_eq!(
+            download_data(&m, Some(" https://x/d "), false, false).unwrap(),
+            b"GET https://x/d"
+        );
         assert_eq!(download_data(&m, Some("aG9sYQ=="), false, false).unwrap(), b"hola");
-        assert_eq!(download_data(&m, Some("texto plano!"), false, false).unwrap(), b"texto plano!");
+        assert_eq!(
+            download_data(&m, Some("texto plano!"), false, false).unwrap(),
+            b"texto plano!"
+        );
         let mut gz = Vec::new();
         {
             use std::io::Write;

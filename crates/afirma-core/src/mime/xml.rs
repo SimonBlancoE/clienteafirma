@@ -37,7 +37,9 @@ pub fn decode_xml(data: &[u8]) -> Option<String> {
 }
 
 fn decode_with(encoding: &'static Encoding, data: &[u8]) -> Option<String> {
-    encoding.decode_without_bom_handling_and_without_replacement(data).map(|c| c.into_owned())
+    encoding
+        .decode_without_bom_handling_and_without_replacement(data)
+        .map(|c| c.into_owned())
 }
 
 /// Valor del pseudoatributo `encoding` de la declaración XML, si la hay.
@@ -94,7 +96,10 @@ pub fn secure_parse_text(data: &[u8]) -> Option<String> {
 
 /// Opciones de análisis seguras: sin DTD.
 pub fn parsing_options<'a>() -> roxmltree::ParsingOptions<'a> {
-    roxmltree::ParsingOptions { allow_dtd: false, ..roxmltree::ParsingOptions::default() }
+    roxmltree::ParsingOptions {
+        allow_dtd: false,
+        ..roxmltree::ParsingOptions::default()
+    }
 }
 
 /// `AOFileUtils.isXML`: los datos son un XML bien formado sin DOCTYPE.
@@ -131,8 +136,10 @@ mod tests {
         assert!(!is_xml(b"<a><b></a>"));
         assert!(!is_xml(b""));
         assert!(!is_xml(b"texto"));
-        let utf16: Vec<u8> =
-            [0xff, 0xfe].into_iter().chain("<a>ñ</a>".encode_utf16().flat_map(u16::to_le_bytes)).collect();
+        let utf16: Vec<u8> = [0xff, 0xfe]
+            .into_iter()
+            .chain("<a>ñ</a>".encode_utf16().flat_map(u16::to_le_bytes))
+            .collect();
         assert!(is_xml(&utf16));
         assert!(has_doctype("<?xml version='1.0'?>\n<!-- x -->\n<!DOCTYPE html>"));
         assert!(!has_doctype("<a><!DOCTYPE></a>"));

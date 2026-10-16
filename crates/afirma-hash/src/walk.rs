@@ -88,10 +88,7 @@ fn walk_dir(
         };
         // Se sigue el enlace simbólico, como `File.isFile()` / `isDirectory()`.
         let Ok(meta) = fs::metadata(&path) else {
-            tracing::warn!(
-                "Se omite la entrada {} (enlace roto o inaccesible)",
-                path.display()
-            );
+            tracing::warn!("Se omite la entrada {} (enlace roto o inaccesible)", path.display());
             continue;
         };
         if meta.is_file() {
@@ -111,10 +108,7 @@ fn walk_dir(
                 source,
             })?;
             if ancestors.contains(&canonical) {
-                tracing::warn!(
-                    "Se omite {} porque crea un ciclo de enlaces simbólicos",
-                    path.display()
-                );
+                tracing::warn!("Se omite {} porque crea un ciclo de enlaces simbólicos", path.display());
                 continue;
             }
             ancestors.push(canonical);
@@ -122,10 +116,7 @@ fn walk_dir(
             ancestors.pop();
             result?;
         } else {
-            tracing::warn!(
-                "Se omite {} porque no es un fichero regular",
-                path.display()
-            );
+            tracing::warn!("Se omite {} porque no es un fichero regular", path.display());
         }
     }
     Ok(())
@@ -187,13 +178,7 @@ mod tests {
         assert_eq!(names(false), ["a.txt", "b.txt"]);
         assert_eq!(
             names(true),
-            [
-                ".Trashes/e.txt",
-                "a.txt",
-                "b.txt",
-                "sub/c.txt",
-                "sub/deep/d.txt"
-            ]
+            [".Trashes/e.txt", "a.txt", "b.txt", "sub/c.txt", "sub/deep/d.txt"]
         );
     }
 

@@ -65,8 +65,8 @@ pub mod store;
 pub mod verify;
 
 pub use callback::{
-    ConfirmRequest, FixedPassword, NoPassword, PasswordCallback, PasswordKind, PasswordRequest, PasswordResponse, PinCache, PinProvider,
-    RetryReason, Secret,
+    ConfirmRequest, FixedPassword, NoPassword, PasswordCallback, PasswordKind, PasswordRequest, PasswordResponse,
+    PinCache, PinProvider, RetryReason, Secret,
 };
 pub use candidates::{CandidateList, CandidateOptions, auto_select, candidates_with_manager, select_candidates};
 pub use display::{CertificateView, RowText, entry_row_text, row_text};

@@ -119,16 +119,34 @@ impl VerifyPage {
                 ui,
                 p,
                 tr("Verificar firmas"),
-                Some(tr("Comprueba la validez de una firma electrónica y consulta quién firmó, cuándo y con qué certificado.")),
+                Some(tr(
+                    "Comprueba la validez de una firma electrónica y consulta quién firmó, cuándo y con qué certificado.",
+                )),
             );
             let r = widgets::drop_zone(ui, p, 240.0, hovering, |ui| {
                 ui.add_space(26.0);
                 widgets::status_circle(ui, icons::SEAL_CHECK, 60.0, p.success, p.success_soft);
                 ui.add_space(10.0);
-                ui.label(RichText::new(tr("Arrastra aquí una firma o un documento firmado")).font(FontId::new(17.0, semibold())));
-                ui.label(RichText::new(tr("PDF firmados, .csig, .xsig, .p7s, facturas electrónicas, ASiC…")).size(13.0).color(p.text_muted));
+                ui.label(
+                    RichText::new(tr("Arrastra aquí una firma o un documento firmado"))
+                        .font(FontId::new(17.0, semibold())),
+                );
+                ui.label(
+                    RichText::new(tr("PDF firmados, .csig, .xsig, .p7s, facturas electrónicas, ASiC…"))
+                        .size(13.0)
+                        .color(p.text_muted),
+                );
                 ui.add_space(12.0);
-                if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), tr("Seleccionar firma"), true).clicked() {
+                if widgets::button(
+                    ui,
+                    p,
+                    ButtonKind::Primary,
+                    Some(icons::FOLDER_OPEN),
+                    tr("Seleccionar firma"),
+                    true,
+                )
+                .clicked()
+                {
                     actions.push(VerifyAction::PickFile);
                 }
             });
@@ -137,7 +155,13 @@ impl VerifyPage {
             }
             if let Some(e) = &self.error {
                 ui.add_space(14.0);
-                widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido verificar el fichero"), Some(e));
+                widgets::callout(
+                    ui,
+                    p,
+                    CalloutKind::Error,
+                    tr("No se ha podido verificar el fichero"),
+                    Some(e),
+                );
             }
             return actions;
         };
@@ -168,18 +192,53 @@ impl VerifyPage {
             ui.add_space(12.0);
             ui.horizontal_wrapped(|ui| {
                 if report.has_embedded_data
-                    && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::DOWNLOAD_SIMPLE), tr("Extraer documento"), true).clicked()
+                    && widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Secondary,
+                        Some(icons::DOWNLOAD_SIMPLE),
+                        tr("Extraer documento"),
+                        true,
+                    )
+                    .clicked()
                 {
                     actions.push(VerifyAction::ExtractData);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::PLUS_CIRCLE), tr("Añadir mi firma"), true).clicked() {
+                if widgets::button(
+                    ui,
+                    p,
+                    ButtonKind::Secondary,
+                    Some(icons::PLUS_CIRCLE),
+                    tr("Añadir mi firma"),
+                    true,
+                )
+                .clicked()
+                {
                     actions.push(VerifyAction::Cosign);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::TREE_STRUCTURE), tr("Contrafirmar"), true).clicked() {
+                if widgets::button(
+                    ui,
+                    p,
+                    ButtonKind::Secondary,
+                    Some(icons::TREE_STRUCTURE),
+                    tr("Contrafirmar"),
+                    true,
+                )
+                .clicked()
+                {
                     actions.push(VerifyAction::Countersign);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_COUNTER_CLOCKWISE), tr("Verificar otra"), true).clicked() {
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Ghost,
+                        Some(icons::ARROW_COUNTER_CLOCKWISE),
+                        tr("Verificar otra"),
+                        true,
+                    )
+                    .clicked()
+                    {
                         actions.push(VerifyAction::Clear);
                     }
                 });
@@ -194,9 +253,11 @@ impl VerifyPage {
         ui.add_space(8.0);
         ui.horizontal_wrapped(|ui| {
             ui.label(
-                RichText::new(tr("Para comprobar también la revocación de los certificados puedes usar el servicio oficial"))
-                    .size(12.5)
-                    .color(p.text_muted),
+                RichText::new(tr(
+                    "Para comprobar también la revocación de los certificados puedes usar el servicio oficial",
+                ))
+                .size(12.5)
+                .color(p.text_muted),
             );
             if ui.link(RichText::new("VALIDe").size(12.5).color(p.primary)).clicked() {
                 actions.push(VerifyAction::OpenValide);
@@ -260,7 +321,14 @@ fn initials(name: &str) -> String {
 }
 
 /// Tarjeta de un firmante. Devuelve `true` si se pulsó "detalles".
-fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool, actions: &mut Vec<VerifyAction>, idx: usize) -> bool {
+fn signature_card(
+    ui: &mut Ui,
+    p: &Palette,
+    s: &SignatureDetail,
+    expanded: bool,
+    actions: &mut Vec<VerifyAction>,
+    idx: usize,
+) -> bool {
     let (glyph, fg, bg, label) = verdict_style(s.verdict(), p);
     let mut toggled = false;
     Frame::new()
@@ -274,10 +342,20 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                 // Avatar con iniciales.
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(42.0, 42.0), egui::Sense::hover());
                 ui.painter().circle_filled(rect.center(), 21.0, p.primary_soft);
-                ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, initials(&s.signer), FontId::new(15.0, semibold()), p.primary);
+                ui.painter().text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    initials(&s.signer),
+                    FontId::new(15.0, semibold()),
+                    p.primary,
+                );
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(&s.signer).font(FontId::new(15.0, semibold())).color(p.text));
+                        ui.label(
+                            RichText::new(&s.signer)
+                                .font(FontId::new(15.0, semibold()))
+                                .color(p.text),
+                        );
                         if s.depth > 0 {
                             widgets::chip(ui, tr("Contrafirma"), p.info, p.info_soft);
                         }
@@ -287,7 +365,10 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                         None => tr("Fecha de firma no declarada").into(),
                     };
                     if let Some((tsa, t)) = s.timestamps.first() {
-                        when = format!("{when} · {}", trf("Sello de tiempo de {0} ({1})", &[tsa, &fmt_datetime(*t)]));
+                        when = format!(
+                            "{when} · {}",
+                            trf("Sello de tiempo de {0} ({1})", &[tsa, &fmt_datetime(*t)])
+                        );
                     }
                     ui.label(RichText::new(when).size(12.5).color(p.text_muted));
                     ui.horizontal_wrapped(|ui| {
@@ -296,12 +377,24 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                             widgets::chip(ui, prof, p.text_muted, p.surface_alt);
                         }
                         if let Some(pol) = &s.policy {
-                            widgets::chip(ui, pol.name.as_deref().unwrap_or(tr("Política de firma")), p.info, p.info_soft);
+                            widgets::chip(
+                                ui,
+                                pol.name.as_deref().unwrap_or(tr("Política de firma")),
+                                p.info,
+                                p.info_soft,
+                            );
                         }
                     });
                 });
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.link(if expanded { tr("Ocultar detalles") } else { tr("Detalles") }).clicked() {
+                    if ui
+                        .link(if expanded {
+                            tr("Ocultar detalles")
+                        } else {
+                            tr("Detalles")
+                        })
+                        .clicked()
+                    {
                         toggled = true;
                     }
                 });
@@ -357,7 +450,15 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                 }
                 ui.add_space(6.0);
                 if !s.cert_der.is_empty()
-                    && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EXPORT), tr("Exportar certificado"), true).clicked()
+                    && widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Ghost,
+                        Some(icons::EXPORT),
+                        tr("Exportar certificado"),
+                        true,
+                    )
+                    .clicked()
                 {
                     actions.push(VerifyAction::ExportCertificate(idx));
                 }

@@ -149,11 +149,7 @@ impl MemoryRegistry {
     }
 
     fn ensure_path(map: &mut BTreeMap<(Hive, String), MemKey>, hive: Hive, key: &str) -> String {
-        let comps: Vec<&str> = key
-            .trim_matches('\\')
-            .split('\\')
-            .filter(|s| !s.is_empty())
-            .collect();
+        let comps: Vec<&str> = key.trim_matches('\\').split('\\').filter(|s| !s.is_empty()).collect();
         let mut acc = String::new();
         for c in comps {
             if !acc.is_empty() {
@@ -175,10 +171,7 @@ impl MemoryRegistry {
 
 impl Registry for MemoryRegistry {
     fn read(&self, hive: Hive, key: &str, name: &str) -> io::Result<Option<RegValue>> {
-        let keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         Ok(keys
             .get(&(hive, norm(key)))
             .and_then(|k| k.values.get(&name.to_ascii_lowercase()))
@@ -186,39 +179,22 @@ impl Registry for MemoryRegistry {
     }
 
     fn values(&self, hive: Hive, key: &str) -> io::Result<Option<Vec<(String, RegValue)>>> {
-        let keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
-        Ok(keys.get(&(hive, norm(key))).map(|k| {
-            k.values
-                .values()
-                .map(|(n, v)| (n.clone(), v.clone()))
-                .collect()
-        }))
+        let keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        Ok(keys
+            .get(&(hive, norm(key)))
+            .map(|k| k.values.values().map(|(n, v)| (n.clone(), v.clone())).collect()))
     }
 
     fn subkeys(&self, hive: Hive, key: &str) -> io::Result<Option<Vec<String>>> {
-        let keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         let k = norm(key);
         if !k.is_empty() && !keys.contains_key(&(hive, k.clone())) {
             return Ok(None);
         }
-        let prefix = if k.is_empty() {
-            String::new()
-        } else {
-            format!("{k}\\")
-        };
+        let prefix = if k.is_empty() { String::new() } else { format!("{k}\\") };
         let mut out = Vec::new();
         for ((h, p), mk) in keys.iter() {
-            if *h == hive
-                && p.starts_with(&prefix)
-                && !p[prefix.len()..].contains('\\')
-                && p.len() > prefix.len()
-            {
+            if *h == hive && p.starts_with(&prefix) && !p[prefix.len()..].contains('\\') && p.len() > prefix.len() {
                 out.push(mk.name.clone());
             }
         }
@@ -229,10 +205,7 @@ impl Registry for MemoryRegistry {
         if self.read_only {
             return Err(Self::denied());
         }
-        let mut keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let mut keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         let k = Self::ensure_path(&mut keys, hive, key);
         if let Some(mk) = keys.get_mut(&(hive, k)) {
             mk.values
@@ -245,10 +218,7 @@ impl Registry for MemoryRegistry {
         if self.read_only {
             return Err(Self::denied());
         }
-        let mut keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let mut keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         Self::ensure_path(&mut keys, hive, key);
         Ok(())
     }
@@ -257,10 +227,7 @@ impl Registry for MemoryRegistry {
         if self.read_only {
             return Err(Self::denied());
         }
-        let mut keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let mut keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         Ok(keys
             .get_mut(&(hive, norm(key)))
             .map(|k| k.values.remove(&name.to_ascii_lowercase()).is_some())
@@ -271,10 +238,7 @@ impl Registry for MemoryRegistry {
         if self.read_only {
             return Err(Self::denied());
         }
-        let mut keys = self
-            .keys
-            .lock()
-            .map_err(|_| io::Error::other("bloqueo envenenado"))?;
+        let mut keys = self.keys.lock().map_err(|_| io::Error::other("bloqueo envenenado"))?;
         let k = norm(key);
         let prefix = format!("{k}\\");
         let before = keys.len();
@@ -406,13 +370,7 @@ mod win {
         }
 
         fn delete_value(&self, hive: Hive, key: &str, name: &str) -> io::Result<bool> {
-            let k = match root(hive)
-                .options()
-                .read()
-                .write()
-                .access(KEY_WOW64_64KEY)
-                .open(key)
-            {
+            let k = match root(hive).options().read().write().access(KEY_WOW64_64KEY).open(key) {
                 Ok(k) => k,
                 Err(e) if not_found(&e) => return Ok(false),
                 Err(e) => return Err(to_io(e)),
@@ -483,29 +441,19 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            r.read_string(
-                Hive::CurrentUser,
-                r"SOFTWARE\classes\AFIRMA",
-                "url protocol"
-            )
-            .unwrap(),
+            r.read_string(Hive::CurrentUser, r"SOFTWARE\classes\AFIRMA", "url protocol")
+                .unwrap(),
             Some(String::new())
         );
         assert_eq!(
             r.subkeys(Hive::CurrentUser, r"Software\Classes").unwrap(),
             Some(vec!["afirma".to_string()])
         );
-        assert!(
-            r.delete_tree(Hive::CurrentUser, r"Software\Classes\afirma")
-                .unwrap()
-        );
+        assert!(r.delete_tree(Hive::CurrentUser, r"Software\Classes\afirma").unwrap());
         assert!(
             !r.key_exists(Hive::CurrentUser, r"Software\Classes\afirma\shell")
                 .unwrap()
         );
-        assert!(
-            r.key_exists(Hive::CurrentUser, r"Software\Classes")
-                .unwrap()
-        );
+        assert!(r.key_exists(Hive::CurrentUser, r"Software\Classes").unwrap());
     }
 }

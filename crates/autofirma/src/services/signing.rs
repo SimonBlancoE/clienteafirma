@@ -64,47 +64,73 @@ fn sign_one(input: &SignJobInput, file: &FileItem, key: &dyn SigningKey) -> Resu
     let kind = formats::signer_kind_for_format(&file.format).unwrap_or(SignerKind::Cades);
     let mut extra = (input.params_for)(kind);
     if kind == SignerKind::Pdf
-        && let Some(v) = &input.visible_params {
-            extra.extend(v);
-        }
+        && let Some(v) = &input.visible_params
+    {
+        extra.extend(v);
+    }
     // Bucle de intervención del usuario (`RuntimeConfigNeededException`).
     for _ in 0..4 {
         let r = match file.operation {
             Operation::Sign => signer.sign(&file.data, &input.algorithm, key, &extra),
             Operation::Cosign => signer.cosign(None, &file.data, &input.algorithm, key, &extra),
-            Operation::CountersignLeafs => signer.countersign(&file.data, &input.algorithm, &CounterSignTarget::Leafs, key, &extra),
-            Operation::CountersignTree => signer.countersign(&file.data, &input.algorithm, &CounterSignTarget::Tree, key, &extra),
+            Operation::CountersignLeafs => {
+                signer.countersign(&file.data, &input.algorithm, &CounterSignTarget::Leafs, key, &extra)
+            }
+            Operation::CountersignTree => {
+                signer.countersign(&file.data, &input.algorithm, &CounterSignTarget::Tree, key, &extra)
+            }
         };
         match r {
-            Err(AfirmaError { kind: ErrorKind::NeedsIntervention { intervention, denied: false }, message, .. }) => {
-                match intervention {
-                    UserIntervention::Confirm { requestor_text, param, effect } => {
-                        let text = super::messages::intervention_text(&requestor_text).unwrap_or(&message);
-                        if !input.bridge.confirm(format!("{} — {}", file.name, tr("Confirmación necesaria")), text) {
-                            return Err(AfirmaError::cancelled());
-                        }
-                        match effect {
-                            ConfirmEffect::SetParamTrue => {
-                                extra.set(param, "true");
-                            }
-                            ConfirmEffect::RemovePolicyParams => {
-                                for k in ["policyIdentifier", "policyIdentifierHash", "policyIdentifierHashAlgorithm", "policyDescription", "policyQualifier"] {
-                                    extra.remove(k);
-                                }
-                            }
-                        }
+            Err(AfirmaError {
+                kind:
+                    ErrorKind::NeedsIntervention {
+                        intervention,
+                        denied: false,
+                    },
+                message,
+                ..
+            }) => match intervention {
+                UserIntervention::Confirm {
+                    requestor_text,
+                    param,
+                    effect,
+                } => {
+                    let text = super::messages::intervention_text(&requestor_text).unwrap_or(&message);
+                    if !input
+                        .bridge
+                        .confirm(format!("{} — {}", file.name, tr("Confirmación necesaria")), text)
+                    {
+                        return Err(AfirmaError::cancelled());
                     }
-                    UserIntervention::Password { requestor_text, param } => {
-                        let prompt = super::messages::intervention_text(&requestor_text).unwrap_or(&message).to_string();
-                        match input.bridge.ask_password(&prompt) {
-                            Some(pw) => {
-                                extra.set(param, pw);
+                    match effect {
+                        ConfirmEffect::SetParamTrue => {
+                            extra.set(param, "true");
+                        }
+                        ConfirmEffect::RemovePolicyParams => {
+                            for k in [
+                                "policyIdentifier",
+                                "policyIdentifierHash",
+                                "policyIdentifierHashAlgorithm",
+                                "policyDescription",
+                                "policyQualifier",
+                            ] {
+                                extra.remove(k);
                             }
-                            None => return Err(AfirmaError::cancelled()),
                         }
                     }
                 }
-            }
+                UserIntervention::Password { requestor_text, param } => {
+                    let prompt = super::messages::intervention_text(&requestor_text)
+                        .unwrap_or(&message)
+                        .to_string();
+                    match input.bridge.ask_password(&prompt) {
+                        Some(pw) => {
+                            extra.set(param, pw);
+                        }
+                        None => return Err(AfirmaError::cancelled()),
+                    }
+                }
+            },
             other => return other,
         }
     }
@@ -135,10 +161,14 @@ fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<
         Err(e) => {
             // Si la carpeta del original no admite escritura, se guarda en Documentos.
             if let Some(docs) = directories::UserDirs::new().and_then(|u| u.document_dir().map(|d| d.to_path_buf()))
-                && let Ok(p) = write_atomic(&docs.join(path.file_name().unwrap_or_default()), signed) {
-                    return Ok(p);
-                }
-            Err(AfirmaError::new(afirma_core::error::codes::CANT_SAVE_FILE, trf("No se ha podido guardar la firma: {0}", &[&e])))
+                && let Ok(p) = write_atomic(&docs.join(path.file_name().unwrap_or_default()), signed)
+            {
+                return Ok(p);
+            }
+            Err(AfirmaError::new(
+                afirma_core::error::codes::CANT_SAVE_FILE,
+                trf("No se ha podido guardar la firma: {0}", &[&e]),
+            ))
         }
     }
 }
@@ -146,7 +176,10 @@ fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<
 /// Escribe en un fichero temporal y lo renombra (no deja ficheros a medias).
 fn write_atomic(path: &std::path::Path, data: &[u8]) -> std::io::Result<PathBuf> {
     let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
-    let tmp = dir.join(format!(".{}.tmp", path.file_name().unwrap_or_default().to_string_lossy()));
+    let tmp = dir.join(format!(
+        ".{}.tmp",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ));
     std::fs::write(&tmp, data)?;
     std::fs::rename(&tmp, path).inspect_err(|_| {
         let _ = std::fs::remove_file(&tmp);

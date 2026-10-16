@@ -14,10 +14,7 @@ use ValidityError::*;
 
 fn check(path: &str, expected: &[(Validity, Option<ValidityError>)]) {
     let data = std::fs::read(repo().join(path)).expect(path);
-    let xp = params(&[
-        ("checkCertificates", "true"),
-        ("pagesToCheckShadowAttack", "all"),
-    ]);
+    let xp = params(&[("checkCertificates", "true"), ("pagesToCheckShadowAttack", "all")]);
     let got: Vec<(Validity, Option<ValidityError>)> = validate_pdf(&data, &xp, false)
         .unwrap()
         .into_iter()
@@ -32,39 +29,18 @@ const V: &str = "afirma-crypto-validation/src/test/resources/";
 #[test]
 fn java_parity_unsigned_and_simple() {
     check(&format!("{R}TEST_PDF.pdf"), &[(Ko, Some(NoSign))]);
-    check(
-        &format!("{R}empty_signature_field.pdf"),
-        &[(Ko, Some(NoSign))],
-    );
-    check(
-        &format!("{R}TEST_PDF_Signed.pdf"),
-        &[(Ko, Some(CertificateExpired))],
-    );
-    check(
-        &format!("{R}pades_basic.pdf"),
-        &[(Ko, Some(CertificateExpired))],
-    );
+    check(&format!("{R}empty_signature_field.pdf"), &[(Ko, Some(NoSign))]);
+    check(&format!("{R}TEST_PDF_Signed.pdf"), &[(Ko, Some(CertificateExpired))]);
+    check(&format!("{R}pades_basic.pdf"), &[(Ko, Some(CertificateExpired))]);
     check(
         &format!("{R}cosigned.pdf"),
-        &[
-            (Ko, Some(CertificateExpired)),
-            (Ko, Some(CertificateExpired)),
-        ],
+        &[(Ko, Some(CertificateExpired)), (Ko, Some(CertificateExpired))],
     );
-    check(
-        &format!("{R}TEST_PDF_Certified.pdf"),
-        &[(Ko, Some(CertificateExpired))],
-    );
-    check(
-        &format!("{V}pades_epes.pdf"),
-        &[(Ko, Some(CertificateExpired))],
-    );
+    check(&format!("{R}TEST_PDF_Certified.pdf"), &[(Ko, Some(CertificateExpired))]);
+    check(&format!("{V}pades_epes.pdf"), &[(Ko, Some(CertificateExpired))]);
     check(
         "afirma-simple/src/test/resources/TSA-5989068450533665227.pdf",
-        &[
-            (Ko, Some(CertificateExpired)),
-            (Ko, Some(CertificateExpired)),
-        ],
+        &[(Ko, Some(CertificateExpired)), (Ko, Some(CertificateExpired))],
     );
 }
 
@@ -129,12 +105,9 @@ fn java_parity_shadow_attacks_and_forms() {
 fn confirm(e: &afirma_core::AfirmaError) -> (String, String, bool) {
     match &e.kind {
         ErrorKind::NeedsIntervention {
-            intervention:
-                UserIntervention::Confirm {
-                    requestor_text,
-                    param,
-                    ..
-                },
+            intervention: UserIntervention::Confirm {
+                requestor_text, param, ..
+            },
             denied,
         } => (requestor_text.clone(), param.clone(), *denied),
         k => panic!("{k:?}"),
@@ -148,19 +121,12 @@ fn relaxed_mode_asks_the_user() {
     let e = validate_pdf(&data, &params(&[]), true).unwrap_err();
     assert_eq!(
         confirm(&e),
-        (
-            "pdfShadowAttackSuspect".into(),
-            "allowShadowAttack".into(),
-            false
-        )
+        ("pdfShadowAttackSuspect".into(), "allowShadowAttack".into(), false)
     );
     assert_eq!(e.code.unwrap().code, 212008);
     // Ya contestado que no: KO sin preguntar.
     let v = validate_pdf(&data, &params(&[("allowShadowAttack", "false")]), true).unwrap();
-    assert!(
-        v.iter()
-            .any(|x| x.error == Some(ModifiedDocument) && x.validity == Ko)
-    );
+    assert!(v.iter().any(|x| x.error == Some(ModifiedDocument) && x.validity == Ko));
     // Permitido: sin comprobación.
     let v = validate_pdf(&data, &params(&[("allowShadowAttack", "true")]), true).unwrap();
     assert_eq!(v[0].validity, Valid);
@@ -169,11 +135,7 @@ fn relaxed_mode_asks_the_user() {
     let e = validate_pdf(&form, &params(&[]), true).unwrap_err();
     assert_eq!(
         confirm(&e),
-        (
-            "signingModifiedPdfForm".into(),
-            "allowModifiedForm".into(),
-            false
-        )
+        ("signingModifiedPdfForm".into(), "allowModifiedForm".into(), false)
     );
     let e = validate_pdf(&form, &params(&[("allowModifiedForm", "no")]), true).unwrap_err();
     assert!(confirm(&e).2, "denegado");
@@ -187,11 +149,6 @@ fn pages_to_check_limits() {
     let v = validate_pdf(&data, &params(&[("pagesToCheckShadowAttack", "0")]), false).unwrap();
     assert!(!v.iter().any(|x| x.error == Some(ModifiedDocument)));
     // Más páginas de las que tiene: Java ignora el error y no avisa.
-    let v = validate_pdf(
-        &data,
-        &params(&[("pagesToCheckShadowAttack", "999")]),
-        false,
-    )
-    .unwrap();
+    let v = validate_pdf(&data, &params(&[("pagesToCheckShadowAttack", "999")]), false).unwrap();
     let _ = v;
 }

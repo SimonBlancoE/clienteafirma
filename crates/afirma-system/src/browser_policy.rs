@@ -174,9 +174,7 @@ pub fn to_urlblocklist_origin(o: &str) -> String {
     if o == "*" {
         return "*".into();
     }
-    o.replacen("://*.", "://", 1)
-        .trim_end_matches('/')
-        .to_string()
+    o.replacen("://*.", "://", 1).trim_end_matches('/').to_string()
 }
 
 /// Origen en formato de patrón de configuración de contenido (`[*.]` para subdominios).
@@ -184,9 +182,7 @@ pub fn to_content_pattern(o: &str) -> String {
     if o == "*" {
         return "*".into();
     }
-    o.replacen("://*.", "://[*.]", 1)
-        .trim_end_matches('/')
-        .to_string()
+    o.replacen("://*.", "://[*.]", 1).trim_end_matches('/').to_string()
 }
 
 /// Valor de `AutoLaunchProtocolsFromOrigins` para `afirma`.
@@ -202,22 +198,12 @@ pub fn chromium_policies(opts: &BrowserPolicyOptions) -> Map<String, Value> {
         json!([auto_launch_entry(opts)]),
     );
     if opts.always_open_checkbox {
-        m.insert(
-            "ExternalProtocolDialogShowAlwaysOpenCheckbox".into(),
-            json!(true),
-        );
+        m.insert("ExternalProtocolDialogShowAlwaysOpenCheckbox".into(), json!(true));
     }
     if opts.local_network_access && opts.explicit_origins() {
-        let pats: Vec<String> = opts
-            .origins()
-            .iter()
-            .map(|o| to_content_pattern(o))
-            .collect();
+        let pats: Vec<String> = opts.origins().iter().map(|o| to_content_pattern(o)).collect();
         m.insert("LocalNetworkAccessAllowedForUrls".into(), json!(pats));
-        m.insert(
-            "InsecurePrivateNetworkRequestsAllowedForUrls".into(),
-            json!(pats),
-        );
+        m.insert("InsecurePrivateNetworkRequestsAllowedForUrls".into(), json!(pats));
     }
     m
 }
@@ -230,15 +216,9 @@ pub fn firefox_handler() -> Value {
 /// Directivas de Firefox (contenido de `policies`).
 pub fn firefox_policies(opts: &BrowserPolicyOptions) -> Map<String, Value> {
     let mut m = Map::new();
-    m.insert(
-        "Handlers".into(),
-        json!({ "schemes": { SCHEME: firefox_handler() } }),
-    );
+    m.insert("Handlers".into(), json!({ "schemes": { SCHEME: firefox_handler() } }));
     if opts.firefox_enterprise_roots {
-        m.insert(
-            "Certificates".into(),
-            json!({ "ImportEnterpriseRoots": true }),
-        );
+        m.insert("Certificates".into(), json!({ "ImportEnterpriseRoots": true }));
     }
     m
 }
@@ -416,8 +396,7 @@ fn remove_firefox_file(path: &std::path::Path, owned: &mut OwnedEntries) -> Resu
         fsutil::remove_file_if_exists(path)?;
         owned.forget(&file_id);
     } else {
-        let text =
-            serde_json::to_string_pretty(&doc).map_err(|e| SystemError::Other(e.to_string()))?;
+        let text = serde_json::to_string_pretty(&doc).map_err(|e| SystemError::Other(e.to_string()))?;
         fsutil::write_atomic(path, text.as_bytes(), None)?;
     }
     Ok(true)
@@ -438,16 +417,13 @@ pub fn linux_policy_files(opts: &BrowserPolicyOptions) -> Vec<(String, String)> 
     let mut v = Vec::new();
     for b in &opts.browsers {
         if b.is_chromium() {
-            let text = serde_json::to_string_pretty(&Value::Object(chromium_policies(opts)))
-                .unwrap_or_default();
+            let text = serde_json::to_string_pretty(&Value::Object(chromium_policies(opts))).unwrap_or_default();
             for d in b.linux_dirs() {
                 v.push((format!("{d}/{CHROMIUM_POLICY_FILE}"), text.clone()));
             }
         } else {
-            let text = serde_json::to_string_pretty(
-                &json!({ "policies": Value::Object(firefox_policies(opts)) }),
-            )
-            .unwrap_or_default();
+            let text = serde_json::to_string_pretty(&json!({ "policies": Value::Object(firefox_policies(opts)) }))
+                .unwrap_or_default();
             v.push(("/etc/firefox/policies/policies.json".into(), text));
         }
     }
@@ -462,11 +438,7 @@ fn linux_firefox_ca(ctx: &Context, roots: bool) -> Option<PathBuf> {
     crate::certs::locate(ctx).map(|c| c.ca_path()).filter(|p| p.is_file())
 }
 
-fn install_linux(
-    ctx: &Context,
-    opts: &BrowserPolicyOptions,
-    owned: &mut OwnedEntries,
-) -> Result<Change> {
+fn install_linux(ctx: &Context, opts: &BrowserPolicyOptions, owned: &mut OwnedEntries) -> Result<Change> {
     let mut changed = false;
     for b in &opts.browsers {
         if !opts.include_undetected && !linux_detected(ctx, *b) {
@@ -480,10 +452,7 @@ fn install_linux(
                 let dir = ctx.sys(d);
                 if *b == Browser::Chromium
                     && !opts.include_undetected
-                    && !dir
-                        .parent()
-                        .and_then(|p| p.parent())
-                        .is_some_and(|p| p.is_dir())
+                    && !dir.parent().and_then(|p| p.parent()).is_some_and(|p| p.is_dir())
                 {
                     continue;
                 }
@@ -500,11 +469,7 @@ fn install_linux(
             }
         }
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn remove_linux(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
@@ -522,11 +487,7 @@ fn remove_linux(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
     for p in firefox_policy_files(ctx) {
         changed |= remove_firefox_file(&p, owned)?;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 // ------------------------------------------------------------------ Windows
@@ -541,11 +502,8 @@ fn reg_err(key: &str, e: std::io::Error) -> SystemError {
 /// Fusiona la entrada `afirma` en el JSON de `AutoLaunchProtocolsFromOrigins`.
 pub fn merge_auto_launch(existing: Option<&str>, entry: Option<&Value>) -> Result<Option<String>> {
     let mut list: Vec<Value> = match existing.map(str::trim).filter(|s| !s.is_empty()) {
-        Some(s) => serde_json::from_str(s).map_err(|e| {
-            SystemError::Other(format!(
-                "AutoLaunchProtocolsFromOrigins no es JSON válido: {e}"
-            ))
-        })?,
+        Some(s) => serde_json::from_str(s)
+            .map_err(|e| SystemError::Other(format!("AutoLaunchProtocolsFromOrigins no es JSON válido: {e}")))?,
         None => Vec::new(),
     };
     list.retain(|v| v.get("protocol").and_then(Value::as_str) != Some(SCHEME));
@@ -559,11 +517,7 @@ pub fn merge_auto_launch(existing: Option<&str>, entry: Option<&Value>) -> Resul
     })
 }
 
-fn install_windows(
-    ctx: &Context,
-    opts: &BrowserPolicyOptions,
-    owned: &mut OwnedEntries,
-) -> Result<Change> {
+fn install_windows(ctx: &Context, opts: &BrowserPolicyOptions, owned: &mut OwnedEntries) -> Result<Change> {
     let reg = &ctx.registry;
     let h = Hive::LocalMachine;
     let mut changed = false;
@@ -593,9 +547,7 @@ fn install_windows(
                     &RegValue::Dword(1),
                 )
                 .map_err(|e| reg_err(key, e))?;
-                owned.add(format!(
-                    r"reg:HKLM\{key}:ExternalProtocolDialogShowAlwaysOpenCheckbox"
-                ));
+                owned.add(format!(r"reg:HKLM\{key}:ExternalProtocolDialogShowAlwaysOpenCheckbox"));
                 changed = true;
             }
             let pols = chromium_policies(opts);
@@ -604,10 +556,7 @@ fn install_windows(
                     continue;
                 };
                 let lk = format!(r"{key}\{lp}");
-                let existing = reg
-                    .values(h, &lk)
-                    .map_err(|e| reg_err(&lk, e))?
-                    .unwrap_or_default();
+                let existing = reg.values(h, &lk).map_err(|e| reg_err(&lk, e))?.unwrap_or_default();
                 let mut next = existing
                     .iter()
                     .filter_map(|(n, _)| n.parse::<u32>().ok())
@@ -615,10 +564,7 @@ fn install_windows(
                     .unwrap_or(0)
                     + 1;
                 for p in pats.iter().filter_map(Value::as_str) {
-                    if existing
-                        .iter()
-                        .any(|(_, v)| v.as_string().as_deref() == Some(p))
-                    {
+                    if existing.iter().any(|(_, v)| v.as_string().as_deref() == Some(p)) {
                         continue;
                     }
                     reg.write(h, &lk, &next.to_string(), &RegValue::Sz(p.into()))
@@ -631,10 +577,7 @@ fn install_windows(
         } else {
             // Handlers (JSON en REG_MULTI_SZ, como la plantilla ADMX de Mozilla).
             let cur = reg.read(h, key, "Handlers").map_err(|e| reg_err(key, e))?;
-            let cur_text = cur
-                .as_ref()
-                .and_then(RegValue::as_string)
-                .unwrap_or_default();
+            let cur_text = cur.as_ref().and_then(RegValue::as_string).unwrap_or_default();
             let mut doc: Value = if cur_text.trim().is_empty() {
                 json!({})
             } else {
@@ -663,11 +606,7 @@ fn install_windows(
             }
         }
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn set_win_enterprise_roots(ctx: &Context, owned: &mut OwnedEntries) -> Result<bool> {
@@ -682,13 +621,8 @@ fn set_win_enterprise_roots(ctx: &Context, owned: &mut OwnedEntries) -> Result<b
             if prev.is_none() {
                 owned.add(format!(r"reg:HKLM\{ck}:ImportEnterpriseRoots"));
             }
-            reg.write(
-                Hive::LocalMachine,
-                &ck,
-                "ImportEnterpriseRoots",
-                &RegValue::Dword(1),
-            )
-            .map_err(|e| reg_err(&ck, e))?;
+            reg.write(Hive::LocalMachine, &ck, "ImportEnterpriseRoots", &RegValue::Dword(1))
+                .map_err(|e| reg_err(&ck, e))?;
             Ok(true)
         }
     }
@@ -713,11 +647,7 @@ pub fn install_firefox_enterprise_roots(ctx: &Context) -> Result<Change> {
         }
     }
     owned.save(ctx)?;
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn remove_windows(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
@@ -754,23 +684,14 @@ fn remove_windows(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
             }
             for lp in LIST_POLICIES {
                 let lk = format!(r"{key}\{lp}");
-                for (n, v) in reg
-                    .values(h, &lk)
-                    .map_err(|e| reg_err(&lk, e))?
-                    .unwrap_or_default()
-                {
+                for (n, v) in reg.values(h, &lk).map_err(|e| reg_err(&lk, e))?.unwrap_or_default() {
                     let id = format!(r"reglist:HKLM\{lk}:{}", v.as_string().unwrap_or_default());
                     if owned.owns(&id) {
                         changed |= reg.delete_value(h, &lk, &n).map_err(|e| reg_err(&lk, e))?;
                         owned.forget(&id);
                     }
                 }
-                if reg
-                    .values(h, &lk)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|v| v.is_empty())
-                {
+                if reg.values(h, &lk).ok().flatten().is_some_and(|v| v.is_empty()) {
                     let _ = reg.delete_tree(h, &lk);
                 }
             }
@@ -787,16 +708,10 @@ fn remove_windows(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
                     doc.as_object_mut().map(|o| o.remove("schemes"));
                 }
                 if doc.as_object().is_some_and(|o| o.is_empty()) {
-                    reg.delete_value(h, key, "Handlers")
-                        .map_err(|e| reg_err(key, e))?;
+                    reg.delete_value(h, key, "Handlers").map_err(|e| reg_err(key, e))?;
                 } else {
-                    reg.write(
-                        h,
-                        key,
-                        "Handlers",
-                        &RegValue::MultiSz(vec![doc.to_string()]),
-                    )
-                    .map_err(|e| reg_err(key, e))?;
+                    reg.write(h, key, "Handlers", &RegValue::MultiSz(vec![doc.to_string()]))
+                        .map_err(|e| reg_err(key, e))?;
                 }
                 changed = true;
             }
@@ -813,11 +728,7 @@ fn remove_windows(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
             }
         }
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 // ------------------------------------------------------------------ macOS
@@ -831,27 +742,16 @@ fn json_to_plist(v: &Value) -> plist::Value {
             .unwrap_or_else(|| plist::Value::Real(n.as_f64().unwrap_or(0.0))),
         Value::String(s) => plist::Value::String(s.clone()),
         Value::Array(a) => plist::Value::Array(a.iter().map(json_to_plist).collect()),
-        Value::Object(o) => plist::Value::Dictionary(
-            o.iter()
-                .map(|(k, v)| (k.clone(), json_to_plist(v)))
-                .collect(),
-        ),
+        Value::Object(o) => plist::Value::Dictionary(o.iter().map(|(k, v)| (k.clone(), json_to_plist(v))).collect()),
         Value::Null => plist::Value::String(String::new()),
     }
 }
 
 fn mac_managed_plist(ctx: &Context, b: Browser) -> PathBuf {
-    ctx.sys(&format!(
-        "/Library/Managed Preferences/{}.plist",
-        b.mac_domain()
-    ))
+    ctx.sys(&format!("/Library/Managed Preferences/{}.plist", b.mac_domain()))
 }
 
-fn install_macos(
-    ctx: &Context,
-    opts: &BrowserPolicyOptions,
-    owned: &mut OwnedEntries,
-) -> Result<Change> {
+fn install_macos(ctx: &Context, opts: &BrowserPolicyOptions, owned: &mut OwnedEntries) -> Result<Change> {
     let mut changed = false;
     for b in &opts.browsers {
         if b.is_chromium() {
@@ -870,13 +770,8 @@ fn install_macos(
                     != Some(SCHEME)
             });
             list.push(json_to_plist(&auto_launch_entry(opts)));
-            dict.insert(
-                "AutoLaunchProtocolsFromOrigins".into(),
-                plist::Value::Array(list),
-            );
-            if opts.always_open_checkbox
-                && !dict.contains_key("ExternalProtocolDialogShowAlwaysOpenCheckbox")
-            {
+            dict.insert("AutoLaunchProtocolsFromOrigins".into(), plist::Value::Array(list));
+            if opts.always_open_checkbox && !dict.contains_key("ExternalProtocolDialogShowAlwaysOpenCheckbox") {
                 dict.insert(
                     "ExternalProtocolDialogShowAlwaysOpenCheckbox".into(),
                     plist::Value::Boolean(true),
@@ -889,11 +784,8 @@ fn install_macos(
             let pols = chromium_policies(opts);
             for lp in LIST_POLICIES {
                 if let Some(pats) = pols.get(*lp).and_then(Value::as_array) {
-                    let mut l: Vec<plist::Value> = dict
-                        .get(lp)
-                        .cloned()
-                        .and_then(|v| v.into_array())
-                        .unwrap_or_default();
+                    let mut l: Vec<plist::Value> =
+                        dict.get(lp).cloned().and_then(|v| v.into_array()).unwrap_or_default();
                     for pat in pats.iter().filter_map(Value::as_str) {
                         if !l.iter().any(|x| x.as_string() == Some(pat)) {
                             l.push(plist::Value::String(pat.into()));
@@ -917,11 +809,7 @@ fn install_macos(
             }
         }
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 fn remove_macos(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
@@ -947,16 +835,10 @@ fn remove_macos(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
                 if l.is_empty() {
                     dict.remove("AutoLaunchProtocolsFromOrigins");
                 } else {
-                    dict.insert(
-                        "AutoLaunchProtocolsFromOrigins".into(),
-                        plist::Value::Array(l),
-                    );
+                    dict.insert("AutoLaunchProtocolsFromOrigins".into(), plist::Value::Array(l));
                 }
             }
-            let id = format!(
-                "plist:{}:ExternalProtocolDialogShowAlwaysOpenCheckbox",
-                p.display()
-            );
+            let id = format!("plist:{}:ExternalProtocolDialogShowAlwaysOpenCheckbox", p.display());
             if owned.owns(&id) {
                 dict.remove("ExternalProtocolDialogShowAlwaysOpenCheckbox");
                 owned.forget(&id);
@@ -964,11 +846,7 @@ fn remove_macos(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
             for lp in LIST_POLICIES {
                 if let Some(mut l) = dict.get(lp).cloned().and_then(|v| v.into_array()) {
                     l.retain(|x| {
-                        let id = format!(
-                            "plistlist:{}:{lp}:{}",
-                            p.display(),
-                            x.as_string().unwrap_or_default()
-                        );
+                        let id = format!("plistlist:{}:{lp}:{}", p.display(), x.as_string().unwrap_or_default());
                         !owned.owns(&id)
                     });
                     if l.is_empty() {
@@ -998,11 +876,7 @@ fn remove_macos(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
     for p in firefox_policy_files(ctx) {
         changed |= remove_firefox_file(&p, owned)?;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 // ------------------------------------------------------------------ API
@@ -1010,9 +884,7 @@ fn remove_macos(ctx: &Context, owned: &mut OwnedEntries) -> Result<Change> {
 /// Instala (fusiona) las directivas. Requiere privilegios.
 pub fn install(ctx: &Context, opts: &BrowserPolicyOptions) -> Result<Change> {
     if !ctx.elevated {
-        return Err(SystemError::NotElevated(
-            "directivas de los navegadores".into(),
-        ));
+        return Err(SystemError::NotElevated("directivas de los navegadores".into()));
     }
     let mut owned = OwnedEntries::load(ctx);
     let r = match ctx.os {
@@ -1027,9 +899,7 @@ pub fn install(ctx: &Context, opts: &BrowserPolicyOptions) -> Result<Change> {
 /// Retira las directivas de `afirma` y las entradas creadas por AutoFirma.
 pub fn remove(ctx: &Context) -> Result<Change> {
     if !ctx.elevated {
-        return Err(SystemError::NotElevated(
-            "directivas de los navegadores".into(),
-        ));
+        return Err(SystemError::NotElevated("directivas de los navegadores".into()));
     }
     let mut owned = OwnedEntries::load(ctx);
     let r = match ctx.os {
@@ -1062,11 +932,7 @@ fn origins_from(v: &Value) -> Option<Vec<String>> {
         .map(|e| {
             e.get("allowed_origins")
                 .and_then(Value::as_array)
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|x| x.as_str().map(str::to_string))
-                        .collect()
-                })
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
                 .unwrap_or_default()
         })
 }
@@ -1165,9 +1031,7 @@ pub fn status(ctx: &Context) -> Vec<PolicyStatus> {
                         out.push(PolicyStatus {
                             browser: b,
                             location: p.display().to_string(),
-                            auto_launch: pol
-                                .and_then(|p| p.pointer("/Handlers/schemes/afirma"))
-                                .is_some(),
+                            auto_launch: pol.and_then(|p| p.pointer("/Handlers/schemes/afirma")).is_some(),
                             origins: Vec::new(),
                             enterprise_roots: pol
                                 .and_then(|p| p.pointer("/Certificates/ImportEnterpriseRoots"))
@@ -1228,10 +1092,7 @@ fn reg_value_line(name: &str, v: &RegValue) -> String {
         ),
         RegValue::Other(b) => format!(
             "{n}=hex:{}",
-            b.iter()
-                .map(|x| format!("{x:02x}"))
-                .collect::<Vec<_>>()
-                .join(",")
+            b.iter().map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(",")
         ),
     }
 }
@@ -1283,9 +1144,7 @@ pub fn windows_reg_template(opts: &BrowserPolicyOptions, prefs: Option<&PolicySe
                 key.to_string(),
                 vec![(
                     "Handlers".into(),
-                    RegValue::MultiSz(vec![
-                        json!({ "schemes": { SCHEME: firefox_handler() } }).to_string(),
-                    ]),
+                    RegValue::MultiSz(vec![json!({ "schemes": { SCHEME: firefox_handler() } }).to_string()]),
                 )],
             ));
             if opts.firefox_enterprise_roots {
@@ -1397,10 +1256,7 @@ pub fn macos_mobileconfig(
             m.insert("EnterprisePoliciesEnabled".into(), json!(true));
             m
         };
-        let d: plist::Dictionary = m
-            .iter()
-            .map(|(k, v)| (k.clone(), json_to_plist(v)))
-            .collect();
+        let d: plist::Dictionary = m.iter().map(|(k, v)| (k.clone(), json_to_plist(v))).collect();
         content.push(payload(
             b.mac_domain(),
             &format!("es.gob.afirma.policies.{}", b.mac_domain()),
@@ -1467,10 +1323,7 @@ pub fn macos_mobileconfig(
     let mut top = plist::Dictionary::new();
     top.insert("PayloadContent".into(), plist::Value::Array(content));
     top.insert("PayloadScope".into(), "System".into());
-    top.insert(
-        "PayloadRemovalDisallowed".into(),
-        plist::Value::Boolean(false),
-    );
+    top.insert("PayloadRemovalDisallowed".into(), plist::Value::Boolean(false));
     let top = payload("Configuration", "es.gob.afirma.policies", "Autofirma", top);
     let mut buf = Vec::new();
     let _ = top.to_writer_xml(&mut buf);
@@ -1500,10 +1353,7 @@ mod tests {
 
     fn opts() -> BrowserPolicyOptions {
         BrowserPolicyOptions {
-            allowed_origins: vec![
-                "https://*.gob.es".into(),
-                "https://sede.example.org/".into(),
-            ],
+            allowed_origins: vec!["https://*.gob.es".into(), "https://sede.example.org/".into()],
             ..Default::default()
         }
     }
@@ -1541,9 +1391,7 @@ mod tests {
             Hive::LocalMachine,
             chrome,
             "AutoLaunchProtocolsFromOrigins",
-            &RegValue::Sz(
-                r#"[{"protocol":"zoommtg","allowed_origins":["https://zoom.us"]}]"#.into(),
-            ),
+            &RegValue::Sz(r#"[{"protocol":"zoommtg","allowed_origins":["https://zoom.us"]}]"#.into()),
         )
         .unwrap();
         r.write(
@@ -1638,43 +1486,35 @@ mod tests {
         ctx.elevated = true;
         std::fs::create_dir_all(t.path().join("opt/google/chrome")).unwrap();
         std::fs::create_dir_all(t.path().join("etc/firefox/policies")).unwrap();
-        std::fs::write(t.path().join("etc/firefox/policies/policies.json"), r#"{"policies":{"DisableTelemetry":true,"Certificates":{"ImportEnterpriseRoots":false}}}"#).unwrap();
+        std::fs::write(
+            t.path().join("etc/firefox/policies/policies.json"),
+            r#"{"policies":{"DisableTelemetry":true,"Certificates":{"ImportEnterpriseRoots":false}}}"#,
+        )
+        .unwrap();
         assert_eq!(install(&ctx, &opts()).unwrap(), Change::Changed);
         assert!(
             t.path()
                 .join("etc/opt/chrome/policies/managed/autofirma.json")
                 .is_file()
         );
-        assert!(
-            !t.path().join("etc/opt/edge").exists(),
-            "Edge no está instalado"
-        );
-        let pj: Value = serde_json::from_slice(
-            &std::fs::read(t.path().join("etc/firefox/policies/policies.json")).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            pj.pointer("/policies/Handlers/schemes/afirma/ask"),
-            Some(&json!(false))
-        );
+        assert!(!t.path().join("etc/opt/edge").exists(), "Edge no está instalado");
+        let pj: Value =
+            serde_json::from_slice(&std::fs::read(t.path().join("etc/firefox/policies/policies.json")).unwrap())
+                .unwrap();
+        assert_eq!(pj.pointer("/policies/Handlers/schemes/afirma/ask"), Some(&json!(false)));
         assert_eq!(pj.pointer("/policies/DisableTelemetry"), Some(&json!(true)));
         assert_eq!(install(&ctx, &opts()).unwrap(), Change::Unchanged);
         assert_eq!(remove(&ctx).unwrap(), Change::Changed);
-        let pj: Value = serde_json::from_slice(
-            &std::fs::read(t.path().join("etc/firefox/policies/policies.json")).unwrap(),
-        )
-        .unwrap();
+        let pj: Value =
+            serde_json::from_slice(&std::fs::read(t.path().join("etc/firefox/policies/policies.json")).unwrap())
+                .unwrap();
         assert!(pj.pointer("/policies/Handlers").is_none());
         assert_eq!(
             pj.pointer("/policies/Certificates/ImportEnterpriseRoots"),
             Some(&json!(true)),
             "existía antes: no se retira"
         );
-        assert!(
-            !t.path()
-                .join("etc/opt/chrome/policies/managed/autofirma.json")
-                .exists()
-        );
+        assert!(!t.path().join("etc/opt/chrome/policies/managed/autofirma.json").exists());
     }
 
     #[test]
@@ -1684,17 +1524,9 @@ mod tests {
         ctx.elevated = true;
         let fx = t.path().join("Program Files/Mozilla Firefox");
         std::fs::create_dir_all(&fx).unwrap();
-        assert_eq!(
-            install_firefox_enterprise_roots(&ctx).unwrap(),
-            Change::Changed
-        );
-        assert_eq!(
-            install_firefox_enterprise_roots(&ctx).unwrap(),
-            Change::Unchanged
-        );
-        let pj: Value =
-            serde_json::from_slice(&std::fs::read(fx.join("distribution/policies.json")).unwrap())
-                .unwrap();
+        assert_eq!(install_firefox_enterprise_roots(&ctx).unwrap(), Change::Changed);
+        assert_eq!(install_firefox_enterprise_roots(&ctx).unwrap(), Change::Unchanged);
+        let pj: Value = serde_json::from_slice(&std::fs::read(fx.join("distribution/policies.json")).unwrap()).unwrap();
         assert_eq!(
             pj.pointer("/policies/Certificates/ImportEnterpriseRoots"),
             Some(&json!(true))
@@ -1730,10 +1562,8 @@ mod tests {
     #[test]
     fn plantillas() {
         let mut ps = PolicySet::default();
-        ps.mandatory
-            .insert("preferencesBlocked".into(), "true".into());
-        ps.mandatory
-            .insert("signatureHashAlgorithm".into(), "SHA512".into());
+        ps.mandatory.insert("preferencesBlocked".into(), "true".into());
+        ps.mandatory.insert("signatureHashAlgorithm".into(), "SHA512".into());
         let reg = windows_reg_template(&opts(), Some(&ps));
         assert!(reg.starts_with("Windows Registry Editor Version 5.00\r\n"));
         assert!(reg.contains("[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome]\r\n\"AutoLaunchProtocolsFromOrigins\"=\"[{\\\"allowed_origins\\\""));
@@ -1741,12 +1571,7 @@ mod tests {
         assert!(reg.contains("\"signatureHashAlgorithm\"=\"SHA512\""));
         assert_eq!(&reg_file_bytes("A")[..], &[0xFF, 0xFE, 0x41, 0x00]);
         let ca = crate::certs::generate(&Default::default()).unwrap().ca_der;
-        let mc = macos_mobileconfig(
-            &opts(),
-            Some(&ps),
-            "es.gob.afirma.simpleafirma.osx",
-            Some(&ca),
-        );
+        let mc = macos_mobileconfig(&opts(), Some(&ps), "es.gob.afirma.simpleafirma.osx", Some(&ca));
         let v = plist::Value::from_reader_xml(&mc[..]).unwrap();
         let d = v.as_dictionary().unwrap();
         assert_eq!(d["PayloadType"].as_string(), Some("Configuration"));
@@ -1755,13 +1580,14 @@ mod tests {
         assert!(
             content
                 .iter()
-                .any(|p| p.as_dictionary().unwrap()["PayloadType"].as_string()
-                    == Some("com.apple.security.root"))
+                .any(|p| p.as_dictionary().unwrap()["PayloadType"].as_string() == Some("com.apple.security.root"))
         );
         let files = linux_policy_files(&opts());
-        assert!(files.iter().any(
-            |(p, c)| p == "/etc/opt/chrome/policies/managed/autofirma.json"
-                && c.contains("AutoLaunchProtocolsFromOrigins")
-        ));
+        assert!(
+            files
+                .iter()
+                .any(|(p, c)| p == "/etc/opt/chrome/policies/managed/autofirma.json"
+                    && c.contains("AutoLaunchProtocolsFromOrigins"))
+        );
     }
 }

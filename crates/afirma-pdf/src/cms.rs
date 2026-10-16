@@ -108,20 +108,16 @@ pub struct CertParts {
 /// Lee los campos de un certificado necesarios para CMS.
 pub fn cert_parts(raw: &[u8]) -> Result<CertParts, CmsError> {
     use x509_parser::prelude::*;
-    let (_, cert) =
-        X509Certificate::from_der(raw).map_err(|e| CmsError::Certificate(e.to_string()))?;
+    let (_, cert) = X509Certificate::from_der(raw).map_err(|e| CmsError::Certificate(e.to_string()))?;
     let policies = cert
         .extensions()
         .iter()
         .find(|e| e.oid.to_id_string() == "2.5.29.32")
         .map(|e| e.value.to_vec());
-    let ski = cert
-        .extensions()
-        .iter()
-        .find_map(|e| match e.parsed_extension() {
-            ParsedExtension::SubjectKeyIdentifier(k) => Some(k.0.to_vec()),
-            _ => None,
-        });
+    let ski = cert.extensions().iter().find_map(|e| match e.parsed_extension() {
+        ParsedExtension::SubjectKeyIdentifier(k) => Some(k.0.to_vec()),
+        _ => None,
+    });
     Ok(CertParts {
         serial: cert.tbs_certificate.raw_serial().to_vec(),
         issuer: cert.issuer().as_raw().to_vec(),
@@ -139,11 +135,7 @@ fn issuer_serial_ess(c: &CertParts) -> Vec<u8> {
 
 /// Atributos firmados (`SET OF Attribute` en DER, con la etiqueta `0x31`):
 /// lo que se firma con la clave.
-pub fn signed_attributes(
-    message_digest: &[u8],
-    cert: &[u8],
-    cfg: &SignedAttrsConfig,
-) -> Result<Vec<u8>, CmsError> {
+pub fn signed_attributes(message_digest: &[u8], cert: &[u8], cfg: &SignedAttrsConfig) -> Result<Vec<u8>, CmsError> {
     let c = cert_parts(cert)?;
     let mut attrs = vec![
         attribute(OID_CONTENT_TYPE, &[der::oid_str(OID_DATA)]),
@@ -176,11 +168,7 @@ pub fn signed_attributes(
         attrs.push(attribute(OID_SIGNING_CERTIFICATE, &[der::sequence(sc)]));
     }
     if let Some(p) = &cfg.policy {
-        let hash = if p.hash.is_empty() {
-            vec![0u8]
-        } else {
-            p.hash.clone()
-        };
+        let hash = if p.hash.is_empty() { vec![0u8] } else { p.hash.clone() };
         let mut v = vec![
             der::oid_str(&p.identifier),
             der::sequence([alg_id_null(&p.hash_algorithm_oid), der::octet_string(&hash)]),
@@ -263,10 +251,7 @@ pub fn signed_data(
         der::implicit_content(0, true, &der::sorted_concat(chain.iter())),
         der::set_of([signer_info]),
     ]);
-    Ok(der::sequence([
-        der::oid_str(OID_SIGNED_DATA),
-        der::explicit(0, &sd),
-    ]))
+    Ok(der::sequence([der::oid_str(OID_SIGNED_DATA), der::explicit(0, &sd)]))
 }
 
 // ---------------------------------------------------------------------------
@@ -425,17 +410,13 @@ pub fn parse_signed_data(data: &[u8]) -> Result<ParsedSignedData, CmsError> {
         for si in sis.children()? {
             let f = si.children()?;
             let mut i = 1;
-            let sid = f
-                .get(i)
-                .ok_or_else(|| CmsError::Invalid("sin sid".into()))?;
+            let sid = f.get(i).ok_or_else(|| CmsError::Invalid("sin sid".into()))?;
             i += 1;
             let (issuer, serial, ski) = if sid.tag == tags::SEQUENCE {
                 let p = sid.children()?;
                 (
                     p.first().map(|t| t.to_definite()),
-                    p.get(1)
-                        .map(|t| t.as_integer_bytes().map(<[u8]>::to_vec))
-                        .transpose()?,
+                    p.get(1).map(|t| t.as_integer_bytes().map(<[u8]>::to_vec)).transpose()?,
                     None,
                 )
             } else {
@@ -500,9 +481,7 @@ impl ParsedSignedData {
         self.certificates.iter().find(|c| {
             let Ok(p) = cert_parts(c) else { return false };
             match (&si.issuer, &si.serial, &si.ski) {
-                (Some(i), Some(s), _) => {
-                    strip_int(&p.serial) == strip_int(s) && names_equal(&p.issuer, i)
-                }
+                (Some(i), Some(s), _) => strip_int(&p.serial) == strip_int(s) && names_equal(&p.issuer, i),
                 (_, _, Some(k)) => p.ski.as_ref() == Some(k),
                 _ => false,
             }
@@ -560,35 +539,19 @@ use x509_parser::prelude::FromDer;
 
 /// Verifica una firma (PKCS#1 v1.5 o ECDSA DER) sobre `data` con la clave
 /// pública del certificado.
-pub fn verify_signature(
-    cert: &[u8],
-    digest: DigestAlgorithm,
-    data: &[u8],
-    signature: &[u8],
-) -> Result<bool, CmsError> {
+pub fn verify_signature(cert: &[u8], digest: DigestAlgorithm, data: &[u8], signature: &[u8]) -> Result<bool, CmsError> {
     verify_prehashed(cert, digest, &digest.digest(data), signature)
 }
 
 /// Verifica una firma sobre una huella ya calculada (con la verificación
 /// RSA/ECDSA de `afirma-cms`).
-pub fn verify_prehashed(
-    cert: &[u8],
-    digest: DigestAlgorithm,
-    hash: &[u8],
-    signature: &[u8],
-) -> Result<bool, CmsError> {
-    let view = afirma_cms::cert::CertView::parse(cert)
-        .map_err(|e| CmsError::Certificate(e.to_string()))?;
+pub fn verify_prehashed(cert: &[u8], digest: DigestAlgorithm, hash: &[u8], signature: &[u8]) -> Result<bool, CmsError> {
+    let view = afirma_cms::cert::CertView::parse(cert).map_err(|e| CmsError::Certificate(e.to_string()))?;
     let key = view
         .key_algorithm()
         .ok_or_else(|| CmsError::Algorithm("tipo de clave pública no soportado".into()))?;
-    afirma_cms::verify::verify_prehashed_with_certificate(
-        cert,
-        SignatureAlgorithm::new(digest, key),
-        hash,
-        signature,
-    )
-    .map_err(|e| CmsError::Algorithm(e.0))
+    afirma_cms::verify::verify_prehashed_with_certificate(cert, SignatureAlgorithm::new(digest, key), hash, signature)
+        .map_err(|e| CmsError::Algorithm(e.0))
 }
 
 /// Resultado de verificar un `SignerInfo` (como `PdfPKCS7.verify()`).
@@ -609,9 +572,9 @@ pub fn verify_signer(
     let digest = si
         .digest_algorithm()
         .ok_or_else(|| CmsError::Algorithm(si.digest_oid.clone()))?;
-    let cert = sd.signer_cert(si).ok_or_else(|| {
-        CmsError::Certificate("no se encuentra el certificado del firmante".into())
-    })?;
+    let cert = sd
+        .signer_cert(si)
+        .ok_or_else(|| CmsError::Certificate("no se encuentra el certificado del firmante".into()))?;
     match &si.signed_attrs_der {
         Some(attrs) => {
             let md = si.message_digest().unwrap_or_default();
@@ -621,12 +584,13 @@ pub fn verify_signer(
                 // Como Bouncy Castle: se prueba también con los atributos en
                 // orden DER (firmas de terceros con el SET sin ordenar).
                 if let Ok(t) = Tlv::parse_single(attrs)
-                    && let Ok(children) = t.children() {
-                        let sorted = der::set_of(children.iter().map(|c| c.raw.to_vec()));
-                        if sorted != *attrs {
-                            signature_ok = verify_signature(cert, digest, &sorted, &si.signature)?;
-                        }
+                    && let Ok(children) = t.children()
+                {
+                    let sorted = der::set_of(children.iter().map(|c| c.raw.to_vec()));
+                    if sorted != *attrs {
+                        signature_ok = verify_signature(cert, digest, &sorted, &si.signature)?;
                     }
+                }
             }
             Ok(SignerCheck {
                 digest_ok,
@@ -682,10 +646,7 @@ pub fn add_signature_timestamp(cms: &[u8], token: &[u8]) -> Result<Vec<u8>, CmsE
         }
     }
     let sd = der::sequence(new_fields);
-    Ok(der::sequence([
-        der::oid_str(OID_SIGNED_DATA),
-        der::explicit(0, &sd),
-    ]))
+    Ok(der::sequence([der::oid_str(OID_SIGNED_DATA), der::explicit(0, &sd)]))
 }
 
 /// Fecha (`genTime`) de un sello de tiempo (`TimeStampToken`).
@@ -706,14 +667,7 @@ pub fn timestamp_imprint(token: &[u8]) -> Option<(String, Vec<u8>)> {
     let tst = Tlv::parse_single(sd.econtent.as_deref()?).ok()?;
     let f = tst.children().ok()?;
     let mi = f.get(2)?.children().ok()?;
-    let alg = mi
-        .first()?
-        .children()
-        .ok()?
-        .first()?
-        .as_oid()
-        .ok()?
-        .to_dotted();
+    let alg = mi.first()?.children().ok()?.first()?.as_oid().ok()?.to_dotted();
     let h = mi.get(1)?.octet_string_content().ok()?;
     Some((alg, h))
 }

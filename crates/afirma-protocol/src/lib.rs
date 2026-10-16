@@ -53,8 +53,9 @@ use std::sync::Arc;
 pub use channel::{ChannelError, ChannelRequest, TlsSource};
 pub use errors::{ErrorOrigin, ProtocolError};
 pub use handler::{
-    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner, OpenFileRequest, OperationHandler,
-    PasswordRequest, ProgressEvent, RequestInfo, RequestOrigin, SaveFileRequest, VisibleSignatureRequest,
+    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner,
+    OpenFileRequest, OperationHandler, PasswordRequest, ProgressEvent, RequestInfo, RequestOrigin, SaveFileRequest,
+    VisibleSignatureRequest,
 };
 pub use http::HttpClient;
 pub use launcher::{LaunchOutcome, LauncherConfig, ProtocolLauncher};

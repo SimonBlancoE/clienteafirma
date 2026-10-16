@@ -87,7 +87,10 @@ impl AutoFirmaApp {
         theme::install_fonts(&cc.egui_ctx);
         egui_extras::install_image_loaders(&cc.egui_ctx);
         let prefs: Box<dyn super::pages::settings::PrefStore> = if std::env::var_os("AF_DEMO").is_some() {
-            Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() })
+            Box::new(super::pages::settings::MemoryPrefs {
+                defaults: super::pages::settings::default_values(),
+                ..Default::default()
+            })
         } else {
             crate::services::prefs::load()
         };
@@ -174,9 +177,11 @@ impl AutoFirmaApp {
         }
         // Almacén por defecto sustituible (pruebas y despliegues): `AF_STORE=pkcs12:/ruta` o `pkcs11:/ruta`.
         if let Ok(spec) = std::env::var("AF_STORE")
-            && let Ok(parsed) = afirma_keystores::selection::parse_cli_store(Some(&spec), afirma_keystores::Os::current()) {
-                app.rt.store_spec = parsed;
-            }
+            && let Ok(parsed) =
+                afirma_keystores::selection::parse_cli_store(Some(&spec), afirma_keystores::Os::current())
+        {
+            app.rt.store_spec = parsed;
+        }
         app
     }
 
@@ -224,8 +229,14 @@ impl AutoFirmaApp {
                         continue;
                     };
                     self.settings.message = Some(match std::fs::write(&path, content) {
-                        Ok(()) => (widgets::CalloutKind::Success, trf("Configuración exportada a {0}", &[&path.display()])),
-                        Err(e) => (widgets::CalloutKind::Error, trf("No se ha podido guardar el fichero: {0}", &[&e])),
+                        Ok(()) => (
+                            widgets::CalloutKind::Success,
+                            trf("Configuración exportada a {0}", &[&path.display()]),
+                        ),
+                        Err(e) => (
+                            widgets::CalloutKind::Error,
+                            trf("No se ha podido guardar el fichero: {0}", &[&e]),
+                        ),
                     });
                 }
                 SettingsAction::Import => {
@@ -236,11 +247,16 @@ impl AutoFirmaApp {
                     else {
                         continue;
                     };
-                    let prepared = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|d| self.prefs.prepare_import(&d));
+                    let prepared = std::fs::read(&path)
+                        .map_err(|e| e.to_string())
+                        .and_then(|d| self.prefs.prepare_import(&d));
                     match prepared {
                         Ok(p) => self.pending_import = Some(p),
                         Err(e) => {
-                            self.settings.message = Some((widgets::CalloutKind::Error, trf("No se puede importar la configuración: {0}", &[&e])))
+                            self.settings.message = Some((
+                                widgets::CalloutKind::Error,
+                                trf("No se puede importar la configuración: {0}", &[&e]),
+                            ))
                         }
                     }
                 }
@@ -248,7 +264,17 @@ impl AutoFirmaApp {
                 SettingsAction::TestProxy => {
                     // Con los valores en pantalla, aunque no se hayan guardado.
                     let mut values = std::collections::HashMap::new();
-                    for key in ["proxyType", "proxySelected", "proxyHost", "proxyPort", "proxyUsername", "proxyPassword", "proxyExcludedUrls", "secureConnections", "secureDomainsList"] {
+                    for key in [
+                        "proxyType",
+                        "proxySelected",
+                        "proxyHost",
+                        "proxyPort",
+                        "proxyUsername",
+                        "proxyPassword",
+                        "proxyExcludedUrls",
+                        "secureConnections",
+                        "secureDomainsList",
+                    ] {
                         let v = match self.settings.pending.get(key) {
                             Some(v) => v.clone(),
                             None => self.prefs.get(key),
@@ -293,7 +319,10 @@ impl AutoFirmaApp {
             for ev in job.poll() {
                 if let crate::services::task::JobEvent::Done(r) = ev {
                     self.settings.message = Some(match r {
-                        Ok(()) => (widgets::CalloutKind::Success, tr("Conexión correcta con la configuración de red indicada").into()),
+                        Ok(()) => (
+                            widgets::CalloutKind::Success,
+                            tr("Conexión correcta con la configuración de red indicada").into(),
+                        ),
                         Err(e) => (widgets::CalloutKind::Error, trf("No se ha podido conectar: {0}", &[&e])),
                     });
                 }
@@ -304,27 +333,51 @@ impl AutoFirmaApp {
         }
         if let Some(prepared) = &self.pending_import {
             let text = prepared.confirmation_text();
-            if let Some(yes) = super::dialogs::confirm_modal(ctx, &p, tr("Importar configuración"), &text, tr("Importar"), false, false) {
+            if let Some(yes) = super::dialogs::confirm_modal(
+                ctx,
+                &p,
+                tr("Importar configuración"),
+                &text,
+                tr("Importar"),
+                false,
+                false,
+            ) {
                 let prepared = self.pending_import.take().expect("importación pendiente");
                 if yes {
                     self.settings.pending.clear();
                     self.settings.message = Some(match self.prefs.apply_import(&prepared) {
                         Ok(summary) => (widgets::CalloutKind::Success, summary),
-                        Err(e) => (widgets::CalloutKind::Error, trf("No se ha podido importar la configuración: {0}", &[&e])),
+                        Err(e) => (
+                            widgets::CalloutKind::Error,
+                            trf("No se ha podido importar la configuración: {0}", &[&e]),
+                        ),
                     });
                     self.after_prefs_changed();
                 }
             }
         }
         if self.confirm_restore {
-            let text = tr("Se borrará tu configuración personalizada y se usarán los valores de fábrica (o los fijados por tu organización). Las tarjetas añadidas se conservan.");
-            if let Some(yes) = super::dialogs::confirm_modal(ctx, &p, tr("Restaurar valores de fábrica"), text, tr("Restaurar"), false, false) {
+            let text = tr(
+                "Se borrará tu configuración personalizada y se usarán los valores de fábrica (o los fijados por tu organización). Las tarjetas añadidas se conservan.",
+            );
+            if let Some(yes) = super::dialogs::confirm_modal(
+                ctx,
+                &p,
+                tr("Restaurar valores de fábrica"),
+                text,
+                tr("Restaurar"),
+                false,
+                false,
+            ) {
                 self.confirm_restore = false;
                 if yes {
                     self.settings.pending.clear();
                     self.prefs.restore_defaults();
                     self.after_prefs_changed();
-                    self.settings.message = Some((widgets::CalloutKind::Success, tr("Se han restaurado los valores de fábrica").into()));
+                    self.settings.message = Some((
+                        widgets::CalloutKind::Success,
+                        tr("Se han restaurado los valores de fábrica").into(),
+                    ));
                 }
             }
         }
@@ -347,7 +400,11 @@ impl AutoFirmaApp {
             return;
         }
         let p = self.palette;
-        let msg = if busy { tr("Hay una firma en curso. Si cierras ahora se interrumpirá.") } else { tr("¿Quieres cerrar AutoFirma?") };
+        let msg = if busy {
+            tr("Hay una firma en curso. Si cierras ahora se interrumpirá.")
+        } else {
+            tr("¿Quieres cerrar AutoFirma?")
+        };
         let mut decision = None;
         egui::Modal::new(egui::Id::unique("close_dialog")).show(ctx, |ui| {
             ui.set_width(380.0);
@@ -390,7 +447,8 @@ impl AutoFirmaApp {
                     // Cada invocación del navegador se atiende en su propio
                     // proceso, con su ventana compacta, como en la línea de
                     // comandos de los demás sistemas.
-                    let spawned = std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg(&url).spawn());
+                    let spawned =
+                        std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg(&url).spawn());
                     if let Err(e) = spawned {
                         tracing::error!("No se ha podido atender la URL del navegador: {e}");
                     }
@@ -414,7 +472,11 @@ impl AutoFirmaApp {
                     self.launch_grace = None;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+                    let ext = path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or_default()
+                        .to_ascii_lowercase();
                     if matches!(ext.as_str(), "csig" | "xsig") {
                         self.verify_path(ctx, path);
                     } else {
@@ -455,7 +517,10 @@ impl AutoFirmaApp {
                         ],
                     );
                     ctx.copy_text(info);
-                    self.rt.toast = Some((tr("Información copiada al portapapeles").into(), std::time::Instant::now()));
+                    self.rt.toast = Some((
+                        tr("Información copiada al portapapeles").into(),
+                        std::time::Instant::now(),
+                    ));
                 }
             }
         }
@@ -468,7 +533,9 @@ impl AutoFirmaApp {
 
     /// Aviso temporal en la parte inferior.
     fn toast_ui(&mut self, ctx: &egui::Context) {
-        let Some((msg, since)) = self.rt.toast.clone() else { return };
+        let Some((msg, since)) = self.rt.toast.clone() else {
+            return;
+        };
         if since.elapsed() > std::time::Duration::from_secs(5) {
             self.rt.toast = None;
             return;
@@ -479,7 +546,11 @@ impl AutoFirmaApp {
             .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -24.0))
             .show(ctx, |ui| {
                 Frame::new()
-                    .fill(if p.dark { p.surface_alt } else { egui::Color32::from_rgb(0x1F, 0x24, 0x2C) })
+                    .fill(if p.dark {
+                        p.surface_alt
+                    } else {
+                        egui::Color32::from_rgb(0x1F, 0x24, 0x2C)
+                    })
                     .corner_radius(10)
                     .inner_margin(Margin::symmetric(16, 10))
                     .show(ui, |ui| {
@@ -493,14 +564,23 @@ impl AutoFirmaApp {
         egui::Panel::left("nav")
             .exact_size(232.0)
             .resizable(false)
-            .frame(Frame::new().fill(p.sidebar).inner_margin(Margin::symmetric(14, 18)).stroke(Stroke::new(1.0, p.border)))
+            .frame(
+                Frame::new()
+                    .fill(p.sidebar)
+                    .inner_margin(Margin::symmetric(14, 18))
+                    .stroke(Stroke::new(1.0, p.border)),
+            )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     widgets::status_circle(ui, icons::PEN_NIB, 36.0, p.on_primary, p.primary);
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.add_space(1.0);
-                        ui.label(RichText::new("AutoFirma").font(egui::FontId::new(17.0, theme::bold())).color(p.text));
+                        ui.label(
+                            RichText::new("AutoFirma")
+                                .font(egui::FontId::new(17.0, theme::bold()))
+                                .color(p.text),
+                        );
                         ui.label(RichText::new(tr("Firma electrónica")).size(12.0).color(p.text_faint));
                     });
                 });
@@ -512,7 +592,11 @@ impl AutoFirmaApp {
                     ui.add_space(2.0);
                 }
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                    ui.label(RichText::new(trf("Versión {0}", &[&env!("CARGO_PKG_VERSION")])).size(11.5).color(p.text_faint));
+                    ui.label(
+                        RichText::new(trf("Versión {0}", &[&env!("CARGO_PKG_VERSION")]))
+                            .size(11.5)
+                            .color(p.text_faint),
+                    );
                     if let Some(info) = &self.update {
                         let text = trf("Nueva versión {0} disponible", &[&info.version]);
                         let link = ui
@@ -532,7 +616,6 @@ impl AutoFirmaApp {
                 });
             });
     }
-
 }
 
 impl eframe::App for AutoFirmaApp {
@@ -587,13 +670,15 @@ impl eframe::App for AutoFirmaApp {
             if self.request.is_none() {
                 // Esperando a la página: ventana mínima.
                 let p = self.palette;
-                egui::CentralPanel::no_frame().frame(Frame::new().fill(p.surface)).show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(ui.available_height() / 2.0 - 30.0);
-                        ui.spinner();
-                        ui.label(tr("Atendiendo a la página web…"));
+                egui::CentralPanel::no_frame()
+                    .frame(Frame::new().fill(p.surface))
+                    .show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(ui.available_height() / 2.0 - 30.0);
+                            ui.spinner();
+                            ui.label(tr("Atendiendo a la página web…"));
+                        });
                     });
-                });
                 return;
             }
             self.request_ui(ui);
@@ -603,45 +688,52 @@ impl eframe::App for AutoFirmaApp {
         if self.page == Page::Settings && !self.settings.pending.is_empty() {
             let p = self.palette;
             let actions = egui::Panel::bottom("settings_bar")
-                .frame(Frame::new().fill(p.surface).inner_margin(Margin::symmetric(36, 12)).stroke(Stroke::new(1.0, p.border)))
+                .frame(
+                    Frame::new()
+                        .fill(p.surface)
+                        .inner_margin(Margin::symmetric(36, 12))
+                        .stroke(Stroke::new(1.0, p.border)),
+                )
                 .show(ui, |ui| self.settings.pending_bar(ui, &p))
                 .inner;
             self.handle_settings_actions(&ctx, actions);
         }
         let p = self.palette;
-        egui::CentralPanel::no_frame().frame(Frame::new().fill(p.bg).inner_margin(Margin::symmetric(36, 28))).show(ui, |ui| {
-            ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                ui.set_max_width(ui.available_width().min(900.0));
-                match self.page {
-                    Page::Sign => {
-                        self.sign.integration_needed = self.integration_needed;
-                        let actions = self.sign.ui(ui, &p, self.files_hovering);
-                        self.on_sign_actions(&ctx, actions);
+        egui::CentralPanel::no_frame()
+            .frame(Frame::new().fill(p.bg).inner_margin(Margin::symmetric(36, 28)))
+            .show(ui, |ui| {
+                ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    ui.set_max_width(ui.available_width().min(900.0));
+                    match self.page {
+                        Page::Sign => {
+                            self.sign.integration_needed = self.integration_needed;
+                            let actions = self.sign.ui(ui, &p, self.files_hovering);
+                            self.on_sign_actions(&ctx, actions);
+                        }
+                        Page::Verify => {
+                            let actions = self.verify.ui(ui, &p, self.files_hovering);
+                            self.on_verify_actions(&ctx, actions);
+                        }
+                        Page::Certificates => {
+                            self.ensure_cert_stores(&ctx);
+                            let actions = self.certificates.ui(ui, &p);
+                            self.on_certs_actions(&ctx, actions);
+                        }
+                        Page::Tools => {
+                            let actions = self.tools.ui(ui, &p);
+                            self.on_tools_actions(&ctx, actions);
+                        }
+                        Page::Settings => {
+                            let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
+                            self.handle_settings_actions(&ctx, actions);
+                        }
+                        Page::Help => {
+                            let actions = super::pages::help::ui(ui, &p);
+                            self.on_help_actions(&ctx, actions);
+                        }
                     }
-                    Page::Verify => {
-                        let actions = self.verify.ui(ui, &p, self.files_hovering);
-                        self.on_verify_actions(&ctx, actions);
-                    }
-                    Page::Certificates => {
-                        self.ensure_cert_stores(&ctx);
-                        let actions = self.certificates.ui(ui, &p);
-                        self.on_certs_actions(&ctx, actions);
-                    }
-                    Page::Tools => {
-                        let actions = self.tools.ui(ui, &p);
-                        self.on_tools_actions(&ctx, actions);
-                    }
-                    Page::Settings => {
-                        let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
-                        self.handle_settings_actions(&ctx, actions);
-                    }
-                    Page::Help => {
-                        let actions = super::pages::help::ui(ui, &p);
-                        self.on_help_actions(&ctx, actions);
-                    }
-                }
+                });
             });
-        });
         self.sign_flow_dialogs(&ctx);
         let ev = self.picker.show(&ctx, &p);
         self.on_picker_event(&ctx, ev);

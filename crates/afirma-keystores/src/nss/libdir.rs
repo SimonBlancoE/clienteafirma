@@ -62,14 +62,26 @@ pub fn softokn_dependencies(os: Os) -> &'static [&'static str] {
             "libmozsqlite3.dylib",
             "libnss3.dylib",
         ],
-        _ => &["libnspr4.so", "libplds4.so", "libplc4.so", "libnssutil3.so", "libsqlite3.so", "libmozsqlite3.so", "libsqlite3.so.0"],
+        _ => &[
+            "libnspr4.so",
+            "libplds4.so",
+            "libplc4.so",
+            "libnssutil3.so",
+            "libsqlite3.so",
+            "libmozsqlite3.so",
+            "libsqlite3.so.0",
+        ],
     }
 }
 
 /// Directorio de bibliotecas del sistema de Java (`Platform.getSystemLibDir`
 /// en UNIX): `/usr/lib64` si existe, si no `/usr/lib`.
 fn unix_system_lib_dir() -> &'static str {
-    if Path::new("/usr/lib64").is_dir() { "/usr/lib64" } else { "/usr/lib" }
+    if Path::new("/usr/lib64").is_dir() {
+        "/usr/lib64"
+    } else {
+        "/usr/lib"
+    }
 }
 
 /// Mayor versión numérica `firefox-<x.y.z>` en un directorio.
@@ -77,8 +89,12 @@ fn last_firefox_version(dir: &Path) -> Option<String> {
     let mut best: Option<(Vec<u64>, String)> = None;
     for e in std::fs::read_dir(dir).ok()?.flatten() {
         let name = e.file_name().to_string_lossy().to_string();
-        let Some(v) = name.strip_prefix("firefox-") else { continue };
-        let Ok(parts) = v.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>, _>>() else { continue };
+        let Some(v) = name.strip_prefix("firefox-") else {
+            continue;
+        };
+        let Ok(parts) = v.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>, _>>() else {
+            continue;
+        };
         let newer = match &best {
             None => true,
             Some((b, _)) => {
@@ -108,9 +124,17 @@ pub fn unix_candidates() -> Vec<PathBuf> {
         v.push(format!("{sys}/firefox-{ver}"));
     }
     v.push(format!("{sys}/thunderbird"));
-    v.push(if bits64 && Path::new("/lib64").is_dir() { "/lib64".into() } else { "/lib".into() });
+    v.push(if bits64 && Path::new("/lib64").is_dir() {
+        "/lib64".into()
+    } else {
+        "/lib".into()
+    });
     v.push("/opt/firefox".into());
-    v.push(if bits64 && Path::new("/usr/lib64").is_dir() { "/usr/lib64".into() } else { "/usr/lib".into() });
+    v.push(if bits64 && Path::new("/usr/lib64").is_dir() {
+        "/usr/lib64".into()
+    } else {
+        "/usr/lib".into()
+    });
     if let Some(ver) = last_firefox_version(Path::new("/opt")) {
         v.push(format!("/opt/firefox-{ver}"));
     }
@@ -149,7 +173,9 @@ pub fn macos_candidates() -> Vec<PathBuf> {
 pub fn compatibility_ini_platform_dir(profile_dir: &Path) -> Option<PathBuf> {
     let text = std::fs::read(profile_dir.join("compatibility.ini")).ok()?;
     let text = String::from_utf8_lossy(&text);
-    text.lines().take(512).find_map(|l| l.strip_prefix("LastPlatformDir=").map(|v| PathBuf::from(v.trim())))
+    text.lines()
+        .take(512)
+        .find_map(|l| l.strip_prefix("LastPlatformDir=").map(|v| PathBuf::from(v.trim())))
 }
 
 /// Directorio de las bibliotecas NSS (`getSystemNSSLibDir`).
@@ -160,13 +186,16 @@ pub fn nss_lib_dir(env: &MozEnv, firefox_profile: Option<&Path>) -> Result<PathB
         f.is_file() && binary_arch_matches(&f)
     };
     if env.use_env_vars()
-        && let Some(d) = env.var(AFIRMA_NSS_HOME_ENV) {
-            let d = PathBuf::from(d);
-            if d.is_dir() && usable(&d) {
-                return Ok(d);
-            }
-            tracing::warn!("La variable de entorno '{AFIRMA_NSS_HOME_ENV}' apunta a un directorio que no existe o sobre el que no se tienen permisos de lectura, se ignorara");
+        && let Some(d) = env.var(AFIRMA_NSS_HOME_ENV)
+    {
+        let d = PathBuf::from(d);
+        if d.is_dir() && usable(&d) {
+            return Ok(d);
         }
+        tracing::warn!(
+            "La variable de entorno '{AFIRMA_NSS_HOME_ENV}' apunta a un directorio que no existe o sobre el que no se tienen permisos de lectura, se ignorara"
+        );
+    }
     let candidates: Vec<PathBuf> = match env.os {
         Os::Windows => {
             let mut v = Vec::new();
@@ -183,10 +212,9 @@ pub fn nss_lib_dir(env: &MozEnv, firefox_profile: Option<&Path>) -> Result<PathB
         Os::MacOs => macos_candidates(),
         _ => unix_candidates(),
     };
-    candidates
-        .into_iter()
-        .find(|d| usable(d))
-        .ok_or_else(|| KeyStoreError::Firefox("No se han encontrado bibliotecas NSS instaladas en su sistema operativo".into()))
+    candidates.into_iter().find(|d| usable(d)).ok_or_else(|| {
+        KeyStoreError::Firefox("No se han encontrado bibliotecas NSS instaladas en su sistema operativo".into())
+    })
 }
 
 /// Indica si el binario (ELF, PE o Mach-O, incluido universal) es de la
@@ -238,7 +266,11 @@ fn elf_matches(h: &[u8]) -> bool {
     if class64 != cfg!(target_pointer_width = "64") {
         return false;
     }
-    let machine = if h[5] == 2 { u16::from_be_bytes([h[18], h[19]]) } else { u16::from_le_bytes([h[18], h[19]]) };
+    let machine = if h[5] == 2 {
+        u16::from_be_bytes([h[18], h[19]])
+    } else {
+        u16::from_le_bytes([h[18], h[19]])
+    };
     expected_elf_machine().is_none_or(|m| m == machine)
 }
 
@@ -323,7 +355,11 @@ mod tests {
 
     #[test]
     fn macho_fat() {
-        let cpu: u32 = if cfg!(target_arch = "aarch64") { 0x0100_000c } else { 0x0100_0007 };
+        let cpu: u32 = if cfg!(target_arch = "aarch64") {
+            0x0100_000c
+        } else {
+            0x0100_0007
+        };
         let mut h = vec![0u8; 64];
         h[..4].copy_from_slice(&0xcafe_babeu32.to_be_bytes());
         h[4..8].copy_from_slice(&2u32.to_be_bytes());
@@ -343,8 +379,15 @@ mod tests {
             std::fs::create_dir(tmp.path().join(d)).unwrap();
         }
         assert_eq!(last_firefox_version(tmp.path()).as_deref(), Some("10.0.1"));
-        std::fs::write(tmp.path().join("compatibility.ini"), "[Compatibility]\nLastVersion=1\nLastPlatformDir=C:\\Program Files\\Mozilla Firefox \nLastAppDir=x\n").unwrap();
-        assert_eq!(compatibility_ini_platform_dir(tmp.path()).unwrap(), PathBuf::from("C:\\Program Files\\Mozilla Firefox"));
+        std::fs::write(
+            tmp.path().join("compatibility.ini"),
+            "[Compatibility]\nLastVersion=1\nLastPlatformDir=C:\\Program Files\\Mozilla Firefox \nLastAppDir=x\n",
+        )
+        .unwrap();
+        assert_eq!(
+            compatibility_ini_platform_dir(tmp.path()).unwrap(),
+            PathBuf::from("C:\\Program Files\\Mozilla Firefox")
+        );
     }
 
     #[test]

@@ -16,8 +16,13 @@ pub struct PdfPages {
 impl PdfPages {
     pub fn open(data: &[u8], password: Option<&str>) -> Result<PdfPages, String> {
         let doc = RenderDocument::open(data, password).map_err(|e| e.to_string())?;
-        let sizes = (0..doc.page_count()).map(|i| doc.page_size(i).unwrap_or((595.0, 842.0))).collect();
-        Ok(PdfPages { doc: Mutex::new(doc), sizes })
+        let sizes = (0..doc.page_count())
+            .map(|i| doc.page_size(i).unwrap_or((595.0, 842.0)))
+            .collect();
+        Ok(PdfPages {
+            doc: Mutex::new(doc),
+            sizes,
+        })
     }
 }
 
@@ -35,7 +40,9 @@ impl PageSource for PdfPages {
         let img = doc.render_page(index, scale).ok()?;
         let pixels = img
             .data
-            .as_chunks::<4>().0.iter()
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|c| Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]))
             .collect();
         Some(ColorImage::new([img.width as usize, img.height as usize], pixels))

@@ -106,12 +106,16 @@ enum VerifyFailure {
 
 /// Valor único de un atributo firmado (`getSingleValuedSignedAttribute`).
 fn single_valued<'a>(si: &SignerInfo<'a>, oid: &str) -> Result<Option<crate::asn1::Tlv<'a>>, VerifyFailure> {
-    let attrs = si.signed_attributes().map_err(|e| VerifyFailure::Other(e.to_string()))?;
+    let attrs = si
+        .signed_attributes()
+        .map_err(|e| VerifyFailure::Other(e.to_string()))?;
     let found: Vec<_> = attrs.into_iter().filter(|a| a.is(oid)).collect();
     match found.as_slice() {
         [] => Ok(None),
         [a] if a.values.len() == 1 => Ok(Some(a.values[0])),
-        _ => Err(VerifyFailure::Other(format!("El atributo {oid} debe tener un unico valor"))),
+        _ => Err(VerifyFailure::Other(format!(
+            "El atributo {oid} debe tener un unico valor"
+        ))),
     }
 }
 
@@ -127,12 +131,13 @@ fn bc_verify(
     let view = CertView::parse(cert).map_err(|e| VerifyFailure::Other(e.to_string()))?;
     // Validez del certificado en la fecha de firma.
     if si.signed_attrs.is_some()
-        && let Some(t) = single_valued(si, oids::SIGNING_TIME)? {
-            let when = t.as_time().map_err(|e| VerifyFailure::Other(e.to_string()))?;
-            if !view.is_valid_at(when) {
-                return Err(VerifyFailure::Other("verifier not valid at signingTime".into()));
-            }
+        && let Some(t) = single_valued(si, oids::SIGNING_TIME)?
+    {
+        let when = t.as_time().map_err(|e| VerifyFailure::Other(e.to_string()))?;
+        if !view.is_valid_at(when) {
+            return Err(VerifyFailure::Other("verifier not valid at signingTime".into()));
         }
+    }
     let digest = DigestAlgorithm::from_oid(&si.digest_oid.to_dotted())
         .ok_or_else(|| VerifyFailure::Other(format!("Algoritmo de huella no soportado: {}", si.digest_oid)))?;
     let sig_alg = alg::signer_signature_algorithm(&si.digest_oid.to_dotted(), &si.signature_oid.to_dotted())
@@ -165,7 +170,9 @@ fn bc_verify(
                 VerifyFailure::Other("content-type attribute value not of ASN.1 type 'OBJECT IDENTIFIER'".into())
             })?;
             if oid != sd.econtent_type {
-                return Err(VerifyFailure::Other("content-type attribute value does not match eContentType".into()));
+                return Err(VerifyFailure::Other(
+                    "content-type attribute value does not match eContentType".into(),
+                ));
             }
         }
     }
@@ -183,17 +190,23 @@ fn bc_verify(
         return Err(VerifyFailure::DigestMismatch);
     }
     if si.has_signed_attr(oids::COUNTER_SIGNATURE) {
-        return Err(VerifyFailure::Other("A countersignature attribute MUST NOT be a signed attribute".into()));
+        return Err(VerifyFailure::Other(
+            "A countersignature attribute MUST NOT be a signed attribute".into(),
+        ));
     }
-    for ua in si.unsigned_attributes().map_err(|e| VerifyFailure::Other(e.to_string()))? {
+    for ua in si
+        .unsigned_attributes()
+        .map_err(|e| VerifyFailure::Other(e.to_string()))?
+    {
         if ua.is(oids::COUNTER_SIGNATURE) && ua.values.is_empty() {
             return Err(VerifyFailure::Other(
                 "A countersignature attribute MUST contain at least one AttributeValue".into(),
             ));
         }
     }
-    let tbs =
-        si.signed_attrs_to_be_signed().ok_or_else(|| VerifyFailure::Other("atributos firmados no validos".into()))?;
+    let tbs = si
+        .signed_attrs_to_be_signed()
+        .ok_or_else(|| VerifyFailure::Other("atributos firmados no validos".into()))?;
     let sig = si.signature_value();
     let ok =
         verify::verify_with_certificate(cert, sig_alg, &tbs, &sig).map_err(|e| VerifyFailure::Other(e.to_string()))?;
@@ -224,7 +237,9 @@ pub fn verify_signer(
     let mut result = Vec::new();
     let profile = resolve_asn1_format(sd, si);
     // Certificado por número de serie (sin mirar el emisor).
-    let cert = si.issuer_and_serial().and_then(|(_, serial)| sd.find_certificate_by_serial(serial));
+    let cert = si
+        .issuer_and_serial()
+        .and_then(|(_, serial)| sd.find_certificate_by_serial(serial));
     match cert {
         None => result.push(
             SignValidity::ko(ValidityError::CantValidateCert)
@@ -330,9 +345,16 @@ pub fn validate(sign: &[u8], data: Option<&[u8]>, check_certificates: bool) -> V
 /// Comprueba la firma de un sello de tiempo de forma aislada (para la
 /// interfaz de validación): devuelve `true` si es criptográficamente válido.
 pub fn verify_timestamp_token(token: &[u8]) -> bool {
-    let Ok(info) = crate::tsp::parse_timestamp_token(token) else { return false };
-    let Some(cert) = &info.tsa_certificate else { return false };
+    let Ok(info) = crate::tsp::parse_timestamp_token(token) else {
+        return false;
+    };
+    let Some(cert) = &info.tsa_certificate else {
+        return false;
+    };
     let Ok(sd) = SignedData::parse(token) else { return false };
-    let Some(si) = sd.signer_infos.first() else { return false };
-    sd.content().is_some_and(|c| crate::tsp::verify_signer_info(si, cert, Some(&c)).unwrap_or(false))
+    let Some(si) = sd.signer_infos.first() else {
+        return false;
+    };
+    sd.content()
+        .is_some_and(|c| crate::tsp::verify_signer_info(si, cert, Some(&c)).unwrap_or(false))
 }

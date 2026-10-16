@@ -36,7 +36,12 @@ pub fn verify_signature(cert_der: &[u8], algorithm: SignatureAlgorithm, data: &[
             DigestAlgorithm::Sha224 => return None,
         },
         KeyAlgorithm::Ec => {
-            let curve = spki.algorithm.parameters.as_ref().and_then(|p| p.as_oid().ok()).map(|o| o.to_id_string())?;
+            let curve = spki
+                .algorithm
+                .parameters
+                .as_ref()
+                .and_then(|p| p.as_oid().ok())
+                .map(|o| o.to_id_string())?;
             match (curve.as_str(), algorithm.digest) {
                 ("1.2.840.10045.3.1.7", DigestAlgorithm::Sha256) => &rs::ECDSA_P256_SHA256_ASN1,
                 ("1.2.840.10045.3.1.7", DigestAlgorithm::Sha384) => &rs::ECDSA_P256_SHA384_ASN1,
@@ -47,7 +52,11 @@ pub fn verify_signature(cert_der: &[u8], algorithm: SignatureAlgorithm, data: &[
         }
         KeyAlgorithm::Dsa => return None,
     };
-    Some(rs::UnparsedPublicKey::new(verifier, key_bytes).verify(data, signature).is_ok())
+    Some(
+        rs::UnparsedPublicKey::new(verifier, key_bytes)
+            .verify(data, signature)
+            .is_ok(),
+    )
 }
 
 /// `AOPkcs1Signer.sign`: firma `data` con la clave (el algoritmo se compone
@@ -69,17 +78,19 @@ pub fn pkcs1_sign(data: &[u8], algorithm: &str, key: &dyn SigningKey, cert_chain
     })?;
     let signature = key.sign(data, sig_alg).map_err(|e| match e {
         KeyError::Cancelled => AfirmaError::cancelled_sm("Cancelacion del dialogo de JMulticard"),
-        KeyError::WrongPin => {
-            AfirmaError::new(codes::INVALID_SMARTCARD_PIN, "La contrasena del almacen o certificado es incorrecta")
-        }
+        KeyError::WrongPin => AfirmaError::new(
+            codes::INVALID_SMARTCARD_PIN,
+            "La contrasena del almacen o certificado es incorrecta",
+        ),
         KeyError::PinLocked => AfirmaError::new(codes::SMARTCARD_LOCKED, "El almacen de claves esta bloqueado"),
         KeyError::Unsupported(m) => AfirmaError::new(
             codes::INVALID_SIGNING_KEY,
             format!("Error al inicializar la firma con la clave privada para el algoritmo '{algorithm}': {m}"),
         ),
-        other => {
-            AfirmaError::new(codes::SIGNING_PKCS1_ERROR, format!("Error durante el proceso de firma PKCS#1: {other}"))
-        }
+        other => AfirmaError::new(
+            codes::SIGNING_PKCS1_ERROR,
+            format!("Error durante el proceso de firma PKCS#1: {other}"),
+        ),
     })?;
     match cert_chain.first() {
         Some(cert) => match verify_signature(cert, sig_alg, data, &signature) {
@@ -148,7 +159,10 @@ impl Signer for Pkcs1Signer {
         match original {
             None => format!("signature{PKCS1_FILE_SUFFIX}"),
             Some(n) if n.to_ascii_lowercase().ends_with(PKCS1_FILE_SUFFIX) => {
-                format!("{}{in_text}{PKCS1_FILE_SUFFIX}", &n[..n.len() - PKCS1_FILE_SUFFIX.len()])
+                format!(
+                    "{}{in_text}{PKCS1_FILE_SUFFIX}",
+                    &n[..n.len() - PKCS1_FILE_SUFFIX.len()]
+                )
             }
             Some(n) => format!("{n}{in_text}{PKCS1_FILE_SUFFIX}"),
         }
@@ -207,7 +221,9 @@ impl Pkcs1TriPhaseSigner {
         extra_params: &ExtraParams,
     ) -> Result<Vec<u8>> {
         if cert_chain.is_empty() {
-            return Err(AfirmaError::invalid_argument("Es necesario proporcionar el certificado de firma"));
+            return Err(AfirmaError::invalid_argument(
+                "Es necesario proporcionar el certificado de firma",
+            ));
         }
         let server = extra_params
             .get(PROPERTY_NAME_SIGN_SERVER_URL)
@@ -247,18 +263,26 @@ impl Pkcs1TriPhaseSigner {
         let presignature = tri.signs[0]
             .property(PROPERTY_NAME_PRESIGN)
             .ok_or_else(|| {
-                AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, "Error al decodificar la prefirma de los datos")
+                AfirmaError::new(
+                    codes::MALFORMED_PRESIGN_RESPONSE,
+                    "Error al decodificar la prefirma de los datos",
+                )
             })
             .and_then(|p| {
                 crate::base64::decode(p).map_err(|_| {
-                    AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, "Error al decodificar la prefirma de los datos")
+                    AfirmaError::new(
+                        codes::MALFORMED_PRESIGN_RESPONSE,
+                        "Error al decodificar la prefirma de los datos",
+                    )
                 })
             })?;
         let pkcs1 = pkcs1_sign(&presignature, algorithm, key, cert_chain)?;
         tri.signs[0].add_property(PROPERTY_NAME_PKCS1_SIGN, crate::base64::encode(&pkcs1));
         let session = crate::base64::encode_url_safe(tri.to_xml_string().as_bytes());
         let post_url = format!("{server}?op=post&{common}&session={session}");
-        let result = client.read_url(&HttpRequest::post(post_url)).map_err(|e| postsign_error(&e))?;
+        let result = client
+            .read_url(&HttpRequest::post(post_url))
+            .map_err(|e| postsign_error(&e))?;
         let text = String::from_utf8_lossy(&result);
         let trimmed = text.trim_matches(|c: char| c <= ' ');
         if !trimmed.starts_with("OK") {
@@ -268,7 +292,10 @@ impl Pkcs1TriPhaseSigner {
             ));
         }
         let malformed = || {
-            AfirmaError::new(codes::MALFORMED_POSTSIGN_RESPONSE, "El resultado devuelto por el servidor no es correcto")
+            AfirmaError::new(
+                codes::MALFORMED_POSTSIGN_RESPONSE,
+                "El resultado devuelto por el servidor no es correcto",
+            )
         };
         let encoded = trimmed.get("OK NEWID=".len()..).ok_or_else(malformed)?;
         crate::base64::decode_url_safe(encoded).map_err(|_| malformed())
@@ -341,7 +368,11 @@ impl Signer for Pkcs1TriPhaseSigner {
 
     /// `nombre + texto + ".p1"` (sin comprobar el nombre nulo: `null.p1`).
     fn signed_name(&self, original: Option<&str>, in_text: Option<&str>) -> String {
-        format!("{}{}{PKCS1_FILE_SUFFIX}", original.unwrap_or("null"), in_text.unwrap_or(""))
+        format!(
+            "{}{}{PKCS1_FILE_SUFFIX}",
+            original.unwrap_or("null"),
+            in_text.unwrap_or("")
+        )
     }
 
     fn get_data(&self, _: &[u8], _: &ExtraParams) -> Result<Option<Vec<u8>>> {
@@ -372,7 +403,9 @@ pub(crate) mod tests {
             let pem = std::fs::read_to_string(format!("{root}/firmante-rsa.key")).unwrap();
             let b64: String = pem.lines().filter(|l| !l.starts_with("-----")).collect();
             let der = crate::base64::decode(&b64).unwrap();
-            let key = rs::RsaKeyPair::from_pkcs8(&der).or_else(|_| rs::RsaKeyPair::from_der(&der)).unwrap();
+            let key = rs::RsaKeyPair::from_pkcs8(&der)
+                .or_else(|_| rs::RsaKeyPair::from_der(&der))
+                .unwrap();
             TestRsaKey { cert, key }
         }
     }
@@ -418,7 +451,9 @@ pub(crate) mod tests {
     #[test]
     fn pkcs1_signer() {
         let key = TestRsaKey::load();
-        let sig = Pkcs1Signer.sign(b"datos", "SHA256withRSA", &key, &ExtraParams::new()).unwrap();
+        let sig = Pkcs1Signer
+            .sign(b"datos", "SHA256withRSA", &key, &ExtraParams::new())
+            .unwrap();
         assert_eq!(
             verify_signature(
                 &key.cert,
@@ -445,7 +480,10 @@ pub(crate) mod tests {
         assert!(!Pkcs1Signer.is_sign(b"x", &ExtraParams::new()));
         assert!(!Pkcs1Signer.is_valid_data_file(b""));
         assert_eq!(
-            Pkcs1Signer.cosign(None, b"", "", &key, &ExtraParams::new()).unwrap_err().kind,
+            Pkcs1Signer
+                .cosign(None, b"", "", &key, &ExtraParams::new())
+                .unwrap_err()
+                .kind,
             crate::error::ErrorKind::Unsupported
         );
         assert_eq!(Pkcs1TriPhaseSigner::default().signed_name(None, None), "null.p1");
@@ -528,12 +566,19 @@ pub(crate) mod tests {
         assert!(data.signs.iter().all(|s| s.property("PK1").is_some()));
         let mut empty = TriphaseData::new();
         assert_eq!(
-            crate::triphase::do_sign(&mut empty, "SHA512withRSA", &key, &[]).unwrap_err().code,
+            crate::triphase::do_sign(&mut empty, "SHA512withRSA", &key, &[])
+                .unwrap_err()
+                .code,
             Some(codes::PRESIGNS_NOT_FOUND)
         );
-        let mut no_pre = TriphaseData { format: None, signs: vec![crate::triphase::TriSign::new(None, None)] };
+        let mut no_pre = TriphaseData {
+            format: None,
+            signs: vec![crate::triphase::TriSign::new(None, None)],
+        };
         assert_eq!(
-            crate::triphase::do_sign(&mut no_pre, "SHA512withRSA", &key, &[]).unwrap_err().message,
+            crate::triphase::do_sign(&mut no_pre, "SHA512withRSA", &key, &[])
+                .unwrap_err()
+                .message,
             "El servidor no ha devuelto la prefirma numero 0"
         );
     }

@@ -72,9 +72,7 @@ pub fn is_autofirma_cert(der: &[u8]) -> bool {
     let Ok((_, c)) = X509Certificate::from_der(der) else {
         return false;
     };
-    let is_name = |n: Option<String>| {
-        n.is_some_and(|n| LEGACY_CA_NAMES.iter().any(|l| l.eq_ignore_ascii_case(&n)))
-    };
+    let is_name = |n: Option<String>| n.is_some_and(|n| LEGACY_CA_NAMES.iter().any(|l| l.eq_ignore_ascii_case(&n)));
     is_name(cn_of(c.subject())) || is_name(cn_of(c.issuer()))
 }
 

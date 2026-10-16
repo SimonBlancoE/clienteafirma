@@ -194,19 +194,11 @@ pub fn is_dummy_profile(dir: &Path) -> bool {
 
 /// Perfil «actual» con el algoritmo de `NSPreferences.getFireFoxUserProfileDirectory`.
 pub fn select_current_profile(ini_dir: &Path, ini: &ProfilesIni) -> Option<PathBuf> {
-    let paths: Vec<(PathBuf, &IniProfile)> = ini
-        .profiles
-        .iter()
-        .map(|p| (profile_path(ini_dir, p), p))
-        .collect();
+    let paths: Vec<(PathBuf, &IniProfile)> = ini.profiles.iter().map(|p| (profile_path(ini_dir, p), p)).collect();
     let valid = |p: &Path| !is_dummy_profile(p);
     if ini.version == 1 {
         for (p, _) in &paths {
-            if valid(p)
-                && (p.join("lock").exists()
-                    || p.join("lock").is_symlink()
-                    || p.join("parent.lock").exists())
-            {
+            if valid(p) && (p.join("lock").exists() || p.join("lock").is_symlink() || p.join("parent.lock").exists()) {
                 return Some(p.clone());
             }
         }
@@ -230,28 +222,16 @@ pub fn select_current_profile(ini_dir: &Path, ini: &ProfilesIni) -> Option<PathB
 /// Directorios que pueden contener `profiles.ini` para un usuario.
 pub fn profile_roots(os: Os, home: &Path) -> Vec<(PathBuf, FirefoxFlavor)> {
     match os {
-        Os::Windows => vec![(
-            home.join(r"AppData\Roaming\Mozilla\Firefox"),
-            FirefoxFlavor::Classic,
-        )],
+        Os::Windows => vec![(home.join(r"AppData\Roaming\Mozilla\Firefox"), FirefoxFlavor::Classic)],
         Os::MacOs => vec![
-            (
-                home.join("Library/Application Support/Firefox"),
-                FirefoxFlavor::Classic,
-            ),
+            (home.join("Library/Application Support/Firefox"), FirefoxFlavor::Classic),
             // Volúmenes sensibles a mayúsculas (Java usaba la minúscula).
-            (
-                home.join("Library/Application Support/firefox"),
-                FirefoxFlavor::Classic,
-            ),
+            (home.join("Library/Application Support/firefox"), FirefoxFlavor::Classic),
         ],
         Os::Linux => vec![
             (home.join(".mozilla/firefox"), FirefoxFlavor::Classic),
             (home.join(".config/mozilla/firefox"), FirefoxFlavor::Xdg),
-            (
-                home.join("snap/firefox/common/.mozilla/firefox"),
-                FirefoxFlavor::Snap,
-            ),
+            (home.join("snap/firefox/common/.mozilla/firefox"), FirefoxFlavor::Snap),
             (
                 home.join(".var/app/org.mozilla.firefox/.mozilla/firefox"),
                 FirefoxFlavor::Flatpak,
@@ -302,8 +282,7 @@ pub fn discover_profiles(ctx: &Context, users: &[UserHome]) -> Vec<FirefoxProfil
 /// Preferencia de confianza en las raíces del sistema.
 pub const ENTERPRISE_ROOTS_PREF: &str = "security.enterprise_roots.enabled";
 const USERJS_HEADER: &str = "// === PROPIEDADES PERSONALIZADAS DE CONFIGURACION ===\r\n";
-const USERJS_COMMENT: &str =
-    "\r\n// Confianza en los certificados raices del almacen del sistema\r\n";
+const USERJS_COMMENT: &str = "\r\n// Confianza en los certificados raices del almacen del sistema\r\n";
 
 fn pref_line(enable: bool) -> String {
     format!("user_pref(\"{ENTERPRISE_ROOTS_PREF}\", {enable});")
@@ -372,9 +351,7 @@ pub fn remove_enterprise_roots(profile_dir: &Path) -> Result<bool> {
         let lt = l.trim_end_matches('\r');
         // Comentario que Java añadía justo antes de la preferencia.
         if lt.contains("// Confianza en los certificados raices del almacen del sistema")
-            && lines
-                .get(i + 1)
-                .is_some_and(|n| n.contains(ENTERPRISE_ROOTS_PREF))
+            && lines.get(i + 1).is_some_and(|n| n.contains(ENTERPRISE_ROOTS_PREF))
         {
             continue;
         }
@@ -419,10 +396,7 @@ mod tests {
         let ini = parse_profiles_ini(INI);
         assert_eq!(ini.version, 2);
         assert_eq!(ini.profiles.len(), 3);
-        assert_eq!(
-            ini.install_default.as_deref(),
-            Some("Profiles/abcd.default-release")
-        );
+        assert_eq!(ini.install_default.as_deref(), Some("Profiles/abcd.default-release"));
         assert!(!ini.profiles[2].is_relative);
         assert_eq!(
             profile_path(Path::new("/h/.mozilla/firefox"), &ini.profiles[2]),

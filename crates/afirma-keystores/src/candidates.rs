@@ -35,13 +35,21 @@ impl CandidateOptions {
     /// (`checkPrivateKeys=true`, `showExpiredCertificates=true`: la caducidad
     /// la controla el filtro por defecto de [`CertFilterManager`]).
     pub fn protocol(now: DateTime<Utc>) -> Self {
-        CandidateOptions { check_private_keys: true, show_expired: true, now }
+        CandidateOptions {
+            check_private_keys: true,
+            show_expired: true,
+            now,
+        }
     }
 
     /// Aplicación local: la caducidad la decide la preferencia
     /// `showExpiredCerts`.
     pub fn local(prefs: &LocalFilterPrefs, now: DateTime<Utc>) -> Self {
-        CandidateOptions { check_private_keys: true, show_expired: prefs.show_expired_certs, now }
+        CandidateOptions {
+            check_private_keys: true,
+            show_expired: prefs.show_expired_certs,
+            now,
+        }
     }
 }
 
@@ -106,7 +114,11 @@ pub fn select_candidates(entries: &[CertEntry], filters: &[CertFilter], opts: &C
 }
 
 /// Igual que [`select_candidates`] con los filtros de un gestor.
-pub fn candidates_with_manager(entries: &[CertEntry], manager: &CertFilterManager, opts: &CandidateOptions) -> CandidateList {
+pub fn candidates_with_manager(
+    entries: &[CertEntry],
+    manager: &CertFilterManager,
+    opts: &CandidateOptions,
+) -> CandidateList {
     select_candidates(entries, manager.filters(), opts)
 }
 
@@ -140,7 +152,16 @@ mod tests {
     fn entry(rel: &str, alias: &str, key: bool) -> CertEntry {
         let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata").join(rel);
         let der = afirma_core::cert::decode_certificate(&std::fs::read(p).unwrap()).unwrap();
-        CertEntry::new(alias, der.clone(), vec![der], EntryCapabilities { has_private_key: key, ..Default::default() }, "pruebas")
+        CertEntry::new(
+            alias,
+            der.clone(),
+            vec![der],
+            EntryCapabilities {
+                has_private_key: key,
+                ..Default::default()
+            },
+            "pruebas",
+        )
     }
 
     fn now() -> DateTime<Utc> {
@@ -200,7 +221,15 @@ mod tests {
         v.push(entry("pki/firmante-ec.crt", "d", true));
         sort_candidates(&mut v);
         let names: Vec<&str> = v.iter().map(|e| e.friendly_name.as_str()).collect();
-        assert_eq!(names, ["AGENTE CNP", "KU TODOS", "PERSONA ACCV FIRMA", "PRUEBA MARIA - 99999999R"]);
+        assert_eq!(
+            names,
+            [
+                "AGENTE CNP",
+                "KU TODOS",
+                "PERSONA ACCV FIRMA",
+                "PRUEBA MARIA - 99999999R"
+            ]
+        );
         // Mismo nombre: primero el que caduca más tarde.
         let mut a = entry("keystores/filters/ku-todos.der", "x", true);
         let mut b = a.clone();

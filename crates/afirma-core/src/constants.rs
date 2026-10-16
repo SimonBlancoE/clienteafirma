@@ -422,7 +422,10 @@ pub mod cipher {
 
         /// Indica si el algoritmo admite contraseña (PBE).
         pub fn supports_password(self) -> bool {
-            matches!(self, Self::PbeWithMd5AndDes | Self::PbeWithSha1AndDesede | Self::PbeWithSha1AndRc2_40)
+            matches!(
+                self,
+                Self::PbeWithMd5AndDes | Self::PbeWithSha1AndDesede | Self::PbeWithSha1AndRc2_40
+            )
         }
 
         /// Indica si el algoritmo admite clave.
@@ -515,9 +518,16 @@ pub mod cipher {
             padding: Option<CipherPadding>,
         ) -> Self {
             let algorithm = algorithm.unwrap_or(DEFAULT_CIPHER_ALGORITHM);
-            let mode =
-                mode.unwrap_or(if algorithm.supports_password() { CipherBlockMode::Cbc } else { CipherBlockMode::Ecb });
-            CipherConfig { algorithm, mode, padding: padding.unwrap_or(CipherPadding::Pkcs5Padding) }
+            let mode = mode.unwrap_or(if algorithm.supports_password() {
+                CipherBlockMode::Cbc
+            } else {
+                CipherBlockMode::Ecb
+            });
+            CipherConfig {
+                algorithm,
+                mode,
+                padding: padding.unwrap_or(CipherPadding::Pkcs5Padding),
+            }
         }
 
         /// Interpreta `ALGO[/MODO/RELLENO]` (`AOCipherConfig.parse`). El modo
@@ -537,7 +547,13 @@ pub mod cipher {
 
     impl fmt::Display for CipherConfig {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}/{}/{}", self.algorithm.name(), self.mode.name(), self.padding.name())
+            write!(
+                f,
+                "{}/{}/{}",
+                self.algorithm.name(),
+                self.mode.name(),
+                self.padding.name()
+            )
         }
     }
 
@@ -552,8 +568,14 @@ pub mod cipher {
                 CipherConfig::parse("pbewithmd5anddes").unwrap().to_string(),
                 "PBEWithMD5AndDES/CBC/PKCS5PADDING"
             );
-            assert_eq!(CipherConfig::parse("DESede/CBC/NoPadding").unwrap().to_string(), "DESede/CBC/NOPADDING");
-            assert_eq!(CipherConfig::parse("AES/CBC").unwrap().to_string(), "AES/ECB/PKCS5PADDING");
+            assert_eq!(
+                CipherConfig::parse("DESede/CBC/NoPadding").unwrap().to_string(),
+                "DESede/CBC/NOPADDING"
+            );
+            assert_eq!(
+                CipherConfig::parse("AES/CBC").unwrap().to_string(),
+                "AES/ECB/PKCS5PADDING"
+            );
             assert!(CipherConfig::parse("RC4").is_err());
             assert_eq!(CipherAlgorithm::TripleDes.oid(), "1.2.840.113549.3.7");
             assert!(CipherAlgorithm::HmacSha256.supports_key());

@@ -70,7 +70,10 @@ fn same_library(a: &std::path::Path, b: &std::path::Path) -> bool {
 }
 
 fn next_node(cards: &[RegisteredCard]) -> String {
-    (1u32..).map(|n| n.to_string()).find(|n| !cards.iter().any(|c| &c.node == n)).unwrap_or_else(|| "1".into())
+    (1u32..)
+        .map(|n| n.to_string())
+        .find(|n| !cards.iter().any(|c| &c.node == n))
+        .unwrap_or_else(|| "1".into())
 }
 
 impl RegisteredCards {
@@ -99,7 +102,10 @@ impl RegisteredCards {
 
     /// Busca por nombre exacto (sistema primero, como `getAllSmartCardsMap`).
     pub fn find(&self, name: &str) -> Option<&RegisteredCard> {
-        self.system.iter().find(|c| c.name == name).or_else(|| self.user.iter().find(|c| c.name == name))
+        self.system
+            .iter()
+            .find(|c| c.name == name)
+            .or_else(|| self.user.iter().find(|c| c.name == name))
     }
 
     /// Indica si la biblioteca ya está registrada en algún ámbito.
@@ -112,12 +118,19 @@ impl RegisteredCards {
         if !self.all().any(|c| c.name == name) {
             return name.to_string();
         }
-        (1u32..).map(|n| format!("{name}-{n}")).find(|n| !self.all().any(|c| &c.name == n)).unwrap_or_else(|| name.to_string())
+        (1u32..)
+            .map(|n| format!("{name}-{n}"))
+            .find(|n| !self.all().any(|c| &c.name == n))
+            .unwrap_or_else(|| name.to_string())
     }
 
     /// Registro desde el diálogo de preferencias ("Agregar tarjeta"), con
     /// sus validaciones.
-    pub fn add_user(&mut self, name: &str, library: impl Into<PathBuf>) -> Result<&RegisteredCard, CardRegistrationError> {
+    pub fn add_user(
+        &mut self,
+        name: &str,
+        library: impl Into<PathBuf>,
+    ) -> Result<&RegisteredCard, CardRegistrationError> {
         let library = library.into();
         if name.trim().is_empty() || library.as_os_str().is_empty() {
             return Err(CardRegistrationError::EmptyFields);
@@ -129,14 +142,24 @@ impl RegisteredCards {
             return Err(CardRegistrationError::DuplicateLibrary);
         }
         let node = next_node(&self.user);
-        self.user.push(RegisteredCard { name: name.to_string(), library, node, scope: CardScope::User });
+        self.user.push(RegisteredCard {
+            name: name.to_string(),
+            library,
+            node,
+            scope: CardScope::User,
+        });
         Ok(self.user.last().expect("recién añadida"))
     }
 
     /// "Modificar tarjeta" de usuario. Corrige el fallo de Java que impedía
     /// guardar sin cambiar el nombre (se ignoraba la propia tarjeta al
     /// comprobar duplicados).
-    pub fn modify_user(&mut self, old_name: &str, new_name: &str, library: impl Into<PathBuf>) -> Result<(), CardRegistrationError> {
+    pub fn modify_user(
+        &mut self,
+        old_name: &str,
+        new_name: &str,
+        library: impl Into<PathBuf>,
+    ) -> Result<(), CardRegistrationError> {
         let library = library.into();
         if new_name.trim().is_empty() || library.as_os_str().is_empty() {
             return Err(CardRegistrationError::EmptyFields);
@@ -144,11 +167,19 @@ impl RegisteredCards {
         if self.system.iter().any(|c| c.name == old_name) && !self.user.iter().any(|c| c.name == old_name) {
             return Err(CardRegistrationError::SystemCard);
         }
-        let idx = self.user.iter().position(|c| c.name == old_name).ok_or(CardRegistrationError::NotFound)?;
+        let idx = self
+            .user
+            .iter()
+            .position(|c| c.name == old_name)
+            .ok_or(CardRegistrationError::NotFound)?;
         if self.all().enumerate().any(|(i, c)| i != idx && c.name == new_name) {
             return Err(CardRegistrationError::DuplicateName);
         }
-        if self.all().enumerate().any(|(i, c)| i != idx && same_library(&c.library, &library)) {
+        if self
+            .all()
+            .enumerate()
+            .any(|(i, c)| i != idx && same_library(&c.library, &library))
+        {
             return Err(CardRegistrationError::DuplicateLibrary);
         }
         let c = &mut self.user[idx];
@@ -160,7 +191,11 @@ impl RegisteredCards {
     /// Elimina una tarjeta de usuario (`deleteSmartCardRec`).
     pub fn delete_user(&mut self, name: &str) -> Result<RegisteredCard, CardRegistrationError> {
         let idx = self.user.iter().position(|c| c.name == name).ok_or_else(|| {
-            if self.system.iter().any(|c| c.name == name) { CardRegistrationError::SystemCard } else { CardRegistrationError::NotFound }
+            if self.system.iter().any(|c| c.name == name) {
+                CardRegistrationError::SystemCard
+            } else {
+                CardRegistrationError::NotFound
+            }
         })?;
         Ok(self.user.remove(idx))
     }
@@ -175,7 +210,12 @@ impl RegisteredCards {
             }
             let name = self.unique_name(name);
             let node = next_node(&self.user);
-            self.user.push(RegisteredCard { name, library: lib.clone(), node, scope: CardScope::User });
+            self.user.push(RegisteredCard {
+                name,
+                library: lib.clone(),
+                node,
+                scope: CardScope::User,
+            });
         }
     }
 
@@ -185,7 +225,12 @@ impl RegisteredCards {
         for (name, lib) in cards {
             let name = self.unique_name(name);
             let node = next_node(&self.system);
-            self.system.push(RegisteredCard { name, library: lib.clone(), node, scope: CardScope::System });
+            self.system.push(RegisteredCard {
+                name,
+                library: lib.clone(),
+                node,
+                scope: CardScope::System,
+            });
         }
     }
 
@@ -206,23 +251,43 @@ mod tests {
         assert_eq!(r.add_user("", "/x.so").unwrap_err(), CardRegistrationError::EmptyFields);
         r.add_user("Mi tarjeta", "/usr/lib/a.so").unwrap();
         assert_eq!(r.user[0].node, "1");
-        assert_eq!(r.add_user("Mi tarjeta", "/usr/lib/b.so").unwrap_err(), CardRegistrationError::DuplicateName);
-        assert_eq!(r.add_user("Otra", "/usr/lib/a.so").unwrap_err(), CardRegistrationError::DuplicateLibrary);
+        assert_eq!(
+            r.add_user("Mi tarjeta", "/usr/lib/b.so").unwrap_err(),
+            CardRegistrationError::DuplicateName
+        );
+        assert_eq!(
+            r.add_user("Otra", "/usr/lib/a.so").unwrap_err(),
+            CardRegistrationError::DuplicateLibrary
+        );
         r.add_user("Otra", "/usr/lib/b.so").unwrap();
         assert_eq!(r.user[1].node, "2");
         // Modificar sin renombrar funciona (fallo de Java corregido).
         r.modify_user("Mi tarjeta", "Mi tarjeta", "/usr/lib/a2.so").unwrap();
         assert_eq!(r.find("Mi tarjeta").unwrap().library, PathBuf::from("/usr/lib/a2.so"));
-        assert_eq!(r.modify_user("Mi tarjeta", "Otra", "/usr/lib/a2.so").unwrap_err(), CardRegistrationError::DuplicateName);
+        assert_eq!(
+            r.modify_user("Mi tarjeta", "Otra", "/usr/lib/a2.so").unwrap_err(),
+            CardRegistrationError::DuplicateName
+        );
         // Importación: biblioteca repetida se omite, nombre repetido se renombra.
-        r.put_user(&[("Otra".into(), "/usr/lib/c.so".into()), ("Dup".into(), "/usr/lib/b.so".into())]);
+        r.put_user(&[
+            ("Otra".into(), "/usr/lib/c.so".into()),
+            ("Dup".into(), "/usr/lib/b.so".into()),
+        ]);
         assert_eq!(r.user.len(), 3);
         assert_eq!(r.user[2].name, "Otra-1");
         // Sistema prevalece con el mismo nombre en el mapa.
         r.put_system(&[("Sistema".into(), "/opt/s.so".into())]);
-        r.system.push(RegisteredCard { name: "Otra".into(), library: "/opt/o.so".into(), node: "9".into(), scope: CardScope::System });
+        r.system.push(RegisteredCard {
+            name: "Otra".into(),
+            library: "/opt/o.so".into(),
+            node: "9".into(),
+            scope: CardScope::System,
+        });
         let map = r.all_map();
-        assert_eq!(map.iter().find(|(n, _)| n == "Otra").unwrap().1, PathBuf::from("/opt/o.so"));
+        assert_eq!(
+            map.iter().find(|(n, _)| n == "Otra").unwrap().1,
+            PathBuf::from("/opt/o.so")
+        );
         assert_eq!(r.find("Otra").unwrap().scope, CardScope::System);
         assert_eq!(r.delete_user("Sistema").unwrap_err(), CardRegistrationError::SystemCard);
         r.delete_user("Otra-1").unwrap();

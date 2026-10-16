@@ -170,7 +170,10 @@ pub fn is_base64(data: &str) -> bool {
 pub fn is_base64_bytes(data: &[u8]) -> bool {
     // En Java `(char) byte` de un byte negativo da un carácter 0xFFxx, que no
     // pertenece al alfabeto.
-    let chars: Vec<char> = data.iter().map(|&b| if b < 0x80 { b as char } else { '\u{ffff}' }).collect();
+    let chars: Vec<char> = data
+        .iter()
+        .map(|&b| if b < 0x80 { b as char } else { '\u{ffff}' })
+        .collect();
     is_base64_chars(&chars)
 }
 
@@ -203,7 +206,11 @@ mod tests {
     use super::*;
 
     fn golden() -> String {
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/core/base64.golden")).unwrap()
+        std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/core/base64.golden"
+        ))
+        .unwrap()
     }
 
     fn fmt_result(r: Result<Vec<u8>, Base64Error>) -> String {

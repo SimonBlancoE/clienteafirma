@@ -54,10 +54,7 @@ impl WinCertStore for MemoryCertStore {
             .collect())
     }
     fn add(&self, scope: TrustScope, der: &[u8], friendly_name: &str) -> Result<()> {
-        let mut c = self
-            .certs
-            .lock()
-            .map_err(|_| SystemError::Other("bloqueo".into()))?;
+        let mut c = self.certs.lock().map_err(|_| SystemError::Other("bloqueo".into()))?;
         c.retain(|(s, x)| !(*s == scope && x.der == der));
         c.push((
             scope,
@@ -69,10 +66,7 @@ impl WinCertStore for MemoryCertStore {
         Ok(())
     }
     fn delete(&self, scope: TrustScope, der: &[u8]) -> Result<bool> {
-        let mut c = self
-            .certs
-            .lock()
-            .map_err(|_| SystemError::Other("bloqueo".into()))?;
+        let mut c = self.certs.lock().map_err(|_| SystemError::Other("bloqueo".into()))?;
         let n = c.len();
         c.retain(|(s, x)| !(*s == scope && x.der == der));
         Ok(c.len() != n)
@@ -85,19 +79,13 @@ pub struct UnsupportedCertStore;
 
 impl WinCertStore for UnsupportedCertStore {
     fn list(&self, _: TrustScope) -> Result<Vec<StoreCert>> {
-        Err(SystemError::Unsupported(
-            "almacén de certificados de Windows".into(),
-        ))
+        Err(SystemError::Unsupported("almacén de certificados de Windows".into()))
     }
     fn add(&self, _: TrustScope, _: &[u8], _: &str) -> Result<()> {
-        Err(SystemError::Unsupported(
-            "almacén de certificados de Windows".into(),
-        ))
+        Err(SystemError::Unsupported("almacén de certificados de Windows".into()))
     }
     fn delete(&self, _: TrustScope, _: &[u8]) -> Result<bool> {
-        Err(SystemError::Unsupported(
-            "almacén de certificados de Windows".into(),
-        ))
+        Err(SystemError::Unsupported("almacén de certificados de Windows".into()))
     }
 }
 
@@ -139,38 +127,23 @@ pub fn check(store: &dyn WinCertStore, scope: TrustScope, ca_der: &[u8]) -> Trus
 pub fn install(store: &dyn WinCertStore, scope: TrustScope, ca_der: &[u8]) -> Result<Change> {
     let certs = store.list(scope)?;
     let mut changed = false;
-    for c in certs
-        .iter()
-        .filter(|c| c.der != ca_der && is_autofirma_cert(&c.der))
-    {
+    for c in certs.iter().filter(|c| c.der != ca_der && is_autofirma_cert(&c.der)) {
         changed |= store.delete(scope, &c.der)?;
     }
     if !certs.iter().any(|c| c.der == ca_der) {
         store.add(scope, ca_der, CA_CN)?;
         changed = true;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 /// Retira todas las CA (y certificados emitidos por ellas) de AutoFirma del almacén.
 pub fn remove(store: &dyn WinCertStore, scope: TrustScope) -> Result<Change> {
     let mut changed = false;
-    for c in store
-        .list(scope)?
-        .iter()
-        .filter(|c| is_autofirma_cert(&c.der))
-    {
+    for c in store.list(scope)?.iter().filter(|c| is_autofirma_cert(&c.der)) {
         changed |= store.delete(scope, &c.der)?;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 /// Directorios de instalación de Firefox (registro de Mozilla y rutas por defecto).
@@ -182,18 +155,11 @@ pub fn firefox_install_dirs(ctx: &Context) -> Vec<PathBuf> {
         r"SOFTWARE\WOW6432Node\Mozilla\Mozilla Firefox",
     ] {
         for hive in [Hive::LocalMachine, Hive::CurrentUser] {
-            for v in ctx
-                .registry
-                .subkeys(hive, base)
-                .ok()
-                .flatten()
-                .unwrap_or_default()
-            {
-                if let Ok(Some(d)) = ctx.registry.read_string(
-                    hive,
-                    &format!(r"{base}\{v}\Main"),
-                    "Install Directory",
-                ) {
+            for v in ctx.registry.subkeys(hive, base).ok().flatten().unwrap_or_default() {
+                if let Ok(Some(d)) = ctx
+                    .registry
+                    .read_string(hive, &format!(r"{base}\{v}\Main"), "Install Directory")
+                {
                     let p = PathBuf::from(d);
                     if !out.contains(&p) {
                         out.push(p);
@@ -234,9 +200,7 @@ mod cryptoapi {
 
     impl Default for CryptoApiStore {
         fn default() -> Self {
-            Self {
-                name: "ROOT".into(),
-            }
+            Self { name: "ROOT".into() }
         }
     }
 
@@ -287,9 +251,7 @@ mod cryptoapi {
 
     fn der_of(ctx: *const CERT_CONTEXT) -> Vec<u8> {
         // SAFETY: contexto válido devuelto por la enumeración.
-        unsafe {
-            std::slice::from_raw_parts((*ctx).pbCertEncoded, (*ctx).cbCertEncoded as usize).to_vec()
-        }
+        unsafe { std::slice::from_raw_parts((*ctx).pbCertEncoded, (*ctx).cbCertEncoded as usize).to_vec() }
     }
 
     /// Borra del almacén abierto el certificado con ese DER; `true` si lo encontró.
@@ -353,10 +315,7 @@ mod cryptoapi {
                 store: format!("{scope:?}\\{}", self.name),
                 detail: e.message(),
             })?;
-            let name: Vec<u16> = friendly_name
-                .encode_utf16()
-                .chain(std::iter::once(0))
-                .collect();
+            let name: Vec<u16> = friendly_name.encode_utf16().chain(std::iter::once(0)).collect();
             let blob = CRYPT_INTEGER_BLOB {
                 cbData: (name.len() * 2) as u32,
                 pbData: name.as_ptr() as *mut u8,
@@ -413,35 +372,23 @@ mod tests {
         let s = MemoryCertStore::default();
         let old = crate::certs::generate(&Default::default()).unwrap();
         let new = crate::certs::generate(&Default::default()).unwrap();
-        s.add(TrustScope::Machine, &old.ca_der, "Autofirma ROOT")
-            .unwrap();
+        s.add(TrustScope::Machine, &old.ca_der, "Autofirma ROOT").unwrap();
         s.add(TrustScope::Machine, &old.ssl_der, "x").unwrap();
         let other = rcgen::generate_simple_self_signed(vec!["otra.example".into()]).unwrap();
-        s.add(TrustScope::Machine, other.cert.der(), "Otra")
-            .unwrap();
+        s.add(TrustScope::Machine, other.cert.der(), "Otra").unwrap();
         assert!(matches!(
             check(&s, TrustScope::Machine, &new.ca_der),
             TrustCheck::Mismatch(_)
         ));
-        assert_eq!(
-            install(&s, TrustScope::Machine, &new.ca_der).unwrap(),
-            Change::Changed
-        );
+        assert_eq!(install(&s, TrustScope::Machine, &new.ca_der).unwrap(), Change::Changed);
         assert_eq!(
             install(&s, TrustScope::Machine, &new.ca_der).unwrap(),
             Change::Unchanged
         );
         let l = s.list(TrustScope::Machine).unwrap();
         assert_eq!(l.len(), 2, "solo la nueva CA y la ajena");
-        assert_eq!(
-            check(&s, TrustScope::Machine, &new.ca_der),
-            TrustCheck::Trusted
-        );
+        assert_eq!(check(&s, TrustScope::Machine, &new.ca_der), TrustCheck::Trusted);
         assert_eq!(remove(&s, TrustScope::Machine).unwrap(), Change::Changed);
-        assert_eq!(
-            s.list(TrustScope::Machine).unwrap().len(),
-            1,
-            "la ajena se conserva"
-        );
+        assert_eq!(s.list(TrustScope::Machine).unwrap().len(), 1, "la ajena se conserva");
     }
 }

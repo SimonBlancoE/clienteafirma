@@ -61,23 +61,17 @@ impl PrefsTree {
 
     /// Lee un valor.
     pub fn get(&self, node: &str, key: &str) -> Option<&str> {
-        self.0
-            .get(node)
-            .and_then(|m| m.get(key))
-            .map(String::as_str)
+        self.0.get(node).and_then(|m| m.get(key)).map(String::as_str)
     }
 
     /// Escribe un valor.
     pub fn put(&mut self, node: &str, key: &str, value: &str) {
-        self.node_mut(node)
-            .insert(key.to_string(), value.to_string());
+        self.node_mut(node).insert(key.to_string(), value.to_string());
     }
 
     /// Borra un valor; `true` si existía.
     pub fn remove(&mut self, node: &str, key: &str) -> bool {
-        self.0
-            .get_mut(node)
-            .is_some_and(|m| m.remove(key).is_some())
+        self.0.get_mut(node).is_some_and(|m| m.remove(key).is_some())
     }
 
     /// Nombres de los hijos directos de un nodo.

@@ -93,7 +93,9 @@ pub fn normalize(text: &str) -> String {
 
 /// `String.getBytes("US-ASCII")`: los caracteres no ASCII pasan a ser `?`.
 fn to_us_ascii(text: &str) -> Vec<u8> {
-    text.chars().map(|c| if c.is_ascii() { c as u8 } else { b'?' }).collect()
+    text.chars()
+        .map(|c| if c.is_ascii() { c as u8 } else { b'?' })
+        .collect()
 }
 
 /// `Base64.decode(byte[], off, len, urlSafe)`.
@@ -105,7 +107,11 @@ pub fn decode_bytes(source: &[u8], url_safe: bool) -> Result<Vec<u8>, Base64Erro
     if len < 4 {
         return Err(Base64Error::TooShort(len));
     }
-    let table: &[i8; 256] = if url_safe { &URL_SAFE_DECODABET } else { &STANDARD_DECODABET };
+    let table: &[i8; 256] = if url_safe {
+        &URL_SAFE_DECODABET
+    } else {
+        &STANDARD_DECODABET
+    };
     let mut out = Vec::with_capacity(len * 3 / 4);
     let mut b4 = [0u8; 4];
     let mut pos = 0usize;
@@ -196,7 +202,10 @@ mod tests {
         assert_eq!(decode("aG9"), Err(Base64Error::TooShort(3)));
         assert_eq!(decode("").unwrap(), b"");
         // El estándar rechaza el alfabeto URL-safe.
-        assert!(matches!(decode("-_8="), Err(Base64Error::BadCharacter { byte: b'-', pos: 0 })));
+        assert!(matches!(
+            decode("-_8="),
+            Err(Base64Error::BadCharacter { byte: b'-', pos: 0 })
+        ));
         assert_eq!(decode_url_safe("-_8=").unwrap(), vec![0xfb, 0xff]);
         assert!(decode_url_safe("+/8=").is_err());
         assert_eq!(decode_normalized("-_8=").unwrap(), vec![0xfb, 0xff]);

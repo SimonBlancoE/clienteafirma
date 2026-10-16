@@ -9,10 +9,10 @@ use eframe::egui::{self, Align, CornerRadius, FontId, Frame, Layout, Margin, Ric
 
 use super::cert_picker::{CertPicker, PickerEvent};
 use super::icons;
-use crate::i18n::{tr, trf};
 use super::model::fmt_size;
 use super::theme::{Palette, semibold};
 use super::widgets::{self, ButtonKind, CalloutKind};
+use crate::i18n::{tr, trf};
 
 /// Operación pedida por la web.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,9 +88,17 @@ pub struct RequestView {
 
 impl RequestView {
     pub fn new(info: RequestInfo) -> Self {
-        let mut picker = CertPicker { show_remember: true, allow_change_store: true, ..Default::default() };
+        let mut picker = CertPicker {
+            show_remember: true,
+            allow_change_store: true,
+            ..Default::default()
+        };
         picker.accept_label = info.op.action_label().into();
-        RequestView { info, stage: RequestStage::ChooseCertificate, picker }
+        RequestView {
+            info,
+            stage: RequestStage::ChooseCertificate,
+            picker,
+        }
     }
 
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette) -> RequestEvent {
@@ -143,7 +151,9 @@ impl RequestView {
                         });
                         if self.info.data_len.is_some() && self.info.batch_count.is_none() {
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EYE), tr("Ver"), true).clicked() {
+                                if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EYE), tr("Ver"), true)
+                                    .clicked()
+                                {
                                     ev = RequestEvent::Preview;
                                 }
                             });
@@ -171,13 +181,25 @@ impl RequestView {
                 }
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.picker.remember, RichText::new(tr("Recordar durante la sesión")).size(13.0));
+                    ui.checkbox(
+                        &mut self.picker.remember,
+                        RichText::new(tr("Recordar durante la sesión")).size(13.0),
+                    );
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let can = self.picker.selected.is_some() && !self.picker.loading;
-                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), self.info.op.action_label(), can).clicked()
-                            && let Some(i) = self.picker.selected {
-                                ev = RequestEvent::Accept(i);
-                            }
+                        if widgets::button(
+                            ui,
+                            p,
+                            ButtonKind::Primary,
+                            Some(icons::PEN_NIB),
+                            self.info.op.action_label(),
+                            can,
+                        )
+                        .clicked()
+                            && let Some(i) = self.picker.selected
+                        {
+                            ev = RequestEvent::Accept(i);
+                        }
                         if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() {
                             ev = RequestEvent::Cancel;
                         }
@@ -190,7 +212,11 @@ impl RequestView {
                     ui.add(egui::Spinner::new().size(36.0).color(p.primary));
                     ui.add_space(12.0);
                     ui.label(RichText::new(msg).size(15.0));
-                    ui.label(RichText::new(tr("Si se solicita, introduce el PIN de tu tarjeta.")).size(12.5).color(p.text_muted));
+                    ui.label(
+                        RichText::new(tr("Si se solicita, introduce el PIN de tu tarjeta."))
+                            .size(12.5)
+                            .color(p.text_muted),
+                    );
                 });
             }
             RequestStage::Done(msg) => {
@@ -207,7 +233,13 @@ impl RequestView {
                 });
             }
             RequestStage::Failed(msg) => {
-                widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido completar la operación"), Some(&msg));
+                widgets::callout(
+                    ui,
+                    p,
+                    CalloutKind::Error,
+                    tr("No se ha podido completar la operación"),
+                    Some(&msg),
+                );
                 ui.add_space(12.0);
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                     if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cerrar"), true).clicked() {

@@ -70,13 +70,7 @@ impl ZipBuilder {
         }
     }
 
-    pub fn add(
-        &mut self,
-        name: &str,
-        data: &[u8],
-        stored: bool,
-        is_dir: bool,
-    ) -> afirma_core::Result<()> {
+    pub fn add(&mut self, name: &str, data: &[u8], stored: bool, is_dir: bool) -> afirma_core::Result<()> {
         let method = if stored {
             zip::CompressionMethod::Stored
         } else {
@@ -85,16 +79,13 @@ impl ZipBuilder {
         let opts = zip::write::SimpleFileOptions::default()
             .compression_method(method)
             .last_modified_time(zip_now());
-        let err =
-            |e: String| AfirmaError::new(self.code, format!("Error al escribir el paquete: {e}"));
+        let err = |e: String| AfirmaError::new(self.code, format!("Error al escribir el paquete: {e}"));
         if is_dir {
             self.zw
                 .add_directory(name.trim_end_matches('/'), opts)
                 .map_err(|e| err(e.to_string()))?;
         } else {
-            self.zw
-                .start_file(name, opts)
-                .map_err(|e| err(e.to_string()))?;
+            self.zw.start_file(name, opts).map_err(|e| err(e.to_string()))?;
             self.zw.write_all(data).map_err(|e| err(e.to_string()))?;
         }
         Ok(())

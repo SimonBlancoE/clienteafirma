@@ -77,10 +77,7 @@ fn utf16be_string(b: &[u8]) -> Option<String> {
     if !b.len().is_multiple_of(2) {
         return None;
     }
-    let units: Vec<u16> = b
-        .chunks(2)
-        .map(|c| u16::from_be_bytes([c[0], c[1]]))
-        .collect();
+    let units: Vec<u16> = b.chunks(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
     String::from_utf16(&units).ok()
 }
 
@@ -196,12 +193,7 @@ pub fn win_node_key(base: &str, node: &str) -> String {
 }
 
 /// Lee recursivamente el subárbol `node` de las preferencias Java del registro.
-pub fn read_windows_tree(
-    reg: &dyn Registry,
-    hive: Hive,
-    base: &str,
-    node: &str,
-) -> io::Result<PrefsTree> {
+pub fn read_windows_tree(reg: &dyn Registry, hive: Hive, base: &str, node: &str) -> io::Result<PrefsTree> {
     let mut tree = PrefsTree::new();
     read_win_rec(reg, hive, &win_node_key(base, node), node, &mut tree, 0)?;
     Ok(tree)
@@ -265,9 +257,7 @@ pub fn unix_node_name(dir_name: &str) -> String {
 }
 
 /// Analiza un `prefs.xml` de `java.util.prefs` (`<map><entry key="" value=""/></map>`).
-pub fn parse_prefs_xml(
-    data: &[u8],
-) -> std::result::Result<std::collections::BTreeMap<String, String>, String> {
+pub fn parse_prefs_xml(data: &[u8]) -> std::result::Result<std::collections::BTreeMap<String, String>, String> {
     let mut reader = quick_xml::Reader::from_reader(data);
     reader.config_mut().trim_text(true);
     let mut out = std::collections::BTreeMap::new();
@@ -356,11 +346,7 @@ fn read_unix_rec(dir: &Path, node: &str, tree: &mut PrefsTree, depth: usize) -> 
     let Ok(rd) = std::fs::read_dir(dir) else {
         return Ok(());
     };
-    let mut subs: Vec<PathBuf> = rd
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.is_dir())
-        .collect();
+    let mut subs: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
     subs.sort();
     for s in subs {
         let name = s
@@ -370,12 +356,7 @@ fn read_unix_rec(dir: &Path, node: &str, tree: &mut PrefsTree, depth: usize) -> 
         if name.starts_with('.') {
             continue;
         }
-        read_unix_rec(
-            &s,
-            &format!("{node}/{}", unix_node_name(&name)),
-            tree,
-            depth + 1,
-        )?;
+        read_unix_rec(&s, &format!("{node}/{}", unix_node_name(&name)), tree, depth + 1)?;
     }
     Ok(())
 }
@@ -393,10 +374,7 @@ pub fn read_macos_tree(plist_path: &Path, node: &str) -> Result<PrefsTree> {
     let Some(root) = v.as_dictionary() else {
         return Ok(tree);
     };
-    let mut cur = root
-        .get("/")
-        .and_then(|v| v.as_dictionary())
-        .unwrap_or(root);
+    let mut cur = root.get("/").and_then(|v| v.as_dictionary()).unwrap_or(root);
     for comp in node.split('/').filter(|c| !c.is_empty()) {
         match cur.get(&format!("{comp}/")).and_then(|v| v.as_dictionary()) {
             Some(d) => cur = d,
@@ -446,19 +424,9 @@ pub fn read_legacy(ctx: &Context, scope: LegacyScope) -> (PrefsTree, String) {
             let mut t = PrefsTree::new();
             if hive == Hive::LocalMachine {
                 // JVM de 32 bits: vista WOW6432Node (menor prioridad).
-                t = read_windows_tree(
-                    ctx.registry.as_ref(),
-                    hive,
-                    WIN_PREFS_BASE_WOW,
-                    NODE_AFIRMA_ROOT,
-                )?;
+                t = read_windows_tree(ctx.registry.as_ref(), hive, WIN_PREFS_BASE_WOW, NODE_AFIRMA_ROOT)?;
             }
-            let main = read_windows_tree(
-                ctx.registry.as_ref(),
-                hive,
-                WIN_PREFS_BASE,
-                NODE_AFIRMA_ROOT,
-            )?;
+            let main = read_windows_tree(ctx.registry.as_ref(), hive, WIN_PREFS_BASE, NODE_AFIRMA_ROOT)?;
             t.merge_from(&main);
             Ok((t, format!("{}\\{}", hive.short(), WIN_PREFS_BASE)))
         }
@@ -468,24 +436,16 @@ pub fn read_legacy(ctx: &Context, scope: LegacyScope) -> (PrefsTree, String) {
                     .paths
                     .home
                     .join("Library/Preferences/com.apple.java.util.prefs.plist"),
-                LegacyScope::System => {
-                    ctx.sys("/Library/Preferences/com.apple.java.util.prefs.plist")
-                }
+                LegacyScope::System => ctx.sys("/Library/Preferences/com.apple.java.util.prefs.plist"),
             };
-            Ok((
-                read_macos_tree(&p, NODE_AFIRMA_ROOT)?,
-                p.display().to_string(),
-            ))
+            Ok((read_macos_tree(&p, NODE_AFIRMA_ROOT)?, p.display().to_string()))
         }
         Os::Linux => {
             let p = match scope {
                 LegacyScope::User => ctx.paths.home.join(".java/.userPrefs"),
                 LegacyScope::System => ctx.sys("/etc/.java/.systemPrefs"),
             };
-            Ok((
-                read_unix_tree(&p, NODE_AFIRMA_ROOT)?,
-                p.display().to_string(),
-            ))
+            Ok((read_unix_tree(&p, NODE_AFIRMA_ROOT)?, p.display().to_string()))
         }
     })();
     match res {
@@ -569,10 +529,7 @@ mod tests {
     fn lectura_registro_java() {
         let r = MemoryRegistry::new();
         let k = win_node_key(WIN_PREFS_BASE, super::super::tree::NODE_MAIN);
-        assert_eq!(
-            k,
-            r"Software\JavaSoft\Prefs\es\gob\afirma\standalone\ui\preferences"
-        );
+        assert_eq!(k, r"Software\JavaSoft\Prefs\es\gob\afirma\standalone\ui\preferences");
         r.write(
             Hive::LocalMachine,
             &k,
@@ -589,20 +546,13 @@ mod tests {
         .unwrap();
         r.write(
             Hive::LocalMachine,
-            &format!(
-                r"{}\1",
-                win_node_key(WIN_PREFS_BASE, "/es/gob/afirma/core/keystores")
-            ),
+            &format!(r"{}\1", win_node_key(WIN_PREFS_BASE, "/es/gob/afirma/core/keystores")),
             "/Tarjeta",
             &RegValue::Sz(win_encode_value(r"C:\Windows\x.dll")),
         )
         .unwrap();
-        let t =
-            read_windows_tree(&r, Hive::LocalMachine, WIN_PREFS_BASE, NODE_AFIRMA_ROOT).unwrap();
-        assert_eq!(
-            t.get(super::super::tree::NODE_MAIN, "preferencesBlocked"),
-            Some("true")
-        );
+        let t = read_windows_tree(&r, Hive::LocalMachine, WIN_PREFS_BASE, NODE_AFIRMA_ROOT).unwrap();
+        assert_eq!(t.get(super::super::tree::NODE_MAIN, "preferencesBlocked"), Some("true"));
         assert_eq!(
             t.get(super::super::tree::NODE_MAIN, "signatureHashAlgorithm"),
             Some("SHA512")
@@ -620,10 +570,7 @@ mod tests {
         std::fs::create_dir_all(&node_dir).unwrap();
         let mut m = std::collections::BTreeMap::new();
         m.insert("preferencesBlocked".to_string(), "true".to_string());
-        m.insert(
-            "pdfLayer2Text".to_string(),
-            "Firmado por <a> & \"b\"".to_string(),
-        );
+        m.insert("pdfLayer2Text".to_string(), "Firmado por <a> & \"b\"".to_string());
         std::fs::write(node_dir.join("prefs.xml"), write_prefs_xml(&m)).unwrap();
         let t = read_unix_tree(d.path(), NODE_AFIRMA_ROOT).unwrap();
         assert_eq!(t.node(super::super::tree::NODE_MAIN).unwrap(), &m);

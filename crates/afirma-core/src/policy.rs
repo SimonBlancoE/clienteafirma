@@ -71,17 +71,19 @@ pub fn policy_property(id: Option<&str>, property: &str, format: Option<&str>) -
     let b = bundle();
     if let Some(id) = id {
         if let Some(f) = format
-            && let Some(v) = b.get(&format!("{id}.{property}.{f}")) {
-                return Some(v);
-            }
+            && let Some(v) = b.get(&format!("{id}.{property}.{f}"))
+        {
+            return Some(v);
+        }
         if let Some(v) = b.get(&format!("{id}.{property}")) {
             return Some(v);
         }
     }
     if let Some(f) = format
-        && let Some(v) = b.get(&format!("{property}.{f}")) {
-            return Some(v);
-        }
+        && let Some(v) = b.get(&format!("{property}.{f}"))
+    {
+        return Some(v);
+    }
     b.get(property)
 }
 
@@ -119,7 +121,9 @@ pub fn set_policy_properties(params: &mut ExtraParams, policy_id: &str, format: 
 /// es el de alguna de las políticas AGE conocidas.
 pub fn is_age_policy_configured(policy_id: Option<&str>) -> bool {
     let Some(id) = policy_id else { return false };
-    bundle().iter().any(|(k, v)| k.ends_with(".policyIdentifier") && v == id)
+    bundle()
+        .iter()
+        .any(|(k, v)| k.ends_with(".policyIdentifier") && v == id)
 }
 
 /// Familia de formato para la expansión de políticas (`normalizeFormat`):
@@ -142,7 +146,11 @@ pub fn normalize_policy_format(format: &str) -> String {
 /// `String.format("%1s", s)` de Java: ancho mínimo con relleno a la izquierda.
 fn pad_left(s: &str, width: usize) -> String {
     let n = s.chars().count();
-    if n >= width { s.to_string() } else { format!("{}{s}", " ".repeat(width - n)) }
+    if n >= width {
+        s.to_string()
+    } else {
+        format!("{}{s}", " ".repeat(width - n))
+    }
 }
 
 /// `ExtraParamsProcessor.expandProperties(params, signedData, format)`:
@@ -160,7 +168,9 @@ pub fn expand_properties(
     format: Option<&str>,
 ) -> Result<ExtraParams> {
     let mut p = params.clone();
-    let Some(policy_name) = p.get(EXTRA_PARAM_EXP_POLICY).map(str::to_string) else { return Ok(p) };
+    let Some(policy_name) = p.get(EXTRA_PARAM_EXP_POLICY).map(str::to_string) else {
+        return Ok(p);
+    };
     if policy_name != POLICY_ID_AGE && policy_name != POLICY_ID_AGE_1_8 {
         return Err(AfirmaError::signature_policy_incompatibility(
             format!("No se soporta la expansion de atributos para la politica: {policy_name}"),
@@ -176,9 +186,17 @@ pub fn expand_properties(
     let normalized = normalize_policy_format(format);
     if normalized == FORMAT_CADES {
         if !p.contains("mode")
-            && let Some(d) = signed_data {
-                p.set("mode", if d.len() < SIZE_1MB { SIGN_MODE_IMPLICIT } else { SIGN_MODE_EXPLICIT });
-            }
+            && let Some(d) = signed_data
+        {
+            p.set(
+                "mode",
+                if d.len() < SIZE_1MB {
+                    SIGN_MODE_IMPLICIT
+                } else {
+                    SIGN_MODE_EXPLICIT
+                },
+            );
+        }
         force_advanced_profile(&mut p);
         set_policy_properties(&mut p, &policy_name, FORMAT_CADES);
     } else if normalized == FORMAT_XADES {
@@ -197,7 +215,9 @@ pub fn expand_properties(
         force_advanced_profile(&mut p);
         set_policy_properties(&mut p, &policy_name, FORMAT_XADES);
     } else if normalized == FORMAT_PADES && policy_name == POLICY_ID_AGE {
-        if p.get("signatureSubFilter").is_some_and(|s| s != crate::constants::PADES_SUBFILTER_BES) {
+        if p.get("signatureSubFilter")
+            .is_some_and(|s| s != crate::constants::PADES_SUBFILTER_BES)
+        {
             return Err(AfirmaError::signature_policy_incompatibility(
                 "En PAdES con politica firma AGE debe usarse siempre el filtro 'ETSI.CAdES.detached'",
                 OP_SIGN,
@@ -220,7 +240,9 @@ pub fn expand_properties(
 }
 
 fn force_advanced_profile(p: &mut ExtraParams) {
-    if p.get("profile").is_some_and(|v| v.eq_ignore_ascii_case(SIGN_PROFILE_BASELINE)) {
+    if p.get("profile")
+        .is_some_and(|v| v.eq_ignore_ascii_case(SIGN_PROFILE_BASELINE))
+    {
         tracing::warn!(
             "Se ignora la configuracion del parametro 'profile' en favor de los requisitos establecidos por la politica de firma"
         );
@@ -289,7 +311,9 @@ impl AdESPolicy {
         client: &dyn HttpClient,
     ) -> Result<Self> {
         if identifier.is_empty() {
-            return Err(AfirmaError::invalid_argument("El identificador de politica no puede ser nulo ni vacio"));
+            return Err(AfirmaError::invalid_argument(
+                "El identificador de politica no puede ser nulo ni vacio",
+            ));
         }
         let (hash, hash_algorithm) = match hash {
             None | Some("0") => {
@@ -297,8 +321,9 @@ impl AdESPolicy {
                     .map(crate::algorithms::java_digest_algorithm_name)
                     .unwrap_or_else(|| ADES_POLICY_DEFAULT_HASH_ALGORITHM.to_string());
                 let digest = download_policy(identifier, client).and_then(|content| {
-                    let d: crate::DigestAlgorithm =
-                        alg.parse().map_err(|_| format!("Algoritmo de huella no soportado: {alg}"))?;
+                    let d: crate::DigestAlgorithm = alg
+                        .parse()
+                        .map_err(|_| format!("Algoritmo de huella no soportado: {alg}"))?;
                     Ok(crate::base64::encode(&d.digest(&content)))
                 });
                 match digest {
@@ -327,13 +352,21 @@ impl AdESPolicy {
         let qualifier = match qualifier {
             Some(q) if !q.is_empty() => {
                 if !is_java_url(q) {
-                    return Err(AfirmaError::invalid_argument("El calificador de la politica debe ser una URL valida"));
+                    return Err(AfirmaError::invalid_argument(
+                        "El calificador de la politica debe ser una URL valida",
+                    ));
                 }
                 Some(q.to_string())
             }
             _ => None,
         };
-        Ok(AdESPolicy { identifier: identifier.to_string(), hash, hash_algorithm, qualifier, predefined })
+        Ok(AdESPolicy {
+            identifier: identifier.to_string(),
+            hash,
+            hash_algorithm,
+            qualifier,
+            predefined,
+        })
     }
 
     /// `AdESPolicy.buildAdESPolicy(extraParams)`: `None` si no hay
@@ -344,7 +377,9 @@ impl AdESPolicy {
 
     /// Como [`AdESPolicy::from_extra_params`] con un cliente HTTP explícito.
     pub fn from_extra_params_with_client(params: &ExtraParams, client: &dyn HttpClient) -> Result<Option<Self>> {
-        let Some(id) = params.get(PROPERTY_POLICY_IDENTIFIER) else { return Ok(None) };
+        let Some(id) = params.get(PROPERTY_POLICY_IDENTIFIER) else {
+            return Ok(None);
+        };
         Self::new_with_client(
             false,
             id,
@@ -399,14 +434,18 @@ impl AdESPolicy {
 fn download_policy(identifier: &str, client: &dyn HttpClient) -> std::result::Result<Vec<u8>, String> {
     let lower = identifier.to_ascii_lowercase();
     if lower.starts_with("http://") || lower.starts_with("https://") {
-        client.read_url(&HttpRequest::get(identifier)).map_err(|e| e.to_string())
+        client
+            .read_url(&HttpRequest::get(identifier))
+            .map_err(|e| e.to_string())
     } else if lower.starts_with("file:") {
         let uri = crate::aoutil::create_uri(identifier).map_err(|e| e.to_string())?;
         crate::aoutil::load_file(&uri, client).map_err(|e| e.to_string())
     } else if is_java_url(identifier) {
         Err(format!("Protocolo no soportado: {identifier}"))
     } else {
-        Err(format!("java.net.MalformedURLException: unknown protocol: {identifier}"))
+        Err(format!(
+            "java.net.MalformedURLException: unknown protocol: {identifier}"
+        ))
     }
 }
 
@@ -479,12 +518,24 @@ mod tests {
             policy_property(Some("FirmaAGE18"), PROPERTY_POLICY_HASH, Some("CAdES")),
             Some("7SxX3erFuH31TvAw9LZ70N7p1vA=")
         );
-        assert_eq!(policy_property(Some("FirmaAGE"), PROPERTY_POLICY_DESCRIPTION, Some("CAdES")), None);
+        assert_eq!(
+            policy_property(Some("FirmaAGE"), PROPERTY_POLICY_DESCRIPTION, Some("CAdES")),
+            None
+        );
         assert_eq!(policy_property(Some("Otra"), PROPERTY_POLICY_HASH, Some("CAdES")), None);
         for (b64, hex_value) in [
-            ("G7roucf600+f03r/o0bAOQ6WAs0=", "1bbae8b9c7fad34f9fd37affa346c0390e9602cd"),
-            ("V8lVVNGDCPen6VELRD1Ja8HARFk=", "57c95554d18308f7a7e9510b443d496bc1c04459"),
-            ("7SxX3erFuH31TvAw9LZ70N7p1vA=", "ed2c57ddeac5b87df54ef030f4b67bd0dee9d6f0"),
+            (
+                "G7roucf600+f03r/o0bAOQ6WAs0=",
+                "1bbae8b9c7fad34f9fd37affa346c0390e9602cd",
+            ),
+            (
+                "V8lVVNGDCPen6VELRD1Ja8HARFk=",
+                "57c95554d18308f7a7e9510b443d496bc1c04459",
+            ),
+            (
+                "7SxX3erFuH31TvAw9LZ70N7p1vA=",
+                "ed2c57ddeac5b87df54ef030f4b67bd0dee9d6f0",
+            ),
         ] {
             assert_eq!(hex::encode(crate::base64::decode(b64).unwrap()), hex_value);
         }
@@ -500,7 +551,11 @@ mod tests {
         assert!(expand_properties(&p, None, None).is_err());
         // Las marcas internas se conservan.
         p.set_internal_flag("confirmDifferentProfile");
-        assert!(expand_properties(&p, None, Some("CAdES")).unwrap().has_internal_flag("confirmDifferentProfile"));
+        assert!(
+            expand_properties(&p, None, Some("CAdES"))
+                .unwrap()
+                .has_internal_flag("confirmDifferentProfile")
+        );
     }
 
     struct FakeHttp;
@@ -509,7 +564,10 @@ mod tests {
             if r.url.contains("existe") {
                 Ok(b"documento de politica".to_vec())
             } else {
-                Err(crate::http::HttpClientError::Io { url: r.url.clone(), message: "no encontrado".into() })
+                Err(crate::http::HttpClientError::Io {
+                    url: r.url.clone(),
+                    message: "no encontrado".into(),
+                })
             }
         }
     }
@@ -528,15 +586,28 @@ mod tests {
         assert_eq!(p.hash_algorithm(), "SHA1");
         let ep = p.as_extra_params();
         assert_eq!(ep.get("policyIdentifierHashAlgorithm"), Some("SHA1"));
-        assert_eq!(AdESPolicy::from_extra_params_with_client(&ep, &FakeHttp).unwrap().unwrap(), p);
-        assert!(AdESPolicy::from_extra_params_with_client(&ExtraParams::new(), &FakeHttp).unwrap().is_none());
+        assert_eq!(
+            AdESPolicy::from_extra_params_with_client(&ep, &FakeHttp)
+                .unwrap()
+                .unwrap(),
+            p
+        );
         assert!(
-            p.to_string().starts_with("Politica de firma: identificador='urn:oid:2.16.724.1.3.1.1.2.1.9', huella=")
+            AdESPolicy::from_extra_params_with_client(&ExtraParams::new(), &FakeHttp)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            p.to_string()
+                .starts_with("Politica de firma: identificador='urn:oid:2.16.724.1.3.1.1.2.1.9', huella=")
         );
         // Descarga cuando no hay huella (por defecto SHA-512).
         let d = AdESPolicy::new_with_client(false, "https://servidor/existe.pdf", None, None, None, &FakeHttp).unwrap();
         assert_eq!(d.hash_algorithm(), "SHA-512");
-        assert_eq!(d.hash(), crate::base64::encode(&crate::DigestAlgorithm::Sha512.digest(b"documento de politica")));
+        assert_eq!(
+            d.hash(),
+            crate::base64::encode(&crate::DigestAlgorithm::Sha512.digest(b"documento de politica"))
+        );
         let d = AdESPolicy::new_with_client(
             false,
             "https://servidor/existe.pdf",
@@ -546,17 +617,24 @@ mod tests {
             &FakeHttp,
         )
         .unwrap();
-        assert_eq!(d.hash(), crate::base64::encode(&crate::DigestAlgorithm::Sha256.digest(b"documento de politica")));
+        assert_eq!(
+            d.hash(),
+            crate::base64::encode(&crate::DigestAlgorithm::Sha256.digest(b"documento de politica"))
+        );
         // Errores.
         let e = AdESPolicy::new_with_client(false, "urn:oid:1.2.3", None, None, None, &FakeHttp).unwrap_err();
         assert!(e.message.starts_with("Si no se especifica la huella digital de la politica es necesario que el identificador sea una URL accesible universalmente: "));
         assert!(AdESPolicy::new_with_client(false, "https://servidor/falta", None, None, None, &FakeHttp).is_err());
         assert_eq!(
-            AdESPolicy::new_with_client(false, "", None, None, None, &FakeHttp).unwrap_err().message,
+            AdESPolicy::new_with_client(false, "", None, None, None, &FakeHttp)
+                .unwrap_err()
+                .message,
             "El identificador de politica no puede ser nulo ni vacio"
         );
         assert_eq!(
-            AdESPolicy::new_with_client(false, "urn:oid:1", Some("AAAA"), None, None, &FakeHttp).unwrap_err().message,
+            AdESPolicy::new_with_client(false, "urn:oid:1", Some("AAAA"), None, None, &FakeHttp)
+                .unwrap_err()
+                .message,
             "Si se indica la huella digital del identificador de politica es obligatorio indicar tambien el algoritmo"
         );
         assert_eq!(
@@ -566,15 +644,29 @@ mod tests {
             "La huella digital de la politica debe estar en formato Base64"
         );
         assert_eq!(
-            AdESPolicy::new_with_client(false, "urn:oid:1", Some("AAAA"), Some("SHA1"), Some("urn:no-url"), &FakeHttp)
-                .unwrap_err()
-                .message,
+            AdESPolicy::new_with_client(
+                false,
+                "urn:oid:1",
+                Some("AAAA"),
+                Some("SHA1"),
+                Some("urn:no-url"),
+                &FakeHttp
+            )
+            .unwrap_err()
+            .message,
             "El calificador de la politica debe ser una URL valida"
         );
         assert!(
-            AdESPolicy::new_with_client(true, "urn:oid:1", Some("AAAA"), Some("SHA1"), Some("ftp://x"), &FakeHttp)
-                .unwrap()
-                .is_predefined()
+            AdESPolicy::new_with_client(
+                true,
+                "urn:oid:1",
+                Some("AAAA"),
+                Some("SHA1"),
+                Some("ftp://x"),
+                &FakeHttp
+            )
+            .unwrap()
+            .is_predefined()
         );
     }
 }

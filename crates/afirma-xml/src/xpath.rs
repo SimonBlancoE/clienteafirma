@@ -187,8 +187,7 @@ fn tokenize(s: &str) -> XResult<Vec<Tok>> {
     let mut toks: Vec<Tok> = Vec::new();
     let mut i = 0;
     let is_name_start = |c: char| c.is_alphabetic() || c == '_' || (c as u32) > 0x7f;
-    let is_name_char =
-        |c: char| c.is_alphanumeric() || matches!(c, '_' | '-' | '.') || (c as u32) > 0x7f;
+    let is_name_char = |c: char| c.is_alphanumeric() || matches!(c, '_' | '-' | '.') || (c as u32) > 0x7f;
     // Indica si el token anterior obliga a interpretar '*' y nombres como operadores.
     let prev_is_operand = |toks: &Vec<Tok>| -> bool {
         match toks.last() {
@@ -370,11 +369,7 @@ impl Parser<'_> {
         self.or_expr()
     }
 
-    fn bin_level(
-        &mut self,
-        ops: &[(&'static str, BinOp)],
-        next: fn(&mut Self) -> XResult<Expr>,
-    ) -> XResult<Expr> {
+    fn bin_level(&mut self, ops: &[(&'static str, BinOp)], next: fn(&mut Self) -> XResult<Expr>) -> XResult<Expr> {
         let mut left = next(self)?;
         'outer: loop {
             for (o, b) in ops {
@@ -399,12 +394,7 @@ impl Parser<'_> {
     }
     fn rel_expr(&mut self) -> XResult<Expr> {
         self.bin_level(
-            &[
-                ("<=", BinOp::Le),
-                (">=", BinOp::Ge),
-                ("<", BinOp::Lt),
-                (">", BinOp::Gt),
-            ],
+            &[("<=", BinOp::Le), (">=", BinOp::Ge), ("<", BinOp::Lt), (">", BinOp::Gt)],
             Self::add_expr,
         )
     }
@@ -433,10 +423,7 @@ impl Parser<'_> {
         let is_primary = match self.peek() {
             Some(Tok::Literal(_)) | Some(Tok::Number(_)) => true,
             Some(Tok::Op("(")) => true,
-            Some(Tok::Func(f)) => !matches!(
-                f.as_str(),
-                "node" | "text" | "comment" | "processing-instruction"
-            ),
+            Some(Tok::Func(f)) => !matches!(f.as_str(), "node" | "text" | "comment" | "processing-instruction"),
             _ => false,
         };
         if is_primary {
@@ -477,11 +464,7 @@ impl Parser<'_> {
     fn starts_step(&self) -> bool {
         matches!(
             self.peek(),
-            Some(Tok::Name(_))
-                | Some(Tok::Axis(_))
-                | Some(Tok::Op("@"))
-                | Some(Tok::Op("."))
-                | Some(Tok::Op(".."))
+            Some(Tok::Name(_)) | Some(Tok::Axis(_)) | Some(Tok::Op("@")) | Some(Tok::Op(".")) | Some(Tok::Op(".."))
         ) || matches!(self.peek(), Some(Tok::Func(f)) if matches!(f.as_str(), "node" | "text" | "comment" | "processing-instruction"))
     }
 
@@ -648,10 +631,7 @@ pub struct Context {
 
 impl XPath {
     /// Compila una expresión con el mapa de prefijos dado (prefijo -> URI).
-    pub fn compile(
-        expr: &str,
-        namespaces: &HashMap<String, String>,
-    ) -> std::result::Result<XPath, XPathError> {
+    pub fn compile(expr: &str, namespaces: &HashMap<String, String>) -> std::result::Result<XPath, XPathError> {
         let toks = tokenize(expr)?;
         let mut p = Parser {
             toks,
@@ -666,12 +646,7 @@ impl XPath {
     }
 
     /// Evalúa la expresión. `here` es el nodo devuelto por la función `here()`.
-    pub fn evaluate(
-        &self,
-        doc: &Document,
-        node: XNode,
-        here: Option<XNode>,
-    ) -> std::result::Result<Value, XPathError> {
+    pub fn evaluate(&self, doc: &Document, node: XNode, here: Option<XNode>) -> std::result::Result<Value, XPathError> {
         let ev = Evaluator { doc, here };
         ev.eval(
             &self.expr,
@@ -814,9 +789,7 @@ impl<'a> Evaluator<'a> {
                 Ok(Value::Bool(self.to_bool(&b)))
             }
             BinOp::Union => {
-                let (Value::Nodes(mut a), Value::Nodes(b)) =
-                    (self.eval(l, ctx)?, self.eval(r, ctx)?)
-                else {
+                let (Value::Nodes(mut a), Value::Nodes(b)) = (self.eval(l, ctx)?, self.eval(r, ctx)?) else {
                     return err("'|' requiere conjuntos de nodos");
                 };
                 a.extend(b);
@@ -1004,9 +977,7 @@ impl<'a> Evaluator<'a> {
             },
             Axis::Attribute => match n {
                 XNode::Node(id) => match doc.element(id) {
-                    Some(e) => (0..e.attrs.len())
-                        .map(|i| XNode::Attr(id, i as u32))
-                        .collect(),
+                    Some(e) => (0..e.attrs.len()).map(|i| XNode::Attr(id, i as u32)).collect(),
                     None => vec![],
                 },
                 _ => vec![],
@@ -1046,12 +1017,7 @@ impl<'a> Evaluator<'a> {
                             .collect();
                     }
                 };
-                let desc_end = doc
-                    .descendants(base)
-                    .iter()
-                    .map(|x| x.0)
-                    .max()
-                    .unwrap_or(base.0);
+                let desc_end = doc.descendants(base).iter().map(|x| x.0).max().unwrap_or(base.0);
                 doc.descendants(doc.root())
                     .into_iter()
                     .filter(|&x| x.0 > desc_end)
@@ -1165,11 +1131,7 @@ impl<'a> Evaluator<'a> {
                                 .collect::<Vec<_>>()
                         })
                         .collect(),
-                    other => self
-                        .to_str(other)
-                        .split_whitespace()
-                        .map(str::to_string)
-                        .collect(),
+                    other => self.to_str(other).split_whitespace().map(str::to_string).collect(),
                 };
                 let mut out: Vec<XNode> = tokens
                     .iter()
@@ -1189,12 +1151,10 @@ impl<'a> Evaluator<'a> {
                         NodeKind::Pi { target, .. } => (None, target.clone(), None),
                         _ => (None, String::new(), None),
                     },
-                    XNode::Attr(e, i) => {
-                        match self.doc.element(e).and_then(|el| el.attrs.get(i as usize)) {
-                            Some(a) => (a.prefix.clone(), a.local.clone(), a.ns.clone()),
-                            None => (None, String::new(), None),
-                        }
-                    }
+                    XNode::Attr(e, i) => match self.doc.element(e).and_then(|el| el.attrs.get(i as usize)) {
+                        Some(a) => (a.prefix.clone(), a.local.clone(), a.ns.clone()),
+                        None => (None, String::new(), None),
+                    },
                     XNode::Ns(e, i) => {
                         let p = namespace_nodes(self.doc, e)
                             .get(i as usize)
@@ -1236,11 +1196,7 @@ impl<'a> Evaluator<'a> {
             "substring-after" => {
                 let s = str_arg(0)?;
                 let t = str_arg(1)?;
-                Value::Str(
-                    s.find(&t)
-                        .map(|i| s[i + t.len()..].to_string())
-                        .unwrap_or_default(),
-                )
+                Value::Str(s.find(&t).map(|i| s[i + t.len()..].to_string()).unwrap_or_default())
             }
             "substring" => {
                 let s: Vec<char> = str_arg(0)?.chars().collect();
@@ -1319,9 +1275,7 @@ impl<'a> Evaluator<'a> {
                 }
             }
             "sum" => match arg(0)? {
-                Value::Nodes(n) => {
-                    Value::Num(n.iter().map(|x| str_to_num(&self.string_value(*x))).sum())
-                }
+                Value::Nodes(n) => Value::Num(n.iter().map(|x| str_to_num(&self.string_value(*x))).sum()),
                 _ => return err("sum() requiere un conjunto de nodos"),
             },
             "floor" => Value::Num(self.to_num(&arg(0)?).floor()),
@@ -1342,11 +1296,7 @@ fn round_half_up(x: f64) -> f64 {
 
 fn str_to_num(s: &str) -> f64 {
     let t = s.trim_matches([' ', '\t', '\n', '\r']);
-    if t.is_empty()
-        || !t
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '.' || c == '-')
-    {
+    if t.is_empty() || !t.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-') {
         return f64::NAN;
     }
     t.parse().unwrap_or(f64::NAN)
@@ -1356,11 +1306,7 @@ fn num_to_str(n: f64) -> String {
     if n.is_nan() {
         "NaN".into()
     } else if n.is_infinite() {
-        if n > 0.0 {
-            "Infinity".into()
-        } else {
-            "-Infinity".into()
-        }
+        if n > 0.0 { "Infinity".into() } else { "-Infinity".into() }
     } else if n == n.trunc() && n.abs() < 1e15 {
         format!("{}", n as i64)
     } else {
@@ -1373,15 +1319,15 @@ mod tests {
     use super::*;
 
     fn ns(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs
-            .iter()
-            .map(|(a, b)| (a.to_string(), b.to_string()))
-            .collect()
+        pairs.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
     }
 
     #[test]
     fn paths_and_predicates() {
-        let doc = Document::parse("<bookstore><book><title>A</title></book><book><title>B</title><p x='1'/></book></bookstore>").unwrap();
+        let doc = Document::parse(
+            "<bookstore><book><title>A</title></book><book><title>B</title><p x='1'/></book></bookstore>",
+        )
+        .unwrap();
         let root = XNode::Node(doc.document_element().unwrap());
         let xp = XPath::compile("/bookstore/book[1]/title", &HashMap::new()).unwrap();
         let r = xp.select(&doc, root, None).unwrap();
@@ -1410,11 +1356,7 @@ mod tests {
     fn namespaces_and_functions() {
         let doc = Document::parse("<f:Facturae xmlns:f='urn:f'><a/><ds:Signature xmlns:ds='http://www.w3.org/2000/09/xmldsig#'><b/></ds:Signature></f:Facturae>").unwrap();
         let root = XNode::Node(doc.document_element().unwrap());
-        let xp = XPath::compile(
-            "//*[namespace-uri()='urn:f'][local-name()='Facturae']",
-            &HashMap::new(),
-        )
-        .unwrap();
+        let xp = XPath::compile("//*[namespace-uri()='urn:f'][local-name()='Facturae']", &HashMap::new()).unwrap();
         assert_eq!(xp.select(&doc, root, None).unwrap(), vec![root]);
         let xp = XPath::compile(
             "not(ancestor-or-self::ds:Signature)",
@@ -1434,10 +1376,7 @@ mod tests {
             &HashMap::new(),
         )
         .unwrap();
-        assert_eq!(
-            xp.evaluate(&doc, root, None).unwrap(),
-            Value::Str("234aBc".into())
-        );
+        assert_eq!(xp.evaluate(&doc, root, None).unwrap(), Value::Str("234aBc".into()));
         let xp = XPath::compile("count(namespace::*)", &HashMap::new()).unwrap();
         assert_eq!(xp.evaluate(&doc, root, None).unwrap(), Value::Num(2.0));
     }

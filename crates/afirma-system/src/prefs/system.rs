@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use super::tree::{
-    JsonTreeStore, NODE_INTERNAL, NODE_KEYSTORES, NODE_MAIN, NODE_UPDATED_SYSTEM,
-    NODE_UPDATED_SYSTEM_KEYSTORES, PrefsFile, PrefsTree,
+    JsonTreeStore, NODE_INTERNAL, NODE_KEYSTORES, NODE_MAIN, NODE_UPDATED_SYSTEM, NODE_UPDATED_SYSTEM_KEYSTORES,
+    PrefsFile, PrefsTree,
 };
 use crate::ctx::Context;
 use crate::error::Result;
@@ -51,10 +51,7 @@ impl SystemStore {
     /// `true` si se puede escribir (el fichero o su directorio).
     pub fn writable(&self) -> bool {
         if self.path.exists() {
-            return std::fs::OpenOptions::new()
-                .append(true)
-                .open(&self.path)
-                .is_ok();
+            return std::fs::OpenOptions::new().append(true).open(&self.path).is_ok();
         }
         let mut dir = self.path.parent().map(PathBuf::from);
         while let Some(d) = dir {
@@ -179,8 +176,7 @@ impl SystemPrefsWriter {
         let mut f = self.file.clone();
         let keep_empty = self.target == SystemTarget::UserFallback;
         if keep_empty {
-            let data = serde_json::to_vec_pretty(&f)
-                .map_err(|e| crate::error::SystemError::Other(e.to_string()))?;
+            let data = serde_json::to_vec_pretty(&f).map_err(|e| crate::error::SystemError::Other(e.to_string()))?;
             return fsutil::write_atomic(&self.store.path, &data, Some(mode));
         }
         f.nodes.prune();
@@ -212,10 +208,7 @@ mod tests {
         w.put_internal("configFileUrl", "https://intra/af.afconfig");
         w.flush().unwrap();
         let tree = SystemStore::new(&ctx).load_tree();
-        assert_eq!(
-            tree.get(NODE_MAIN, "signatureHashAlgorithm"),
-            Some("SHA512")
-        );
+        assert_eq!(tree.get(NODE_MAIN, "signatureHashAlgorithm"), Some("SHA512"));
         assert_eq!(
             tree.get(&format!("{NODE_KEYSTORES}/1"), "Corp"),
             Some("/usr/lib/corp.so")
@@ -229,11 +222,7 @@ mod tests {
             }
             let dir = ctx.paths.system_config_dir.clone();
             std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
-            std::fs::set_permissions(
-                dir.join(SYSTEM_PREFS_FILE),
-                std::fs::Permissions::from_mode(0o444),
-            )
-            .unwrap();
+            std::fs::set_permissions(dir.join(SYSTEM_PREFS_FILE), std::fs::Permissions::from_mode(0o444)).unwrap();
             let mut w = SystemPrefsWriter::open(&ctx).unwrap();
             assert_eq!(w.target(), &SystemTarget::UserFallback);
             w.clear_main();
@@ -244,8 +233,7 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!(
-                user.nodes
-                    .get(NODE_UPDATED_SYSTEM, "signatureHashAlgorithm"),
+                user.nodes.get(NODE_UPDATED_SYSTEM, "signatureHashAlgorithm"),
                 Some("SHA384")
             );
             std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();

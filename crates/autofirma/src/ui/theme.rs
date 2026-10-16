@@ -167,20 +167,46 @@ pub fn icons_fill() -> FontFamily {
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
     let add = |fonts: &mut FontDefinitions, name: &str, bytes: &'static [u8]| {
-        fonts.font_data.insert(name.to_owned(), Arc::new(FontData::from_static(bytes)));
+        fonts
+            .font_data
+            .insert(name.to_owned(), Arc::new(FontData::from_static(bytes)));
     };
-    add(&mut fonts, "inter", include_bytes!("../../assets/fonts/Inter-Regular.ttf"));
-    add(&mut fonts, "inter-semibold", include_bytes!("../../assets/fonts/Inter-SemiBold.ttf"));
-    add(&mut fonts, "inter-bold", include_bytes!("../../assets/fonts/Inter-Bold.ttf"));
-    add(&mut fonts, "phosphor", include_bytes!("../../assets/fonts/Phosphor.ttf"));
-    add(&mut fonts, "phosphor-fill", include_bytes!("../../assets/fonts/Phosphor-Fill.ttf"));
+    add(
+        &mut fonts,
+        "inter",
+        include_bytes!("../../assets/fonts/Inter-Regular.ttf"),
+    );
+    add(
+        &mut fonts,
+        "inter-semibold",
+        include_bytes!("../../assets/fonts/Inter-SemiBold.ttf"),
+    );
+    add(
+        &mut fonts,
+        "inter-bold",
+        include_bytes!("../../assets/fonts/Inter-Bold.ttf"),
+    );
+    add(
+        &mut fonts,
+        "phosphor",
+        include_bytes!("../../assets/fonts/Phosphor.ttf"),
+    );
+    add(
+        &mut fonts,
+        "phosphor-fill",
+        include_bytes!("../../assets/fonts/Phosphor-Fill.ttf"),
+    );
 
     let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
     proportional.insert(0, "inter".to_owned());
-    fonts.families.insert(semibold(), vec!["inter-semibold".into(), "inter".into()]);
+    fonts
+        .families
+        .insert(semibold(), vec!["inter-semibold".into(), "inter".into()]);
     fonts.families.insert(bold(), vec!["inter-bold".into(), "inter".into()]);
     fonts.families.insert(icons(), vec!["phosphor".into(), "inter".into()]);
-    fonts.families.insert(icons_fill(), vec!["phosphor-fill".into(), "inter".into()]);
+    fonts
+        .families
+        .insert(icons_fill(), vec!["phosphor-fill".into(), "inter".into()]);
     // Las familias por defecto de egui (emoji, monoespaciada) quedan como respaldo.
     for fam in [semibold(), bold(), icons(), icons_fill()] {
         if let Some(defaults) = FontDefinitions::default().families.get(&FontFamily::Proportional) {
@@ -215,8 +241,18 @@ pub fn apply(ctx: &egui::Context, p: &Palette, scale: f32) {
     v.window_stroke = Stroke::new(1.0, p.border);
     v.window_corner_radius = CornerRadius::same(14);
     v.menu_corner_radius = CornerRadius::same(10);
-    v.window_shadow = Shadow { offset: [0, 8], blur: 28, spread: 0, color: Color32::from_black_alpha(if p.dark { 120 } else { 40 }) };
-    v.popup_shadow = Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha(if p.dark { 110 } else { 30 }) };
+    v.window_shadow = Shadow {
+        offset: [0, 8],
+        blur: 28,
+        spread: 0,
+        color: Color32::from_black_alpha(if p.dark { 120 } else { 40 }),
+    };
+    v.popup_shadow = Shadow {
+        offset: [0, 4],
+        blur: 16,
+        spread: 0,
+        color: Color32::from_black_alpha(if p.dark { 110 } else { 30 }),
+    };
     v.extreme_bg_color = p.surface;
     v.faint_bg_color = p.surface_alt;
     v.code_bg_color = p.surface_alt;

@@ -14,12 +14,7 @@ pub fn pki(name: &str) -> PathBuf {
 }
 
 pub fn java_resource(name: &str) -> Vec<u8> {
-    std::fs::read(
-        repo()
-            .join("afirma-crypto-pdf/src/test/resources")
-            .join(name),
-    )
-    .expect(name)
+    std::fs::read(repo().join("afirma-crypto-pdf/src/test/resources").join(name)).expect(name)
 }
 
 pub fn testdata(name: &str) -> PathBuf {
@@ -90,15 +85,11 @@ impl SigningKey for TestKey {
                 DigestAlgorithm::Sha384 => rsa::Pkcs1v15Sign::new::<sha2::Sha384>(),
                 DigestAlgorithm::Sha512 => rsa::Pkcs1v15Sign::new::<sha2::Sha512>(),
             };
-            return k
-                .sign(scheme, &hash)
-                .map_err(|e| KeyError::Other(e.to_string()));
+            return k.sign(scheme, &hash).map_err(|e| KeyError::Other(e.to_string()));
         }
         use ecdsa::signature::hazmat::PrehashSigner;
         let k = self.ec.as_ref().unwrap();
-        let sig: p256::ecdsa::Signature = k
-            .sign_prehash(&hash)
-            .map_err(|e| KeyError::Other(e.to_string()))?;
+        let sig: p256::ecdsa::Signature = k.sign_prehash(&hash).map_err(|e| KeyError::Other(e.to_string()))?;
         Ok(sig.to_der().as_bytes().to_vec())
     }
 }

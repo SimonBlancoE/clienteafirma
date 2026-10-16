@@ -15,11 +15,7 @@ fn same_signed_attributes_and_cms() {
         ("firmante-rsa", "SHA256withRSA", vec![]),
         ("firmante-rsa", "SHA512withRSA", vec![]),
         ("firmante-rsa", "SHA1withRSA", vec![]),
-        (
-            "firmante-rsa",
-            "SHA1withRSA",
-            vec![("signingCertificateV2", "true")],
-        ),
+        ("firmante-rsa", "SHA1withRSA", vec![("signingCertificateV2", "true")]),
         (
             "firmante-rsa",
             "SHA256withRSA",
@@ -42,10 +38,7 @@ fn same_signed_attributes_and_cms() {
                 ("commitmentTypeIndications", "1"),
                 ("commitmentTypeIndication0Identifier", "1"),
                 ("commitmentTypeIndication1Identifier", "5"),
-                (
-                    "commitmentTypeIndication1CommitmentTypeQualifiers",
-                    "1.2.3|1.2.4",
-                ),
+                ("commitmentTypeIndication1CommitmentTypeQualifiers", "1.2.3|1.2.4"),
             ],
         ),
         (
@@ -82,18 +75,10 @@ fn same_signed_attributes_and_cms() {
         let mine = cms::signed_attributes(md, &chain[0], &cfg).unwrap();
         let b = afirma_cms::SignedDataBuilder::for_pades(md, a, chain.clone(), &xp).unwrap();
         let theirs = b.signed_attributes().unwrap();
-        assert_eq!(
-            hex::encode(&mine),
-            hex::encode(&theirs),
-            "{key} {alg} {extra:?}"
-        );
+        assert_eq!(hex::encode(&mine), hex::encode(&theirs), "{key} {alg} {extra:?}");
         let sig = vec![1u8; 256];
         let c1 = cms::signed_data(&mine, &sig, &chain, a, None).unwrap();
         let c2 = b.assemble(&theirs, &sig).unwrap();
-        assert_eq!(
-            hex::encode(&c1),
-            hex::encode(&c2),
-            "CMS {key} {alg} {extra:?}"
-        );
+        assert_eq!(hex::encode(&c1), hex::encode(&c2), "CMS {key} {alg} {extra:?}");
     }
 }

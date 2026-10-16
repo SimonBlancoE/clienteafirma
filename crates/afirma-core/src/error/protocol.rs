@@ -25,21 +25,30 @@ pub const SAF_MESSAGES: &[(&str, &str)] = &[
     ("SAF_01", "La URL recibida es nula"),
     ("SAF_02", "Protocolo no soportado"),
     ("SAF_03", "Error en los parámetros de entrada"),
-    ("SAF_04", "Operación no soportada. Compruebe que dispone de la última versión de Autofirma."),
+    (
+        "SAF_04",
+        "Operación no soportada. Compruebe que dispone de la última versión de Autofirma.",
+    ),
     ("SAF_05", "No se ha podido guardar los datos"),
     ("SAF_06", "Formato de firma no soportado"),
     ("SAF_08", "Error accediendo al almacén de claves y certificados"),
     ("SAF_09", "Error realizando la firma electrónica"),
     ("SAF_11", "Error en el envio del resultado de la operación."),
     ("SAF_12", "Error en el cifrado de los datos a enviar"),
-    ("SAF_13", "Se ha pedido acceso a una dirección local, pero por seguridad se ha bloqueado el acceso"),
+    (
+        "SAF_13",
+        "Se ha pedido acceso a una dirección local, pero por seguridad se ha bloqueado el acceso",
+    ),
     (
         "SAF_14",
         "<html>La aplicaci&oacute;n est&aacute; obsoleta y no puede procesarse la petici&oacute;n.<br>Por favor, instale una versi&oacute;n actualizada y reintente el proceso de nuevo.</html>",
     ),
     ("SAF_15", "Error en el descifrado de los datos"),
     ("SAF_16", "Error al recuperar los datos del servidor intermedio"),
-    ("SAF_17", "Los datos proporcionados no son una firma electrónica reconocida"),
+    (
+        "SAF_17",
+        "Los datos proporcionados no son una firma electrónica reconocida",
+    ),
     ("SAF_18", "Error al descodificar el certificado de firma"),
     (
         "SAF_19",
@@ -50,27 +59,54 @@ pub const SAF_MESSAGES: &[(&str, &str)] = &[
         "SAF_21",
         "La versión de Autofirma instalada no es compatible con este trámite.\nActualice a la última versión disponible.",
     ),
-    ("SAF_23", "Se ha establecido una política de firma no válida o parámetros no compatibles con ella."),
+    (
+        "SAF_23",
+        "Se ha establecido una política de firma no válida o parámetros no compatibles con ella.",
+    ),
     ("SAF_25", "Error en la lectura de los datos a cargar."),
     ("SAF_26", "Error en la comunicación con el servicio de firma de lotes."),
     ("SAF_27", "El servicio informó de un error durante la firma del lote."),
     ("SAF_28", "El fichero no es un PDF o es un PDF no soportado."),
-    ("SAF_29", "Las firmas XAdES Enveloped solo pueden realizarse sobre datos XML."),
-    ("SAF_30", "El formato de los datos a firmar no es adecuado para el tipo de firma seleccionado."),
-    ("SAF_31", "Los datos introducidos no se corresponden con un objeto de firma."),
-    ("SAF_32", "La factura ya tiene una firma electrónica y no admite firmas adicionales."),
-    ("SAF_33", "La contraseña proporcionada no es válida para el PDF actual o no se proporcionó ninguna contraseña."),
+    (
+        "SAF_29",
+        "Las firmas XAdES Enveloped solo pueden realizarse sobre datos XML.",
+    ),
+    (
+        "SAF_30",
+        "El formato de los datos a firmar no es adecuado para el tipo de firma seleccionado.",
+    ),
+    (
+        "SAF_31",
+        "Los datos introducidos no se corresponden con un objeto de firma.",
+    ),
+    (
+        "SAF_32",
+        "La factura ya tiene una firma electrónica y no admite firmas adicionales.",
+    ),
+    (
+        "SAF_33",
+        "La contraseña proporcionada no es válida para el PDF actual o no se proporcionó ninguna contraseña.",
+    ),
     ("SAF_34", "El PDF contiene firmas no registradas."),
     ("SAF_35", "El PDF está certificado."),
-    ("SAF_38", "El archivo que intenta firmar no es una factura electrónica reconocida."),
+    (
+        "SAF_38",
+        "El archivo que intenta firmar no es una factura electrónica reconocida.",
+    ),
     ("SAF_39", "La firma de entrada no es válida."),
     (
         "SAF_41",
         "El uso de este trámite web requiere una versión más reciente de Autofirma.\nActualice a la última versión disponible.",
     ),
     ("SAF_43", "Error durante la firma visible del PDF."),
-    ("SAF_44", "La firma no contiene los datos y no se compatible con la configuración seleccionada"),
-    ("SAF_45", "No se pudo abrir un socket para la comunicación con la aplicación"),
+    (
+        "SAF_44",
+        "La firma no contiene los datos y no se compatible con la configuración seleccionada",
+    ),
+    (
+        "SAF_45",
+        "No se pudo abrir un socket para la comunicación con la aplicación",
+    ),
     ("SAF_46", "Id de sesión inválido"),
     // Claves ausentes de todos los ficheros de mensajes (`'!' + clave + '!'`).
     ("SAF_48", "!ProtocolLauncher.63!"),
@@ -205,7 +241,12 @@ const OLD_ERRORS_ASSOCIATION: &[(u32, &str)] = &[
 
 /// Código antiguo (`SAF_xx` o `CANCEL`) asociado a un código de error.
 pub fn legacy_error_code(code: &ErrorCode) -> &'static str {
-    OLD_ERRORS_ASSOCIATION.iter().rev().find(|(c, _)| *c == code.code).map(|(_, s)| *s).unwrap_or(ERROR_UNKNOWN)
+    OLD_ERRORS_ASSOCIATION
+        .iter()
+        .rev()
+        .find(|(c, _)| *c == code.code)
+        .map(|(_, s)| *s)
+        .unwrap_or(ERROR_UNKNOWN)
 }
 
 /// Mensaje de un código antiguo.
@@ -226,7 +267,11 @@ pub fn protocol_error_message(code: &ErrorCode, supports_error_codes: bool) -> S
         format!("{prefix}AF{} - {}", code.code_str(), code.description)
     } else {
         let saf = legacy_error_code(code);
-        if saf == CANCEL_RESPONSE { saf.to_string() } else { format!("{saf}: {}", legacy_message(saf).unwrap_or("")) }
+        if saf == CANCEL_RESPONSE {
+            saf.to_string()
+        } else {
+            format!("{saf}: {}", legacy_message(saf).unwrap_or(""))
+        }
     }
 }
 
@@ -271,7 +316,10 @@ mod tests {
             protocol_error_message(&codes::SMARTCARD_LOCKED, false),
             "SAF_52: El almacen de claves esta bloqueado"
         );
-        assert_eq!(protocol_error_message(&codes::PRESIGN_HTTP_ERROR, false), "SAF_53: Error desconocido");
+        assert_eq!(
+            protocol_error_message(&codes::PRESIGN_HTTP_ERROR, false),
+            "SAF_53: Error desconocido"
+        );
         assert_eq!(legacy_message("SAF_48"), Some("!ProtocolLauncher.63!"));
         // Todos los códigos asociados existen en la tabla general.
         for (c, saf) in OLD_ERRORS_ASSOCIATION {

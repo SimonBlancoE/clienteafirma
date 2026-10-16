@@ -105,13 +105,8 @@ pub fn golden(name: &str) -> (i32, String) {
 /// configuración regional del sistema y con la preferencia de idioma del caso.
 pub fn env_for(locale: Option<&str>) -> CliEnv {
     let locale = locale.map(str::to_string);
-    let mut env = CliEnv::new("autofirma.jar").with_preferences(move |k| {
-        if k == "default.locale" {
-            locale.clone()
-        } else {
-            None
-        }
-    });
+    let mut env = CliEnv::new("autofirma.jar")
+        .with_preferences(move |k| if k == "default.locale" { locale.clone() } else { None });
     env.os_locale = None;
     env
 }
@@ -172,9 +167,7 @@ pub fn signer_of(data: &[u8]) -> Option<(String, Box<dyn Signer>)> {
 pub fn structure(data: &[u8]) -> (String, Vec<(usize, String)>, Option<String>) {
     let xp = ExtraParams::new();
     let (kind, signer) = signer_of(data).expect("no es una firma reconocida");
-    let tree = signer
-        .signers_structure(data, &xp)
-        .expect("árbol de firmantes");
+    let tree = signer.signers_structure(data, &xp).expect("árbol de firmantes");
     let shape = tree
         .preorder()
         .into_iter()
@@ -221,9 +214,7 @@ pub fn xml_sign(text: &str) -> Option<Vec<u8>> {
     use base64::Engine;
     let start = text.find("<sign>")? + 6;
     let end = text.find("</sign>")?;
-    base64::engine::general_purpose::STANDARD
-        .decode(&text[start..end])
-        .ok()
+    base64::engine::general_purpose::STANDARD.decode(&text[start..end]).ok()
 }
 
 /// Sustituye el contenido de `<sign>` por `@SIGN@`.

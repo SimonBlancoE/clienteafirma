@@ -32,7 +32,10 @@ impl ServerCertVerifier for RecordingVerifier {
         _now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
         if let Ok(mut c) = self.chain.lock() {
-            *c = std::iter::once(end_entity).chain(intermediates.iter()).map(|d| d.as_ref().to_vec()).collect();
+            *c = std::iter::once(end_entity)
+                .chain(intermediates.iter())
+                .map(|d| d.as_ref().to_vec())
+                .collect();
         }
         Ok(ServerCertVerified::assertion())
     }
@@ -71,8 +74,11 @@ pub fn fetch_server_certificates(
     let parsed = url::Url::parse(url).map_err(|e| format!("URL no valida: {e}"))?;
     let host = parsed.host_str().ok_or("La URL no tiene servidor")?.to_string();
     let port = parsed.port_or_known_default().unwrap_or(443);
-    let endpoint =
-        if super::is_loopback_host(&host) { None } else { super::proxy::resolve_proxy(proxy, "https", &host) };
+    let endpoint = if super::is_loopback_host(&host) {
+        None
+    } else {
+        super::proxy::resolve_proxy(proxy, "https", &host)
+    };
     fetch_chain(&host, port, endpoint.as_ref(), timeout)
 }
 
@@ -129,13 +135,19 @@ pub(crate) fn fetch_chain(
             let status_line = String::from_utf8_lossy(&resp);
             let code = status_line.split_whitespace().nth(1).unwrap_or("");
             if code != "200" {
-                return Err(format!("El proxy rechazo la conexion: {}", status_line.lines().next().unwrap_or("")));
+                return Err(format!(
+                    "El proxy rechazo la conexion: {}",
+                    status_line.lines().next().unwrap_or("")
+                ));
             }
             s
         }
     };
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let verifier = Arc::new(RecordingVerifier { chain: Mutex::new(Vec::new()), provider: provider.clone() });
+    let verifier = Arc::new(RecordingVerifier {
+        chain: Mutex::new(Vec::new()),
+        provider: provider.clone(),
+    });
     let config = rustls::ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|e| e.to_string())?
@@ -146,7 +158,8 @@ pub(crate) fn fetch_chain(
         .map_err(|e| format!("Nombre de servidor no valido: {e}"))?;
     let mut conn = rustls::ClientConnection::new(Arc::new(config), name).map_err(|e| e.to_string())?;
     while conn.is_handshaking() {
-        conn.complete_io(&mut sock).map_err(|e| format!("Error en la negociacion TLS: {e}"))?;
+        conn.complete_io(&mut sock)
+            .map_err(|e| format!("Error en la negociacion TLS: {e}"))?;
     }
     let chain = verifier.chain.lock().map(|c| c.clone()).unwrap_or_default();
     if chain.is_empty() {
@@ -158,7 +171,11 @@ pub(crate) fn fetch_chain(
 /// Certificados a importar (`getCertsToImport`): los emisores si la cadena
 /// tiene más de un certificado y, si no, el único certificado.
 pub fn certs_to_import(chain: &[Vec<u8>]) -> Vec<Vec<u8>> {
-    if chain.len() > 1 { chain[1..].to_vec() } else { chain.to_vec() }
+    if chain.len() > 1 {
+        chain[1..].to_vec()
+    } else {
+        chain.to_vec()
+    }
 }
 
 /// `isIP`: IPv4 en notación decimal con cuatro partes 0-255 sin ceros a la
@@ -200,7 +217,9 @@ fn matches_host(host: &str, name: &str, host_is_ip: bool) -> bool {
 /// minúsculas); sin ellos, el CN del titular.
 pub fn certificate_matches_host(cert_der: &[u8], host: &str) -> bool {
     let host = host.trim_start_matches('[').trim_end_matches(']').to_lowercase();
-    let Ok((_, cert)) = X509Certificate::from_der(cert_der) else { return false };
+    let Ok((_, cert)) = X509Certificate::from_der(cert_der) else {
+        return false;
+    };
     let san = cert.subject_alternative_name().ok().flatten();
     if let Some(san) = san {
         for name in &san.value.general_names {
@@ -212,9 +231,10 @@ pub fn certificate_matches_host(cert_der: &[u8], host: &str) -> bool {
                 }
                 GeneralName::IPAddress(bytes) => {
                     if let Some(ip) = ip_to_java_string(bytes)
-                        && matches_host(&host, &ip, true) {
-                            return true;
-                        }
+                        && matches_host(&host, &ip, true)
+                    {
+                        return true;
+                    }
                 }
                 _ => {}
             }
@@ -232,7 +252,11 @@ fn ip_to_java_string(bytes: &[u8]) -> Option<String> {
     match bytes.len() {
         4 => Some(format!("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3])),
         16 => Some(
-            bytes.chunks(2).map(|c| format!("{:x}", u16::from_be_bytes([c[0], c[1]]))).collect::<Vec<_>>().join(":"),
+            bytes
+                .chunks(2)
+                .map(|c| format!("{:x}", u16::from_be_bytes([c[0], c[1]])))
+                .collect::<Vec<_>>()
+                .join(":"),
         ),
         _ => None,
     }
@@ -254,14 +278,21 @@ mod tests {
         assert!(!matches_host("gob.es", "*.gob.es", false));
         assert!(!matches_host("1.2.3.4", "*.3.4", true));
         assert!(!matches_host("www.gob.es", "*.gob.es.", false));
-        assert_eq!(ip_to_java_string(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]).unwrap(), "0:0:0:0:0:0:0:1");
+        assert_eq!(
+            ip_to_java_string(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]).unwrap(),
+            "0:0:0:0:0:0:0:1"
+        );
         assert_eq!(certs_to_import(&[vec![1], vec![2], vec![3]]), vec![vec![2], vec![3]]);
         assert_eq!(certs_to_import(&[vec![1]]), vec![vec![1]]);
     }
 
     #[test]
     fn certificate_host() {
-        let pem = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let pem = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/pki/firmante-rsa.crt"
+        ))
+        .unwrap();
         let der = crate::cert::decode_certificate(&pem).unwrap();
         // Certificado de persona: no corresponde a ningún servidor.
         assert!(!certificate_matches_host(&der, "www.gob.es"));

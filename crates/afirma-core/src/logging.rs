@@ -75,7 +75,11 @@ pub fn log_file_path(app: App, log_dir: Option<&str>) -> PathBuf {
 pub fn log_file_path_with_home(app: App, log_dir: Option<&str>, home: &Path) -> PathBuf {
     let home = home.to_string_lossy();
     match log_dir {
-        None => PathBuf::from(format!("{home}/{}/{}", crate::constants::AFIRMA_SUBDIR, app.log_file_name())),
+        None => PathBuf::from(format!(
+            "{home}/{}/{}",
+            crate::constants::AFIRMA_SUBDIR,
+            app.log_file_name()
+        )),
         Some(dir) => {
             let dir = dir.replace('\\', "/");
             let sep = if dir.ends_with('/') { "" } else { "/" };
@@ -154,13 +158,19 @@ mod tests {
             log_file_path_with_home(App::Other, Some("/var/log/"), home),
             PathBuf::from("/var/log/OTHER.afirma.log.xml")
         );
-        assert_eq!(App::AutofirmaConfigurator.log_file_name(), "AUTOFIRMA_CONFIGURATOR.afirma.log.xml");
+        assert_eq!(
+            App::AutofirmaConfigurator.log_file_name(),
+            "AUTOFIRMA_CONFIGURATOR.afirma.log.xml"
+        );
         assert!(log_file_path(App::Autofirma, None).ends_with(".afirma/AUTOFIRMA.afirma.log.xml"));
     }
 
     #[test]
     fn trimming() {
-        assert_eq!(clean_user_home_path_with("/home/u/a:/home/u/b", "/home/u"), "USERHOME/a:USERHOME/b");
+        assert_eq!(
+            clean_user_home_path_with("/home/u/a:/home/u/b", "/home/u"),
+            "USERHOME/a:USERHOME/b"
+        );
         let s199 = "a".repeat(199);
         assert_eq!(trim_str_with(&s199, false), s199);
         let s200 = "a".repeat(200);

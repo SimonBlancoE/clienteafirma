@@ -85,7 +85,10 @@ impl TriphaseFormat {
     }
 
     fn is_xades_family(self) -> bool {
-        matches!(self, TriphaseFormat::Xades | TriphaseFormat::XadesAsics | TriphaseFormat::FacturaE)
+        matches!(
+            self,
+            TriphaseFormat::Xades | TriphaseFormat::XadesAsics | TriphaseFormat::FacturaE
+        )
     }
 
     /// Indica si el formato admite la operación.
@@ -157,14 +160,18 @@ impl TriphaseClient {
         }
         let chain = key.certificate_chain();
         if chain.is_empty() {
-            return Err(AfirmaError::invalid_argument("Es necesario proporcionar el certificado de firma"));
+            return Err(AfirmaError::invalid_argument(
+                "Es necesario proporcionar el certificado de firma",
+            ));
         }
         let data_mandatory = !(format.is_xades_family()
             && op == CryptoOperation::Sign
             && (extra.get("format") == Some("XAdES Externally Detached")
                 || extra.get("useManifest").is_some_and(|v| v.eq_ignore_ascii_case("true"))));
         if data.is_none() && data_mandatory {
-            return Err(AfirmaError::invalid_argument("No se ha proporcionado el identificador de documento a firmar"));
+            return Err(AfirmaError::invalid_argument(
+                "No se ha proporcionado el identificador de documento a firmar",
+            ));
         }
         let server_url = extra.get(PARAM_SERVER_URL).unwrap_or("");
         if !is_valid_java_url(server_url) {
@@ -209,7 +216,11 @@ impl TriphaseClient {
             TriphaseFormat::Pades | TriphaseFormat::None => {}
         }
         let doc = data.map(jbase64::encode_url_safe);
-        let props = if params.is_empty() || format == TriphaseFormat::None { None } else { Some(properties::store_base64_url(&params)) };
+        let props = if params.is_empty() || format == TriphaseFormat::None {
+            None
+        } else {
+            Some(properties::store_base64_url(&params))
+        };
         let fmt = format.server_format();
         let cop = op.name();
 
@@ -232,10 +243,16 @@ impl TriphaseClient {
             }
             TriphaseFormat::None => pre.push_str(&format!("&doc={}", doc.as_deref().unwrap_or(""))),
         }
-        let pre_result = self.http.post(server_url, &pre).map_err(|e| presign_http_error(e, format == TriphaseFormat::None))?;
+        let pre_result = self
+            .http
+            .post(server_url, &pre)
+            .map_err(|e| presign_http_error(e, format == TriphaseFormat::None))?;
         if format != TriphaseFormat::None {
             if pre_result.len() <= 8 {
-                return Err(AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, "No se han obtenido datos de la prefirma"));
+                return Err(AfirmaError::new(
+                    codes::MALFORMED_PRESIGN_RESPONSE,
+                    "No se han obtenido datos de la prefirma",
+                ));
             }
             if String::from_utf8_lossy(&pre_result[..8]).starts_with("ERR-") {
                 return Err(server_error(&String::from_utf8_lossy(&pre_result), true, format, extra));
@@ -244,7 +261,13 @@ impl TriphaseClient {
         let mut td = jbase64::decode_bytes(&pre_result, true)
             .map_err(|e| e.to_string())
             .and_then(|xml| TriphaseData::parse_xml(&xml).map_err(|e| e.to_string()))
-            .map_err(|e| AfirmaError::new(codes::MALFORMED_PRESIGN_RESPONSE, "Error al analizar la prefirma enviada por el servidor").with_cause(e))?;
+            .map_err(|e| {
+                AfirmaError::new(
+                    codes::MALFORMED_PRESIGN_RESPONSE,
+                    "Error al analizar la prefirma enviada por el servidor",
+                )
+                .with_cause(e)
+            })?;
 
         // ---- Firma ----
         if format == TriphaseFormat::None {
@@ -278,7 +301,11 @@ impl TriphaseClient {
                     let ms = crate::version::java_parse_int(t)
                         .ok_or_else(|| AfirmaError::invalid_argument(format!("For input string: \"{t}\"")))?;
                     if ms >= 0 {
-                        http = http.with_connect_timeout(if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) });
+                        http = http.with_connect_timeout(if ms == 0 {
+                            None
+                        } else {
+                            Some(Duration::from_millis(ms as u64))
+                        });
                     }
                 }
             }
@@ -290,13 +317,23 @@ impl TriphaseClient {
             }
             TriphaseFormat::None => post.push_str(&format!("&doc={}&session={session}", doc.as_deref().unwrap_or(""))),
         }
-        let post_result = http.post(server_url, &post).map_err(|e| postsign_http_error(e, format == TriphaseFormat::None))?;
+        let post_result = http
+            .post(server_url, &post)
+            .map_err(|e| postsign_http_error(e, format == TriphaseFormat::None))?;
         if format != TriphaseFormat::None {
             if post_result.len() <= 8 {
-                return Err(AfirmaError::new(codes::MALFORMED_POSTSIGN_RESPONSE, "No se han obtenido datos de la postfirma"));
+                return Err(AfirmaError::new(
+                    codes::MALFORMED_POSTSIGN_RESPONSE,
+                    "No se han obtenido datos de la postfirma",
+                ));
             }
             if String::from_utf8_lossy(&post_result[..8]).starts_with("ERR-") {
-                return Err(server_error(&String::from_utf8_lossy(&post_result), false, format, extra));
+                return Err(server_error(
+                    &String::from_utf8_lossy(&post_result),
+                    false,
+                    format,
+                    extra,
+                ));
             }
         }
         parse_postsign_ok(&post_result)
@@ -308,9 +345,17 @@ pub fn parse_postsign_ok(body: &[u8]) -> Result<Vec<u8>, AfirmaError> {
     let text = String::from_utf8_lossy(body);
     let trimmed = crate::triphase::data::java_trim(&text);
     if !trimmed.starts_with("OK") {
-        return Err(AfirmaError::new(codes::POSTSIGN_ERROR, format!("La firma trifasica no ha finalizado correctamente: {trimmed}")));
+        return Err(AfirmaError::new(
+            codes::POSTSIGN_ERROR,
+            format!("La firma trifasica no ha finalizado correctamente: {trimmed}"),
+        ));
     }
-    let malformed = || AfirmaError::new(codes::MALFORMED_POSTSIGN_RESPONSE, "El resultado devuelto por el servidor no es correcto");
+    let malformed = || {
+        AfirmaError::new(
+            codes::MALFORMED_POSTSIGN_RESPONSE,
+            "El resultado devuelto por el servidor no es correcto",
+        )
+    };
     let encoded = trimmed.get("OK NEWID=".len()..).ok_or_else(malformed)?;
     jbase64::decode_url_safe(encoded).map_err(|e| malformed().with_cause(e))
 }
@@ -319,10 +364,17 @@ pub fn parse_postsign_ok(body: &[u8]) -> Result<Vec<u8>, AfirmaError> {
 /// separada por comas, o solo el certificado de firma si
 /// `includeOnlySignningCertificate=true`.
 pub fn cert_chain_param(chain: &[Vec<u8>], extra: &ExtraParams) -> String {
-    if extra.get("includeOnlySignningCertificate").is_some_and(|v| v.eq_ignore_ascii_case("true")) {
+    if extra
+        .get("includeOnlySignningCertificate")
+        .is_some_and(|v| v.eq_ignore_ascii_case("true"))
+    {
         return jbase64::encode_url_safe(&chain[0]);
     }
-    chain.iter().map(|c| jbase64::encode_url_safe(c)).collect::<Vec<_>>().join(",")
+    chain
+        .iter()
+        .map(|c| jbase64::encode_url_safe(c))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Validación de `new URL(text)` de Java: un esquema conocido seguido de `:`.
@@ -372,14 +424,21 @@ fn map_phase_http_error(e: HttpError, none_format: bool, pre: bool) -> AfirmaErr
 
 /// Código de error de `AOTriphaseException` para `ERR-n`.
 pub fn triphase_error_code(server_code: &str, presign: bool) -> ErrorCode {
-    let n = server_code.strip_prefix("ERR-").and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=20).contains(n));
+    let n = server_code
+        .strip_prefix("ERR-")
+        .and_then(|n| n.parse::<u32>().ok())
+        .filter(|n| (1..=20).contains(n));
     let code = match (n, presign) {
         (Some(n), true) => 300408 + n,
         (Some(n), false) => 300429 + n,
         (None, true) => 300451,
         (None, false) => 300452,
     };
-    codes::by_code(code).unwrap_or(if presign { codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR } else { codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR })
+    codes::by_code(code).unwrap_or(if presign {
+        codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR
+    } else {
+        codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR
+    })
 }
 
 /// Intervención solicitada por un `ERR-21:<código>`.
@@ -394,17 +453,33 @@ pub struct RequestedIntervention {
 
 /// Tabla de `ERR-21` por formato (`buildInternalException`).
 pub fn err21_intervention(format: TriphaseFormat, code: &str, extra: &ExtraParams) -> Option<RequestedIntervention> {
-    let confirm = |requestor, code, param| RequestedIntervention { requestor, code, param, password: false, effect: ConfirmEffect::SetParamTrue };
+    let confirm = |requestor, code, param| RequestedIntervention {
+        requestor,
+        code,
+        param,
+        password: false,
+        effect: ConfirmEffect::SetParamTrue,
+    };
     match format {
         TriphaseFormat::Cades | TriphaseFormat::CadesAsics => match code {
             "signingLts" => Some(confirm("signingLts", codes::SIGNING_LTS, "allowSignLTSignature")),
             _ => None,
         },
         TriphaseFormat::Xades | TriphaseFormat::XadesAsics | TriphaseFormat::FacturaE => match code {
-            "xPathNotFound" => Some(confirm("xPathNotFound", codes::XPATH_NOT_FOUND, "allowXadesEnvelopedWithoutXPath")),
+            "xPathNotFound" => Some(confirm(
+                "xPathNotFound",
+                codes::XPATH_NOT_FOUND,
+                "allowXadesEnvelopedWithoutXPath",
+            )),
             "signingLts" => Some(confirm("signingLts", codes::SIGNING_LTS, "allowSignLTSignature")),
-            "signingLtsPossible" => Some(confirm("signingLtsPossible", codes::SIGNING_LTS, "allowSignLTSignature")),
-            "agePolicyIncompatibilitySign" | "agePolicyIncompatibilityCosign" | "agePolicyIncompatibilityCounterSign" => {
+            "signingLtsPossible" => Some(confirm(
+                "signingLtsPossible",
+                codes::SIGNING_LTS,
+                "allowSignLTSignature",
+            )),
+            "agePolicyIncompatibilitySign"
+            | "agePolicyIncompatibilityCosign"
+            | "agePolicyIncompatibilityCounterSign" => {
                 let requestor = match code {
                     "agePolicyIncompatibilitySign" => "agePolicyIncompatibilitySign",
                     "agePolicyIncompatibilityCosign" => "agePolicyIncompatibilityCosign",
@@ -421,14 +496,26 @@ pub fn err21_intervention(format: TriphaseFormat, code: &str, extra: &ExtraParam
             _ => None,
         },
         TriphaseFormat::Pades => match code {
-            "signingCertifiedPdf" => Some(confirm("signingCertifiedPdf", codes::SIGNING_PDF_WITH_CERTIFIED_SIGN, "allowSigningCertifiedPdfs")),
+            "signingCertifiedPdf" => Some(confirm(
+                "signingCertifiedPdf",
+                codes::SIGNING_PDF_WITH_CERTIFIED_SIGN,
+                "allowSigningCertifiedPdfs",
+            )),
             "signingPdfWithUnregisteredSigns" => Some(confirm(
                 "signingPdfWithUnregisteredSigns",
                 codes::SIGNING_PDF_WITH_UNREGISTER_SIGNATURES,
                 "allowCosigningUnregisteredSignatures",
             )),
-            "signingModifiedPdfForm" => Some(confirm("signingModifiedPdfForm", codes::SIGNING_PDF_WITH_MODIFIED_FORM, "allowModifiedForm")),
-            "pdfShadowAttackSuspect" => Some(confirm("pdfShadowAttackSuspect", codes::SIGNING_PDF_WITH_SUSPICION_OF_PSA, "allowShadowAttack")),
+            "signingModifiedPdfForm" => Some(confirm(
+                "signingModifiedPdfForm",
+                codes::SIGNING_PDF_WITH_MODIFIED_FORM,
+                "allowModifiedForm",
+            )),
+            "pdfShadowAttackSuspect" => Some(confirm(
+                "pdfShadowAttackSuspect",
+                codes::SIGNING_PDF_WITH_SUSPICION_OF_PSA,
+                "allowShadowAttack",
+            )),
             "pdfpasswordprotected" | "pdfbadpassword" => {
                 let bad = extra.contains("ownerPassword") || extra.contains("userPassword");
                 Some(if bad {
@@ -460,17 +547,18 @@ pub fn err21_intervention(format: TriphaseFormat, code: &str, extra: &ExtraParam
 pub fn server_error(msg: &str, presign: bool, format: TriphaseFormat, extra: &ExtraParams) -> AfirmaError {
     let sep = msg.find(':').unwrap_or(msg.len());
     if msg.starts_with("ERR-21:")
-        && let Some(sep2) = msg[sep + 1..].find(':').map(|p| p + sep + 1) {
-            let code = &msg[sep + 1..sep2];
-            let text = &msg[sep2 + 1..];
-            if let Some(i) = err21_intervention(format, code, extra) {
-                return if i.password {
-                    AfirmaError::needs_password(i.code, text.trim(), i.requestor, i.param)
-                } else {
-                    AfirmaError::needs_confirmation(i.code, text.trim(), i.requestor, i.param, i.effect)
-                };
-            }
+        && let Some(sep2) = msg[sep + 1..].find(':').map(|p| p + sep + 1)
+    {
+        let code = &msg[sep + 1..sep2];
+        let text = &msg[sep2 + 1..];
+        if let Some(i) = err21_intervention(format, code, extra) {
+            return if i.password {
+                AfirmaError::needs_password(i.code, text.trim(), i.requestor, i.param)
+            } else {
+                AfirmaError::needs_confirmation(i.code, text.trim(), i.requestor, i.param, i.effect)
+            };
         }
+    }
     let tri_code = &msg[..sep];
     let rest = msg.get(sep + 1..).unwrap_or("");
     let (class_name, int_message) = match rest.find(':') {
@@ -504,8 +592,16 @@ mod tests {
 
     #[test]
     fn formats() {
-        assert_eq!(TriphaseFormat::from_format_name("ADOBE PDF TRIPHASE"), Some(TriphaseFormat::Pades));
-        assert_eq!(TriphaseFormat::from_format_name("cades-asic-s-tri").unwrap().server_format(), "CAdES-ASiC-S");
+        assert_eq!(
+            TriphaseFormat::from_format_name("ADOBE PDF TRIPHASE"),
+            Some(TriphaseFormat::Pades)
+        );
+        assert_eq!(
+            TriphaseFormat::from_format_name("cades-asic-s-tri")
+                .unwrap()
+                .server_format(),
+            "CAdES-ASiC-S"
+        );
         assert_eq!(TriphaseFormat::from_format_name("CAdES"), None);
         assert!(!TriphaseFormat::CadesAsics.supports(CryptoOperation::CoSign));
         assert!(TriphaseFormat::XadesAsics.supports(CryptoOperation::CoSign));
@@ -521,13 +617,28 @@ mod tests {
         }
         assert_eq!(triphase_error_code("ERR-21", true).code, 300451);
         assert_eq!(triphase_error_code("ERR-99", false).code, 300452);
-        let e = server_error("ERR-9: Error realizando la prefirma: java.lang.IllegalArgumentException: Datos nulos", true, TriphaseFormat::Cades, &ExtraParams::new());
+        let e = server_error(
+            "ERR-9: Error realizando la prefirma: java.lang.IllegalArgumentException: Datos nulos",
+            true,
+            TriphaseFormat::Cades,
+            &ExtraParams::new(),
+        );
         assert_eq!(e.code.unwrap().code, 300417);
         assert_eq!(e.message, "Datos nulos");
-        let e = server_error("ERR-6: Formato erroneo", false, TriphaseFormat::Xades, &ExtraParams::new());
+        let e = server_error(
+            "ERR-6: Formato erroneo",
+            false,
+            TriphaseFormat::Xades,
+            &ExtraParams::new(),
+        );
         assert_eq!(e.code.unwrap().code, 300435);
         assert_eq!(e.message, "Formato erroneo");
-        let e = server_error("ERR-12: Error: java.lang.Exception", false, TriphaseFormat::Xades, &ExtraParams::new());
+        let e = server_error(
+            "ERR-12: Error: java.lang.Exception",
+            false,
+            TriphaseFormat::Xades,
+            &ExtraParams::new(),
+        );
         assert_eq!(e.code, None);
     }
 
@@ -541,7 +652,13 @@ mod tests {
         );
         assert_eq!(e.code.unwrap().code, 501007);
         match e.kind {
-            ErrorKind::NeedsIntervention { intervention: afirma_core::error::UserIntervention::Confirm { param, requestor_text, .. }, denied } => {
+            ErrorKind::NeedsIntervention {
+                intervention:
+                    afirma_core::error::UserIntervention::Confirm {
+                        param, requestor_text, ..
+                    },
+                denied,
+            } => {
                 assert_eq!(param, "allowSignLTSignature");
                 assert_eq!(requestor_text, "signingLts");
                 assert!(!denied);
@@ -549,10 +666,26 @@ mod tests {
             other => panic!("{other:?}"),
         }
         // Código no reconocido por el formato → 300451.
-        let e = server_error("ERR-21:xPathNotFound: x", true, TriphaseFormat::Cades, &ExtraParams::new());
+        let e = server_error(
+            "ERR-21:xPathNotFound: x",
+            true,
+            TriphaseFormat::Cades,
+            &ExtraParams::new(),
+        );
         assert_eq!(e.code.unwrap().code, 300451);
-        let e = server_error("ERR-21:pdfpasswordprotected: x", true, TriphaseFormat::Pades, &ExtraParams::new());
-        assert!(matches!(e.kind, ErrorKind::NeedsIntervention { intervention: afirma_core::error::UserIntervention::Password { .. }, .. }));
+        let e = server_error(
+            "ERR-21:pdfpasswordprotected: x",
+            true,
+            TriphaseFormat::Pades,
+            &ExtraParams::new(),
+        );
+        assert!(matches!(
+            e.kind,
+            ErrorKind::NeedsIntervention {
+                intervention: afirma_core::error::UserIntervention::Password { .. },
+                ..
+            }
+        ));
         assert_eq!(e.code.unwrap().code, 212005);
         let mut ep = ExtraParams::new();
         ep.set("ownerPassword", "x");
@@ -563,8 +696,14 @@ mod tests {
     #[test]
     fn postsign_ok_parsing() {
         assert_eq!(parse_postsign_ok(b"OK NEWID=SG9sYQ==\r\n").unwrap(), b"Hola");
-        assert_eq!(parse_postsign_ok(b"KO NEWID=SG9sYQ==").unwrap_err().code.unwrap().code, 300405);
-        assert_eq!(parse_postsign_ok(b"OK NEWID=SG9s+Q==").unwrap_err().code.unwrap().code, 300407);
+        assert_eq!(
+            parse_postsign_ok(b"KO NEWID=SG9sYQ==").unwrap_err().code.unwrap().code,
+            300405
+        );
+        assert_eq!(
+            parse_postsign_ok(b"OK NEWID=SG9s+Q==").unwrap_err().code.unwrap().code,
+            300407
+        );
         assert_eq!(parse_postsign_ok(b"OK").unwrap_err().code.unwrap().code, 300407);
         assert!(is_valid_java_url("https://x/SignatureService"));
         assert!(!is_valid_java_url("x"));

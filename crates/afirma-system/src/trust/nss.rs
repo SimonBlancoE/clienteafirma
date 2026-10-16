@@ -9,9 +9,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::softokn::{
-    CKT_NSS_MUST_VERIFY_TRUST, CKT_NSS_TRUSTED, CKT_NSS_TRUSTED_DELEGATOR, SoftoknSession,
-};
+use super::softokn::{CKT_NSS_MUST_VERIFY_TRUST, CKT_NSS_TRUSTED, CKT_NSS_TRUSTED_DELEGATOR, SoftoknSession};
 use super::{Change, TrustCheck, is_autofirma_cert};
 use crate::certs::{CA_CN, CERT_ALIAS, parse_cert_file};
 use crate::ctx::{Context, Os, UserHome};
@@ -132,12 +130,7 @@ pub const SHARED_NSS_DIRS: &[&str] = &[
 ];
 
 /// Descubre las bases NSS existentes de los usuarios indicados.
-pub fn discover(
-    ctx: &Context,
-    users: &[UserHome],
-    firefox_dbs: bool,
-    shared_dbs: bool,
-) -> Vec<NssDb> {
+pub fn discover(ctx: &Context, users: &[UserHome], firefox_dbs: bool, shared_dbs: bool) -> Vec<NssDb> {
     let mut out = Vec::new();
     if firefox_dbs {
         for p in firefox::discover_profiles(ctx, users) {
@@ -219,18 +212,13 @@ pub fn parse_certutil_list(out: &str) -> Vec<ListedCert> {
     let mut v = Vec::new();
     for line in out.lines() {
         let l = line.trim_end();
-        if l.is_empty()
-            || l.starts_with("Certificate Nickname")
-            || l.trim_start().starts_with("SSL,S/MIME")
-        {
+        if l.is_empty() || l.starts_with("Certificate Nickname") || l.trim_start().starts_with("SSL,S/MIME") {
             continue;
         }
         let Some((nick, trust)) = l.rsplit_once(char::is_whitespace) else {
             continue;
         };
-        if trust.matches(',').count() != 2
-            || !trust.chars().all(|c| c == ',' || c.is_ascii_alphabetic())
-        {
+        if trust.matches(',').count() != 2 || !trust.chars().all(|c| c == ',' || c.is_ascii_alphabetic()) {
             continue;
         }
         v.push(ListedCert {
@@ -276,11 +264,7 @@ fn pem_blocks(text: &str) -> Vec<Vec<u8>> {
 }
 
 /// Certificados de AutoFirma en la base (apodo, confianza, DER) vía `certutil`.
-fn certutil_autofirma_entries(
-    ctx: &Context,
-    bin: &Path,
-    db: &NssDb,
-) -> Result<Vec<(String, TrustFlags, Vec<u8>)>> {
+fn certutil_autofirma_entries(ctx: &Context, bin: &Path, db: &NssDb) -> Result<Vec<(String, TrustFlags, Vec<u8>)>> {
     let spec = db.spec();
     let out = certutil(ctx, bin, &["-L", "-d", &spec])?;
     if !out.success() {
@@ -302,10 +286,7 @@ fn certutil_autofirma_entries(
 }
 
 fn evaluate(entries: &[(TrustFlags, Vec<u8>)], ca_der: &[u8]) -> TrustCheck {
-    if entries
-        .iter()
-        .any(|(t, d)| d == ca_der && t.trusts_ssl_ca())
-    {
+    if entries.iter().any(|(t, d)| d == ca_der && t.trusts_ssl_ca()) {
         return TrustCheck::Trusted;
     }
     if entries.iter().any(|(_, d)| d == ca_der) {
@@ -355,9 +336,7 @@ fn remove_with(ctx: &Context, db: &NssDb, backend: &Backend, keep: Option<&[u8]>
             // Se repite porque cada -D borra una sola copia del apodo.
             for _ in 0..20 {
                 let entries = certutil_autofirma_entries(ctx, bin, db)?;
-                let Some((nick, _, _)) =
-                    entries.iter().find(|(_, _, d)| keep != Some(d.as_slice()))
-                else {
+                let Some((nick, _, _)) = entries.iter().find(|(_, _, d)| keep != Some(d.as_slice())) else {
                     break;
                 };
                 let o = certutil(ctx, bin, &["-D", "-d", &spec, "-n", nick])?;
@@ -373,8 +352,7 @@ fn remove_with(ctx: &Context, db: &NssDb, backend: &Backend, keep: Option<&[u8]>
         Backend::Softokn(lib) => {
             let s = SoftoknSession::open(lib, &db.dir, db.kind)?;
             for (h, label, der) in s.certificates()? {
-                if (label == CERT_ALIAS || is_autofirma_cert(&der)) && keep != Some(der.as_slice())
-                {
+                if (label == CERT_ALIAS || is_autofirma_cert(&der)) && keep != Some(der.as_slice()) {
                     s.remove(h, &der)?;
                     changed = true;
                 }
@@ -385,13 +363,7 @@ fn remove_with(ctx: &Context, db: &NssDb, backend: &Backend, keep: Option<&[u8]>
 }
 
 /// Instala la CA (retirando antes las CA de AutoFirma anteriores). Idempotente.
-pub fn install(
-    ctx: &Context,
-    db: &NssDb,
-    backend: &Backend,
-    ca_der: &[u8],
-    ca_file: &Path,
-) -> Result<Change> {
+pub fn install(ctx: &Context, db: &NssDb, backend: &Backend, ca_der: &[u8], ca_file: &Path) -> Result<Change> {
     let state = check(ctx, db, backend, ca_der);
     if let TrustCheck::Unknown(e) = &state {
         return Err(SystemError::TrustStore {
@@ -401,19 +373,10 @@ pub fn install(
     }
     let only_ours_ok = state == TrustCheck::Trusted;
     // Retirar CA antiguas (y la propia si estaba sin confianza).
-    let removed = remove_with(
-        ctx,
-        db,
-        backend,
-        if only_ours_ok { Some(ca_der) } else { None },
-    )?;
+    let removed = remove_with(ctx, db, backend, if only_ours_ok { Some(ca_der) } else { None })?;
     if only_ours_ok {
         fix_owner(ctx, db);
-        return Ok(if removed {
-            Change::Changed
-        } else {
-            Change::Unchanged
-        });
+        return Ok(if removed { Change::Changed } else { Change::Unchanged });
     }
     let flags = db.trust_flags();
     match backend {
@@ -421,11 +384,7 @@ pub fn install(
             let spec = db.spec();
             let file = ca_file.to_string_lossy();
             let t = flags.as_certutil();
-            let o = certutil(
-                ctx,
-                bin,
-                &["-A", "-d", &spec, "-n", CERT_ALIAS, "-t", &t, "-i", &file],
-            )?;
+            let o = certutil(ctx, bin, &["-A", "-d", &spec, "-n", CERT_ALIAS, "-t", &t, "-i", &file])?;
             if !o.success() {
                 let msg = if o.stdout.contains("Enter Password") || o.stderr.contains("password") {
                     "la base de datos está protegida con contraseña maestra".to_string()
@@ -451,25 +410,14 @@ pub fn install(
 pub fn remove(ctx: &Context, db: &NssDb, backend: &Backend) -> Result<Change> {
     let r = remove_with(ctx, db, backend, None)?;
     fix_owner(ctx, db);
-    Ok(if r {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if r { Change::Changed } else { Change::Unchanged })
 }
 
 fn fix_owner(ctx: &Context, db: &NssDb) {
     if ctx.elevated {
         fsutil::restore_owner_in_dir(
             &db.dir,
-            &[
-                "cert9.db",
-                "key4.db",
-                "pkcs11.txt",
-                "cert8.db",
-                "key3.db",
-                "secmod.db",
-            ],
+            &["cert9.db", "key4.db", "pkcs11.txt", "cert8.db", "key3.db", "secmod.db"],
         );
     }
 }
@@ -505,10 +453,7 @@ mod tests {
         let users = ctx.user_homes(false);
         let dbs = discover(&ctx, &users, true, true);
         assert_eq!(dbs.len(), 1);
-        assert_eq!(
-            dbs[0].spec(),
-            format!("sql:{}", home.join(".pki/nssdb").display())
-        );
+        assert_eq!(dbs[0].spec(), format!("sql:{}", home.join(".pki/nssdb").display()));
         assert_eq!(dbs[0].trust_flags().as_certutil(), "TCP,TCP,TCP");
     }
 }

@@ -21,7 +21,10 @@ pub struct SingleCertStore {
 impl SingleCertStore {
     pub fn open(path: &Path) -> Result<SingleCertStore, KeyStoreError> {
         let entries = load(path)?;
-        Ok(SingleCertStore { path: path.to_path_buf(), entries: RwLock::new(entries) })
+        Ok(SingleCertStore {
+            path: path.to_path_buf(),
+            entries: RwLock::new(entries),
+        })
     }
 }
 
@@ -29,14 +32,23 @@ fn load(path: &Path) -> Result<Vec<CertEntry>, KeyStoreError> {
     let data = std::fs::read(path).map_err(|_| KeyStoreError::FileNotFound(path.to_path_buf()))?;
     let certs = parse_certificates(&data);
     if certs.is_empty() {
-        return Err(KeyStoreError::load(KeyStoreKind::Single, "El fichero no contiene certificados X.509 ni PKCS#7"));
+        return Err(KeyStoreError::load(
+            KeyStoreKind::Single,
+            "El fichero no contiene certificados X.509 ni PKCS#7",
+        ));
     }
     let mut aliases = AliasSet::new();
     Ok(certs
         .into_iter()
         .map(|c| {
             let alias = aliases.unique(&afirma_core::cert::common_name(&c));
-            CertEntry::new(alias, c.clone(), vec![c], EntryCapabilities::default(), KeyStoreKind::Single.display_name())
+            CertEntry::new(
+                alias,
+                c.clone(),
+                vec![c],
+                EntryCapabilities::default(),
+                KeyStoreKind::Single.display_name(),
+            )
         })
         .collect())
 }
@@ -178,7 +190,13 @@ mod tests {
         if ok {
             let s = SingleCertStore::open(&p7b).unwrap();
             let aliases: Vec<String> = s.entries().unwrap().into_iter().map(|e| e.alias).collect();
-            assert_eq!(aliases, vec!["ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string(), "AC Raiz de Pruebas AutoFirma-rs".to_string()]);
+            assert_eq!(
+                aliases,
+                vec![
+                    "ESPAÑOL ESPAÑOL JUAN - 00000000T".to_string(),
+                    "AC Raiz de Pruebas AutoFirma-rs".to_string()
+                ]
+            );
         }
     }
 }

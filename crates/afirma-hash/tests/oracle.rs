@@ -4,8 +4,8 @@
 mod common;
 
 use afirma_hash::{
-    DigestAlgorithm, DirDocumentFormat, DocumentError, FileHashFormat, HashDocument, HashOptions,
-    check_directory, decode_file_hash, encode_file_hash, hash_directory, hash_file,
+    DigestAlgorithm, DirDocumentFormat, DocumentError, FileHashFormat, HashDocument, HashOptions, check_directory,
+    decode_file_hash, encode_file_hash, hash_directory, hash_file,
 };
 use common::{golden, make_tree, modify_tree, normalize};
 
@@ -80,31 +80,15 @@ fn huellas_de_fichero_identicas_a_java() {
     make_tree(tmp.path());
     let hola = tmp.path().join("sub/hola.txt");
     for (name, alg, format) in [
-        (
-            "java-hola-sha256.hexhash",
-            DigestAlgorithm::Sha256,
-            FileHashFormat::Hex,
-        ),
+        ("java-hola-sha256.hexhash", DigestAlgorithm::Sha256, FileHashFormat::Hex),
         (
             "java-hola-sha256.hashb64",
             DigestAlgorithm::Sha256,
             FileHashFormat::Base64,
         ),
-        (
-            "java-hola-sha256.hash",
-            DigestAlgorithm::Sha256,
-            FileHashFormat::Binary,
-        ),
-        (
-            "java-hola-sha1.hexhash",
-            DigestAlgorithm::Sha1,
-            FileHashFormat::Hex,
-        ),
-        (
-            "java-hola-sha384.hash",
-            DigestAlgorithm::Sha384,
-            FileHashFormat::Binary,
-        ),
+        ("java-hola-sha256.hash", DigestAlgorithm::Sha256, FileHashFormat::Binary),
+        ("java-hola-sha1.hexhash", DigestAlgorithm::Sha1, FileHashFormat::Hex),
+        ("java-hola-sha384.hash", DigestAlgorithm::Sha384, FileHashFormat::Binary),
         (
             "java-hola-sha512.hashb64",
             DigestAlgorithm::Sha512,
@@ -122,11 +106,7 @@ fn huellas_de_fichero_identicas_a_java() {
         );
     }
     // Fichero de 300 000 bytes (varias lecturas).
-    let digest = hash_file(
-        &tmp.path().join("sub/deep/grande.bin"),
-        DigestAlgorithm::Sha512,
-    )
-    .unwrap();
+    let digest = hash_file(&tmp.path().join("sub/deep/grande.bin"), DigestAlgorithm::Sha512).unwrap();
     assert_eq!(
         encode_file_hash(&digest, FileHashFormat::Hex),
         golden("java-grande-sha512.hexhash")
@@ -139,14 +119,8 @@ fn informes_identicos_a_java() {
     make_tree(tmp.path());
     modify_tree(tmp.path());
     for (doc, report) in [
-        (
-            "java-sha256-rec.hashfiles",
-            "java-report-sha256-rec.hashreport",
-        ),
-        (
-            "java-sha384-norec.txthashfiles",
-            "java-report-sha384-norec.hashreport",
-        ),
+        ("java-sha256-rec.hashfiles", "java-report-sha256-rec.hashreport"),
+        ("java-sha384-norec.txthashfiles", "java-report-sha384-norec.hashreport"),
     ] {
         let doc = HashDocument::parse(&golden(doc)).unwrap();
         let ours = check_directory(tmp.path(), &doc, &HashOptions::default()).unwrap();

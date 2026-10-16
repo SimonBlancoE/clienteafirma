@@ -8,7 +8,9 @@ use std::time::{Duration, Instant};
 
 use afirma_core::error::codes;
 use afirma_core::{AfirmaError, ExtraParams, SigningKey};
-use afirma_keystores::{CandidateOptions, CertEntry, CertFilterManager, KeyStore, KeyStoreKind, OpenOptions, StoreSpec, select_candidates};
+use afirma_keystores::{
+    CandidateOptions, CertEntry, CertFilterManager, KeyStore, KeyStoreKind, OpenOptions, StoreSpec, select_candidates,
+};
 use afirma_protocol::handler::{ProgressEvent, RequestInfo};
 use afirma_protocol::{KeyStoreParam, OperationKind};
 use eframe::egui;
@@ -93,7 +95,11 @@ fn view_info(info: Option<&RequestInfo>) -> ViewInfo {
         }
     });
     ViewInfo {
-        origin: info.and_then(|i| i.origin.display()).map(|o| o.trim_start_matches("https://").trim_start_matches("http://").to_string()),
+        origin: info.and_then(|i| i.origin.display()).map(|o| {
+            o.trim_start_matches("https://")
+                .trim_start_matches("http://")
+                .to_string()
+        }),
         op,
         format: info.and_then(|i| i.format.clone()),
         file_name: info.and_then(|i| i.file_name.clone()),
@@ -107,7 +113,11 @@ fn view_info(info: Option<&RequestInfo>) -> ViewInfo {
 fn store_spec(param: Option<&KeyStoreParam>, default: StoreSpec) -> StoreSpec {
     let Some(p) = param else { return default };
     match p.resolved_constant().and_then(KeyStoreKind::from_id) {
-        Some(kind) => StoreSpec { kind, lib: p.library.clone(), card_name: None },
+        Some(kind) => StoreSpec {
+            kind,
+            lib: p.library.clone(),
+            card_name: None,
+        },
         None => default,
     }
 }
@@ -124,8 +134,12 @@ impl AutoFirmaApp {
                     if let Some(r) = self.request.as_mut() {
                         match ev {
                             ProgressEvent::Signing => r.stage = RequestStage::Working(tr("Firmando…").into()),
-                            ProgressEvent::CheckingSignatures => r.stage = RequestStage::Working(tr("Comprobando las firmas del documento…").into()),
-                            ProgressEvent::LoadingKeyStore => r.stage = RequestStage::Working(tr("Cargando los certificados…").into()),
+                            ProgressEvent::CheckingSignatures => {
+                                r.stage = RequestStage::Working(tr("Comprobando las firmas del documento…").into())
+                            }
+                            ProgressEvent::LoadingKeyStore => {
+                                r.stage = RequestStage::Working(tr("Cargando los certificados…").into())
+                            }
                             ProgressEvent::Hide => {
                                 if matches!(r.stage, RequestStage::Working(_)) {
                                     r.stage = RequestStage::Done(tr("Operación completada").into());
@@ -139,9 +153,10 @@ impl AutoFirmaApp {
                     EXIT_CODE.store(code, Ordering::SeqCst);
                     proto.finished_at = Some(Instant::now());
                     if let Some(r) = self.request.as_mut()
-                        && !matches!(r.stage, RequestStage::Failed(_)) {
-                            r.stage = RequestStage::Done(tr("Operación completada").into());
-                        }
+                        && !matches!(r.stage, RequestStage::Failed(_))
+                    {
+                        r.stage = RequestStage::Done(tr("Operación completada").into());
+                    }
                 }
                 Ok(ProtocolUiRequest::Error { title, message }) => {
                     let mut r = self.request.take().unwrap_or_else(|| RequestView::new(view_info(None)));
@@ -186,7 +201,13 @@ impl AutoFirmaApp {
         let Some(proto) = self.proto.as_mut() else { return };
         let Some(req) = proto.pending.take() else { return };
         match req {
-            ProtocolUiRequest::SelectCertificate { info, extra, keystore, restrict_to, reply } => {
+            ProtocolUiRequest::SelectCertificate {
+                info,
+                extra,
+                keystore,
+                restrict_to,
+                reply,
+            } => {
                 let mut view = RequestView::new(view_info(info.as_ref()));
                 view.picker.stores = crate::services::certs::store_options();
                 view.picker.loading = true;
@@ -196,7 +217,9 @@ impl AutoFirmaApp {
                 proto.cert_reply = Some(reply);
                 proto.cert_request = Some((extra.clone(), restrict_to));
                 let bridge = self.rt.bridge.clone();
-                proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| load_candidates(&spec, &extra, bridge)));
+                proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| {
+                    load_candidates(&spec, &extra, bridge)
+                }));
             }
             ProtocolUiRequest::ChooseFile { req, reply } => {
                 let mut dlg = crate::services::desktop::file_dialog().set_title(&req.title);
@@ -210,7 +233,10 @@ impl AutoFirmaApp {
                 let r = match picked {
                     Some(p) => std::fs::read(&p)
                         .map(|data| afirma_protocol::FileData {
-                            name: p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                            name: p
+                                .file_name()
+                                .map(|n| n.to_string_lossy().into_owned())
+                                .unwrap_or_default(),
                             data,
                         })
                         .map_err(|e| AfirmaError::new(codes::LOADING_LOCAL_FILE_ERROR, e.to_string())),
@@ -218,7 +244,13 @@ impl AutoFirmaApp {
                 };
                 let _ = reply.send(r);
             }
-            ProtocolUiRequest::SaveFile { title, data, proposed_name, extensions, reply } => {
+            ProtocolUiRequest::SaveFile {
+                title,
+                data,
+                proposed_name,
+                extensions,
+                reply,
+            } => {
                 let mut dlg = crate::services::desktop::file_dialog().set_title(&title);
                 if let Some(n) = &proposed_name {
                     dlg = dlg.set_file_name(n);
@@ -227,7 +259,9 @@ impl AutoFirmaApp {
                     dlg = dlg.add_filter(tr("Ficheros"), exts);
                 }
                 let r = match dlg.save_file() {
-                    Some(p) => std::fs::write(&p, &data).map_err(|e| AfirmaError::new(codes::CANT_SAVE_FILE, e.to_string())),
+                    Some(p) => {
+                        std::fs::write(&p, &data).map_err(|e| AfirmaError::new(codes::CANT_SAVE_FILE, e.to_string()))
+                    }
                     None => Err(AfirmaError::cancelled()),
                 };
                 let _ = reply.send(r);
@@ -240,14 +274,20 @@ impl AutoFirmaApp {
                 if let Some(exts) = &req.extensions {
                     dlg = dlg.add_filter(req.description.as_deref().unwrap_or(tr("Ficheros")), exts);
                 }
-                let picked: Option<Vec<std::path::PathBuf>> =
-                    if req.multiple { dlg.pick_files() } else { dlg.pick_file().map(|p| vec![p]) };
+                let picked: Option<Vec<std::path::PathBuf>> = if req.multiple {
+                    dlg.pick_files()
+                } else {
+                    dlg.pick_file().map(|p| vec![p])
+                };
                 let r = match picked {
                     Some(paths) => paths
                         .into_iter()
                         .map(|p| {
                             std::fs::read(&p).map(|data| afirma_protocol::FileData {
-                                name: p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                                name: p
+                                    .file_name()
+                                    .map(|n| n.to_string_lossy().into_owned())
+                                    .unwrap_or_default(),
                                 data,
                             })
                         })
@@ -264,23 +304,26 @@ impl AutoFirmaApp {
             ProtocolUiRequest::Password { message, reply } => {
                 proto.pending = Some(ProtocolUiRequest::Password { message, reply });
             }
-            ProtocolUiRequest::VisibleSignature { data, custom, mandatory, reply } => {
-                match crate::services::pdf_pages::PdfPages::open(&data, None) {
-                    Ok(pages) => {
-                        self.visible_sig.custom_appearance = custom;
-                        self.visible_sig.mandatory = mandatory;
-                        self.visible_sig.signature_enabled = true;
-                        self.visible_sig.stamp_enabled = false;
-                        self.visible_sig.multi_document = false;
-                        self.visible_sig.empty_fields.clear();
-                        self.visible_sig.open_with(tr("Documento PDF"), Arc::new(pages));
-                        proto.visible_reply = Some(reply);
-                    }
-                    Err(_) => {
-                        let _ = reply.send(Ok(None));
-                    }
+            ProtocolUiRequest::VisibleSignature {
+                data,
+                custom,
+                mandatory,
+                reply,
+            } => match crate::services::pdf_pages::PdfPages::open(&data, None) {
+                Ok(pages) => {
+                    self.visible_sig.custom_appearance = custom;
+                    self.visible_sig.mandatory = mandatory;
+                    self.visible_sig.signature_enabled = true;
+                    self.visible_sig.stamp_enabled = false;
+                    self.visible_sig.multi_document = false;
+                    self.visible_sig.empty_fields.clear();
+                    self.visible_sig.open_with(tr("Documento PDF"), Arc::new(pages));
+                    proto.visible_reply = Some(reply);
                 }
-            }
+                Err(_) => {
+                    let _ = reply.send(Ok(None));
+                }
+            },
             other => proto.pending = Some(other),
         }
     }
@@ -298,8 +341,11 @@ impl AutoFirmaApp {
                                 loaded.entries.retain(|e| &e.certificate == only);
                             }
                             view.picker.store_label = loaded.label.clone();
-                            let items: Vec<CertItem> =
-                                loaded.entries.iter().filter_map(|e| CertItem::from_der(e.id.clone(), e.certificate.clone())).collect();
+                            let items: Vec<CertItem> = loaded
+                                .entries
+                                .iter()
+                                .filter_map(|e| CertItem::from_der(e.id.clone(), e.certificate.clone()))
+                                .collect();
                             view.picker.open_with(loaded.label.clone(), items);
                             if loaded.entries.is_empty() {
                                 if let Some(reply) = proto.cert_reply.take() {
@@ -353,12 +399,13 @@ impl AutoFirmaApp {
         match event {
             Some(RequestEvent::Accept(i)) => {
                 if let Some(c) = &proto.candidates
-                    && let Some(e) = c.entries.get(i) {
-                        proto.key_job = Some(spawn_key_job(ctx, c.store.clone(), e.id.clone()));
-                        if let Some(v) = self.request.as_mut() {
-                            v.stage = RequestStage::Working(tr("Accediendo a la clave…").into());
-                        }
+                    && let Some(e) = c.entries.get(i)
+                {
+                    proto.key_job = Some(spawn_key_job(ctx, c.store.clone(), e.id.clone()));
+                    if let Some(v) = self.request.as_mut() {
+                        v.stage = RequestStage::Working(tr("Accediendo a la clave…").into());
                     }
+                }
             }
             Some(RequestEvent::Cancel) => {
                 if let Some(reply) = proto.cert_reply.take() {
@@ -376,11 +423,17 @@ impl AutoFirmaApp {
             }
             Some(RequestEvent::Picker(super::cert_picker::PickerEvent::Refresh)) => {
                 if let (Some(c), Some((extra, _))) = (&proto.candidates, &proto.cert_request) {
-                    let spec = StoreSpec { kind: c.store.kind(), lib: c.store.lib_name(), card_name: None };
+                    let spec = StoreSpec {
+                        kind: c.store.kind(),
+                        lib: c.store.lib_name(),
+                        card_name: None,
+                    };
                     let bridge = self.rt.bridge.clone();
                     let extra = extra.clone();
                     let _ = c.store.refresh();
-                    proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| load_candidates(&spec, &extra, bridge)));
+                    proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| {
+                        load_candidates(&spec, &extra, bridge)
+                    }));
                     if let Some(v) = self.request.as_mut() {
                         v.picker.loading = true;
                     }
@@ -388,19 +441,26 @@ impl AutoFirmaApp {
             }
             Some(RequestEvent::Picker(super::cert_picker::PickerEvent::ChangeStore(id))) => {
                 let lib = if id == "PKCS12" {
-                    crate::services::desktop::file_dialog().add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"]).pick_file().map(|p| p.display().to_string())
+                    crate::services::desktop::file_dialog()
+                        .add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"])
+                        .pick_file()
+                        .map(|p| p.display().to_string())
                 } else {
                     None
                 };
                 if (id != "PKCS12" || lib.is_some())
-                    && let (Some(spec), Some((extra, _))) = (crate::services::certs::spec_for(&id, lib), &proto.cert_request) {
-                        let bridge = self.rt.bridge.clone();
-                        let extra = extra.clone();
-                        proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| load_candidates(&spec, &extra, bridge)));
-                        if let Some(v) = self.request.as_mut() {
-                            v.picker.loading = true;
-                        }
+                    && let (Some(spec), Some((extra, _))) =
+                        (crate::services::certs::spec_for(&id, lib), &proto.cert_request)
+                {
+                    let bridge = self.rt.bridge.clone();
+                    let extra = extra.clone();
+                    proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| {
+                        load_candidates(&spec, &extra, bridge)
+                    }));
+                    if let Some(v) = self.request.as_mut() {
+                        v.picker.loading = true;
                     }
+                }
             }
             _ => {}
         }
@@ -408,7 +468,15 @@ impl AutoFirmaApp {
         let (enter, esc) = ctx.input(|i| (i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::Escape)));
         match proto.pending.take() {
             Some(ProtocolUiRequest::Confirm { message, reply }) => {
-                match super::dialogs::confirm_modal(ctx, &p, tr("Confirmación necesaria"), &message, tr("Continuar"), false, esc) {
+                match super::dialogs::confirm_modal(
+                    ctx,
+                    &p,
+                    tr("Confirmación necesaria"),
+                    &message,
+                    tr("Continuar"),
+                    false,
+                    esc,
+                ) {
                     Some(b) => {
                         let _ = reply.send(b);
                     }
@@ -474,14 +542,29 @@ fn show_window(ctx: &egui::Context, proto: &mut ProtocolState) {
     }
 }
 
-fn spawn_key_job(ctx: &egui::Context, store: Arc<dyn KeyStore>, id: String) -> Job<(), Result<Arc<dyn SigningKey>, AfirmaError>> {
+fn spawn_key_job(
+    ctx: &egui::Context,
+    store: Arc<dyn KeyStore>,
+    id: String,
+) -> Job<(), Result<Arc<dyn SigningKey>, AfirmaError>> {
     Job::spawn(ctx, "clave", move |_| {
-        store.signing_key(&id).map(|k| -> Arc<dyn SigningKey> { Arc::from(k) }).map_err(AfirmaError::from)
+        store
+            .signing_key(&id)
+            .map(|k| -> Arc<dyn SigningKey> { Arc::from(k) })
+            .map_err(AfirmaError::from)
     })
 }
 
-fn load_candidates(spec: &StoreSpec, extra: &ExtraParams, bridge: crate::services::bridge::UiBridge) -> Result<LoadedCandidates, String> {
-    let opts = OpenOptions { load_all_external_modules: true, dedup_all: true, ..OpenOptions::new(Arc::new(bridge)) };
+fn load_candidates(
+    spec: &StoreSpec,
+    extra: &ExtraParams,
+    bridge: crate::services::bridge::UiBridge,
+) -> Result<LoadedCandidates, String> {
+    let opts = OpenOptions {
+        load_all_external_modules: true,
+        dedup_all: true,
+        ..OpenOptions::new(Arc::new(bridge))
+    };
     let store = afirma_keystores::open_store(spec, &opts).map_err(|e| e.to_string())?;
     let all = store.entries().map_err(|e| e.to_string())?;
     let manager = CertFilterManager::from_extra_params(extra).map_err(|e| e.to_string())?;

@@ -64,18 +64,9 @@ pub fn xml_signature_uri(name: &str) -> Option<&'static str> {
         | "SHA-1withRSAEncryption"
         | "SHAwithRSAEncryption"
         | "SHAwithRSA" => RSA1,
-        "SHA256withRSA"
-        | "SHA-256withRSA"
-        | "SHA256withRSAEncryption"
-        | "SHA-256withRSAEncryption" => RSA256,
-        "SHA384withRSA"
-        | "SHA-384withRSA"
-        | "SHA384withRSAEncryption"
-        | "SHA-384withRSAEncryption" => RSA384,
-        "SHA512withRSA"
-        | "SHA-512withRSA"
-        | "SHA512withRSAEncryption"
-        | "SHA-512withRSAEncryption" => RSA512,
+        "SHA256withRSA" | "SHA-256withRSA" | "SHA256withRSAEncryption" | "SHA-256withRSAEncryption" => RSA256,
+        "SHA384withRSA" | "SHA-384withRSA" | "SHA384withRSAEncryption" | "SHA-384withRSAEncryption" => RSA384,
+        "SHA512withRSA" | "SHA-512withRSA" | "SHA512withRSAEncryption" | "SHA-512withRSAEncryption" => RSA512,
         "SHA1withECDSA"
         | "ECDSA"
         | "SHA-1withECDSA"
@@ -83,22 +74,10 @@ pub fn xml_signature_uri(name: &str) -> Option<&'static str> {
         | "SHA-1withECDSAEncryption"
         | "SHAwithECDSAEncryption"
         | "SHAwithECDSA" => EC1,
-        "SHA224withECDSA"
-        | "SHA-224withECDSA"
-        | "SHA224withECDSAEncryption"
-        | "SHA-224withECDSAEncryption" => EC224,
-        "SHA256withECDSA"
-        | "SHA-256withECDSA"
-        | "SHA256withECDSAEncryption"
-        | "SHA-256withECDSAEncryption" => EC256,
-        "SHA384withECDSA"
-        | "SHA-384withECDSA"
-        | "SHA384withECDSAEncryption"
-        | "SHA-384withECDSAEncryption" => EC384,
-        "SHA512withECDSA"
-        | "SHA-512withECDSA"
-        | "SHA512withECDSAEncryption"
-        | "SHA-512withECDSAEncryption" => EC512,
+        "SHA224withECDSA" | "SHA-224withECDSA" | "SHA224withECDSAEncryption" | "SHA-224withECDSAEncryption" => EC224,
+        "SHA256withECDSA" | "SHA-256withECDSA" | "SHA256withECDSAEncryption" | "SHA-256withECDSAEncryption" => EC256,
+        "SHA384withECDSA" | "SHA-384withECDSA" | "SHA384withECDSAEncryption" | "SHA-384withECDSAEncryption" => EC384,
+        "SHA512withECDSA" | "SHA-512withECDSA" | "SHA512withECDSAEncryption" | "SHA-512withECDSAEncryption" => EC512,
         _ => return None,
     })
 }
@@ -110,10 +89,7 @@ pub fn xml_signature_uri(name: &str) -> Option<&'static str> {
 /// o es solo una huella (`SHA256`), se compone con el tipo de la clave como
 /// hace `AOSignConstants.composeSignatureAlgorithmName` (desviación
 /// documentada: en Java la firma fallaría).
-pub fn resolve_algorithm(
-    name: &str,
-    key: KeyAlgorithm,
-) -> afirma_core::Result<(String, SignatureAlgorithm)> {
+pub fn resolve_algorithm(name: &str, key: KeyAlgorithm) -> afirma_core::Result<(String, SignatureAlgorithm)> {
     let unsupported = || {
         AfirmaError::new(
             codes::UNSUPPORTED_SIGNATURE_ALGORITHM,
@@ -129,8 +105,7 @@ pub fn resolve_algorithm(
     if key == KeyAlgorithm::Dsa {
         return Err(unsupported());
     }
-    let alg = afirma_core::algorithms::compose_signature_algorithm(name, key)
-        .map_err(|_| unsupported())?;
+    let alg = afirma_core::algorithms::compose_signature_algorithm(name, key).map_err(|_| unsupported())?;
     let uri = xml_signature_uri(&alg.java_name()).ok_or_else(unsupported)?;
     Ok((uri.to_string(), alg))
 }
@@ -189,10 +164,7 @@ impl Assembly {
     pub fn render(&self, ph: &mut Placeholders) -> String {
         let ds = &self.ds;
         let mut refs = self.data_refs.clone();
-        let mut sp = ReferenceSpec::new(
-            format!("#{}-SignedProperties", self.sig_prefix),
-            &self.digest_uri,
-        );
+        let mut sp = ReferenceSpec::new(format!("#{}-SignedProperties", self.sig_prefix), &self.digest_uri);
         sp.ty = Some(self.signed_props_type.clone());
         refs.push(sp);
         if self.keyinfo_reference {
@@ -320,11 +292,7 @@ impl Signer for XadesSigner {
         multi::countersign(sign, algorithm, target, key, extra)
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         info::signers_structure(sign)
     }
 
@@ -337,11 +305,7 @@ impl Signer for XadesSigner {
     }
 
     fn signed_name(&self, original: Option<&str>, in_text: Option<&str>) -> String {
-        format!(
-            "{}{}.xsig",
-            original.unwrap_or("null"),
-            in_text.unwrap_or("")
-        )
+        format!("{}{}.xsig", original.unwrap_or("null"), in_text.unwrap_or(""))
     }
 
     fn get_data(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<Option<Vec<u8>>> {
@@ -360,9 +324,7 @@ mod tests {
     #[test]
     fn algorithm_table() {
         assert_eq!(
-            resolve_algorithm("SHA256withRSA", KeyAlgorithm::Rsa)
-                .unwrap()
-                .0,
+            resolve_algorithm("SHA256withRSA", KeyAlgorithm::Rsa).unwrap().0,
             "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
         );
         assert_eq!(
@@ -370,15 +332,10 @@ mod tests {
             "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
         );
         assert_eq!(
-            resolve_algorithm("SHA256withRSA", KeyAlgorithm::Ec)
-                .unwrap()
-                .0,
+            resolve_algorithm("SHA256withRSA", KeyAlgorithm::Ec).unwrap().0,
             "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"
         );
         assert!(resolve_algorithm("SHA1withDSA", KeyAlgorithm::Dsa).is_err());
-        assert_eq!(
-            canonical_format("xades enveloping"),
-            Some(FORMAT_ENVELOPING)
-        );
+        assert_eq!(canonical_format("xades enveloping"), Some(FORMAT_ENVELOPING));
     }
 }

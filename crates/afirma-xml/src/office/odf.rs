@@ -69,8 +69,7 @@ pub fn is_odf(data: &[u8]) -> bool {
 
 /// `isSign`: documento ODF con `META-INF/documentsignatures.xml`.
 pub fn is_signed_odf(data: &[u8]) -> bool {
-    is_odf(data)
-        && crate::mime::zip_names(data).is_some_and(|n| n.iter().any(|x| x == SIGNATURES_PATH))
+    is_odf(data) && crate::mime::zip_names(data).is_some_and(|n| n.iter().any(|x| x == SIGNATURES_PATH))
 }
 
 /// C14N inclusiva del elemento raíz de un XML (`OdfXmlUtil.canonicalizeXml`).
@@ -103,9 +102,7 @@ fn sign_odf(
     policy: OdfAlgorithmPolicy,
 ) -> afirma_core::Result<Vec<u8>> {
     check_size(data)?;
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD).to_string();
     let oo31 = p.get_bool("useOpenOffice31Mode", false);
     if !is_odf(data) {
         return Err(AfirmaError::new(
@@ -121,27 +118,18 @@ fn sign_odf(
         other => {
             return Err(AfirmaError::new(
                 codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
-                format!(
-                    "No se ha podido obtener un generador de huellas digitales con el algoritmo {other}"
-                ),
+                format!("No se ha podido obtener un generador de huellas digitales con el algoritmo {other}"),
             ));
         }
     };
     if dsig::digest_from_uri(&digest_uri).is_none() {
         return Err(AfirmaError::new(
             codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
-            format!(
-                "La URI indicada no se asocia a un algoritmo de huella soportado : {digest_uri}"
-            ),
+            format!("La URI indicada no se asocia a un algoritmo de huella soportado : {digest_uri}"),
         ));
     }
     let entries = read_zip(data, codes::ODF_DOCUMENT_NEEDED)?;
-    let get = |name: &str| {
-        entries
-            .iter()
-            .find(|e| e.name == name)
-            .map(|e| e.data.clone())
-    };
+    let get = |name: &str| entries.iter().find(|e| e.name == name).map(|e| e.data.clone());
     let unknown = |m: String| {
         AfirmaError::new(
             codes::UNKWNON_ODF_SIGNING_ERROR,
@@ -199,18 +187,13 @@ fn sign_odf(
         if full_path.ends_with('/') {
             continue;
         }
-        let content = get(&full_path)
-            .ok_or_else(|| unknown(format!("no se encuentra la entrada {full_path}")))?;
+        let content = get(&full_path).ok_or_else(|| unknown(format!("no se encuentra la entrada {full_path}")))?;
         let uri = full_path.replace(' ', "%20");
         let r = if matches!(
             full_path.as_str(),
             "content.xml" | "meta.xml" | "styles.xml" | "settings.xml"
         ) {
-            mk(
-                &uri,
-                c14n_t.clone(),
-                digest.digest(&canonical_root(&content)?),
-            )
+            mk(&uri, c14n_t.clone(), digest.digest(&canonical_root(&content)?))
         } else {
             mk(&uri, vec![], digest.digest(&content))
         };
@@ -226,8 +209,7 @@ fn sign_odf(
     }
     let mut manifest_out = manifest_data.clone();
     let sig_container: Document = if cofirm {
-        let bytes =
-            existing.ok_or_else(|| unknown("no se encuentra el fichero de firmas".into()))?;
+        let bytes = existing.ok_or_else(|| unknown("no se encuentra el fichero de firmas".into()))?;
         Document::parse_bytes(&bytes).map(|(d, _)| d).map_err(|e| {
             AfirmaError::new(
                 codes::INTERNAL_ODF_SIGNING_ERROR,
@@ -240,11 +222,7 @@ fn sign_odf(
             let text = splice::insert_last_child(&manifest_doc, mroot, extra);
             let d = Document::parse(&text).map_err(|e| unknown(e.to_string()))?;
             let root = d.document_element().expect("raíz");
-            manifest_out = format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>{}",
-                d.node_source(root)
-            )
-            .into_bytes();
+            manifest_out = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>{}", d.node_source(root)).into_bytes();
         }
         Document::parse(&format!(
             "<document-signatures xmlns=\"{OPENOFFICE_NS}\"></document-signatures>"
@@ -272,21 +250,11 @@ fn sign_odf(
     };
     let ds = DsNames::new("");
     let cert = key.certificate();
-    let subject = CertNames::from_der(cert)
-        .map(|n| n.subject_rfc2253)
-        .unwrap_or_default();
+    let subject = CertNames::from_der(cert).map(|n| n.subject_rfc2253).unwrap_or_default();
     let mut ph = Placeholders::new();
-    let mut sig = format!(
-        "<Signature xmlns=\"{DSIG_NS}\" Id=\"{}\">",
-        esc_attr(&signature_id)
-    );
-    sig.push_str(&dsig::render_signed_info(
-        &ds, C14N_10, &sig_uri, &refs, &mut ph,
-    ));
-    sig.push_str(&format!(
-        "<SignatureValue>{}</SignatureValue>",
-        ph.signature_value()
-    ));
+    let mut sig = format!("<Signature xmlns=\"{DSIG_NS}\" Id=\"{}\">", esc_attr(&signature_id));
+    sig.push_str(&dsig::render_signed_info(&ds, C14N_10, &sig_uri, &refs, &mut ph));
+    sig.push_str(&format!("<SignatureValue>{}</SignatureValue>", ph.signature_value()));
     sig.push_str(&format!(
         "<KeyInfo><X509Data><X509SubjectName>{}</X509SubjectName><X509Certificate>{}</X509Certificate></X509Data></KeyInfo>",
         esc_text(&subject),
@@ -348,23 +316,12 @@ fn signers_odf(sign: &[u8]) -> afirma_core::Result<SignersTree> {
     let sigs = doc.find_descendants(doc.root(), DSIG_NS, "Signature");
     let mut nodes: Vec<(String, String, SignerNode)> = Vec::new(); // (id, parent id, nodo)
     for s in sigs {
-        let id = doc
-            .element(s)
-            .and_then(|e| e.attr("Id"))
-            .unwrap_or("")
-            .to_string();
-        let first_ref = doc
-            .find_descendants(s, DSIG_NS, "Reference")
-            .into_iter()
-            .next();
+        let id = doc.element(s).and_then(|e| e.attr("Id")).unwrap_or("").to_string();
+        let first_ref = doc.find_descendants(s, DSIG_NS, "Reference").into_iter().next();
         let parent = match first_ref.and_then(|r| doc.element(r)) {
-            Some(r)
-                if r.attr("Type") == Some("http://uri.etsi.org/01903#CountersignedSignature") =>
-            {
+            Some(r) if r.attr("Type") == Some("http://uri.etsi.org/01903#CountersignedSignature") => {
                 let uri = r.attr("URI").unwrap_or("");
-                uri.get(1..uri.len().saturating_sub(5))
-                    .unwrap_or("")
-                    .to_string()
+                uri.get(1..uri.len().saturating_sub(5)).unwrap_or("").to_string()
             }
             _ => String::new(),
         };
@@ -385,21 +342,15 @@ fn signers_odf(sign: &[u8]) -> afirma_core::Result<SignersTree> {
         let mut is_root = vec![true; nodes.len()];
         for (i, n) in nodes.iter().enumerate() {
             if !n.1.is_empty()
-                && let Some(pi) = ids.iter().position(|x| *x == n.1) {
-                    children[pi].push(i);
-                    is_root[i] = false;
-                }
+                && let Some(pi) = ids.iter().position(|x| *x == n.1)
+            {
+                children[pi].push(i);
+                is_root[i] = false;
+            }
         }
-        fn build(
-            i: usize,
-            nodes: &[(String, String, SignerNode)],
-            children: &[Vec<usize>],
-        ) -> SignerNode {
+        fn build(i: usize, nodes: &[(String, String, SignerNode)], children: &[Vec<usize>]) -> SignerNode {
             let mut n = nodes[i].2.clone();
-            n.countersigners = children[i]
-                .iter()
-                .map(|&c| build(c, nodes, children))
-                .collect();
+            n.countersigners = children[i].iter().map(|&c| build(c, nodes, children)).collect();
             n
         }
         for (i, root) in is_root.iter().enumerate() {
@@ -453,11 +404,7 @@ impl Signer for OdfSigner {
         ))
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         signers_odf(sign)
     }
 
@@ -521,11 +468,9 @@ pub fn package_resolver(package: &[u8]) -> impl Fn(&str) -> Option<dsig::Externa
 /// `ds:Signature` de `META-INF/documentsignatures.xml`, si el valor de firma
 /// y todas sus referencias son correctos.
 pub fn verify_package(package: &[u8]) -> afirma_core::Result<Vec<bool>> {
-    let bad =
-        |e: String| AfirmaError::invalid_signature_format(format!("Firma ODF no valida: {e}"));
-    let xml = crate::mime::zip_entry(package, SIGNATURES_PATH).ok_or_else(|| {
-        AfirmaError::invalid_signature_format("El documento ODF no contiene firmas")
-    })?;
+    let bad = |e: String| AfirmaError::invalid_signature_format(format!("Firma ODF no valida: {e}"));
+    let xml = crate::mime::zip_entry(package, SIGNATURES_PATH)
+        .ok_or_else(|| AfirmaError::invalid_signature_format("El documento ODF no contiene firmas"))?;
     let (doc, _) = Document::parse_bytes(&xml).map_err(|e| bad(e.to_string()))?;
     let resolver = package_resolver(package);
     let mut out = Vec::new();

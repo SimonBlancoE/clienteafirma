@@ -9,8 +9,8 @@ use std::sync::Arc;
 use afirma_core::algorithms::compose_signature_algorithm;
 use afirma_core::error::codes;
 use afirma_core::{
-    AfirmaError, CounterSignTarget, DigestAlgorithm, ExtraParams, SignInfo, SignatureAlgorithm,
-    Signer, SignerNode, SignersTree, SigningKey, SimpleSignInfo,
+    AfirmaError, CounterSignTarget, DigestAlgorithm, ExtraParams, SignInfo, SignatureAlgorithm, Signer, SignerNode,
+    SignersTree, SigningKey, SimpleSignInfo,
 };
 
 use crate::cms::{self, CommitmentType, SigPolicy, SignedAttrsConfig};
@@ -132,9 +132,10 @@ impl PadesSigner {
         let ts_type = xp.get(TS_TYPE).unwrap_or("").trim().to_string();
         let mut data = data.to_vec();
         if let Some(tp) = &tsa
-            && (ts_type == "2" || ts_type == "3") {
-                data = self.document_timestamp(&data, &xp, &sign_time, tp)?;
-            }
+            && (ts_type == "2" || ts_type == "3")
+        {
+            data = self.document_timestamp(&data, &xp, &sign_time, tp)?;
+        }
         let pre = self.presign(&data, alg, &chain, sign_time, &xp)?;
         let pkcs1 = key.sign(&pre.signed_attributes, alg)?;
         match cms::verify_signature(&chain[0], alg.digest, &pre.signed_attributes, &pkcs1) {
@@ -207,10 +208,7 @@ impl PadesSigner {
     ) -> Result<Vec<u8>, AfirmaError> {
         let mut cms = pre.builder.assemble(&pre.signed_attributes, pkcs1)?;
         if let Some(tp) = tsa {
-            let ts = Timestamper::with_transport(
-                tp.clone(),
-                Box::new(SharedTransport(self.transport.clone())),
-            );
+            let ts = Timestamper::with_transport(tp.clone(), Box::new(SharedTransport(self.transport.clone())));
             match ts.add_timestamp(&cms) {
                 Ok(c) => cms = c,
                 Err(e) => {
@@ -240,20 +238,15 @@ impl PadesSigner {
             secure_mode: self.secure_mode,
             kind: SigKind::DocTimeStamp,
         })?;
-        let ts = Timestamper::with_transport(
-            tp.clone(),
-            Box::new(SharedTransport(self.transport.clone())),
-        );
+        let ts = Timestamper::with_transport(tp.clone(), Box::new(SharedTransport(self.transport.clone())));
         let digest = tp.hash_algorithm;
-        let token = ts
-            .get_timestamp_token(&prepared.digest(digest), digest)
-            .map_err(|e| {
-                AfirmaError::new(
-                    e.effective_code(),
-                    "Error en la composicion del sello de tiempo de la firma",
-                )
-                .with_cause(e)
-            })?;
+        let token = ts.get_timestamp_token(&prepared.digest(digest), digest).map_err(|e| {
+            AfirmaError::new(
+                e.effective_code(),
+                "Error en la composicion del sello de tiempo de la firma",
+            )
+            .with_cause(e)
+        })?;
         let _ = millis(sign_time);
         prepared.fill(&token)
     }
@@ -263,9 +256,7 @@ impl PadesSigner {
 pub fn sign_time_param(xp: &ExtraParams) -> SignTime {
     match xp.get(SIGN_TIME) {
         Some(v) => parse_sign_time(v).unwrap_or_else(|| {
-            tracing::error!(
-                "No se ha podido interpretar la fecha de firma '{v}'; se usara la actual"
-            );
+            tracing::error!("No se ha podido interpretar la fecha de firma '{v}'; se usara la actual");
             now()
         }),
         None => now(),
@@ -273,26 +264,19 @@ pub fn sign_time_param(xp: &ExtraParams) -> SignTime {
 }
 
 /// Configuración de los atributos firmados a partir de los parámetros.
-pub fn signed_attrs_config(
-    alg: SignatureAlgorithm,
-    xp: &ExtraParams,
-) -> Result<SignedAttrsConfig, AfirmaError> {
+pub fn signed_attrs_config(alg: SignatureAlgorithm, xp: &ExtraParams) -> Result<SignedAttrsConfig, AfirmaError> {
     let v2 = if matches!(
         alg.digest,
         DigestAlgorithm::Sha256 | DigestAlgorithm::Sha384 | DigestAlgorithm::Sha512
-    ) && matches!(
-        alg.key,
-        afirma_core::KeyAlgorithm::Rsa | afirma_core::KeyAlgorithm::Ec
-    ) {
+    ) && matches!(alg.key, afirma_core::KeyAlgorithm::Rsa | afirma_core::KeyAlgorithm::Ec)
+    {
         true
     } else if let Some(v) = xp.get(SIGNING_CERTIFICATE_V2) {
         v.trim().eq_ignore_ascii_case("true")
     } else {
         alg.digest != DigestAlgorithm::Sha1
     };
-    let baseline = xp
-        .get(PROFILE)
-        .is_some_and(|p| p.eq_ignore_ascii_case("baseline"));
+    let baseline = xp.get(PROFILE).is_some_and(|p| p.eq_ignore_ascii_case("baseline"));
     Ok(SignedAttrsConfig {
         digest: alg.digest,
         signing_certificate_v2: v2,
@@ -304,11 +288,8 @@ pub fn signed_attrs_config(
             .map(|r| r.split('|').map(str::to_string).collect())
             .unwrap_or_default(),
         baseline,
-        mime_type: is_true(xp, INCLUDE_MIME_TYPE_ATTRIBUTE).then(|| {
-            xp.get(MIME_TYPE)
-                .unwrap_or("application/octet-stream")
-                .to_string()
-        }),
+        mime_type: is_true(xp, INCLUDE_MIME_TYPE_ATTRIBUTE)
+            .then(|| xp.get(MIME_TYPE).unwrap_or("application/octet-stream").to_string()),
     })
 }
 
@@ -337,17 +318,13 @@ pub fn policy_from_params(xp: &ExtraParams) -> Result<Option<SigPolicy>, AfirmaE
                 AfirmaError::invalid_argument("Si se indica la huella digital del identificador de politica es obligatorio indicar tambien el algoritmo")
             })?;
             let bytes = afirma_core::base64_decode_lenient(h).map_err(|_| {
-                AfirmaError::invalid_argument(
-                    "La huella digital de la politica debe estar en formato Base64",
-                )
+                AfirmaError::invalid_argument("La huella digital de la politica debe estar en formato Base64")
             })?;
             let d: DigestAlgorithm = afirma_core::algorithms::java_digest_algorithm_name(alg)
                 .replace('-', "")
                 .parse()
                 .map_err(|_| {
-                    AfirmaError::invalid_argument(format!(
-                        "Algoritmo de huella de politica no soportado: {alg}"
-                    ))
+                    AfirmaError::invalid_argument(format!("Algoritmo de huella de politica no soportado: {alg}"))
                 })?;
             (bytes, d.oid().to_string())
         }
@@ -418,9 +395,7 @@ pub fn commitment_types(xp: &ExtraParams) -> Vec<CommitmentType> {
             _ => continue,
         };
         let qualifiers = xp
-            .get(&format!(
-                "commitmentTypeIndication{i}CommitmentTypeQualifiers"
-            ))
+            .get(&format!("commitmentTypeIndication{i}CommitmentTypeQualifiers"))
             .map(|q| q.split('|').map(str::to_string).collect());
         out.push(CommitmentType {
             oid: oid.into(),
@@ -437,8 +412,7 @@ pub fn is_pdf_file(data: &[u8]) -> bool {
     }
     match PdfDoc::open(data, None) {
         Ok(_) => true,
-        Err(crate::pdf::doc::OpenError::NeedsPassword)
-        | Err(crate::pdf::doc::OpenError::BadPassword) => true,
+        Err(crate::pdf::doc::OpenError::NeedsPassword) | Err(crate::pdf::doc::OpenError::BadPassword) => true,
         Err(_) => false,
     }
 }
@@ -547,11 +521,7 @@ impl Signer for PadesSigner {
         ))
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         Ok(signers_structure(sign, params))
     }
 
@@ -565,9 +535,7 @@ impl Signer for PadesSigner {
         // Java consulta aquí las propiedades del sistema en lugar de los
         // parámetros; se usan los parámetros (ver desviaciones).
         if is_true(params, ALLOW_COSIGNING_UNREGISTERED_SIGNATURES) {
-            let password = params
-                .get(OWNER_PASSWORD)
-                .or_else(|| params.get(USER_PASSWORD));
+            let password = params.get(OWNER_PASSWORD).or_else(|| params.get(USER_PASSWORD));
             if let Ok(doc) = PdfDoc::open(data, password) {
                 return prepare::has_unregistered_signatures(&doc);
             }
@@ -624,12 +592,7 @@ pub fn configure_respectful_properties(data: &[u8], config: &mut ExtraParams) {
     if config.contains(SIGNATURE_SUBFILTER) {
         return;
     }
-    let Ok(doc) = PdfDoc::open(
-        data,
-        config
-            .get(OWNER_PASSWORD)
-            .or_else(|| config.get(USER_PASSWORD)),
-    ) else {
+    let Ok(doc) = PdfDoc::open(data, config.get(OWNER_PASSWORD).or_else(|| config.get(USER_PASSWORD))) else {
         return;
     };
     for (_, o) in doc.all_objects() {
@@ -640,16 +603,11 @@ pub fn configure_respectful_properties(data: &[u8], config: &mut ExtraParams) {
             continue;
         }
         if let Ok(sf) = d.get(b"SubFilter").and_then(lopdf::Object::as_name)
-            && matches!(
-                sf,
-                b"adbe.pkcs7.detached" | b"ETSI.CAdES.detached" | b"adbe.pkcs7.sha1"
-            ) {
-                config.set(
-                    SIGNATURE_SUBFILTER,
-                    String::from_utf8_lossy(sf).into_owned(),
-                );
-                return;
-            }
+            && matches!(sf, b"adbe.pkcs7.detached" | b"ETSI.CAdES.detached" | b"adbe.pkcs7.sha1")
+        {
+            config.set(SIGNATURE_SUBFILTER, String::from_utf8_lossy(sf).into_owned());
+            return;
+        }
     }
 }
 
@@ -661,17 +619,11 @@ mod tests {
     fn signed_names() {
         assert_eq!(signed_file_name(None), "signed.pdf");
         assert_eq!(signed_file_name(Some("x.pdf")), "x.signed.pdf");
-        assert_eq!(
-            signed_file_name(Some("a.pdf.pdf")),
-            "a.signed.pdf.signed.pdf"
-        );
+        assert_eq!(signed_file_name(Some("a.pdf.pdf")), "a.signed.pdf.signed.pdf");
         assert_eq!(signed_file_name(Some("X.PDF")), "X.signed.pdf");
         assert_eq!(signed_file_name(Some("doc")), "doc.signed.pdf");
         let s = PadesSigner::new();
-        assert_eq!(
-            s.signed_name(Some("x.PDF"), Some("_firmado")),
-            "x_firmado.pdf"
-        );
+        assert_eq!(s.signed_name(Some("x.PDF"), Some("_firmado")), "x_firmado.pdf");
         assert_eq!(s.signed_name(Some("x.txt"), None), "x.txt.pdf");
         assert_eq!(s.signed_name(None, None), "signed.pdf");
     }
@@ -682,10 +634,7 @@ mod tests {
             ("commitmentTypeIndications", "1"),
             ("commitmentTypeIndication0Identifier", "1"),
             ("commitmentTypeIndication1Identifier", "5"),
-            (
-                "commitmentTypeIndication1CommitmentTypeQualifiers",
-                "1.2.3|1.2.4",
-            ),
+            ("commitmentTypeIndication1CommitmentTypeQualifiers", "1.2.3|1.2.4"),
             ("commitmentTypeIndication2Identifier", "6"),
         ]
         .into_iter()

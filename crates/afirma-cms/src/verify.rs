@@ -33,7 +33,9 @@ pub fn verify_prehashed_with_certificate(
     signature: &[u8],
 ) -> Result<bool, VerifyError> {
     let cert = CertView::parse(cert_der).map_err(|e| VerifyError(format!("certificado no válido: {e}")))?;
-    let key_bits = cert.public_key_bits().ok_or_else(|| VerifyError("certificado sin clave pública".into()))?;
+    let key_bits = cert
+        .public_key_bits()
+        .ok_or_else(|| VerifyError("certificado sin clave pública".into()))?;
     match cert.key_algorithm() {
         Some(KeyAlgorithm::Rsa) => {
             if alg.key != KeyAlgorithm::Rsa {
@@ -79,17 +81,23 @@ pub fn verify_ecdsa(curve_oid: &str, point: &[u8], hash: &[u8], signature: &[u8]
     match curve_oid {
         oids::CURVE_P256 => {
             let vk = p256::ecdsa::VerifyingKey::from_sec1_bytes(point).map_err(bad_key)?;
-            let Ok(sig) = p256::ecdsa::Signature::from_der(signature) else { return Ok(false) };
+            let Ok(sig) = p256::ecdsa::Signature::from_der(signature) else {
+                return Ok(false);
+            };
             Ok(vk.verify_prehash(hash, &sig).is_ok())
         }
         oids::CURVE_P384 => {
             let vk = p384::ecdsa::VerifyingKey::from_sec1_bytes(point).map_err(bad_key)?;
-            let Ok(sig) = p384::ecdsa::Signature::from_der(signature) else { return Ok(false) };
+            let Ok(sig) = p384::ecdsa::Signature::from_der(signature) else {
+                return Ok(false);
+            };
             Ok(vk.verify_prehash(hash, &sig).is_ok())
         }
         oids::CURVE_P521 => {
             let vk = p521::ecdsa::VerifyingKey::from_sec1_bytes(point).map_err(bad_key)?;
-            let Ok(sig) = p521::ecdsa::Signature::from_der(signature) else { return Ok(false) };
+            let Ok(sig) = p521::ecdsa::Signature::from_der(signature) else {
+                return Ok(false);
+            };
             Ok(vk.verify_prehash(hash, &sig).is_ok())
         }
         other => Err(VerifyError(format!("curva elíptica no soportada: {other}"))),

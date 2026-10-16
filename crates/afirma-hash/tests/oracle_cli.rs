@@ -74,15 +74,9 @@ fn casos_de_linea_de_comandos() {
 
     let cases = parse_golden(&String::from_utf8(golden("java-cli.golden")).unwrap());
     assert!(cases.len() > 30);
-    let parity = CliOptions {
-        java_exit_codes: true,
-    };
+    let parity = CliOptions { java_exit_codes: true };
     for case in &cases {
-        let args: Vec<String> = case
-            .line
-            .split(' ')
-            .map(|a| a.replace("$TREE", &tree_str))
-            .collect();
+        let args: Vec<String> = case.line.split(' ').map(|a| a.replace("$TREE", &tree_str)).collect();
         let outcome = dispatch(&args, &parity).expect("comando de huellas");
         assert!(outcome.gui.is_none());
         let status = outcome.status & 0xff;
@@ -107,11 +101,7 @@ fn casos_de_linea_de_comandos() {
         }
 
         // Sin paridad, una comprobación que no coincide devuelve STATUS_MISMATCH.
-        if deviation.is_none()
-            && case
-                .output
-                .starts_with("Las huellas indicadas no se corresponden")
-        {
+        if deviation.is_none() && case.output.starts_with("Las huellas indicadas no se corresponden") {
             let outcome = dispatch(&args, &CliOptions::default()).unwrap();
             assert_eq!(outcome.status, STATUS_MISMATCH, "{}", case.line);
         }

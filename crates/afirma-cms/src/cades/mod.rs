@@ -22,8 +22,12 @@ pub const FORMAT_CADES: &str = "CAdES";
 
 /// Atributos no firmados de firmas longevas que impiden multifirmar sin
 /// confirmación (`CAdESMultiUtil.LONG_TERM_ATTRIBUTES`).
-pub const LONG_TERM_ATTRIBUTES: [&str; 4] =
-    [oids::ARCHIVE_TIMESTAMP_V2, oids::ARCHIVE_TIMESTAMP_V3, oids::LONG_TERM_VALIDATION, oids::ARCHIVE_TIMESTAMP];
+pub const LONG_TERM_ATTRIBUTES: [&str; 4] = [
+    oids::ARCHIVE_TIMESTAMP_V2,
+    oids::ARCHIVE_TIMESTAMP_V3,
+    oids::LONG_TERM_VALIDATION,
+    oids::ARCHIVE_TIMESTAMP,
+];
 
 /// Instante actual truncado a segundos (precisión del `signingTime`).
 pub fn now() -> DateTime<Utc> {
@@ -60,7 +64,9 @@ pub fn check_long_term_attributes(sign: &[u8], params: &ExtraParams) -> afirma_c
         return Ok(());
     }
     let sd = SignedData::parse(sign).map_err(|e| {
-        AfirmaError::invalid_signature_format(format!("La firma proporcionada no es un SignedData compatible CMS: {e}"))
+        AfirmaError::invalid_signature_format(format!(
+            "La firma proporcionada no es un SignedData compatible CMS: {e}"
+        ))
     })?;
     for si in &sd.signer_infos {
         for oid in LONG_TERM_ATTRIBUTES {
@@ -88,7 +94,9 @@ pub fn resolve_algorithm(
             "CAdES no permite huellas digitales MD2 o MD5 (Decision 130/2011 CE)",
         ));
     }
-    if params.get("profile").is_some_and(|p| p.eq_ignore_ascii_case("baseline"))
+    if params
+        .get("profile")
+        .is_some_and(|p| p.eq_ignore_ascii_case("baseline"))
         && alg::is_sha1_signature_algorithm(algorithm)
     {
         tracing::warn!(
@@ -101,14 +109,19 @@ pub fn resolve_algorithm(
 fn chain_of(key: &dyn SigningKey) -> afirma_core::Result<Vec<Vec<u8>>> {
     let chain = key.certificate_chain();
     if chain.is_empty() {
-        return Err(AfirmaError::invalid_argument("La cadena de certificados debe contener al menos un elemento"));
+        return Err(AfirmaError::invalid_argument(
+            "La cadena de certificados debe contener al menos un elemento",
+        ));
     }
     Ok(chain)
 }
 
 fn cert_view(der: &[u8]) -> afirma_core::Result<CertView<'_>> {
     CertView::parse(der).map_err(|e| {
-        AfirmaError::new(codes::ENCODING_SIGNING_CERTIFICATE, format!("Certificado de firma no valido: {e}"))
+        AfirmaError::new(
+            codes::ENCODING_SIGNING_CERTIFICATE,
+            format!("Certificado de firma no valido: {e}"),
+        )
     })
 }
 
@@ -195,7 +208,11 @@ pub fn sign_at(
         params.remove("signingCertificateV2");
     }
     let cfg = CadesParameters::load(Some(data), None, &alg_name, &params, now)?;
-    let chain: Vec<Vec<u8>> = if cfg.included_only_signing_certificate { vec![chain[0].clone()] } else { chain };
+    let chain: Vec<Vec<u8>> = if cfg.included_only_signing_certificate {
+        vec![chain[0].clone()]
+    } else {
+        chain
+    };
     let pre = pre_sign(&chain[0], &cfg)?;
     let sig = pkcs1::sign(key, &pre, sig_alg, Some(&chain[0]))?;
     let signature = post_sign(sig_alg, cfg.content_data.as_deref(), &chain, &sig, &pre)?;
@@ -253,9 +270,10 @@ pub fn cosign_at(
         Some(c) => cms::encap_content_info(Some(c)),
         None => {
             if cfg.data_digest.is_none()
-                && let Some(content) = sd.content() {
-                    cfg.data_digest = Some(cfg.digest_algorithm.digest(&content));
-                }
+                && let Some(content) = sd.content()
+            {
+                cfg.data_digest = Some(cfg.digest_algorithm.digest(&content));
+            }
             to_der_preserving(&sd.encap_content_info)
         }
     };
@@ -269,10 +287,12 @@ pub fn cosign_at(
     let mut signer_infos = Vec::new();
     for si in &sd.signer_infos {
         signer_infos.push(to_der_preserving(&si.raw));
-        if cfg.data_digest.is_none() && si.digest_oid.is(digest_oid)
-            && let Some(md) = si.message_digest() {
-                cfg.data_digest = Some(md);
-            }
+        if cfg.data_digest.is_none()
+            && si.digest_oid.is(digest_oid)
+            && let Some(md) = si.message_digest()
+        {
+            cfg.data_digest = Some(md);
+        }
     }
     if cfg.data_digest.is_none() && cfg.content_data.is_none() {
         return Err(AfirmaError::new(
@@ -354,13 +374,17 @@ impl CounterSignCtx<'_> {
         let mut children = Vec::new();
         let mut is_leaf = true;
         let unsigned = si.unsigned_attributes().map_err(|e| {
-            AfirmaError::new(codes::UNKWNON_BINARY_SIGNING_ERROR, format!("Atributos no firmados no validos: {e}"))
+            AfirmaError::new(
+                codes::UNKWNON_BINARY_SIGNING_ERROR,
+                format!("Atributos no firmados no validos: {e}"),
+            )
         })?;
         for ua in &unsigned {
             if self.check_lts
-                && let Some(oid) = LONG_TERM_ATTRIBUTES.iter().find(|o| ua.is(o)) {
-                    return Err(signing_lts_error(oid, self.lts_denied));
-                }
+                && let Some(oid) = LONG_TERM_ATTRIBUTES.iter().find(|o| ua.is(o))
+            {
+                return Err(signing_lts_error(oid, self.lts_denied));
+            }
             if ua.is(oids::COUNTER_SIGNATURE) {
                 is_leaf = false;
                 for v in &ua.values {
@@ -415,7 +439,15 @@ pub fn countersign_at(
     let mut certificates = sd.certificates.as_ref().map(cms::set_elements_der).unwrap_or_default();
     certificates.extend(chain.iter().cloned());
     let (check_lts, lts_denied) = lts_check_enabled(&params);
-    let mut ctx = CounterSignCtx { key, chain, sig_alg, cfg, tree, check_lts, lts_denied };
+    let mut ctx = CounterSignCtx {
+        key,
+        chain,
+        sig_alg,
+        cfg,
+        tree,
+        check_lts,
+        lts_denied,
+    };
     let mut signer_infos = Vec::new();
     for si in &sd.signer_infos {
         signer_infos.push(ctx.process(si)?);
@@ -512,6 +544,9 @@ impl Signer for CadesSigner {
                 "Los datos introducidos no se corresponden con un objeto de firma",
             ));
         }
-        Ok(SignInfo { format: FORMAT_CADES.to_string(), ..Default::default() })
+        Ok(SignInfo {
+            format: FORMAT_CADES.to_string(),
+            ..Default::default()
+        })
     }
 }

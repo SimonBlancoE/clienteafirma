@@ -17,17 +17,12 @@ use super::NS_XADES_132;
 
 /// Añade el sello si los parámetros incluyen `tsaURL` (si los parámetros de
 /// la TSA no son válidos no se sella, como en Java).
-pub fn timestamp_if_requested(
-    signed: Vec<u8>,
-    extra: &ExtraParams,
-) -> afirma_core::Result<Vec<u8>> {
+pub fn timestamp_if_requested(signed: Vec<u8>, extra: &ExtraParams) -> afirma_core::Result<Vec<u8>> {
     let params = match TsaParams::from_extra_params(extra) {
         Ok(Some(p)) => p,
         Ok(None) => return Ok(signed),
         Err(e) => {
-            tracing::warn!(
-                "Parametros de sellado de tiempo no validos, no se sellara la firma: {e}"
-            );
+            tracing::warn!("Parametros de sellado de tiempo no validos, no se sellara la firma: {e}");
             return Ok(signed);
         }
     };
@@ -41,9 +36,7 @@ pub fn signature_value_imprint_input(doc: &Document) -> afirma_core::Result<Vec<
         .find_descendants(doc.root(), DSIG_NS, "SignatureValue")
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            AfirmaError::new(codes::TSA_CONNECTION_ERROR, "El XML no tiene nodo de firma")
-        })?;
+        .ok_or_else(|| AfirmaError::new(codes::TSA_CONNECTION_ERROR, "El XML no tiene nodo de firma"))?;
     Ok(C14n::new(Kind::Exclusive, false).canonicalize(doc, sv, &[]))
 }
 
@@ -77,6 +70,5 @@ pub fn timestamp_with(signed: &[u8], ts: &Timestamper) -> afirma_core::Result<Ve
         .as_ref()
         .and_then(|d| d.encoding.clone())
         .unwrap_or_else(|| "UTF-8".into());
-    splice::finish_preserving(&doc, &text, &encoding)
-        .map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m))
+    splice::finish_preserving(&doc, &text, &encoding).map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m))
 }

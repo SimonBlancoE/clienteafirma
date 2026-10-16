@@ -157,12 +157,7 @@ pub enum SystemCommand {
 
 impl SystemCommand {
     /// Todos, en el orden de la ayuda.
-    pub const ALL: [SystemCommand; 4] = [
-        Self::Install,
-        Self::Uninstall,
-        Self::Doctor,
-        Self::RestoreConfig,
-    ];
+    pub const ALL: [SystemCommand; 4] = [Self::Install, Self::Uninstall, Self::Doctor, Self::RestoreConfig];
 
     /// Nombre del comando.
     pub fn op(self) -> &'static str {
@@ -210,18 +205,10 @@ pub fn general_help(m: &Messages, app: &str, error: Option<&str>) -> String {
     sb.push_str(&format!("{} cmd:\n\n", m.get(33)));
     sb.push_str(&format!("  {}\t\t ({})\n", Command::Sign.op(), m.get(8)));
     sb.push_str(&format!("  {}\t ({})\n", Command::Cosign.op(), m.get(9)));
-    sb.push_str(&format!(
-        "  {}\t ({})\n",
-        Command::Countersign.op(),
-        m.get(10)
-    ));
+    sb.push_str(&format!("  {}\t ({})\n", Command::Countersign.op(), m.get(10)));
     sb.push_str(&format!("  {}\t ({})\n", Command::List.op(), m.get(11)));
     sb.push_str(&format!("  {}\t ({})\n", Command::Verify.op(), m.get(29)));
-    sb.push_str(&format!(
-        "  {}\t ({})\n",
-        Command::BatchSign.op(),
-        m.get(69)
-    ));
+    sb.push_str(&format!("  {}\t ({})\n", Command::BatchSign.op(), m.get(69)));
     for h in HashCommand::ALL {
         sb.push_str(&format!("  {}\t ({})\n", h.op(), h.description()));
     }
@@ -282,12 +269,7 @@ fn sign_help(m: &Messages, app: &str, op: &str, error: Option<&str>) -> String {
     sb.push_str(&format!("  -i inputfile\t\t ({})\n", m.get(13)));
     sb.push_str(&format!("  -o outputfile\t\t ({})\n", m.get(14)));
     sb.push_str(&format!("  -algorithm algo\t ({})\n", m.get(20)));
-    for (algo, key) in [
-        ("sha1", 142),
-        ("sha256", 143),
-        ("sha384", 144),
-        ("sha512", 145),
-    ] {
+    for (algo, key) in [("sha1", 142), ("sha256", 143), ("sha384", 144), ("sha512", 145)] {
         sb.push_str(&format!("  \t {algo}\t\t ({})\n", m.get(key)));
     }
     sb.push_str(&format!("  -format\t\t ({})\n", m.get(32)));
@@ -363,9 +345,7 @@ pub fn system_help(command: SystemCommand, m: &Messages, app: &str, error: Optio
         sb.push('\n');
     }
     let syntax = match command {
-        SystemCommand::Install => {
-            "(--system|--user) [--browser-policies] [--origins origins] [--dry-run]"
-        }
+        SystemCommand::Install => "(--system|--user) [--browser-policies] [--origins origins] [--dry-run]",
         SystemCommand::Uninstall => "(--system|--user) [--dry-run]",
         SystemCommand::Doctor => "[--json]",
         SystemCommand::RestoreConfig => "",
@@ -415,9 +395,7 @@ mod tests {
         assert!(h.contains("  batchsign\t (firma/multifirma de lotes de ficheros)\n  createdigest\t (Creación de huellas digitales con interfaz gráfica)\n"));
         assert!(h.contains("Comandos de integracion con el sistema:\n\n  install\t ("));
         assert!(h.contains("  restore-config\t ("));
-        assert!(h.ends_with(
-            "\n\nUtilice \"autofirma cmd -help\" para ver la sintaxis del comando \"cmd\""
-        ));
+        assert!(h.ends_with("\n\nUtilice \"autofirma cmd -help\" para ver la sintaxis del comando \"cmd\""));
         let e = general_help(&m, "x", Some("Comando no reconocido: foo"));
         assert!(e.starts_with("Comando no reconocido: foo\nSintaxis: x cmd"));
     }
@@ -429,7 +407,9 @@ mod tests {
         assert!(h.contains("  -gui\t\t\t (Perform the operation with graphic environment. Priority over -certgui)\n"));
         let es = Messages::new(Language::EsEs);
         let h = command_help(Command::Cosign, &es, "a", None);
-        assert!(h.contains("  -gui\t\t\t (Realiza la operacion con entorno grafico. Tiene prioridad sobre -certgui)\n"));
+        assert!(
+            h.contains("  -gui\t\t\t (Realiza la operacion con entorno grafico. Tiene prioridad sobre -certgui)\n")
+        );
     }
 
     #[test]

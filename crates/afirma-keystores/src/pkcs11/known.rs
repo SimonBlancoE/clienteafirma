@@ -21,8 +21,15 @@ use crate::kind::Os;
 /// Bibliotecas con las que no debe usarse `CKM_SHA1_RSA_PKCS` (fallo del
 /// controlador FNMT v10). Se comparan sin distinguir mayúsculas con el
 /// nombre del fichero.
-pub const SHA1_RSA_PKCS_DISABLED_LIBS: &[&str] =
-    &["DNIe_P11_priv.dll", "DNIe_P11_pub.dll", "FNMT_P11.dll", "FNMT_P11_x64.dll", "UsrPkcs11.dll", "UsrPubPkcs11.dll", "TIF_P11.dll"];
+pub const SHA1_RSA_PKCS_DISABLED_LIBS: &[&str] = &[
+    "DNIe_P11_priv.dll",
+    "DNIe_P11_pub.dll",
+    "FNMT_P11.dll",
+    "FNMT_P11_x64.dll",
+    "UsrPkcs11.dll",
+    "UsrPubPkcs11.dll",
+    "TIF_P11.dll",
+];
 
 /// Módulos PKCS#11 "nativos" del DNIe (comparación sin mayúsculas con
 /// `endsWith`): se excluyen de los módulos externos de Firefox cuando el
@@ -52,9 +59,21 @@ pub struct KnownWindowsModule {
 
 /// Módulos conocidos de Windows (tabla 1.4).
 pub const WINDOWS_FIREFOX_KNOWN_MODULES: &[KnownWindowsModule] = &[
-    KnownWindowsModule { description: "Atos CardOS (preinstalado)", lib: "siecap11.dll", always: false },
-    KnownWindowsModule { description: "FNMT-RCM Modulo PKCS#11 64bits", lib: "FNMT_P11_x64.dll", always: true },
-    KnownWindowsModule { description: "FNMT-RCM Modulo PKCS#11 32bits", lib: "FNMT_P11.dll", always: true },
+    KnownWindowsModule {
+        description: "Atos CardOS (preinstalado)",
+        lib: "siecap11.dll",
+        always: false,
+    },
+    KnownWindowsModule {
+        description: "FNMT-RCM Modulo PKCS#11 64bits",
+        lib: "FNMT_P11_x64.dll",
+        always: true,
+    },
+    KnownWindowsModule {
+        description: "FNMT-RCM Modulo PKCS#11 32bits",
+        lib: "FNMT_P11.dll",
+        always: true,
+    },
 ];
 
 /// Tarjetas conocidas para el perfil temporal de Windows
@@ -62,9 +81,19 @@ pub const WINDOWS_FIREFOX_KNOWN_MODULES: &[KnownWindowsModule] = &[
 pub const WINDOWS_KNOWN_SMARTCARDS: &[(&str, &[&str])] = &[
     (
         "FNMT-CERES",
-        &["%SYSTEMROOT%/System32/FNMT_P11_x64.dll", "%SYSTEMROOT%/System32/FNMT_P11.dll", "%SYSTEMROOT%/SysWOW64/FNMT_P11.dll"],
+        &[
+            "%SYSTEMROOT%/System32/FNMT_P11_x64.dll",
+            "%SYSTEMROOT%/System32/FNMT_P11.dll",
+            "%SYSTEMROOT%/SysWOW64/FNMT_P11.dll",
+        ],
     ),
-    ("CardOS", &["%SYSTEMROOT%/SysWOW64/siecap11.dll", "%SYSTEMROOT%/System32/siecap11.dll"]),
+    (
+        "CardOS",
+        &[
+            "%SYSTEMROOT%/SysWOW64/siecap11.dll",
+            "%SYSTEMROOT%/System32/siecap11.dll",
+        ],
+    ),
     (
         "TUI",
         &[
@@ -78,7 +107,13 @@ pub const WINDOWS_KNOWN_SMARTCARDS: &[(&str, &[&str])] = &[
             "%PROGRAMFILES(x86)%/Gemalto/IDGo 800 PKCS#11/IDPrimePKCS11.dll",
         ],
     ),
-    ("SafeSign", &["%SYSTEMROOT%/SysWOW64/aetpkss1.dll", "%SYSTEMROOT%/System32/aetpkss1.dll"]),
+    (
+        "SafeSign",
+        &[
+            "%SYSTEMROOT%/SysWOW64/aetpkss1.dll",
+            "%SYSTEMROOT%/System32/aetpkss1.dll",
+        ],
+    ),
 ];
 
 /// Indica si para esta biblioteca hay que desactivar `CKM_SHA1_RSA_PKCS`.
@@ -175,25 +210,51 @@ pub fn candidate_smartcard_modules(os: Os, env: &dyn Fn(&str) -> Option<String>)
     let mut v: Vec<(&'static str, PathBuf)> = Vec::new();
     match os {
         Os::Windows => {
-            let sys = env("SYSTEMROOT").or_else(|| env("SystemRoot")).unwrap_or_else(|| "C:\\Windows".into());
-            let pf = env("PROGRAMFILES").or_else(|| env("ProgramFiles")).unwrap_or_else(|| "C:\\Program Files".into());
-            let pf86 = env("PROGRAMFILES(X86)").or_else(|| env("ProgramFiles(x86)")).unwrap_or_else(|| "C:\\Program Files (x86)".into());
+            let sys = env("SYSTEMROOT")
+                .or_else(|| env("SystemRoot"))
+                .unwrap_or_else(|| "C:\\Windows".into());
+            let pf = env("PROGRAMFILES")
+                .or_else(|| env("ProgramFiles"))
+                .unwrap_or_else(|| "C:\\Program Files".into());
+            let pf86 = env("PROGRAMFILES(X86)")
+                .or_else(|| env("ProgramFiles(x86)"))
+                .unwrap_or_else(|| "C:\\Program Files (x86)".into());
             let sys32 = Path::new(&sys).join("System32");
             v.push(("DNIe (módulo oficial)", sys32.join("DNIe_P11_priv.dll")));
             v.push(("FNMT-RCM", sys32.join("FNMT_P11_x64.dll")));
             v.push(("FNMT-RCM TIF", sys32.join("TIF_P11.dll")));
-            v.push(("OpenSC", Path::new(&pf).join("OpenSC Project").join("OpenSC").join("pkcs11").join("opensc-pkcs11.dll")));
+            v.push((
+                "OpenSC",
+                Path::new(&pf)
+                    .join("OpenSC Project")
+                    .join("OpenSC")
+                    .join("pkcs11")
+                    .join("opensc-pkcs11.dll"),
+            ));
             v.push(("OpenSC", sys32.join("opensc-pkcs11.dll")));
-            v.push(("OpenSC (32 bits)", Path::new(&pf86).join("OpenSC Project").join("OpenSC").join("pkcs11").join("opensc-pkcs11.dll")));
+            v.push((
+                "OpenSC (32 bits)",
+                Path::new(&pf86)
+                    .join("OpenSC Project")
+                    .join("OpenSC")
+                    .join("pkcs11")
+                    .join("opensc-pkcs11.dll"),
+            ));
         }
         Os::MacOs => {
-            v.push(("FNMT-RCM", PathBuf::from("/Library/Libpkcs11-fnmtdnie/lib/libpkcs11-fnmtdnie.so")));
+            v.push((
+                "FNMT-RCM",
+                PathBuf::from("/Library/Libpkcs11-fnmtdnie/lib/libpkcs11-fnmtdnie.so"),
+            ));
             v.push(("FNMT-RCM", PathBuf::from("/usr/local/lib/libpkcs11-fnmtdnie.so")));
             v.push(("FNMT-RCM", PathBuf::from("/usr/local/lib/libpkcs11-fnmtdnie.dylib")));
             v.push(("OpenSC", PathBuf::from("/Library/OpenSC/lib/opensc-pkcs11.so")));
             v.push(("OpenSC", PathBuf::from("/opt/homebrew/lib/opensc-pkcs11.so")));
             v.push(("OpenSC", PathBuf::from("/usr/local/lib/opensc-pkcs11.so")));
-            v.push(("DNIe (OpenSC-DNIe)", PathBuf::from("/usr/local/lib/libopensc-dnie.dylib")));
+            v.push((
+                "DNIe (OpenSC-DNIe)",
+                PathBuf::from("/usr/local/lib/libopensc-dnie.dylib"),
+            ));
         }
         Os::Linux | Os::Solaris | Os::Other => {
             let triple = multiarch_triple();
@@ -266,7 +327,11 @@ pub fn multiarch_triple() -> &'static str {
 pub fn windows_known_smartcard_paths(env: &dyn Fn(&str) -> Option<String>) -> Vec<(&'static str, PathBuf)> {
     WINDOWS_KNOWN_SMARTCARDS
         .iter()
-        .flat_map(|(name, paths)| paths.iter().map(move |p| (*name, PathBuf::from(expand_windows_env(p, env)))))
+        .flat_map(|(name, paths)| {
+            paths
+                .iter()
+                .map(move |p| (*name, PathBuf::from(expand_windows_env(p, env))))
+        })
         .collect()
 }
 
@@ -276,7 +341,9 @@ mod tests {
 
     #[test]
     fn tables() {
-        assert!(sha1_rsa_pkcs_disabled(Path::new("C:\\Windows\\System32\\fnmt_p11_x64.DLL")));
+        assert!(sha1_rsa_pkcs_disabled(Path::new(
+            "C:\\Windows\\System32\\fnmt_p11_x64.DLL"
+        )));
         assert!(!sha1_rsa_pkcs_disabled(Path::new("/usr/lib/opensc-pkcs11.so")));
         assert!(is_native_dnie_lib("C:\\x\\DNIe_P11_priv.dll"));
         assert!(is_native_dnie_lib("/usr/lib/libpkcs11-dnie.so"));
@@ -291,21 +358,37 @@ mod tests {
             "PROGRAMFILES(X86)" => Some("C:\\PF86".to_string()),
             _ => None,
         };
-        assert_eq!(expand_windows_env("%SYSTEMROOT%/System32/x.dll", &env), "C:\\Windows/System32/x.dll");
+        assert_eq!(
+            expand_windows_env("%SYSTEMROOT%/System32/x.dll", &env),
+            "C:\\Windows/System32/x.dll"
+        );
         assert_eq!(expand_windows_env("%SystemRoot%/a", &env), "C:\\Windows/a");
         assert_eq!(expand_windows_env("%NOPE%/a", &env), "%NOPE%/a");
         assert_eq!(expand_windows_env("100%", &env), "100%");
         let paths = windows_known_smartcard_paths(&env);
-        assert_eq!(paths[0], ("FNMT-CERES", PathBuf::from("C:\\Windows/System32/FNMT_P11_x64.dll")));
+        assert_eq!(
+            paths[0],
+            ("FNMT-CERES", PathBuf::from("C:\\Windows/System32/FNMT_P11_x64.dll"))
+        );
         assert_eq!(paths.len(), 3 + 2 + 8 + 2);
-        assert!(paths.iter().any(|(_, p)| p == Path::new("C:\\PF86/umu/UMU-Crypto/lib/libumupkcs11.dll")));
+        assert!(
+            paths
+                .iter()
+                .any(|(_, p)| p == Path::new("C:\\PF86/umu/UMU-Crypto/lib/libumupkcs11.dll"))
+        );
     }
 
     #[test]
     fn token_classification() {
-        assert_eq!(classify_token("DNI electrónico (PIN1)", "DGP-FNMT", "PKCS#15 emulated"), CardFamily::Dnie);
+        assert_eq!(
+            classify_token("DNI electrónico (PIN1)", "DGP-FNMT", "PKCS#15 emulated"),
+            CardFamily::Dnie
+        );
         assert_eq!(classify_token("CERES", "FNMT-RCM", "CERES 4.30"), CardFamily::Fnmt);
-        assert_eq!(classify_token("SoftHSM", "SoftHSM project", "SoftHSM v2"), CardFamily::Other);
+        assert_eq!(
+            classify_token("SoftHSM", "SoftHSM project", "SoftHSM v2"),
+            CardFamily::Other
+        );
     }
 
     #[test]

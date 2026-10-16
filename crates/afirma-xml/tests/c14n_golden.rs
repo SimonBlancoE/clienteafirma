@@ -12,10 +12,7 @@ const ALGS: &[(&str, &str)] = &[
         "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments",
     ),
     ("exc", "http://www.w3.org/2001/10/xml-exc-c14n#"),
-    (
-        "excc",
-        "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
-    ),
+    ("excc", "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"),
     ("c14n11", "http://www.w3.org/2006/12/xml-c14n11"),
 ];
 

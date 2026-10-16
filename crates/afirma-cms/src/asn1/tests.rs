@@ -4,7 +4,13 @@ use super::*;
 
 #[test]
 fn oid_roundtrip() {
-    for s in ["1.2.840.113549.1.7.2", "2.16.724.1.3.1.1.2.1.9", "2.5.4.3", "1.3.6.1.4.1.311.60.2.1.3", "2.999.3"] {
+    for s in [
+        "1.2.840.113549.1.7.2",
+        "2.16.724.1.3.1.1.2.1.9",
+        "2.5.4.3",
+        "1.3.6.1.4.1.311.60.2.1.3",
+        "2.999.3",
+    ] {
         let o = Oid::new(s);
         assert_eq!(o.to_dotted(), s);
         let der = der::oid(&o);
@@ -12,7 +18,10 @@ fn oid_roundtrip() {
         assert!(rest.is_empty());
         assert_eq!(tlv.as_oid().unwrap(), o);
     }
-    assert_eq!(der::oid_str("1.2.840.113549.1.7.2"), hex::decode("06092a864886f70d010702").unwrap());
+    assert_eq!(
+        der::oid_str("1.2.840.113549.1.7.2"),
+        hex::decode("06092a864886f70d010702").unwrap()
+    );
 }
 
 #[test]
@@ -41,7 +50,7 @@ fn long_lengths() {
 #[test]
 fn ber_indefinite_and_constructed_octets() {
     // SEQUENCE (indef) { OCTET STRING constructed (indef) { "ab", "cd" } }
-    let ber = hex::decode("3080248004026162040263640000" .to_owned() + "0000").unwrap();
+    let ber = hex::decode("3080248004026162040263640000".to_owned() + "0000").unwrap();
     let t = Tlv::parse_single(&ber).unwrap();
     assert!(t.indefinite);
     let kids = t.children().unwrap();

@@ -50,9 +50,16 @@ AutoScript.sign('SG9sYQ==', 'SHA256withRSA', 'CAdES', 'mode=implicit',
   function (t, m) { report({ op: 'sign', ok: false, type: t, msg: m }); });
 </script></body></html>"#;
 
-async fn http_server(listener: tokio::net::TcpListener, page: String, script: Vec<u8>, results: Arc<Mutex<Vec<String>>>) {
+async fn http_server(
+    listener: tokio::net::TcpListener,
+    page: String,
+    script: Vec<u8>,
+    results: Arc<Mutex<Vec<String>>>,
+) {
     loop {
-        let Ok((mut s, _)) = listener.accept().await else { return };
+        let Ok((mut s, _)) = listener.accept().await else {
+            return;
+        };
         let page = page.clone();
         let script = script.clone();
         let results = results.clone();
@@ -69,7 +76,10 @@ async fn http_server(listener: tokio::net::TcpListener, page: String, script: Ve
                     let head = String::from_utf8_lossy(&buf[..p]).to_ascii_lowercase();
                     let len = head
                         .lines()
-                        .find_map(|l| l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap_or(0)))
+                        .find_map(|l| {
+                            l.strip_prefix("content-length:")
+                                .map(|v| v.trim().parse::<usize>().unwrap_or(0))
+                        })
                         .unwrap_or(0);
                     break (p + 4, len);
                 }
@@ -87,13 +97,23 @@ async fn http_server(listener: tokio::net::TcpListener, page: String, script: Ve
             } else if line.starts_with("GET /autoscript.js") {
                 ("application/javascript", script)
             } else if line.starts_with("POST /result") {
-                results.lock().unwrap().push(String::from_utf8_lossy(&buf[head_end..]).into_owned());
+                results
+                    .lock()
+                    .unwrap()
+                    .push(String::from_utf8_lossy(&buf[head_end..]).into_owned());
                 ("text/plain", b"ok".to_vec())
             } else {
                 ("text/plain", Vec::new())
             };
-            let status = if body.is_empty() && !line.starts_with("POST") { "404 Not Found" } else { "200 OK" };
-            let head = format!("HTTP/1.1 {status}\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let status = if body.is_empty() && !line.starts_with("POST") {
+                "404 Not Found"
+            } else {
+                "200 OK"
+            };
+            let head = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
             let _ = s.write_all(head.as_bytes()).await;
             let _ = s.write_all(&body).await;
         });
@@ -109,26 +129,53 @@ async fn real_autoscript_in_headless_chromium() {
     let k = key("firmante-rsa");
     let handler = FakeHandler::with_key(k.clone());
     let http = MockHttp::new(|_| Ok((404, vec![])));
-    let launcher = Arc::new(ProtocolLauncher::new(handler.clone(), Arc::new(FakeSigner::default()), LauncherConfig::new(HttpClient::new(http))));
+    let launcher = Arc::new(ProtocolLauncher::new(
+        handler.clone(),
+        Arc::new(FakeSigner::default()),
+        LauncherConfig::new(HttpClient::new(http)),
+    ));
     // Servidor WebSocket como lo abriría `afirma://websocket?ports=P&v=4&jvc=4`.
     let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = probe.local_addr().unwrap().port();
     drop(probe);
-    let req = ChannelRequest::from_params(&Params::from_query(&format!("afirma://websocket?ports={port}&v=4&jvc=4")), 4);
-    let tls = TlsSource::Pkcs12Bytes { data: test_pfx(), password: "654321".into() };
-    let opts = WebSocketOptions { idle_timeout: Duration::from_secs(90), ..Default::default() };
+    let req = ChannelRequest::from_params(
+        &Params::from_query(&format!("afirma://websocket?ports={port}&v=4&jvc=4")),
+        4,
+    );
+    let tls = TlsSource::Pkcs12Bytes {
+        data: test_pfx(),
+        password: "654321".into(),
+    };
+    let opts = WebSocketOptions {
+        idle_timeout: Duration::from_secs(90),
+        ..Default::default()
+    };
     let server = WebSocketServer::bind(&req, &tls, opts).await.unwrap();
     let serve = tokio::spawn(server.serve(launcher));
     // Página y autoscript.js.
-    let script = std::fs::read(testdata("../afirma-ui-miniapplet-deploy/src/main/webapp/js/autoscript.js")).unwrap();
+    let script = std::fs::read(testdata(
+        "../afirma-ui-miniapplet-deploy/src/main/webapp/js/autoscript.js",
+    ))
+    .unwrap();
     let web = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let web_port = web.local_addr().unwrap().port();
     let results = Arc::new(Mutex::new(Vec::new()));
-    tokio::spawn(http_server(web, PAGE.replace("__PORT__", &port.to_string()), script, results.clone()));
+    tokio::spawn(http_server(
+        web,
+        PAGE.replace("__PORT__", &port.to_string()),
+        script,
+        results.clone(),
+    ));
     let profile = tempfile::tempdir().unwrap();
     let chromium = std::env::var("CHROMIUM").unwrap_or_else(|_| "chromium".into());
     let mut browser = tokio::process::Command::new(chromium)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--ignore-certificate-errors", "--no-first-run"])
+        .args([
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-gpu",
+            "--ignore-certificate-errors",
+            "--no-first-run",
+        ])
         .arg(format!("--user-data-dir={}", profile.path().display()))
         .arg(format!("http://127.0.0.1:{web_port}/page.html"))
         .kill_on_drop(true)
@@ -151,15 +198,26 @@ async fn real_autoscript_in_headless_chromium() {
     assert_eq!(sign["op"], "sign");
     assert_eq!(sign["ok"], true, "{sign}");
     // AutoScript devuelve el certificado y la firma en Base64 estándar.
-    assert_eq!(jbase64::decode(sign["cert"].as_str().unwrap()).unwrap(), k.certificate());
+    assert_eq!(
+        jbase64::decode(sign["cert"].as_str().unwrap()).unwrap(),
+        k.certificate()
+    );
     let sig = jbase64::decode(sign["sig"].as_str().unwrap()).unwrap();
-    let alg = afirma_core::SignatureAlgorithm::new(afirma_core::DigestAlgorithm::Sha256, afirma_core::KeyAlgorithm::Rsa);
-    assert_eq!(afirma_protocol::pkcs1::verify(k.certificate(), alg, b"Hola", &sig), afirma_protocol::pkcs1::Verification::Valid);
+    let alg =
+        afirma_core::SignatureAlgorithm::new(afirma_core::DigestAlgorithm::Sha256, afirma_core::KeyAlgorithm::Rsa);
+    assert_eq!(
+        afirma_protocol::pkcs1::verify(k.certificate(), alg, b"Hola", &sig),
+        afirma_protocol::pkcs1::Verification::Valid
+    );
     let sel: serde_json::Value = serde_json::from_str(&results[1]).unwrap();
     assert_eq!(sel["ok"], true, "{sel}");
     assert_eq!(jbase64::decode(sel["cert"].as_str().unwrap()).unwrap(), k.certificate());
     // El origen de la página llegó al manejador.
-    let origin = handler.cert_requests.lock().unwrap()[0].1.origin.display().map(str::to_string);
+    let origin = handler.cert_requests.lock().unwrap()[0]
+        .1
+        .origin
+        .display()
+        .map(str::to_string);
     assert_eq!(origin.as_deref(), Some(format!("http://127.0.0.1:{web_port}").as_str()));
     serve.abort();
 }

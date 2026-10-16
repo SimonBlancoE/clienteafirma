@@ -51,10 +51,7 @@ impl AnchorFlavor {
     pub fn update_commands(self) -> &'static [&'static [&'static str]] {
         match self {
             AnchorFlavor::Suse | AnchorFlavor::Debian => &[&["update-ca-certificates"]],
-            AnchorFlavor::Fedora => &[
-                &["update-ca-trust", "extract"],
-                &["trust", "extract-compat"],
-            ],
+            AnchorFlavor::Fedora => &[&["update-ca-trust", "extract"], &["trust", "extract-compat"]],
             AnchorFlavor::Arch => &[&["update-ca-trust"], &["trust", "extract-compat"]],
         }
     }
@@ -62,10 +59,7 @@ impl AnchorFlavor {
     /// Paquetes de certificados resultantes donde comprobar la presencia de la CA.
     pub fn bundles(self) -> &'static [&'static str] {
         match self {
-            AnchorFlavor::Suse => &[
-                "/var/lib/ca-certificates/ca-bundle.pem",
-                "/etc/ssl/ca-bundle.pem",
-            ],
+            AnchorFlavor::Suse => &["/var/lib/ca-certificates/ca-bundle.pem", "/etc/ssl/ca-bundle.pem"],
             AnchorFlavor::Fedora => &[
                 "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
                 "/etc/pki/tls/certs/ca-bundle.crt",
@@ -87,9 +81,7 @@ pub fn detect(ctx: &Context) -> Option<AnchorFlavor> {
         Some(AnchorFlavor::Fedora)
     } else if ctx.sys("/etc/ca-certificates/trust-source").is_dir() {
         Some(AnchorFlavor::Arch)
-    } else if ctx.sys("/usr/local/share/ca-certificates").is_dir()
-        || ctx.sys("/etc/ssl/certs").is_dir()
-    {
+    } else if ctx.sys("/usr/local/share/ca-certificates").is_dir() || ctx.sys("/etc/ssl/certs").is_dir() {
         Some(AnchorFlavor::Debian)
     } else {
         None
@@ -158,13 +150,10 @@ pub fn check(ctx: &Context, ca_der: &[u8]) -> TrustCheck {
 /// Instala la CA como ancla del sistema y regenera los paquetes. Idempotente.
 pub fn install(ctx: &Context, ca_der: &[u8]) -> Result<Change> {
     if !ctx.elevated {
-        return Err(SystemError::NotElevated(
-            "anclas de confianza del sistema".into(),
-        ));
+        return Err(SystemError::NotElevated("anclas de confianza del sistema".into()));
     }
-    let f = detect(ctx).ok_or_else(|| {
-        SystemError::Unsupported("sistema de anclas de confianza no reconocido".into())
-    })?;
+    let f =
+        detect(ctx).ok_or_else(|| SystemError::Unsupported("sistema de anclas de confianza no reconocido".into()))?;
     if check(ctx, ca_der) == TrustCheck::Trusted {
         return Ok(Change::Unchanged);
     }
@@ -192,9 +181,7 @@ pub fn known_anchor_files(ctx: &Context) -> Vec<PathBuf> {
 /// Retira los ficheros de anclas de AutoFirma y regenera los paquetes.
 pub fn remove(ctx: &Context) -> Result<Change> {
     if !ctx.elevated {
-        return Err(SystemError::NotElevated(
-            "anclas de confianza del sistema".into(),
-        ));
+        return Err(SystemError::NotElevated("anclas de confianza del sistema".into()));
     }
     let mut changed = false;
     for p in known_anchor_files(ctx) {
@@ -211,11 +198,7 @@ pub fn remove(ctx: &Context) -> Result<Change> {
     if changed && let Some(f) = detect(ctx) {
         run_update(ctx, f)?;
     }
-    Ok(if changed {
-        Change::Changed
-    } else {
-        Change::Unchanged
-    })
+    Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
 #[cfg(test)]
@@ -237,10 +220,7 @@ mod tests {
         ctx.elevated = true;
         assert_eq!(detect(&ctx), Some(AnchorFlavor::Suse));
         assert_eq!(install(&ctx, &p.ca_der).unwrap(), Change::Changed);
-        assert_eq!(
-            runner.call_lines(),
-            vec!["update-ca-certificates".to_string()]
-        );
+        assert_eq!(runner.call_lines(), vec!["update-ca-certificates".to_string()]);
         assert_eq!(check(&ctx, &p.ca_der), TrustCheck::Trusted);
         assert_eq!(install(&ctx, &p.ca_der).unwrap(), Change::Unchanged);
         assert_eq!(remove(&ctx).unwrap(), Change::Changed);

@@ -79,7 +79,9 @@ pub fn java_split(s: &str, sep: &str) -> Vec<String> {
 /// Lee las indicaciones de compromiso (`CommitmentTypeIndicationsHelper`).
 pub fn commitment_type_indications(params: &ExtraParams) -> Vec<CommitmentTypeIndication> {
     let mut out = Vec::new();
-    let Some(n) = params.get("commitmentTypeIndications") else { return out };
+    let Some(n) = params.get("commitmentTypeIndications") else {
+        return out;
+    };
     let n: i64 = match n.parse() {
         Ok(v) if v >= 1 => v,
         _ => {
@@ -91,7 +93,9 @@ pub fn commitment_type_indications(params: &ExtraParams) -> Vec<CommitmentTypeIn
     };
     // AutoFirma recorre los índices 0..=N.
     for i in 0..=n {
-        let Some(id) = params.get(&format!("commitmentTypeIndication{i}Identifier")) else { continue };
+        let Some(id) = params.get(&format!("commitmentTypeIndication{i}Identifier")) else {
+            continue;
+        };
         let identifier = match id {
             "1" | "2" | "3" | "4" | "5" | "6" => format!("{}.{id}", oids::COMMITMENT_TYPE_PREFIX),
             other => {
@@ -101,8 +105,9 @@ pub fn commitment_type_indications(params: &ExtraParams) -> Vec<CommitmentTypeIn
                 continue;
             }
         };
-        let qualifiers =
-            params.get(&format!("commitmentTypeIndication{i}CommitmentTypeQualifiers")).map(|q| java_split(q, "|"));
+        let qualifiers = params
+            .get(&format!("commitmentTypeIndication{i}CommitmentTypeQualifiers"))
+            .map(|q| java_split(q, "|"));
         out.push(CommitmentTypeIndication { identifier, qualifiers });
     }
     out
@@ -117,13 +122,18 @@ pub fn signer_location(params: &ExtraParams) -> afirma_core::Result<Option<Signe
         return Ok(None);
     }
     if let Some(p) = &postal
-        && p.len() > 6 {
-            return Err(AfirmaError::invalid_argument(format!(
-                "La direccion postal debe tener un maximo de seis lineas, y se han proporcionado {}",
-                p.len()
-            )));
-        }
-    Ok(Some(SignerLocation { country, locality, postal_address: postal }))
+        && p.len() > 6
+    {
+        return Err(AfirmaError::invalid_argument(format!(
+            "La direccion postal debe tener un maximo de seis lineas, y se han proporcionado {}",
+            p.len()
+        )));
+    }
+    Ok(Some(SignerLocation {
+        country,
+        locality,
+        postal_address: postal,
+    }))
 }
 
 impl CadesParameters {
@@ -164,7 +174,10 @@ impl CadesParameters {
         };
 
         // 4-8.
-        let claimed_roles = config.get("signerClaimedRoles").filter(|r| !r.is_empty()).map(|r| java_split(r, "|"));
+        let claimed_roles = config
+            .get("signerClaimedRoles")
+            .filter(|r| !r.is_empty())
+            .map(|r| java_split(r, "|"));
         let included_policy_on_signing_certificate = !config.get_bool("doNotIncludePolicyOnSigningCertificate", false);
         let external_policy = build_ades_policy(config)?;
         let included_only_signing_certificate = config.get_bool("includeOnlySignningCertificate", false);
@@ -177,7 +190,9 @@ impl CadesParameters {
 
         // 10. contentHints y mimeType.
         let content_hint_needed = !config.contains("includeContentHintAttribute")
-            || !config.get("includeContentHintAttribute").is_some_and(|v| v.eq_ignore_ascii_case("false"));
+            || !config
+                .get("includeContentHintAttribute")
+                .is_some_and(|v| v.eq_ignore_ascii_case("false"));
         let mimetype_needed = config.get_bool("includeMimeTypeAttribute", false);
         let mut content_type_oid = None;
         let mut content_description = None;
@@ -199,20 +214,24 @@ impl CadesParameters {
                     if found {
                         break;
                     }
-                    if mimetype_needed && mime.is_none()
-                        && let Some(v) = si.signed_attr(oids::MIME_TYPE).and_then(|a| a.first_value()) {
-                            mime = v.as_string().ok();
-                            found = true;
-                        }
-                    if content_hint_needed && oid.is_none()
+                    if mimetype_needed
+                        && mime.is_none()
+                        && let Some(v) = si.signed_attr(oids::MIME_TYPE).and_then(|a| a.first_value())
+                    {
+                        mime = v.as_string().ok();
+                        found = true;
+                    }
+                    if content_hint_needed
+                        && oid.is_none()
                         && let Some(v) = si.signed_attr(oids::CONTENT_HINT).and_then(|a| a.first_value())
-                            && let Some((d, o)) = parse_content_hints(&v) {
-                                oid = Some(o);
-                                if desc.is_none() {
-                                    desc = d;
-                                }
-                                found = true;
-                            }
+                        && let Some((d, o)) = parse_content_hints(&v)
+                    {
+                        oid = Some(o);
+                        if desc.is_none() {
+                            desc = d;
+                        }
+                        found = true;
+                    }
                     if mime.is_some() && oid.is_none() {
                         let o = mime::mime_to_oid(mime.as_deref());
                         oid = (o != mime::DEFAULT_CONTENT_OID_DATA).then(|| o.to_string());
@@ -251,7 +270,11 @@ impl CadesParameters {
 
         // 11-13.
         let signer_location = signer_location(config)?;
-        let profile = if config.get("profile") == Some("baseline") { Profile::Baseline } else { Profile::Advanced };
+        let profile = if config.get("profile") == Some("baseline") {
+            Profile::Baseline
+        } else {
+            Profile::Advanced
+        };
 
         Ok(CadesParameters {
             external_policy,
@@ -310,7 +333,10 @@ mod tests {
         let c = commitment_type_indications(&p);
         assert_eq!(c.len(), 2);
         assert_eq!(c[0].identifier, "1.2.840.113549.1.9.16.6.1");
-        assert_eq!(c[1].qualifiers.as_ref().unwrap(), &vec!["1.2.3".to_string(), "1.2.4".to_string()]);
+        assert_eq!(
+            c[1].qualifiers.as_ref().unwrap(),
+            &vec!["1.2.3".to_string(), "1.2.4".to_string()]
+        );
     }
 
     #[test]

@@ -37,8 +37,11 @@ fn table_size(n: usize) -> usize {
 /// orden de inserción.
 pub fn java_hash_order<S: AsRef<str>>(keys: &[S]) -> Vec<usize> {
     let cap = table_size(keys.len());
-    let mut idx: Vec<(usize, usize)> =
-        keys.iter().enumerate().map(|(i, k)| ((spread(java_string_hash(k.as_ref())) as usize) & (cap - 1), i)).collect();
+    let mut idx: Vec<(usize, usize)> = keys
+        .iter()
+        .enumerate()
+        .map(|(i, k)| ((spread(java_string_hash(k.as_ref())) as usize) & (cap - 1), i))
+        .collect();
     idx.sort();
     idx.into_iter().map(|(_, i)| i).collect()
 }
@@ -65,19 +68,74 @@ mod tests {
         assert_eq!(order, ["signinfo", "format"]);
         // Valores obtenidos con una JVM real (ConcurrentHashMap y HashMap
         // redimensionado a 32 cubetas).
-        let keys = ["PRE", "NEED_PRE", "NEED_DATA", "TIME", "PID", "BASE", "ENCODING", "PK1", "CACHE_ID", "HMAC", "PK1_DECODED"];
-        let order: Vec<&str> = java_hash_order(&keys).into_iter().map(|i| keys[i]).collect();
-        assert_eq!(order, ["PRE", "ENCODING", "HMAC", "PK1", "CACHE_ID", "NEED_PRE", "TIME", "PID", "PK1_DECODED", "NEED_DATA", "BASE"]);
         let keys = [
-            "id", "result", "signature", "description", "datareference", "format", "suboperation", "extraparams", "algorithm",
-            "singlesigns", "stoponerror", "signs", "td", "results", "signid", "params",
+            "PRE",
+            "NEED_PRE",
+            "NEED_DATA",
+            "TIME",
+            "PID",
+            "BASE",
+            "ENCODING",
+            "PK1",
+            "CACHE_ID",
+            "HMAC",
+            "PK1_DECODED",
         ];
         let order: Vec<&str> = java_hash_order(&keys).into_iter().map(|i| keys[i]).collect();
         assert_eq!(
             order,
             [
-                "extraparams", "signature", "stoponerror", "format", "description", "suboperation", "params", "signid", "datareference",
-                "result", "td", "singlesigns", "signs", "id", "results", "algorithm"
+                "PRE",
+                "ENCODING",
+                "HMAC",
+                "PK1",
+                "CACHE_ID",
+                "NEED_PRE",
+                "TIME",
+                "PID",
+                "PK1_DECODED",
+                "NEED_DATA",
+                "BASE"
+            ]
+        );
+        let keys = [
+            "id",
+            "result",
+            "signature",
+            "description",
+            "datareference",
+            "format",
+            "suboperation",
+            "extraparams",
+            "algorithm",
+            "singlesigns",
+            "stoponerror",
+            "signs",
+            "td",
+            "results",
+            "signid",
+            "params",
+        ];
+        let order: Vec<&str> = java_hash_order(&keys).into_iter().map(|i| keys[i]).collect();
+        assert_eq!(
+            order,
+            [
+                "extraparams",
+                "signature",
+                "stoponerror",
+                "format",
+                "description",
+                "suboperation",
+                "params",
+                "signid",
+                "datareference",
+                "result",
+                "td",
+                "singlesigns",
+                "signs",
+                "id",
+                "results",
+                "algorithm"
             ]
         );
     }

@@ -96,7 +96,10 @@ fn profiles() {
     check("cades/cades_epes_age.java.csig", &["CAdES B-Level"]);
     check("cades/cms_impl.java.csig", &["CMS"]);
     let s = read("cades/cades_epes_age.java.csig");
-    assert_eq!(inspect::signers(&s).unwrap()[0].policy_oid.as_deref(), Some("2.16.724.1.3.1.1.2.1.9"));
+    assert_eq!(
+        inspect::signers(&s).unwrap()[0].policy_oid.as_deref(),
+        Some("2.16.724.1.3.1.1.2.1.9")
+    );
 }
 
 #[test]
@@ -105,8 +108,18 @@ fn ecdsa_and_rust_multisign_validate() {
     let ec = key("firmante-ec");
     let s = CadesSigner.sign(b"Hola", "SHA384withECDSA", &ec, &implicit()).unwrap();
     assert_eq!(verdicts(&validation::validate(&s, None, true)), vec![OK]);
-    let s = CadesSigner.cosign(None, &s, "SHA512withRSA", &rsa, &ExtraParams::new()).unwrap();
-    let s = CadesSigner.countersign(&s, "SHA256withECDSA", &CounterSignTarget::Tree, &ec, &ExtraParams::new()).unwrap();
+    let s = CadesSigner
+        .cosign(None, &s, "SHA512withRSA", &rsa, &ExtraParams::new())
+        .unwrap();
+    let s = CadesSigner
+        .countersign(
+            &s,
+            "SHA256withECDSA",
+            &CounterSignTarget::Tree,
+            &ec,
+            &ExtraParams::new(),
+        )
+        .unwrap();
     assert_eq!(verdicts(&validation::validate(&s, None, true)), vec![OK, OK]);
     if let Some((ok, msg)) = openssl_verify("ec_multi", &s, None) {
         assert!(ok, "{msg}");

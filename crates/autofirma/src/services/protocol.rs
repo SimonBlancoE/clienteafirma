@@ -9,8 +9,9 @@ use afirma_core::error::codes;
 use afirma_core::validity::Validity;
 use afirma_core::{AfirmaError, ExtraParams, SigningKey};
 use afirma_protocol::handler::{
-    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner, OpenFileRequest,
-    OperationHandler, PasswordRequest, ProgressEvent, RequestInfo, SaveFileRequest, VisibleSignatureRequest,
+    CertificateRequest, ConfirmRequest, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner,
+    OpenFileRequest, OperationHandler, PasswordRequest, ProgressEvent, RequestInfo, SaveFileRequest,
+    VisibleSignatureRequest,
 };
 use afirma_protocol::{CryptoOperation, KeyStoreParam};
 use eframe::egui;
@@ -29,7 +30,9 @@ impl LocalSigner for AppLocalSigner {
         match req.operation {
             CryptoOperation::Sign => signer.sign(req.data, req.algorithm, req.key, req.extra_params),
             CryptoOperation::CoSign => signer.cosign(None, req.data, req.algorithm, req.key, req.extra_params),
-            CryptoOperation::CounterSign => signer.countersign(req.data, req.algorithm, &req.target, req.key, req.extra_params),
+            CryptoOperation::CounterSign => {
+                signer.countersign(req.data, req.algorithm, &req.target, req.key, req.extra_params)
+            }
         }
     }
 
@@ -42,20 +45,32 @@ impl LocalSigner for AppLocalSigner {
         afirma_signers::protocol_auto_format(op, data)
     }
 
-    fn check_signatures(&self, operation: CryptoOperation, _format: &str, data: &[u8], extra: &ExtraParams) -> Result<(), AfirmaError> {
+    fn check_signatures(
+        &self,
+        operation: CryptoOperation,
+        _format: &str,
+        data: &[u8],
+        extra: &ExtraParams,
+    ) -> Result<(), AfirmaError> {
         if operation == CryptoOperation::Sign && afirma_signers::detect(data, extra).is_none() {
             return Ok(());
         }
         let v = afirma_signers::validate(data, extra);
         match v.first() {
-            Some(first) if first.validity == Validity::Ko => {
-                Err(AfirmaError::new(first.error_code.unwrap_or(codes::INVALID_SIGNATURE), first.to_string()))
-            }
+            Some(first) if first.validity == Validity::Ko => Err(AfirmaError::new(
+                first.error_code.unwrap_or(codes::INVALID_SIGNATURE),
+                first.to_string(),
+            )),
             _ => Ok(()),
         }
     }
 
-    fn expand_extra_params(&self, extra: &ExtraParams, data: Option<&[u8]>, format: &str) -> Result<ExtraParams, AfirmaError> {
+    fn expand_extra_params(
+        &self,
+        extra: &ExtraParams,
+        data: Option<&[u8]>,
+        format: &str,
+    ) -> Result<ExtraParams, AfirmaError> {
         afirma_core::policy::expand_properties(extra, data, Some(format))
     }
 
@@ -76,13 +91,39 @@ pub enum ProtocolUiRequest {
         restrict_to: Option<Vec<u8>>,
         reply: Sender<Result<Arc<dyn SigningKey>, AfirmaError>>,
     },
-    ChooseFile { req: OpenFileRequest, reply: Sender<Result<FileData, AfirmaError>> },
-    SaveFile { title: String, data: Vec<u8>, proposed_name: Option<String>, extensions: Option<Vec<String>>, reply: Sender<Result<(), AfirmaError>> },
-    LoadFiles { req: LoadRequest, reply: Sender<Result<Vec<FileData>, AfirmaError>> },
-    Confirm { message: String, reply: Sender<bool> },
-    Password { message: String, reply: Sender<Option<String>> },
-    VisibleSignature { data: Vec<u8>, custom: bool, mandatory: bool, reply: Sender<Result<Option<ExtraParams>, AfirmaError>> },
-    Error { title: String, message: String },
+    ChooseFile {
+        req: OpenFileRequest,
+        reply: Sender<Result<FileData, AfirmaError>>,
+    },
+    SaveFile {
+        title: String,
+        data: Vec<u8>,
+        proposed_name: Option<String>,
+        extensions: Option<Vec<String>>,
+        reply: Sender<Result<(), AfirmaError>>,
+    },
+    LoadFiles {
+        req: LoadRequest,
+        reply: Sender<Result<Vec<FileData>, AfirmaError>>,
+    },
+    Confirm {
+        message: String,
+        reply: Sender<bool>,
+    },
+    Password {
+        message: String,
+        reply: Sender<Option<String>>,
+    },
+    VisibleSignature {
+        data: Vec<u8>,
+        custom: bool,
+        mandatory: bool,
+        reply: Sender<Result<Option<ExtraParams>, AfirmaError>>,
+    },
+    Error {
+        title: String,
+        message: String,
+    },
     Progress(ProgressEvent),
     /// El lanzador ha terminado con este código de salida.
     Finished(i32),
@@ -116,44 +157,84 @@ impl OperationHandler for AppOperationHandler {
         let keystore = req.keystore.cloned();
         let restrict_to = req.restrict_to_certificate.map(|c| c.to_vec());
         self.ask(
-            |reply| ProtocolUiRequest::SelectCertificate { info, extra, keystore, restrict_to, reply },
+            |reply| ProtocolUiRequest::SelectCertificate {
+                info,
+                extra,
+                keystore,
+                restrict_to,
+                reply,
+            },
             Err(AfirmaError::cancelled()),
         )
     }
 
     fn choose_file_to_sign(&self, req: &OpenFileRequest) -> Result<FileData, AfirmaError> {
         let req = req.clone();
-        self.ask(|reply| ProtocolUiRequest::ChooseFile { req, reply }, Err(AfirmaError::cancelled()))
+        self.ask(
+            |reply| ProtocolUiRequest::ChooseFile { req, reply },
+            Err(AfirmaError::cancelled()),
+        )
     }
 
     fn save_file(&self, req: &SaveFileRequest<'_>) -> Result<(), AfirmaError> {
-        let (title, data, proposed_name, extensions) =
-            (req.title.clone(), req.data.to_vec(), req.proposed_name.clone(), req.extensions.clone());
-        self.ask(|reply| ProtocolUiRequest::SaveFile { title, data, proposed_name, extensions, reply }, Err(AfirmaError::cancelled()))
+        let (title, data, proposed_name, extensions) = (
+            req.title.clone(),
+            req.data.to_vec(),
+            req.proposed_name.clone(),
+            req.extensions.clone(),
+        );
+        self.ask(
+            |reply| ProtocolUiRequest::SaveFile {
+                title,
+                data,
+                proposed_name,
+                extensions,
+                reply,
+            },
+            Err(AfirmaError::cancelled()),
+        )
     }
 
     fn load_files(&self, req: &LoadRequest) -> Result<Vec<FileData>, AfirmaError> {
         let req = req.clone();
-        self.ask(|reply| ProtocolUiRequest::LoadFiles { req, reply }, Err(AfirmaError::cancelled()))
+        self.ask(
+            |reply| ProtocolUiRequest::LoadFiles { req, reply },
+            Err(AfirmaError::cancelled()),
+        )
     }
 
     fn confirm(&self, req: &ConfirmRequest) -> bool {
-        let message = super::messages::intervention_text(&req.requestor_text).map(str::to_string).unwrap_or_else(|| req.message.clone());
+        let message = super::messages::intervention_text(&req.requestor_text)
+            .map(str::to_string)
+            .unwrap_or_else(|| req.message.clone());
         self.ask(|reply| ProtocolUiRequest::Confirm { message, reply }, false)
     }
 
     fn request_password(&self, req: &PasswordRequest) -> Option<String> {
-        let message = super::messages::intervention_text(&req.requestor_text).map(str::to_string).unwrap_or_else(|| req.message.clone());
+        let message = super::messages::intervention_text(&req.requestor_text)
+            .map(str::to_string)
+            .unwrap_or_else(|| req.message.clone());
         self.ask(|reply| ProtocolUiRequest::Password { message, reply }, None)
     }
 
     fn visible_signature(&self, req: &VisibleSignatureRequest<'_>) -> Result<Option<ExtraParams>, AfirmaError> {
         let (data, custom, mandatory) = (req.data.to_vec(), req.custom_appearance, req.mandatory);
-        self.ask(|reply| ProtocolUiRequest::VisibleSignature { data, custom, mandatory, reply }, Ok(None))
+        self.ask(
+            |reply| ProtocolUiRequest::VisibleSignature {
+                data,
+                custom,
+                mandatory,
+                reply,
+            },
+            Ok(None),
+        )
     }
 
     fn show_error(&self, dialog: &ErrorDialog) {
-        let _ = self.tx.send(ProtocolUiRequest::Error { title: dialog.title.clone(), message: dialog.message.clone() });
+        let _ = self.tx.send(ProtocolUiRequest::Error {
+            title: dialog.title.clone(),
+            message: dialog.message.clone(),
+        });
         self.ctx.request_repaint();
     }
 

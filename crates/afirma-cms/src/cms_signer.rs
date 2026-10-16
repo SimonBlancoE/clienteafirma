@@ -27,13 +27,19 @@ pub struct CmsSigner;
 fn chain_of(key: &dyn SigningKey) -> afirma_core::Result<Vec<Vec<u8>>> {
     let chain = key.certificate_chain();
     if chain.is_empty() {
-        return Err(AfirmaError::invalid_argument("La cadena de certificados debe contener al menos un elemento"));
+        return Err(AfirmaError::invalid_argument(
+            "La cadena de certificados debe contener al menos un elemento",
+        ));
     }
     Ok(chain)
 }
 
 fn resolve(algorithm: &str, key: &dyn SigningKey) -> afirma_core::Result<SignatureAlgorithm> {
-    let algorithm = if algorithm.is_empty() { DEFAULT_SIGN_ALGO } else { algorithm };
+    let algorithm = if algorithm.is_empty() {
+        DEFAULT_SIGN_ALGO
+    } else {
+        algorithm
+    };
     compose_signature_algorithm(algorithm, key.key_algorithm())
 }
 
@@ -75,7 +81,10 @@ fn signer_info(
 
 fn view(der: &[u8]) -> afirma_core::Result<CertView<'_>> {
     CertView::parse(der).map_err(|e| {
-        AfirmaError::new(codes::ENCODING_SIGNING_CERTIFICATE, format!("Error en el certificado de firma: {e}"))
+        AfirmaError::new(
+            codes::ENCODING_SIGNING_CERTIFICATE,
+            format!("Error en el certificado de firma: {e}"),
+        )
     })
 }
 
@@ -92,7 +101,11 @@ pub fn sign_at(
     let precalculated = extra.contains("precalculatedHashAlgorithm");
     let omit = extra.get_or("mode", "explicit") == "explicit" || precalculated;
     let apply_date = extra.get_or("applySystemDate", "true").eq_ignore_ascii_case("true");
-    let md = if precalculated && !data.is_empty() { data.to_vec() } else { alg.digest.digest(data) };
+    let md = if precalculated && !data.is_empty() {
+        data.to_vec()
+    } else {
+        alg.digest.digest(data)
+    };
     let cert0 = view(&chain[0])?;
     let mut attrs = vec![content_type_attr()];
     if apply_date {
@@ -112,7 +125,9 @@ pub fn sign_at(
 
 fn parse_cms(sign: &[u8]) -> afirma_core::Result<SignedData<'_>> {
     if !detect::is_cms_signed_data(sign) {
-        return Err(AfirmaError::invalid_signature_format("Los datos no se corresponden con una firma CMS valida"));
+        return Err(AfirmaError::invalid_signature_format(
+            "Los datos no se corresponden con una firma CMS valida",
+        ));
     }
     SignedData::parse(sign).map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))
 }
@@ -136,9 +151,18 @@ pub fn cosign_with_data_at(
     let mut certificates = sd.certificates.as_ref().map(cms::set_elements_der).unwrap_or_default();
     certificates.extend(chain.iter().cloned());
     let attrs = if precalculated {
-        vec![content_type_attr(), signing_time_attr(&now), message_digest_attr(data), serial_number_attr(&cert0)]
+        vec![
+            content_type_attr(),
+            signing_time_attr(&now),
+            message_digest_attr(data),
+            serial_number_attr(&cert0),
+        ]
     } else {
-        vec![content_type_attr(), signing_time_attr(&now), message_digest_attr(&alg.digest.digest(data))]
+        vec![
+            content_type_attr(),
+            signing_time_attr(&now),
+            message_digest_attr(&alg.digest.digest(data)),
+        ]
     };
     let mut signer_infos: Vec<Vec<u8>> = sd.signer_infos.iter().map(|si| to_der_preserving(&si.raw)).collect();
     signer_infos.push(signer_info(key, &cert0, alg, &attrs)?);
@@ -170,14 +194,24 @@ pub fn cosign_at(
     let mut md = None;
     for si in &sd.signer_infos {
         if si.digest_oid.is(alg.digest.oid())
-            && let Some(m) = si.message_digest() {
-                md = Some(m);
-            }
+            && let Some(m) = si.message_digest()
+        {
+            md = Some(m);
+        }
     }
     let attrs = match (&content, &md) {
-        (Some(c), _) => vec![content_type_attr(), signing_time_attr(&now), message_digest_attr(&alg.digest.digest(c))],
+        (Some(c), _) => vec![
+            content_type_attr(),
+            signing_time_attr(&now),
+            message_digest_attr(&alg.digest.digest(c)),
+        ],
         (None, Some(m)) => {
-            vec![content_type_attr(), signing_time_attr(&now), message_digest_attr(m), serial_number_attr(&cert0)]
+            vec![
+                content_type_attr(),
+                signing_time_attr(&now),
+                message_digest_attr(m),
+                serial_number_attr(&cert0),
+            ]
         }
         (None, None) => {
             return Err(AfirmaError::new(
@@ -229,7 +263,10 @@ struct CounterCtx<'k> {
 }
 
 fn walk_err(e: impl std::fmt::Display) -> AfirmaError {
-    AfirmaError::new(codes::UNKWNON_BINARY_SIGNING_ERROR, format!("Error generando la Contrafirma PKCS#7: {e}"))
+    AfirmaError::new(
+        codes::UNKWNON_BINARY_SIGNING_ERROR,
+        format!("Error generando la Contrafirma PKCS#7: {e}"),
+    )
 }
 
 impl CounterCtx<'_> {
@@ -337,7 +374,11 @@ impl CounterCtx<'_> {
         self.actual = 0;
         let mut out = Vec::new();
         for si in &sd.signer_infos {
-            let r = if self.actual == target { self.node_target(si)? } else { self.node_walk(si, target)? };
+            let r = if self.actual == target {
+                self.node_target(si)?
+            } else {
+                self.node_walk(si, target)?
+            };
             self.actual += 1;
             out.push(r);
         }
@@ -386,7 +427,13 @@ pub fn countersign_at(
     let sd = parse_cms(sign)?;
     let mut certificates = sd.certificates.as_ref().map(cms::set_elements_der).unwrap_or_default();
     certificates.push(chain[0].clone());
-    let mut ctx = CounterCtx { key, cert: chain[0].clone(), alg, now, actual: 0 };
+    let mut ctx = CounterCtx {
+        key,
+        cert: chain[0].clone(),
+        alg,
+        now,
+        actual: 0,
+    };
     let parts = |signer_infos: Vec<Vec<u8>>| SignedDataParts {
         digest_algorithms: cms::set_elements_der(&sd.digest_algorithms),
         encap_content_info: to_der_preserving(&sd.encap_content_info),
@@ -396,11 +443,19 @@ pub fn countersign_at(
     };
     match target {
         CounterSignTarget::Tree => {
-            let sis = sd.signer_infos.iter().map(|si| ctx.tree(si)).collect::<afirma_core::Result<Vec<_>>>()?;
+            let sis = sd
+                .signer_infos
+                .iter()
+                .map(|si| ctx.tree(si))
+                .collect::<afirma_core::Result<Vec<_>>>()?;
             Ok(parts(sis).encode())
         }
         CounterSignTarget::Leafs => {
-            let sis = sd.signer_infos.iter().map(|si| ctx.leafs(si)).collect::<afirma_core::Result<Vec<_>>>()?;
+            let sis = sd
+                .signer_infos
+                .iter()
+                .map(|si| ctx.leafs(si))
+                .collect::<afirma_core::Result<Vec<_>>>()?;
             Ok(parts(sis).encode())
         }
         CounterSignTarget::Nodes(_) | CounterSignTarget::Signers(_) => {
@@ -495,6 +550,9 @@ impl Signer for CmsSigner {
                 "Los datos introducidos no se corresponden con un objeto de firma",
             ));
         }
-        Ok(SignInfo { format: FORMAT_CMS.to_string(), ..Default::default() })
+        Ok(SignInfo {
+            format: FORMAT_CMS.to_string(),
+            ..Default::default()
+        })
     }
 }

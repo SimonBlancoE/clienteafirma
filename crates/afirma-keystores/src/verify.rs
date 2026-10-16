@@ -109,15 +109,22 @@ pub fn certificate_key_bits(cert_der: &[u8]) -> Option<usize> {
 
 fn rsa_public_key(cert_der: &[u8]) -> Result<rsa::RsaPublicKey, VerifyError> {
     use rsa::pkcs1::DecodeRsaPublicKey;
-    let (_, cert) = X509Certificate::from_der(cert_der).map_err(|e| VerifyError::Error(format!("certificado no válido: {e}")))?;
+    let (_, cert) =
+        X509Certificate::from_der(cert_der).map_err(|e| VerifyError::Error(format!("certificado no válido: {e}")))?;
     rsa::RsaPublicKey::from_pkcs1_der(&cert.public_key().subject_public_key.data)
         .map_err(|e| VerifyError::Error(format!("clave pública RSA no válida: {e}")))
 }
 
 /// Verifica una firma PKCS#1 v1.5 (RSA) o ECDSA (DER) de `data` con la
 /// clave pública del certificado.
-pub fn verify_signature(cert_der: &[u8], algorithm: SignatureAlgorithm, data: &[u8], signature: &[u8]) -> Result<(), VerifyError> {
-    let key_alg = certificate_key_algorithm(cert_der).ok_or_else(|| VerifyError::Error("tipo de clave del certificado no soportado".into()))?;
+pub fn verify_signature(
+    cert_der: &[u8],
+    algorithm: SignatureAlgorithm,
+    data: &[u8],
+    signature: &[u8],
+) -> Result<(), VerifyError> {
+    let key_alg = certificate_key_algorithm(cert_der)
+        .ok_or_else(|| VerifyError::Error("tipo de clave del certificado no soportado".into()))?;
     if key_alg != algorithm.key {
         return Err(VerifyError::Mismatch);
     }
@@ -126,7 +133,12 @@ pub fn verify_signature(cert_der: &[u8], algorithm: SignatureAlgorithm, data: &[
 }
 
 /// Igual que [`verify_signature`] pero recibiendo la huella ya calculada.
-pub fn verify_prehashed(cert_der: &[u8], algorithm: SignatureAlgorithm, hash: &[u8], signature: &[u8]) -> Result<(), VerifyError> {
+pub fn verify_prehashed(
+    cert_der: &[u8],
+    algorithm: SignatureAlgorithm,
+    hash: &[u8],
+    signature: &[u8],
+) -> Result<(), VerifyError> {
     match algorithm.key {
         KeyAlgorithm::Rsa => {
             let key = rsa_public_key(cert_der)?;
@@ -141,9 +153,11 @@ pub fn verify_prehashed(cert_der: &[u8], algorithm: SignatureAlgorithm, hash: &[
         }
         KeyAlgorithm::Ec => {
             use ecdsa::signature::hazmat::PrehashVerifier;
-            let (_, cert) = X509Certificate::from_der(cert_der).map_err(|e| VerifyError::Error(format!("certificado no válido: {e}")))?;
+            let (_, cert) = X509Certificate::from_der(cert_der)
+                .map_err(|e| VerifyError::Error(format!("certificado no válido: {e}")))?;
             let point = cert.public_key().subject_public_key.data.to_vec();
-            let curve = certificate_curve(cert_der).ok_or_else(|| VerifyError::Error("curva elíptica no soportada".into()))?;
+            let curve =
+                certificate_curve(cert_der).ok_or_else(|| VerifyError::Error("curva elíptica no soportada".into()))?;
             let bad_key = |e: ecdsa::Error| VerifyError::Error(format!("clave pública EC no válida: {e}"));
             match curve {
                 EcCurve::P256 => {
@@ -171,7 +185,11 @@ pub fn verify_prehashed(cert_der: &[u8], algorithm: SignatureAlgorithm, hash: &[
 /// (contrato completo de `AOPkcs1Signer.sign`), devolviendo los errores con
 /// los códigos de AutoFirma.
 #[allow(clippy::result_large_err)] // `AfirmaError` es el error común del proyecto.
-pub fn sign_and_verify(key: &dyn SigningKey, data: &[u8], algorithm: SignatureAlgorithm) -> Result<Vec<u8>, AfirmaError> {
+pub fn sign_and_verify(
+    key: &dyn SigningKey,
+    data: &[u8],
+    algorithm: SignatureAlgorithm,
+) -> Result<Vec<u8>, AfirmaError> {
     let sig = key.sign(data, algorithm).map_err(AfirmaError::from)?;
     verify_signature(key.certificate(), algorithm, data, &sig)?;
     Ok(sig)
@@ -260,8 +278,17 @@ mod tests {
     use super::*;
 
     fn key(name: &str) -> crate::SoftwareKey {
-        let data = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap();
-        crate::pkcs12::open(&data, "12341234").unwrap().remove(0).signing_key().unwrap()
+        let data = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../testdata/pki")
+                .join(name),
+        )
+        .unwrap();
+        crate::pkcs12::open(&data, "12341234")
+            .unwrap()
+            .remove(0)
+            .signing_key()
+            .unwrap()
     }
 
     #[test]
@@ -273,12 +300,21 @@ mod tests {
             let alg = SignatureAlgorithm::new(d, KeyAlgorithm::Rsa);
             let sig = rsa.sign(b"hola", alg).unwrap();
             verify_signature(rsa.certificate(), alg, b"hola", &sig).unwrap();
-            assert_eq!(verify_signature(auth.certificate(), alg, b"hola", &sig), Err(VerifyError::Mismatch));
-            assert_eq!(verify_signature(rsa.certificate(), alg, b"adios", &sig), Err(VerifyError::Mismatch));
+            assert_eq!(
+                verify_signature(auth.certificate(), alg, b"hola", &sig),
+                Err(VerifyError::Mismatch)
+            );
+            assert_eq!(
+                verify_signature(rsa.certificate(), alg, b"adios", &sig),
+                Err(VerifyError::Mismatch)
+            );
             let alg = SignatureAlgorithm::new(d, KeyAlgorithm::Ec);
             let sig = ec.sign(b"hola", alg).unwrap();
             verify_signature(ec.certificate(), alg, b"hola", &sig).unwrap();
-            assert_eq!(verify_signature(rsa.certificate(), alg, b"hola", &sig), Err(VerifyError::Mismatch));
+            assert_eq!(
+                verify_signature(rsa.certificate(), alg, b"hola", &sig),
+                Err(VerifyError::Mismatch)
+            );
         }
         let alg = SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa);
         let err = sign_and_verify(&VerifyingKey::new(rsa), b"x", alg);

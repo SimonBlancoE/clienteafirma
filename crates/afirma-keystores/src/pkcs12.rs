@@ -28,7 +28,10 @@ pub struct Pkcs12Entry {
 
 impl std::fmt::Debug for Pkcs12Entry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Pkcs12Entry").field("alias", &self.alias).field("chain", &self.chain.len()).finish()
+        f.debug_struct("Pkcs12Entry")
+            .field("alias", &self.alias)
+            .field("chain", &self.chain.len())
+            .finish()
     }
 }
 
@@ -52,7 +55,9 @@ impl Pkcs12Entry {
 pub fn open(data: &[u8], password: &str) -> Result<Vec<Pkcs12Entry>, Pkcs12Error> {
     let out = open_entries(data, password)?;
     if out.is_empty() {
-        return Err(Pkcs12Error::Invalid("no contiene ninguna clave privada con certificado".into()));
+        return Err(Pkcs12Error::Invalid(
+            "no contiene ninguna clave privada con certificado".into(),
+        ));
     }
     Ok(out)
 }
@@ -72,8 +77,11 @@ pub fn open_entries(data: &[u8], password: &str) -> Result<Vec<Pkcs12Entry>, Pkc
         p12_keystore::error::Error::UnpadError => Pkcs12Error::WrongPassword,
         other => Pkcs12Error::Invalid(other.to_string()),
     })?;
-    let certs: Vec<(Option<Vec<u8>>, Vec<u8>)> =
-        archive.certs.iter().map(|c| (c.local_key_id.clone(), c.cert.as_der().to_vec())).collect();
+    let certs: Vec<(Option<Vec<u8>>, Vec<u8>)> = archive
+        .certs
+        .iter()
+        .map(|c| (c.local_key_id.clone(), c.cert.as_der().to_vec()))
+        .collect();
     let single_key = archive.keys.len() == 1;
     let mut out = Vec::new();
     let mut aliases = crate::store::AliasSet::new();
@@ -83,13 +91,25 @@ pub fn open_entries(data: &[u8], password: &str) -> Result<Vec<Pkcs12Entry>, Pkc
         // 1) Por localKeyId; 2) si solo hay una clave, el primer certificado
         // (rodeo de Java para PKCS#12 sin localKeyId); 3) por clave pública.
         let by_id = key.local_key_id.as_ref().and_then(|id| {
-            certs.iter().find(|(cid, _)| cid.as_deref() == Some(id.0.as_slice())).map(|(_, der)| der.clone())
+            certs
+                .iter()
+                .find(|(cid, _)| cid.as_deref() == Some(id.0.as_slice()))
+                .map(|(_, der)| der.clone())
         });
         let leaf = by_id.or_else(|| {
             let spki = public_key_of_pkcs8(&pkcs8)?;
-            certs.iter().find(|(_, der)| cert_spki_key(der).as_deref() == Some(spki.as_slice())).map(|(_, d)| d.clone())
+            certs
+                .iter()
+                .find(|(_, der)| cert_spki_key(der).as_deref() == Some(spki.as_slice()))
+                .map(|(_, d)| d.clone())
         });
-        let leaf = leaf.or_else(|| if single_key && key.local_key_id.is_none() { certs.first().map(|(_, d)| d.clone()) } else { None });
+        let leaf = leaf.or_else(|| {
+            if single_key && key.local_key_id.is_none() {
+                certs.first().map(|(_, d)| d.clone())
+            } else {
+                None
+            }
+        });
         let Some(leaf) = leaf else { continue };
         let chain = build_chain(&leaf, certs.iter().map(|(_, d)| d.as_slice()));
         let alias = match key.friendly_name.as_deref() {
@@ -111,7 +131,9 @@ pub fn build_chain<'a>(leaf: &[u8], pool: impl Iterator<Item = &'a [u8]> + Clone
     let mut chain = vec![leaf.to_vec()];
     let mut current = leaf.to_vec();
     for _ in 0..10 {
-        let Ok((_, cert)) = X509Certificate::from_der(&current) else { break };
+        let Ok((_, cert)) = X509Certificate::from_der(&current) else {
+            break;
+        };
         if cert.subject().as_raw() == cert.issuer().as_raw() {
             break;
         }
@@ -162,7 +184,12 @@ mod tests {
     use afirma_core::{DigestAlgorithm, KeyAlgorithm, SignatureAlgorithm, SigningKey};
 
     fn testdata(name: &str) -> Vec<u8> {
-        std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap()
+        std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../testdata/pki")
+                .join(name),
+        )
+        .unwrap()
     }
 
     fn verify(cert_der: &[u8], alg: SignatureAlgorithm, data: &[u8], sig: &[u8]) -> bool {
@@ -170,23 +197,43 @@ mod tests {
         let (_, cert) = X509Certificate::from_der(cert_der).unwrap();
         let spki = cert.public_key().subject_public_key.data.to_vec();
         let ring_alg: &dyn ring::signature::VerificationAlgorithm = match (alg.key, alg.digest) {
-            (KeyAlgorithm::Rsa, DigestAlgorithm::Sha1) => &ring::signature::RSA_PKCS1_2048_8192_SHA1_FOR_LEGACY_USE_ONLY,
+            (KeyAlgorithm::Rsa, DigestAlgorithm::Sha1) => {
+                &ring::signature::RSA_PKCS1_2048_8192_SHA1_FOR_LEGACY_USE_ONLY
+            }
             (KeyAlgorithm::Rsa, DigestAlgorithm::Sha256) => &ring::signature::RSA_PKCS1_2048_8192_SHA256,
             (KeyAlgorithm::Rsa, DigestAlgorithm::Sha512) => &ring::signature::RSA_PKCS1_2048_8192_SHA512,
             (KeyAlgorithm::Ec, DigestAlgorithm::Sha256) => &ring::signature::ECDSA_P256_SHA256_ASN1,
             (KeyAlgorithm::Ec, DigestAlgorithm::Sha384) => &ring::signature::ECDSA_P256_SHA384_ASN1,
             _ => unreachable!(),
         };
-        ring::signature::UnparsedPublicKey::new(ring_alg, spki).verify(data, sig).is_ok()
+        ring::signature::UnparsedPublicKey::new(ring_alg, spki)
+            .verify(data, sig)
+            .is_ok()
     }
 
     #[test]
     fn opens_modern_and_legacy_p12_and_signs() {
         for (file, key, algs) in [
-            ("firmante-rsa.p12", KeyAlgorithm::Rsa, vec![DigestAlgorithm::Sha256, DigestAlgorithm::Sha512, DigestAlgorithm::Sha1]),
-            ("firmante-rsa-legacy.p12", KeyAlgorithm::Rsa, vec![DigestAlgorithm::Sha256]),
-            ("firmante-ec.p12", KeyAlgorithm::Ec, vec![DigestAlgorithm::Sha256, DigestAlgorithm::Sha384]),
-            ("firmante-ec-legacy.p12", KeyAlgorithm::Ec, vec![DigestAlgorithm::Sha256]),
+            (
+                "firmante-rsa.p12",
+                KeyAlgorithm::Rsa,
+                vec![DigestAlgorithm::Sha256, DigestAlgorithm::Sha512, DigestAlgorithm::Sha1],
+            ),
+            (
+                "firmante-rsa-legacy.p12",
+                KeyAlgorithm::Rsa,
+                vec![DigestAlgorithm::Sha256],
+            ),
+            (
+                "firmante-ec.p12",
+                KeyAlgorithm::Ec,
+                vec![DigestAlgorithm::Sha256, DigestAlgorithm::Sha384],
+            ),
+            (
+                "firmante-ec-legacy.p12",
+                KeyAlgorithm::Ec,
+                vec![DigestAlgorithm::Sha256],
+            ),
         ] {
             let entries = super::open(&testdata(file), "12341234").unwrap();
             assert_eq!(entries.len(), 1, "{file}");
@@ -204,6 +251,9 @@ mod tests {
 
     #[test]
     fn wrong_password() {
-        assert!(matches!(super::open(&testdata("firmante-rsa.p12"), "mala"), Err(super::Pkcs12Error::WrongPassword)));
+        assert!(matches!(
+            super::open(&testdata("firmante-rsa.p12"), "mala"),
+            Err(super::Pkcs12Error::WrongPassword)
+        ));
     }
 }

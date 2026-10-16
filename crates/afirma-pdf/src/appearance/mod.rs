@@ -76,21 +76,11 @@ pub fn form_xobject(bbox: [f64; 4], resources: Dictionary, content: &[u8]) -> Ob
         res.set(k.clone(), v.clone());
     }
     d.set("Resources", Object::Dictionary(res));
-    d.set(
-        "BBox",
-        Object::Array(bbox.iter().map(|v| num(*v)).collect()),
-    );
+    d.set("BBox", Object::Array(bbox.iter().map(|v| num(*v)).collect()));
     d.set("FormType", Object::Integer(1));
     d.set(
         "Matrix",
-        Object::Array(vec![
-            1.into(),
-            0.into(),
-            0.into(),
-            1.into(),
-            0.into(),
-            0.into(),
-        ]),
+        Object::Array(vec![1.into(), 0.into(), 0.into(), 1.into(), 0.into(), 0.into()]),
     );
     Object::Stream(flate_stream(d, content))
 }
@@ -134,13 +124,7 @@ fn image_fit_ops(img: &PdfImage, w: f64, h: f64, name: &str) -> String {
     let s = (w / iw0).min(h / ih0);
     let (iw, ih) = (iw0 * s, ih0 * s);
     let (x, y) = ((w - iw) / 2.0, (h - ih) / 2.0);
-    format!(
-        "q {} 0 0 {} {} {} cm /{name} Do Q\n",
-        f(iw),
-        f(ih),
-        f(x),
-        f(y)
-    )
+    format!("q {} 0 0 {} {} {} cm /{name} Do Q\n", f(iw), f(ih), f(x), f(y))
 }
 
 /// Construye la apariencia y la añade a la actualización.
@@ -148,10 +132,7 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
     let (w, h) = (spec.width, spec.height);
     let Some(vis) = &spec.visible else {
         let napp = update.alloc();
-        update.put(
-            napp,
-            form_xobject([0.0, 0.0, 0.0, 0.0], Dictionary::new(), b""),
-        );
+        update.put(napp, form_xobject([0.0, 0.0, 0.0, 0.0], Dictionary::new(), b""));
         return BuiltAppearance { napp, frm: None };
     };
 
@@ -201,10 +182,7 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
             }
         }
         let xf1 = update.alloc();
-        update.put(
-            xf1,
-            form_xobject([0.0, 0.0, cw, ch], res, &latin1_bytes(&content)),
-        );
+        update.put(xf1, form_xobject([0.0, 0.0, cw, ch], res, &latin1_bytes(&content)));
         // Plantilla exterior (Xf2) que dibuja Xf1 girada en sentido antihorario
         // y centrada en el campo.
         let theta = f64::from(rotation).to_radians();
@@ -226,11 +204,7 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
         );
         update.put(
             xf2,
-            form_xobject(
-                [0.0, 0.0, w, h],
-                xobject_res(&[("Xf1", xf1)]),
-                xf2_content.as_bytes(),
-            ),
+            form_xobject([0.0, 0.0, w, h], xobject_res(&[("Xf1", xf1)]), xf2_content.as_bytes()),
         );
         form_xobject(
             [0.0, 0.0, w, h],
@@ -269,11 +243,7 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
         let n1 = update.alloc();
         update.put(
             n1,
-            form_xobject(
-                [0.0, 0.0, 100.0, 100.0],
-                Dictionary::new(),
-                QUESTION_MARK.as_bytes(),
-            ),
+            form_xobject([0.0, 0.0, 100.0, 100.0], Dictionary::new(), QUESTION_MARK.as_bytes()),
         );
         let n3 = update.alloc();
         update.put(
@@ -308,23 +278,9 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
         let scale = w.min(h) * 0.9;
         let (x, y) = ((w - scale) / 2.0, (h - scale) / 2.0);
         let s = scale / 100.0;
-        let _ = writeln!(
-            frm_content,
-            "q {} 0 0 {} {} {} cm /n1 Do Q",
-            f(s),
-            f(s),
-            f(x),
-            f(y)
-        );
+        let _ = writeln!(frm_content, "q {} 0 0 {} {} {} cm /n1 Do Q", f(s), f(s), f(x), f(y));
         frm_content.push_str("q 1 0 0 1 0 0 cm /n2 Do Q\n");
-        let _ = writeln!(
-            frm_content,
-            "q {} 0 0 {} {} {} cm /n3 Do Q",
-            f(s),
-            f(s),
-            f(x),
-            f(y)
-        );
+        let _ = writeln!(frm_content, "q {} 0 0 {} {} {} cm /n3 Do Q", f(s), f(s), f(x), f(y));
         frm_content.push_str("q 1 0 0 1 0 0 cm /n4 Do Q\n");
         frm_x.extend([("n1", n1), ("n2", n2), ("n3", n3), ("n4", n4)]);
     } else {
@@ -349,10 +305,7 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
             b"q 1 0 0 1 0 0 cm /FRM Do Q\n",
         ),
     );
-    BuiltAppearance {
-        napp,
-        frm: Some(frm),
-    }
+    BuiltAppearance { napp, frm: Some(frm) }
 }
 
 /// Redondea senos y cosenos casi enteros (evita `6.1e-17`).

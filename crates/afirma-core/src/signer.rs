@@ -65,7 +65,10 @@ impl SimpleSignInfo {
     /// Common Name del titular del certificado de firma (o el DN completo si
     /// no tiene CN).
     pub fn signer_name(&self) -> String {
-        self.certs.first().map(|c| crate::cert::common_name(c)).unwrap_or_default()
+        self.certs
+            .first()
+            .map(|c| crate::cert::common_name(c))
+            .unwrap_or_default()
     }
 
     pub fn is_timestamped(&self) -> bool {
@@ -192,8 +195,10 @@ impl CounterSignTarget {
     /// (`El objetivo de la contrafirma no puede ser nulo`,
     /// `Objetivo no soportado: <nombre>`).
     pub fn get_target(name: Option<&str>) -> Result<Self> {
-        let name = name.ok_or_else(|| crate::AfirmaError::invalid_argument("El objetivo de la contrafirma no puede ser nulo"))?;
-        Self::from_name(name).ok_or_else(|| crate::AfirmaError::invalid_argument(format!("Objetivo no soportado: {name}")))
+        let name = name
+            .ok_or_else(|| crate::AfirmaError::invalid_argument("El objetivo de la contrafirma no puede ser nulo"))?;
+        Self::from_name(name)
+            .ok_or_else(|| crate::AfirmaError::invalid_argument(format!("Objetivo no soportado: {name}")))
     }
 }
 
@@ -218,9 +223,15 @@ impl SimpleSignInfo {
     pub fn display_text_in<Tz: chrono::TimeZone>(&self, tz: &Tz) -> String {
         let mut desc = self.signer_name();
         if let Some(ts) = self.timestamping_time.first() {
-            desc.push_str(&format!(" (TimeStamp: {})", crate::javafmt::java_default_short_datetime_es(&ts.with_timezone(tz))));
+            desc.push_str(&format!(
+                " (TimeStamp: {})",
+                crate::javafmt::java_default_short_datetime_es(&ts.with_timezone(tz))
+            ));
         } else if let Some(t) = &self.signing_time {
-            desc.push_str(&format!(" ({})", crate::javafmt::java_default_short_datetime_es(&t.with_timezone(tz))));
+            desc.push_str(&format!(
+                " ({})",
+                crate::javafmt::java_default_short_datetime_es(&t.with_timezone(tz))
+            ));
         }
         desc
     }
@@ -232,7 +243,12 @@ impl SignersTree {
     /// `as_simple_sign_info` el texto es el de
     /// [`SimpleSignInfo::display_text`]; si no, el CN del firmante. Valores
     /// por defecto de Java: prefijo vacío y sangría `\t`.
-    pub fn show_tree_as_string(&self, line_prefix: Option<&str>, indent: Option<&str>, as_simple_sign_info: bool) -> String {
+    pub fn show_tree_as_string(
+        &self,
+        line_prefix: Option<&str>,
+        indent: Option<&str>,
+        as_simple_sign_info: bool,
+    ) -> String {
         let prefix = line_prefix.unwrap_or("");
         let indent = indent.unwrap_or("\t");
         let mut out = String::new();
@@ -257,14 +273,22 @@ impl SignersTree {
     /// Índices en preorden de las hojas (firmas sin contrafirmas), que son
     /// los objetivos de la contrafirma `leafs`.
     pub fn leaf_indexes(&self) -> Vec<usize> {
-        self.preorder().iter().enumerate().filter(|(_, (_, n))| n.countersigners.is_empty()).map(|(i, _)| i).collect()
+        self.preorder()
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, n))| n.countersigners.is_empty())
+            .map(|(i, _)| i)
+            .collect()
     }
 }
 
 impl SignInfo {
     /// `new AOSignInfo(format)`: `None` → `Desconocido`.
     pub fn new(format: Option<&str>) -> Self {
-        SignInfo { format: format.unwrap_or(crate::constants::SIGN_INFO_UNKNOWN_FORMAT).to_string(), ..Default::default() }
+        SignInfo {
+            format: format.unwrap_or(crate::constants::SIGN_INFO_UNKNOWN_FORMAT).to_string(),
+            ..Default::default()
+        }
     }
 }
 
@@ -287,7 +311,11 @@ impl TimestampInfo {
     /// fecha <Date.toString()>` (fecha en la zona local con la zona escrita
     /// como `GMT±hh:mm`).
     pub fn display_text(&self) -> String {
-        let issuer = self.issuer.as_deref().map(crate::cert::common_name).unwrap_or_else(|| "DESCONOCIDO".to_string());
+        let issuer = self
+            .issuer
+            .as_deref()
+            .map(crate::cert::common_name)
+            .unwrap_or_else(|| "DESCONOCIDO".to_string());
         format!(
             "Sello de tiempo emitido por '{issuer}' con fecha {}",
             crate::javafmt::java_date_to_string(&self.date.with_timezone(&chrono::Local))
@@ -326,33 +354,70 @@ mod tests {
     use chrono::{FixedOffset, TimeZone};
 
     fn cert() -> Vec<u8> {
-        let pem = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let pem = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/pki/firmante-rsa.crt"
+        ))
+        .unwrap();
         crate::cert::decode_certificate(&pem).unwrap()
     }
 
     fn node(info: SimpleSignInfo, children: Vec<SignerNode>) -> SignerNode {
-        SignerNode { info, countersigners: children }
+        SignerNode {
+            info,
+            countersigners: children,
+        }
     }
 
     #[test]
     fn tree_rendering() {
         let c = cert();
         let t = Utc.with_ymd_and_hms(2026, 10, 16, 11, 17, 0).unwrap();
-        let signer = SimpleSignInfo { certs: vec![c.clone()], signing_time: Some(t), ..Default::default() };
-        let stamped = SimpleSignInfo { certs: vec![c.clone()], timestamping_time: vec![t], signing_time: Some(t), ..Default::default() };
+        let signer = SimpleSignInfo {
+            certs: vec![c.clone()],
+            signing_time: Some(t),
+            ..Default::default()
+        };
+        let stamped = SimpleSignInfo {
+            certs: vec![c.clone()],
+            timestamping_time: vec![t],
+            signing_time: Some(t),
+            ..Default::default()
+        };
         let tree = SignersTree {
             signers: vec![
-                node(signer.clone(), vec![node(stamped.clone(), vec![node(SimpleSignInfo { certs: vec![c.clone()], ..Default::default() }, vec![])])]),
+                node(
+                    signer.clone(),
+                    vec![node(
+                        stamped.clone(),
+                        vec![node(
+                            SimpleSignInfo {
+                                certs: vec![c.clone()],
+                                ..Default::default()
+                            },
+                            vec![],
+                        )],
+                    )],
+                ),
                 node(signer.clone(), vec![]),
             ],
         };
         let cn = "ESPAÑOL ESPAÑOL JUAN - 00000000T";
-        assert_eq!(tree.show_tree_as_string(None, None, false), format!("\n{cn}\n\t{cn}\n\t\t{cn}\n{cn}"));
-        assert_eq!(tree.show_tree_as_string(Some(">"), Some("  "), false), format!("\n>{cn}\n>  {cn}\n>    {cn}\n>{cn}"));
+        assert_eq!(
+            tree.show_tree_as_string(None, None, false),
+            format!("\n{cn}\n\t{cn}\n\t\t{cn}\n{cn}")
+        );
+        assert_eq!(
+            tree.show_tree_as_string(Some(">"), Some("  "), false),
+            format!("\n>{cn}\n>  {cn}\n>    {cn}\n>{cn}")
+        );
         assert_eq!(tree.to_text("", "\t"), tree.show_tree_as_string(None, None, false));
         let madrid = FixedOffset::east_opt(7200).unwrap();
         assert_eq!(signer.display_text_in(&madrid), format!("{cn} (16 oct 2026, 13:17)"));
-        assert_eq!(stamped.display_text_in(&madrid), format!("{cn} (TimeStamp: 16 oct 2026, 13:17)"));
+        assert_eq!(
+            stamped.display_text_in(&madrid),
+            format!("{cn} (TimeStamp: 16 oct 2026, 13:17)")
+        );
         assert_eq!(tree.node_count(), 4);
         assert_eq!(tree.leaf_indexes(), vec![2, 3]);
         assert!(SignersTree::default().show_tree_as_string(None, None, true).is_empty());
@@ -360,15 +425,27 @@ mod tests {
 
     #[test]
     fn counter_sign_targets_and_infos() {
-        assert_eq!(CounterSignTarget::get_target(Some(" LEAFS ")).unwrap(), CounterSignTarget::Leafs);
-        assert_eq!(CounterSignTarget::get_target(None).unwrap_err().message, "El objetivo de la contrafirma no puede ser nulo");
-        assert_eq!(CounterSignTarget::get_target(Some("todo")).unwrap_err().message, "Objetivo no soportado: todo");
+        assert_eq!(
+            CounterSignTarget::get_target(Some(" LEAFS ")).unwrap(),
+            CounterSignTarget::Leafs
+        );
+        assert_eq!(
+            CounterSignTarget::get_target(None).unwrap_err().message,
+            "El objetivo de la contrafirma no puede ser nulo"
+        );
+        assert_eq!(
+            CounterSignTarget::get_target(Some("todo")).unwrap_err().message,
+            "Objetivo no soportado: todo"
+        );
         assert_eq!(CounterSignTarget::Tree.to_string(), "tree");
         assert_eq!(SignInfo::new(None).format, "Desconocido");
         assert_eq!(SignInfo::new(Some("CAdES")).format, "CAdES");
         let t = Utc.with_ymd_and_hms(2026, 10, 16, 11, 17, 0).unwrap();
         let ts = TimestampInfo::new(None, t);
-        assert!(ts.to_string().starts_with("Sello de tiempo emitido por 'DESCONOCIDO' con fecha "));
+        assert!(
+            ts.to_string()
+                .starts_with("Sello de tiempo emitido por 'DESCONOCIDO' con fecha ")
+        );
         let ts2 = TimestampInfo::new(Some(cert()), t);
         assert!(ts2.display_text().contains("'ESPAÑOL ESPAÑOL JUAN - 00000000T'"));
         let tree = TimestampInfo::timestamps_tree(&[ts, ts2]);

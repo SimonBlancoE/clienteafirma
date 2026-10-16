@@ -33,11 +33,19 @@ fn base() -> Option<String> {
         eprintln!("Prueba omitida: defina AFIRMA_IT=1 y AFIRMA_IT_BASE (tools/protocol-it/run.sh)");
         return None;
     }
-    Some(std::env::var("AFIRMA_IT_BASE").expect("AFIRMA_IT_BASE").trim_end_matches('/').to_string())
+    Some(
+        std::env::var("AFIRMA_IT_BASE")
+            .expect("AFIRMA_IT_BASE")
+            .trim_end_matches('/')
+            .to_string(),
+    )
 }
 
 fn http() -> HttpClient {
-    let settings = HttpSettings { proxy: ProxyMode::None, ..Default::default() };
+    let settings = HttpSettings {
+        proxy: ProxyMode::None,
+        ..Default::default()
+    };
     HttpClient::new(Arc::new(UreqHttpClient::new(settings)))
 }
 
@@ -60,7 +68,10 @@ fn launcher(handler: Arc<FakeHandler>) -> ProtocolLauncher {
 }
 
 fn enc(s: &str) -> String {
-    afirma_protocol::query::encode_storage_payload(s).replace(':', "%3A").replace('/', "%2F").replace('=', "%3D")
+    afirma_protocol::query::encode_storage_payload(s)
+        .replace(':', "%3A")
+        .replace('/', "%2F")
+        .replace('=', "%3D")
 }
 
 fn scratch(name: &str) -> std::path::PathBuf {
@@ -102,10 +113,15 @@ fn direct_invocation_with_real_intermediate_servers() {
         "afirma://selectcert?jvc=4&op=selectcert&ver=4&id=RIDSEL1&key=04719233&stservlet={}&aw=true",
         enc(&storage(&b))
     );
-    let LaunchOutcome::Finished(sent) = l.launch(&url) else { panic!() };
+    let LaunchOutcome::Finished(sent) = l.launch(&url) else {
+        panic!()
+    };
     // La página sondea el RetrieveService.
-    let got = intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDSEL1", Duration::from_millis(200), 20).unwrap();
-    let PollOutcome::Data(text) = got else { panic!("sin resultado") };
+    let got =
+        intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDSEL1", Duration::from_millis(200), 20).unwrap();
+    let PollOutcome::Data(text) = got else {
+        panic!("sin resultado")
+    };
     assert_eq!(text.trim_end(), sent);
     let des = ServerCipher::from_config(&des_config("04719233")).unwrap().unwrap();
     assert_eq!(des.decipher(&text).unwrap(), k.certificate());
@@ -117,14 +133,22 @@ fn direct_invocation_with_real_intermediate_servers() {
         storage(&b)
     );
     let des2 = ServerCipher::from_config(&des_config("11223344")).unwrap().unwrap();
-    intermediate::store(&http(), &storage(&b), "FIDSIGN1", &des2.cipher(envelope.as_bytes()).unwrap()).unwrap();
+    intermediate::store(
+        &http(),
+        &storage(&b),
+        "FIDSIGN1",
+        &des2.cipher(envelope.as_bytes()).unwrap(),
+    )
+    .unwrap();
     let url = format!(
         "afirma://sign?jvc=4&fileid=FIDSIGN1&rid=RIDSIGN1&rtservlet={}&stservlet={}&key=11223344",
         enc(&retriever(&b)),
         enc(&storage(&b))
     );
     l.launch(&url);
-    let PollOutcome::Data(text) = intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDSIGN1", Duration::from_millis(200), 20).unwrap()
+    let PollOutcome::Data(text) =
+        intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDSIGN1", Duration::from_millis(200), 20)
+            .unwrap()
     else {
         panic!()
     };
@@ -133,18 +157,35 @@ fn direct_invocation_with_real_intermediate_servers() {
     assert_eq!(des2.decipher(fields[0]).unwrap(), k.certificate());
     let sig = des2.decipher(fields[1]).unwrap();
     let alg = SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa);
-    assert_eq!(afirma_protocol::pkcs1::verify(k.certificate(), alg, b"Hola", &sig), afirma_protocol::pkcs1::Verification::Valid);
+    assert_eq!(
+        afirma_protocol::pkcs1::verify(k.certificate(), alg, b"Hola", &sig),
+        afirma_protocol::pkcs1::Verification::Valid
+    );
 
     // Error de parámetros subido (mejora): la página lo recibe en vez de agotar la espera.
-    let url = format!("afirma://sign?jvc=4&op=sign&ver=4&id=RIDERR1&algorithm=SHA256&dat=SG9sYQ%3D%3D&stservlet={}", enc(&storage(&b)));
+    let url = format!(
+        "afirma://sign?jvc=4&op=sign&ver=4&id=RIDERR1&algorithm=SHA256&dat=SG9sYQ%3D%3D&stservlet={}",
+        enc(&storage(&b))
+    );
     l.launch(&url);
-    let PollOutcome::Data(text) = intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDERR1", Duration::from_millis(200), 20).unwrap() else {
+    let PollOutcome::Data(text) =
+        intermediate::poll_like_autoscript(&http(), &retriever(&b), "RIDERR1", Duration::from_millis(200), 20).unwrap()
+    else {
         panic!()
     };
-    assert_eq!(text.trim_end(), "err-00:=AF600104 - No se ha recibido el formato de firma para la operacion de firma");
+    assert_eq!(
+        text.trim_end(),
+        "err-00:=AF600104 - No se ha recibido el formato de firma para la operacion de firma"
+    );
 }
 
-fn sign_tri(format: &str, op: &str, data: &[u8], extra: &str, key_name: &str) -> (String, Arc<dyn afirma_core::SigningKey>, Arc<FakeHandler>) {
+fn sign_tri(
+    format: &str,
+    op: &str,
+    data: &[u8],
+    extra: &str,
+    key_name: &str,
+) -> (String, Arc<dyn afirma_core::SigningKey>, Arc<FakeHandler>) {
     let b = base().unwrap();
     let k = key(key_name);
     let h = FakeHandler::with_key(k.clone());
@@ -168,7 +209,13 @@ fn triphase_cades_against_real_server() {
     if base().is_none() {
         return;
     }
-    let (r, _, _) = sign_tri("CAdEStri", "sign", b"Datos de prueba trifasica", "mode=implicit", "firmante-rsa");
+    let (r, _, _) = sign_tri(
+        "CAdEStri",
+        "sign",
+        b"Datos de prueba trifasica",
+        "mode=implicit",
+        "firmante-rsa",
+    );
     let sig = signature_of(&r);
     let f = scratch("tri-cades.p7s");
     std::fs::write(&f, &sig).unwrap();
@@ -186,9 +233,16 @@ fn triphase_cades_against_real_server() {
     let (r2, _, _) = sign_tri("CAdEStri", "cosign", &sig, "", "firmante-ec");
     let co = signature_of(&r2);
     std::fs::write(&f, &co).unwrap();
-    let out = Command::new("openssl").args(["cms", "-cmsout", "-print", "-inform", "DER", "-in"]).arg(&f).output().unwrap();
+    let out = Command::new("openssl")
+        .args(["cms", "-cmsout", "-print", "-inform", "DER", "-in"])
+        .arg(&f)
+        .output()
+        .unwrap();
     let printed = String::from_utf8_lossy(&out.stdout);
-    let signers = printed.lines().filter(|l| l.contains("d.issuerAndSerialNumber") || l.contains("d.subjectKeyIdentifier")).count();
+    let signers = printed
+        .lines()
+        .filter(|l| l.contains("d.issuerAndSerialNumber") || l.contains("d.subjectKeyIdentifier"))
+        .count();
     assert_eq!(signers, 2, "{printed}");
     let out = Command::new("openssl")
         .args(["cms", "-verify", "-inform", "DER", "-in"])
@@ -210,13 +264,20 @@ fn triphase_xades_against_real_server() {
     let (r, _, _) = sign_tri("XAdEStri", "sign", xml, "format=XAdES Enveloped", "firmante-rsa");
     let sig = signature_of(&r);
     let text = String::from_utf8(sig.clone()).unwrap();
-    assert!(text.contains("SignatureValue") && text.contains("<a>Hola</a>"), "{text}");
+    assert!(
+        text.contains("SignatureValue") && text.contains("<a>Hola</a>"),
+        "{text}"
+    );
     let f = scratch("tri-xades.xml");
     std::fs::write(&f, &sig).unwrap();
     let verifier = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/protocol-it/verify_xml.sh");
     if let Ok(out) = Command::new(&verifier).arg(&f).output() {
         let stdout = String::from_utf8_lossy(&out.stdout);
-        assert!(out.status.success() && stdout.contains("valid=true"), "{stdout}{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success() && stdout.contains("valid=true"),
+            "{stdout}{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
     // FacturaE y XAdES con clave EC (PK1_DECODED en el servidor).
     let (r, _, _) = sign_tri("XAdEStri", "sign", xml, "format=XAdES Enveloping", "firmante-ec");
@@ -248,16 +309,26 @@ fn triphase_pades_against_real_server() {
     *h.confirm_answer.lock().unwrap() = true;
     let l = launcher(h.clone());
     let props = jbase64::encode(format!("serverUrl={}", signature_service(&b)).as_bytes());
-    let msg = format!("afirma://sign?op=sign&format=PAdEStri&algorithm=SHA256&properties={props}&dat={}", jbase64::encode_url_safe(&pdf));
+    let msg = format!(
+        "afirma://sign?op=sign&format=PAdEStri&algorithm=SHA256&properties={props}&dat={}",
+        jbase64::encode_url_safe(&pdf)
+    );
     let r = l.process_socket_message(&msg, V41);
     let confirms = h.confirms.lock().unwrap().clone();
-    assert_eq!(confirms.first().map(|c| c.requestor_text.as_str()), Some("signingCertifiedPdf"), "{r}");
+    assert_eq!(
+        confirms.first().map(|c| c.requestor_text.as_str()),
+        Some("signingCertifiedPdf"),
+        "{r}"
+    );
     assert!(signature_of(&r).starts_with(b"%PDF"));
     // Rechazo de la confirmación → cancelación; headless → error 212007.
     *h.confirm_answer.lock().unwrap() = false;
     assert!(l.process_socket_message(&msg, V41).starts_with("err-11:="));
     let props = jbase64::encode(format!("serverUrl={}\nheadless=true", signature_service(&b)).as_bytes());
-    let msg = format!("afirma://sign?op=sign&format=PAdEStri&algorithm=SHA256&properties={props}&dat={}", jbase64::encode_url_safe(&pdf));
+    let msg = format!(
+        "afirma://sign?op=sign&format=PAdEStri&algorithm=SHA256&properties={props}&dat={}",
+        jbase64::encode_url_safe(&pdf)
+    );
     assert!(l.process_socket_message(&msg, V41).starts_with("err-00:=AF212007"));
 }
 
@@ -267,7 +338,10 @@ fn triphase_none_and_errors_against_real_server() {
     let (r, k, _) = sign_tri("NONEtri", "sign", b"datos pkcs1", "", "firmante-rsa");
     let sig = signature_of(&r);
     let alg = SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa);
-    assert_eq!(afirma_protocol::pkcs1::verify(k.certificate(), alg, b"datos pkcs1", &sig), afirma_protocol::pkcs1::Verification::Valid);
+    assert_eq!(
+        afirma_protocol::pkcs1::verify(k.certificate(), alg, b"datos pkcs1", &sig),
+        afirma_protocol::pkcs1::Verification::Valid
+    );
     // Cofirma CAdES de algo que no es una firma → ERR-9 del servidor (300417).
     let (r, _, _) = sign_tri("CAdEStri", "cosign", b"no es una firma", "", "firmante-rsa");
     assert!(r.starts_with("err-00:=AF3004"), "{r}");
@@ -275,7 +349,10 @@ fn triphase_none_and_errors_against_real_server() {
     let h = FakeHandler::with_key(key("firmante-rsa"));
     let l = launcher(h);
     let props = jbase64::encode(format!("serverUrl={b}/afirma-server-triphase-signer/NoExiste").as_bytes());
-    let r = l.process_socket_message(&format!("afirma://sign?op=sign&format=CAdEStri&algorithm=SHA256&properties={props}&dat=SG9sYQ=="), V41);
+    let r = l.process_socket_message(
+        &format!("afirma://sign?op=sign&format=CAdEStri&algorithm=SHA256&properties={props}&dat=SG9sYQ=="),
+        V41,
+    );
     assert!(r.starts_with("err-00:=AF401301"), "{r}");
 }
 
@@ -335,5 +412,8 @@ fn json_batch_against_real_server() {
         jbase64::encode_url_safe(batch.as_bytes())
     );
     let r = l.process_socket_message(&url, V41);
-    assert!(r.starts_with("err-00:=AF600417") || r.starts_with("err-00:=AF300601"), "{r}");
+    assert!(
+        r.starts_with("err-00:=AF600417") || r.starts_with("err-00:=AF300601"),
+        "{r}"
+    );
 }

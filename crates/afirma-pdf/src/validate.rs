@@ -32,14 +32,8 @@ fn ko(e: ValidityError) -> SignValidity {
 /// como error con intervención (`RuntimeConfigNeededException`).
 ///
 /// El primer elemento de la lista es el veredicto.
-pub fn validate_pdf(
-    pdf: &[u8],
-    params: &ExtraParams,
-    relaxed: bool,
-) -> Result<Vec<SignValidity>, AfirmaError> {
-    let password = params
-        .get(OWNER_PASSWORD)
-        .or_else(|| params.get(USER_PASSWORD));
+pub fn validate_pdf(pdf: &[u8], params: &ExtraParams, relaxed: bool) -> Result<Vec<SignValidity>, AfirmaError> {
+    let password = params.get(OWNER_PASSWORD).or_else(|| params.get(USER_PASSWORD));
     let no_sign = || vec![ko(ValidityError::NoSign).with_code(codes::INCOMPATIBLE_SIGNATURE)];
     let Ok(doc) = PdfDoc::open(pdf, password) else {
         return Ok(no_sign());
@@ -53,22 +47,24 @@ pub fn validate_pdf(
     // Cambios en formularios.
     let allow_form = params.get(ALLOW_MODIFIED_FORM);
     let mut form_modified = false;
-    if !allow_form.is_some_and(|v| v.eq_ignore_ascii_case("true")) && total > 1
+    if !allow_form.is_some_and(|v| v.eq_ignore_ascii_case("true"))
+        && total > 1
         && let Some(oldest) = sigs.last()
-            && let Ok(orig) = PdfDoc::open(&pdf[..oldest.covered.min(pdf.len())], password) {
-                let changes = form_changes(&orig, &doc);
-                if !changes.is_empty() {
-                    if relaxed {
-                        return Err(errors::modified_form(allow_form.is_some()));
-                    }
-                    list.push(
-                        ko(ValidityError::ModifiedForm)
-                            .with_code(codes::SIGNING_PDF_WITH_MODIFIED_FORM)
-                            .with_detail("Se han detectado cambios en un formulario posteriores a la primera firma"),
-                    );
-                    form_modified = true;
-                }
+        && let Ok(orig) = PdfDoc::open(&pdf[..oldest.covered.min(pdf.len())], password)
+    {
+        let changes = form_changes(&orig, &doc);
+        if !changes.is_empty() {
+            if relaxed {
+                return Err(errors::modified_form(allow_form.is_some()));
             }
+            list.push(
+                ko(ValidityError::ModifiedForm)
+                    .with_code(codes::SIGNING_PDF_WITH_MODIFIED_FORM)
+                    .with_detail("Se han detectado cambios en un formulario posteriores a la primera firma"),
+            );
+            form_modified = true;
+        }
+    }
 
     // PDF Shadow Attack.
     let allow_psa = params.get(ALLOW_SHADOW_ATTACK);
@@ -132,8 +128,7 @@ pub fn validate_pdf(
             for s in &sigs {
                 if s.revision > cr {
                     list.push(
-                        ko(ValidityError::CertifiedSignRevision)
-                            .with_code(codes::SIGNING_PDF_WITH_CERTIFIED_SIGN),
+                        ko(ValidityError::CertifiedSignRevision).with_code(codes::SIGNING_PDF_WITH_CERTIFIED_SIGN),
                     );
                 }
             }
@@ -165,9 +160,7 @@ pub fn long_standing_priority(list: Vec<SignValidity>) -> Vec<SignValidity> {
             } else {
                 other_ko = true;
             }
-        } else if v.validity == Validity::Unknown
-            && v.error == Some(ValidityError::SignProfileNotChecked)
-        {
+        } else if v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked) {
             warning = Some(i);
         }
     }
@@ -189,19 +182,14 @@ fn byte_range_ok(pdf: &[u8], br: &[i64]) -> bool {
         return false;
     }
     let (a, b) = (a as usize, b as usize);
-    pdf.get(a) == Some(&b'<')
-        && pdf.get(b - 1) == Some(&b'>')
-        && pdf[a + 1..b - 1].iter().all(u8::is_ascii_hexdigit)
+    pdf.get(a) == Some(&b'<') && pdf.get(b - 1) == Some(&b'>') && pdf[a + 1..b - 1].iter().all(u8::is_ascii_hexdigit)
 }
 
 /// Huella de los bytes cubiertos por el `/ByteRange`.
 fn byte_range_digest(pdf: &[u8], br: &[i64], d: afirma_core::DigestAlgorithm) -> Option<Vec<u8>> {
     let mut h = d.hasher();
     for pair in br.chunks(2) {
-        let (start, len) = (
-            usize::try_from(pair[0]).ok()?,
-            usize::try_from(*pair.get(1)?).ok()?,
-        );
+        let (start, len) = (usize::try_from(pair[0]).ok()?, usize::try_from(*pair.get(1)?).ok()?);
         h.update(pdf.get(start..start.checked_add(len)?)?);
     }
     Some(h.finalize())
@@ -240,9 +228,7 @@ impl SignatureData {
                 _ => Vec::new(),
             };
             if chain.is_empty() {
-                return Err(cms::CmsError::Certificate(
-                    "la firma no contiene certificados".into(),
-                ));
+                return Err(cms::CmsError::Certificate("la firma no contiene certificados".into()));
             }
             return Ok(SignatureData {
                 chain,
@@ -280,14 +266,8 @@ impl SignatureData {
         let bad = || cms::CmsError::Invalid("rango de bytes no valido".into());
         let Some(sd) = &self.cms else {
             // adbe.x509.rsa_sha1: PKCS#1 sobre la huella SHA-1 del rango.
-            let h =
-                byte_range_digest(pdf, br, afirma_core::DigestAlgorithm::Sha1).ok_or_else(bad)?;
-            return cms::verify_prehashed(
-                &self.chain[0],
-                afirma_core::DigestAlgorithm::Sha1,
-                &h,
-                &self.pkcs1,
-            );
+            let h = byte_range_digest(pdf, br, afirma_core::DigestAlgorithm::Sha1).ok_or_else(bad)?;
+            return cms::verify_prehashed(&self.chain[0], afirma_core::DigestAlgorithm::Sha1, &h, &self.pkcs1);
         };
         let si = &sd.signer_infos[0];
         let digest = si
@@ -296,8 +276,7 @@ impl SignatureData {
         let data_digest = if self.sub_filter == b"adbe.pkcs7.sha1" {
             // El contenido encapsulado es la huella SHA-1 del rango.
             let content = sd.econtent.clone().unwrap_or_default();
-            let h =
-                byte_range_digest(pdf, br, afirma_core::DigestAlgorithm::Sha1).ok_or_else(bad)?;
+            let h = byte_range_digest(pdf, br, afirma_core::DigestAlgorithm::Sha1).ok_or_else(bad)?;
             if content != h {
                 return Ok(false);
             }
@@ -312,12 +291,7 @@ impl SignatureData {
 
 /// Validación de una firma (`validateSign`): se acumulan todos los
 /// problemas encontrados.
-fn validate_sign(
-    doc: &PdfDoc,
-    s: &SignatureEntry,
-    profile: &str,
-    check_certs: bool,
-) -> Vec<SignValidity> {
+fn validate_sign(doc: &PdfDoc, s: &SignatureEntry, profile: &str, check_certs: bool) -> Vec<SignValidity> {
     let pdf = &doc.bytes;
     let br = s.byte_range();
     let mut out = Vec::new();
@@ -332,18 +306,13 @@ fn validate_sign(
     if !byte_range_ok(pdf, &br) {
         // Comprobación adicional a la de Java: el hueco del /ByteRange debe
         // ser exactamente el valor de /Contents.
-        out.push(
-            ko(ValidityError::CorruptedSign)
-                .with_detail("El /ByteRange de la firma no es coherente"),
-        );
+        out.push(ko(ValidityError::CorruptedSign).with_detail("El /ByteRange de la firma no es coherente"));
     } else if is_doc_ts {
         // Sello de documento: Java no lo verifica; aquí se comprueba la huella
         // del sello y su firma.
         match cms::timestamp_imprint(&s.contents()) {
             Some((alg, imprint)) => match afirma_core::DigestAlgorithm::from_oid(&alg) {
-                Some(d)
-                    if byte_range_digest(pdf, &br, d).as_deref() == Some(imprint.as_slice()) =>
-                {
+                Some(d) if byte_range_digest(pdf, &br, d).as_deref() == Some(imprint.as_slice()) => {
                     if let Some(sd) = &data.cms {
                         let si = &sd.signer_infos[0];
                         let ed = sd
@@ -355,8 +324,7 @@ fn validate_sign(
                         match cms::verify_signer(sd, si, &ed) {
                             Ok(c) if c.digest_ok && c.signature_ok => {}
                             Ok(_) => out.push(ko(ValidityError::NoMatchData)),
-                            Err(e) => out
-                                .push(ko(ValidityError::CorruptedSign).with_detail(e.to_string())),
+                            Err(e) => out.push(ko(ValidityError::CorruptedSign).with_detail(e.to_string())),
                         }
                     }
                 }
@@ -371,15 +339,14 @@ fn validate_sign(
             Err(e) => out.push(ko(ValidityError::CorruptedSign).with_detail(e.to_string())),
         }
     }
-    if check_certs
-        && let Some(cert) = afirma_core::cert::CertInfo::parse(&data.chain[0]) {
-            let now = chrono::Utc::now();
-            if now > cert.not_after {
-                out.push(ko(ValidityError::CertificateExpired));
-            } else if now < cert.not_before {
-                out.push(ko(ValidityError::CertificateNotValidYet));
-            }
+    if check_certs && let Some(cert) = afirma_core::cert::CertInfo::parse(&data.chain[0]) {
+        let now = chrono::Utc::now();
+        if now > cert.not_after {
+            out.push(ko(ValidityError::CertificateExpired));
+        } else if now < cert.not_before {
+            out.push(ko(ValidityError::CertificateNotValidYet));
         }
+    }
     if !CHECKED_PROFILES.contains(&profile) {
         out.push(SignValidity::unknown(ValidityError::SignProfileNotChecked));
     }
@@ -394,15 +361,13 @@ pub fn resolve_pdf_format(doc: &PdfDoc, sigs: &[SignatureEntry]) -> String {
     let doc_ts = sigs
         .iter()
         .filter(|s| {
-            s.sub_filter()
-                .is_some_and(|f| f.eq_ignore_ascii_case(b"ETSI.RFC3161"))
+            s.sub_filter().is_some_and(|f| f.eq_ignore_ascii_case(b"ETSI.RFC3161"))
                 && s.type_name().is_none_or(|t| t == b"DocTimeStamp")
         })
         .count();
     let has_dss = doc.catalog().is_some_and(|c| c.has(b"DSS"));
     let Some(s) = sigs.iter().find(|s| {
-        s.sub_filter().as_deref() != Some(b"ETSI.RFC3161".as_slice())
-            && s.type_name().is_none_or(|t| t == b"Sig")
+        s.sub_filter().as_deref() != Some(b"ETSI.RFC3161".as_slice()) && s.type_name().is_none_or(|t| t == b"Sig")
     }) else {
         return "No reconocido".into();
     };
@@ -436,8 +401,7 @@ pub fn resolve_pdf_format(doc: &PdfDoc, sigs: &[SignatureEntry]) -> String {
             let sig_ts = si
                 .unsigned_attr(cms::OID_SIGNATURE_TIMESTAMP)
                 .map_or(0, |a| a.values.len());
-            let t = !sd.certificates.is_empty()
-                && ((sig_ts == 1 && doc_ts == 0) || (sig_ts == 0 && doc_ts == 1));
+            let t = !sd.certificates.is_empty() && ((sig_ts == 1 && doc_ts == 0) || (sig_ts == 0 && doc_ts == 1));
             if (sig_ts > 1 || doc_ts > 1) && has_dss {
                 return "PAdES LTA-Level".into();
             }
@@ -495,55 +459,54 @@ fn repr(doc: &PdfDoc, o: Option<&Object>) -> Option<Vec<u8>> {
 fn field_values(doc: &PdfDoc) -> Vec<(String, Option<Vec<u8>>)> {
     let mut out: Vec<(String, Option<Vec<u8>>)> = Vec::new();
     if let Some(form) = doc.acroform()
-        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
-            fn walk(
-                doc: &PdfDoc,
-                o: &Object,
-                prefix: &str,
-                ft: Option<Vec<u8>>,
-                v: Option<Object>,
-                out: &mut Vec<(String, Option<Vec<u8>>)>,
-                depth: usize,
-            ) {
-                if depth > 32 {
-                    return;
-                }
-                let Some(d) = doc.dict(o) else { return };
-                let t = doc
-                    .dict_get(d, b"T")
-                    .and_then(|t| t.as_str().ok())
-                    .map(crate::pdf::text::decode_text_string);
-                let name = match (&t, prefix.is_empty()) {
-                    (Some(t), true) => t.clone(),
-                    (Some(t), false) => format!("{prefix}.{t}"),
-                    (None, _) => prefix.to_string(),
-                };
-                let ft = doc.dict_get_name(d, b"FT").map(<[u8]>::to_vec).or(ft);
-                let v = d.get(b"V").ok().cloned().or(v);
-                let kids: Vec<&Object> = match doc.dict_get(d, b"Kids") {
-                    Some(Object::Array(k)) => k
-                        .iter()
-                        .filter(|k| doc.dict(k).is_some_and(|kd| kd.has(b"T")))
-                        .collect(),
-                    _ => Vec::new(),
-                };
-                if kids.is_empty() {
-                    if ft.as_deref() != Some(b"Sig".as_slice())
-                        && !name.is_empty()
-                        && !out.iter().any(|(n, _)| *n == name)
-                    {
-                        out.push((name, repr(doc, v.as_ref())));
-                    }
-                } else {
-                    for k in kids {
-                        walk(doc, k, &name, ft.clone(), v.clone(), out, depth + 1);
-                    }
-                }
+        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields")
+    {
+        fn walk(
+            doc: &PdfDoc,
+            o: &Object,
+            prefix: &str,
+            ft: Option<Vec<u8>>,
+            v: Option<Object>,
+            out: &mut Vec<(String, Option<Vec<u8>>)>,
+            depth: usize,
+        ) {
+            if depth > 32 {
+                return;
             }
-            for f in fields {
-                walk(doc, f, "", None, None, &mut out, 0);
+            let Some(d) = doc.dict(o) else { return };
+            let t = doc
+                .dict_get(d, b"T")
+                .and_then(|t| t.as_str().ok())
+                .map(crate::pdf::text::decode_text_string);
+            let name = match (&t, prefix.is_empty()) {
+                (Some(t), true) => t.clone(),
+                (Some(t), false) => format!("{prefix}.{t}"),
+                (None, _) => prefix.to_string(),
+            };
+            let ft = doc.dict_get_name(d, b"FT").map(<[u8]>::to_vec).or(ft);
+            let v = d.get(b"V").ok().cloned().or(v);
+            let kids: Vec<&Object> = match doc.dict_get(d, b"Kids") {
+                Some(Object::Array(k)) => k
+                    .iter()
+                    .filter(|k| doc.dict(k).is_some_and(|kd| kd.has(b"T")))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            if kids.is_empty() {
+                if ft.as_deref() != Some(b"Sig".as_slice()) && !name.is_empty() && !out.iter().any(|(n, _)| *n == name)
+                {
+                    out.push((name, repr(doc, v.as_ref())));
+                }
+            } else {
+                for k in kids {
+                    walk(doc, k, &name, ft.clone(), v.clone(), out, depth + 1);
+                }
             }
         }
+        for f in fields {
+            walk(doc, f, "", None, None, &mut out, 0);
+        }
+    }
     for (pi, page) in doc.pages().into_iter().enumerate() {
         let Some(pd) = doc.dict_id(page) else {
             continue;
@@ -553,9 +516,7 @@ fn field_values(doc: &PdfDoc) -> Vec<(String, Option<Vec<u8>>)> {
         };
         for (ai, a) in annots.iter().enumerate() {
             let Some(ad) = doc.dict(a) else { continue };
-            if doc.dict_get_name(ad, b"Subtype") != Some(b"Widget")
-                || doc.dict_get_name(ad, b"FT") == Some(b"Sig")
-            {
+            if doc.dict_get_name(ad, b"Subtype") != Some(b"Widget") || doc.dict_get_name(ad, b"FT") == Some(b"Sig") {
                 continue;
             }
             let name = doc
@@ -663,9 +624,7 @@ pub fn check_shadow_attack(
     #[cfg(feature = "render")]
     let (cur, rev) = {
         let cur = crate::render::RenderDocument::open(pdf, password).ok()?;
-        let rev =
-            crate::render::RenderDocument::open(&pdf[..newest.covered.min(pdf.len())], password)
-                .ok()?;
+        let rev = crate::render::RenderDocument::open(&pdf[..newest.covered.min(pdf.len())], password).ok()?;
         (cur, rev)
     };
     for i in 0..pages {
@@ -687,12 +646,9 @@ pub fn check_shadow_attack(
             let b = rev.render_page_dpi(i, 40.0).ok()?;
             if a.width != b.width || a.height != b.height || a.to_gray() != b.to_gray() {
                 return Some(
-                    SignValidity::new(
-                        Validity::PendingConfirmByUser,
-                        Some(ValidityError::ModifiedDocument),
-                    )
-                    .with_code(codes::SIGNING_PDF_WITH_SUSPICION_OF_PSA)
-                    .with_detail("El documento ha cambiado de aspecto"),
+                    SignValidity::new(Validity::PendingConfirmByUser, Some(ValidityError::ModifiedDocument))
+                        .with_code(codes::SIGNING_PDF_WITH_SUSPICION_OF_PSA)
+                        .with_detail("El documento ha cambiado de aspecto"),
                 );
             }
         }

@@ -34,7 +34,10 @@ fn io_err(msg: impl Into<String>) -> AfirmaError {
 
 /// Nombre por defecto de la entrada de datos: `dataobject.<extensión>`.
 pub fn default_data_filename(data: &[u8]) -> String {
-    let ext = mime::analyze(data).extension.filter(|e| !e.is_empty()).unwrap_or_else(|| "bin".to_string());
+    let ext = mime::analyze(data)
+        .extension
+        .filter(|e| !e.is_empty())
+        .unwrap_or_else(|| "bin".to_string());
     format!("dataobject.{ext}")
 }
 
@@ -59,12 +62,18 @@ pub fn create_s_container(
         return Err(AfirmaError::invalid_argument("Los datos no pueden ser nulos ni vacios"));
     }
     let wrap = |e: zip::result::ZipError| {
-        AfirmaError::new(codes::BUILDING_ASIC_CONTAINER_ERROR, "No se ha podido construir el contenedor CAdES-ASiC")
-            .with_cause(e)
+        AfirmaError::new(
+            codes::BUILDING_ASIC_CONTAINER_ERROR,
+            "No se ha podido construir el contenedor CAdES-ASiC",
+        )
+        .with_cause(e)
     };
     let io = |e: std::io::Error| {
-        AfirmaError::new(codes::BUILDING_ASIC_CONTAINER_ERROR, "No se ha podido construir el contenedor CAdES-ASiC")
-            .with_cause(e)
+        AfirmaError::new(
+            codes::BUILDING_ASIC_CONTAINER_ERROR,
+            "No se ha podido construir el contenedor CAdES-ASiC",
+        )
+        .with_cause(e)
     };
     let now = Utc::now();
     let ts = zip::DateTime::from_date_and_time(
@@ -86,10 +95,13 @@ pub fn create_s_container(
     zw.set_comment(format!("mimetype={ASIC_S_MIMETYPE}")).map_err(wrap)?;
     zw.start_file(ENTRY_NAME_MIMETYPE, stored).map_err(wrap)?;
     zw.write_all(ASIC_S_MIMETYPE.as_bytes()).map_err(io)?;
-    let data_name = data_filename.map(str::to_string).unwrap_or_else(|| default_data_filename(data));
+    let data_name = data_filename
+        .map(str::to_string)
+        .unwrap_or_else(|| default_data_filename(data));
     zw.start_file(data_name, deflated).map_err(wrap)?;
     zw.write_all(data).map_err(io)?;
-    zw.start_file(signature_filename.unwrap_or(ENTRY_NAME_BINARY_SIGNATURE), deflated).map_err(wrap)?;
+    zw.start_file(signature_filename.unwrap_or(ENTRY_NAME_BINARY_SIGNATURE), deflated)
+        .map_err(wrap)?;
     zw.write_all(signature).map_err(io)?;
     Ok(zw.finish().map_err(wrap)?.into_inner())
 }
@@ -112,7 +124,9 @@ impl AsicEntry {
 /// Lee todas las entradas de un contenedor en el orden del ZIP.
 pub fn read_entries(asic: &[u8]) -> afirma_core::Result<Vec<AsicEntry>> {
     if asic.is_empty() {
-        return Err(AfirmaError::invalid_argument("La firma ASiC proporcionada no puede ser nula ni vacia"));
+        return Err(AfirmaError::invalid_argument(
+            "La firma ASiC proporcionada no puede ser nula ni vacia",
+        ));
     }
     if asic.len() >= THRESHOLD_FILE_SIZE {
         return Err(io_err("El archivo tiene un tamano superior al permitido."));
@@ -134,9 +148,15 @@ pub fn read_entries(asic: &[u8]) -> afirma_core::Result<Vec<AsicEntry>> {
 }
 
 fn signature_entry(asic: &[u8], name: &str) -> afirma_core::Result<Vec<u8>> {
-    read_entries(asic)?.into_iter().find(|e| e.name == name).map(|e| e.content).ok_or_else(|| {
-        io_err(format!("Los datos proporcionados no son una firma ASiC-S conteniendo la entrada {name}"))
-    })
+    read_entries(asic)?
+        .into_iter()
+        .find(|e| e.name == name)
+        .map(|e| e.content)
+        .ok_or_else(|| {
+            io_err(format!(
+                "Los datos proporcionados no son una firma ASiC-S conteniendo la entrada {name}"
+            ))
+        })
 }
 
 /// Firma binaria (`META-INF/signature.p7s`) de un contenedor.
@@ -152,7 +172,10 @@ pub fn get_xml_signature(asic: &[u8]) -> afirma_core::Result<Vec<u8>> {
 /// Entradas de datos del contenedor, en el orden del ZIP (Java usa el orden
 /// de un `HashMap` por nombre base; con una sola entrada es equivalente).
 pub fn get_data_entries(asic: &[u8]) -> afirma_core::Result<Vec<AsicEntry>> {
-    let data: Vec<AsicEntry> = read_entries(asic)?.into_iter().filter(|e| is_data_entry(&e.name)).collect();
+    let data: Vec<AsicEntry> = read_entries(asic)?
+        .into_iter()
+        .filter(|e| is_data_entry(&e.name))
+        .collect();
     if data.is_empty() {
         return Err(io_err("Los datos proporcionados no son una firma ASiC-S"));
     }
@@ -203,7 +226,12 @@ impl Signer for CadesAsicsSigner {
     ) -> afirma_core::Result<Vec<u8>> {
         let params = explicit_params(extra);
         let signature = cades::sign_at(data, algorithm, key, &params, cades::now())?;
-        create_s_container(&signature, data, Some(ENTRY_NAME_BINARY_SIGNATURE), params.get("asicsFilename"))
+        create_s_container(
+            &signature,
+            data,
+            Some(ENTRY_NAME_BINARY_SIGNATURE),
+            params.get("asicsFilename"),
+        )
     }
 
     fn cosign(

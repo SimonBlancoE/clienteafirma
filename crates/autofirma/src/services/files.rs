@@ -20,11 +20,12 @@ pub fn expand_selection(paths: &[PathBuf]) -> Vec<PathBuf> {
         if p.is_file() {
             out.push(p);
         } else if p.is_dir()
-            && let Ok(rd) = std::fs::read_dir(&p) {
-                let mut children: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
-                children.sort();
-                work.extend(children);
-            }
+            && let Ok(rd) = std::fs::read_dir(&p)
+        {
+            let mut children: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
+            children.sort();
+            work.extend(children);
+        }
     }
     out
 }
@@ -44,7 +45,11 @@ fn kind_for(analysis: &FileAnalysis) -> FileKind {
 /// Operación de multifirma según las preferencias `cadesMultisign` /
 /// `xadesMultisign` (`cosign`, `countersignLeafs` u otro = árbol).
 pub fn multisign_operation(file_type: DataFileType, pref: &dyn Fn(&str) -> Option<String>) -> Operation {
-    let key = if file_type == DataFileType::SignXades { "xadesMultisign" } else { "cadesMultisign" };
+    let key = if file_type == DataFileType::SignXades {
+        "xadesMultisign"
+    } else {
+        "cadesMultisign"
+    };
     match pref(key).as_deref().unwrap_or("cosign") {
         "cosign" => Operation::Cosign,
         "countersignLeafs" => Operation::CountersignLeafs,
@@ -64,22 +69,30 @@ pub fn load_file(path: &Path, pref: &dyn Fn(&str) -> Option<String>) -> Result<F
             _ => Operation::Cosign,
         };
         if let Some(signer) = afirma_signers::signer_for_format(&analysis.format)
-            && let Ok(tree) = signer.signers_structure(&data, &ExtraParams::new()) {
-                let names: Vec<String> = tree.signers.iter().map(|n| n.info.signer_name()).collect();
-                existing = Some(match names.as_slice() {
-                    [] => tr("Firmado").to_string(),
-                    [one] => trf("1 firma de {0}", &[one]),
-                    many => trf("{0} firmas", &[&many.len()]),
-                });
-            }
+            && let Ok(tree) = signer.signers_structure(&data, &ExtraParams::new())
+        {
+            let names: Vec<String> = tree.signers.iter().map(|n| n.info.signer_name()).collect();
+            existing = Some(match names.as_slice() {
+                [] => tr("Firmado").to_string(),
+                [one] => trf("1 firma de {0}", &[one]),
+                many => trf("{0} firmas", &[&many.len()]),
+            });
+        }
     }
     Ok(FileItem {
         path: path.to_path_buf(),
-        name: path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
         size: data.len() as u64,
         kind: kind_for(&analysis),
         format: analysis.format.clone(),
-        formats: if analysis.alternatives.is_empty() { vec![analysis.format.clone()] } else { analysis.alternatives.clone() },
+        formats: if analysis.alternatives.is_empty() {
+            vec![analysis.format.clone()]
+        } else {
+            analysis.alternatives.clone()
+        },
         operation,
         status: FileStatus::Pending,
         existing_signatures: existing,

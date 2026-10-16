@@ -207,7 +207,11 @@ pub fn generalized_time(t: &DateTime<Utc>, with_millis: bool) -> Vec<u8> {
 
 /// Codificación de `Time` según RFC 5280: UTCTime hasta 2049, GeneralizedTime después.
 pub fn time(t: &DateTime<Utc>) -> Vec<u8> {
-    if (1950..2050).contains(&t.year()) { utc_time(t) } else { generalized_time(t, false) }
+    if (1950..2050).contains(&t.year()) {
+        utc_time(t)
+    } else {
+        generalized_time(t, false)
+    }
 }
 
 /// AlgorithmIdentifier con parámetros opcionales (ya codificados).

@@ -2,10 +2,7 @@
 //! formateador compatible con `java.text.SimpleDateFormat` (configuración
 //! regional `es_ES`, la habitual de los usuarios de AutoFirma).
 
-use chrono::{
-    DateTime, Datelike, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone,
-    Timelike,
-};
+use chrono::{DateTime, Datelike, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone, Timelike};
 
 /// Instante de firma con la zona horaria local en la que se representa.
 pub type SignTime = DateTime<FixedOffset>;
@@ -77,9 +74,7 @@ pub fn parse_pdf_date(s: &str) -> Option<SignTime> {
     if digits.len() < 4 {
         return None;
     }
-    let num = |a: usize, b: usize, def: u32| -> u32 {
-        digits.get(a..b).and_then(|x| x.parse().ok()).unwrap_or(def)
-    };
+    let num = |a: usize, b: usize, def: u32| -> u32 { digits.get(a..b).and_then(|x| x.parse().ok()).unwrap_or(def) };
     let year: i32 = digits[0..4].parse().ok()?;
     let (mo, d, h, mi, se) = (
         num(4, 6, 1),
@@ -99,8 +94,7 @@ pub fn parse_pdf_date(s: &str) -> Option<SignTime> {
         }
         _ => FixedOffset::east_opt(0)?,
     };
-    let naive =
-        NaiveDate::from_ymd_opt(year, mo.max(1), d.max(1))?.and_hms_opt(h, mi, se.min(59))?;
+    let naive = NaiveDate::from_ymd_opt(year, mo.max(1), d.max(1))?.and_hms_opt(h, mi, se.min(59))?;
     offset.from_local_datetime(&naive).single()
 }
 
@@ -155,15 +149,7 @@ const MONTHS_FULL: [&str; 12] = [
 const MONTHS_SHORT: [&str; 12] = [
     "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic",
 ];
-const DAYS_FULL: [&str; 7] = [
-    "lunes",
-    "martes",
-    "miércoles",
-    "jueves",
-    "viernes",
-    "sábado",
-    "domingo",
-];
+const DAYS_FULL: [&str; 7] = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
 const DAYS_SHORT: [&str; 7] = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
 
 /// Patrón por defecto de `new SimpleDateFormat()` en `es_ES`.
@@ -409,16 +395,8 @@ pub fn java_format(t: &SignTime, pattern: &str) -> Option<String> {
                 let s = match c {
                     'G' => "d. C.".to_string(),
                     'y' | 'Y' => {
-                        let y = i64::from(if c == 'Y' {
-                            t.iso_week().year()
-                        } else {
-                            t.year()
-                        });
-                        if n == 2 {
-                            pad(y.rem_euclid(100), 2)
-                        } else {
-                            pad(y, n)
-                        }
+                        let y = i64::from(if c == 'Y' { t.iso_week().year() } else { t.year() });
+                        if n == 2 { pad(y.rem_euclid(100), 2) } else { pad(y, n) }
                     }
                     'M' | 'L' => {
                         let m = t.month0() as usize;
@@ -447,11 +425,7 @@ pub fn java_format(t: &SignTime, pattern: &str) -> Option<String> {
                     'k' => pad(i64::from(if t.hour() == 0 { 24 } else { t.hour() }), n),
                     'K' => pad(i64::from(t.hour() % 12), n),
                     'h' => pad(
-                        i64::from(if t.hour().is_multiple_of(12) {
-                            12
-                        } else {
-                            t.hour() % 12
-                        }),
+                        i64::from(if t.hour().is_multiple_of(12) { 12 } else { t.hour() % 12 }),
                         n,
                     ),
                     'm' => pad(i64::from(t.minute()), n),
@@ -574,14 +548,7 @@ mod tests {
     fn lenient_sign_time() {
         let t = parse_sign_time("2026:10:16:13:35:34").unwrap();
         assert_eq!(
-            (
-                t.year(),
-                t.month(),
-                t.day(),
-                t.hour(),
-                t.minute(),
-                t.second()
-            ),
+            (t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second()),
             (2026, 10, 16, 13, 35, 34)
         );
         let t = parse_sign_time("2025:13:01:00:00:00").unwrap();

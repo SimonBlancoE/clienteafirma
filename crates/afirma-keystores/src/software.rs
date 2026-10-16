@@ -13,13 +13,18 @@ macro_rules! ecdsa_prehash_sign {
     ($key:expr, $sig:ty, $digest:expr, $data:expr) => {{
         use ecdsa::signature::hazmat::PrehashSigner;
         let hash = $digest.digest($data);
-        let sig: $sig = $key.sign_prehash(&hash).map_err(|e| KeyError::Other(format!("error en la firma ECDSA: {e}")))?;
+        let sig: $sig = $key
+            .sign_prehash(&hash)
+            .map_err(|e| KeyError::Other(format!("error en la firma ECDSA: {e}")))?;
         Ok(sig.to_der().as_bytes().to_vec())
     }};
 }
 
 enum Inner {
-    Rsa { pkcs8: Vec<u8>, ring: Option<ring::signature::RsaKeyPair> },
+    Rsa {
+        pkcs8: Vec<u8>,
+        ring: Option<ring::signature::RsaKeyPair>,
+    },
     P256(p256::ecdsa::SigningKey),
     P384(p384::ecdsa::SigningKey),
     P521(p521::ecdsa::SigningKey),
@@ -34,7 +39,9 @@ pub struct SoftwareKey {
 
 impl std::fmt::Debug for SoftwareKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SoftwareKey").field("alias", &self.alias).finish_non_exhaustive()
+        f.debug_struct("SoftwareKey")
+            .field("alias", &self.alias)
+            .finish_non_exhaustive()
     }
 }
 
@@ -51,9 +58,13 @@ impl SoftwareKey {
         if chain.is_empty() {
             return Err(KeyError::Other("la clave no tiene certificado asociado".into()));
         }
-        let (alg_oid, curve_oid) = pkcs8_algorithm(pkcs8).ok_or_else(|| KeyError::Other("clave PKCS#8 no válida".into()))?;
+        let (alg_oid, curve_oid) =
+            pkcs8_algorithm(pkcs8).ok_or_else(|| KeyError::Other("clave PKCS#8 no válida".into()))?;
         let inner = match alg_oid.as_str() {
-            OID_RSA => Inner::Rsa { pkcs8: pkcs8.to_vec(), ring: ring::signature::RsaKeyPair::from_pkcs8(pkcs8).ok() },
+            OID_RSA => Inner::Rsa {
+                pkcs8: pkcs8.to_vec(),
+                ring: ring::signature::RsaKeyPair::from_pkcs8(pkcs8).ok(),
+            },
             OID_EC => {
                 use p256::pkcs8::DecodePrivateKey;
                 let bad = |e: p256::pkcs8::Error| KeyError::Other(format!("clave EC no válida: {e}"));
@@ -62,7 +73,10 @@ impl SoftwareKey {
                     Some(OID_P384) => Inner::P384(p384::ecdsa::SigningKey::from_pkcs8_der(pkcs8).map_err(bad)?),
                     Some(OID_P521) => {
                         let sk = p521::SecretKey::from_pkcs8_der(pkcs8).map_err(bad)?;
-                        Inner::P521(p521::ecdsa::SigningKey::from_slice(&sk.to_bytes()).map_err(|e| KeyError::Other(format!("clave EC no válida: {e}")))?)
+                        Inner::P521(
+                            p521::ecdsa::SigningKey::from_slice(&sk.to_bytes())
+                                .map_err(|e| KeyError::Other(format!("clave EC no válida: {e}")))?,
+                        )
                     }
                     other => return Err(KeyError::Unsupported(format!("curva elíptica {other:?}"))),
                 }
@@ -127,7 +141,8 @@ impl SigningKey for SoftwareKey {
 
 fn rsa_fallback(pkcs8: &[u8], digest: DigestAlgorithm, data: &[u8]) -> Result<Vec<u8>, KeyError> {
     use rsa::pkcs8::DecodePrivateKey;
-    let key = rsa::RsaPrivateKey::from_pkcs8_der(pkcs8).map_err(|e| KeyError::Other(format!("clave RSA no válida: {e}")))?;
+    let key =
+        rsa::RsaPrivateKey::from_pkcs8_der(pkcs8).map_err(|e| KeyError::Other(format!("clave RSA no válida: {e}")))?;
     let hash = digest.digest(data);
     let scheme = match digest {
         DigestAlgorithm::Sha1 => rsa::Pkcs1v15Sign::new::<sha1::Sha1>(),

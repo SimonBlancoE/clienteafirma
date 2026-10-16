@@ -35,7 +35,14 @@ pub fn is_error_response(body: &[u8]) -> bool {
 /// decodifica `dat` como `application/x-www-form-urlencoded`, así que se
 /// codifican los caracteres que se corromperían (`%`, `+`, `&`, no ASCII).
 pub fn store(http: &HttpClient, storage_servlet: &str, id: &str, payload: &str) -> Result<(), HttpError> {
-    http.post(storage_servlet, &format!("op=put&v={SYNTAX_VERSION}&id={id}&dat={}", encode_storage_payload(payload))).map(|_| ())
+    http.post(
+        storage_servlet,
+        &format!(
+            "op=put&v={SYNTAX_VERSION}&id={id}&dat={}",
+            encode_storage_payload(payload)
+        ),
+    )
+    .map(|_| ())
 }
 
 /// Error de subida del resultado según Java: tiempo de espera 401201,
@@ -44,7 +51,8 @@ pub fn store_error(e: &HttpError) -> ProtocolError {
     match e {
         HttpError::Timeout(_) => ProtocolError::operation(codes::SENDING_RESULT_TIMEOUT, e.to_string()),
         HttpError::CertificateHostMismatch { host, .. } => {
-            ProtocolError::operation(codes::INVALID_DOMAIN_SSL_CERTIFICATE_ERROR, e.to_string()).with_dialog_params(vec![host.clone()])
+            ProtocolError::operation(codes::INVALID_DOMAIN_SSL_CERTIFICATE_ERROR, e.to_string())
+                .with_dialog_params(vec![host.clone()])
         }
         _ => ProtocolError::operation(codes::SENDING_RESULT_OPERATION, e.to_string()),
     }
@@ -65,7 +73,13 @@ impl Uploader {
 
     /// Inicia la espera activa (`ActiveWaitingThread`): sube `#WAIT` cada
     /// 10 s hasta que se detenga. Los errores se ignoran.
-    pub fn start_active_waiting(&self, http: HttpClient, storage_servlet: String, id: String, interval: Duration) -> ActiveWaiting {
+    pub fn start_active_waiting(
+        &self,
+        http: HttpClient,
+        storage_servlet: String,
+        id: String,
+        interval: Duration,
+    ) -> ActiveWaiting {
         let stop = Arc::new((Mutex::new(false), Condvar::new()));
         let running = Arc::new(AtomicBool::new(true));
         let uploader = self.clone();
@@ -80,7 +94,9 @@ impl Uploader {
                     }
                     let (lock, cv) = &*stop2;
                     let guard = lock.lock().unwrap_or_else(|e| e.into_inner());
-                    let (guard, _) = cv.wait_timeout_while(guard, interval, |stopped| !*stopped).unwrap_or_else(|e| e.into_inner());
+                    let (guard, _) = cv
+                        .wait_timeout_while(guard, interval, |stopped| !*stopped)
+                        .unwrap_or_else(|e| e.into_inner());
                     if *guard {
                         break;
                     }
@@ -177,7 +193,13 @@ mod tests {
         let t = MockTransport::new(|_| ok("OK"));
         let http = HttpClient::new(t.clone());
         store(&http, "https://h/StorageService", "abc", "MIIB|0.x-_==").unwrap();
-        store(&http, "https://h/StorageService", "abc", "err-00:=AF600104 - No se ha recibido el formato de firma").unwrap();
+        store(
+            &http,
+            "https://h/StorageService",
+            "abc",
+            "err-00:=AF600104 - No se ha recibido el formato de firma",
+        )
+        .unwrap();
         retrieve(&http, "https://h/RetrieveService", "abc").unwrap();
         assert_eq!(
             t.bodies(),
@@ -194,7 +216,11 @@ mod tests {
         assert_eq!(store_error(&HttpError::Timeout("x".into())).code.code, 401201);
         assert_eq!(store_error(&HttpError::Io("x".into())).code.code, 401200);
         assert_eq!(
-            store_error(&HttpError::CertificateHostMismatch { host: "h".into(), detail: "d".into() }).dialog_params,
+            store_error(&HttpError::CertificateHostMismatch {
+                host: "h".into(),
+                detail: "d".into()
+            })
+            .dialog_params,
             vec!["h".to_string()]
         );
     }
@@ -204,7 +230,12 @@ mod tests {
         let t = MockTransport::new(|_| ok("OK"));
         let http = HttpClient::new(t.clone());
         let up = Uploader::default();
-        let aw = up.start_active_waiting(http.clone(), "https://h/s".into(), "id1".into(), Duration::from_millis(20));
+        let aw = up.start_active_waiting(
+            http.clone(),
+            "https://h/s".into(),
+            "id1".into(),
+            Duration::from_millis(20),
+        );
         std::thread::sleep(Duration::from_millis(70));
         aw.stop();
         let n = t.bodies().len();
@@ -223,6 +254,9 @@ mod tests {
             PollOutcome::Data("RESULTADO\n".into())
         );
         let http = HttpClient::new(MockTransport::new(|_| ok("ERR-06:=x\n")));
-        assert_eq!(poll_like_autoscript(&http, "https://h/r", "id", Duration::from_millis(1), 2).unwrap(), PollOutcome::TimedOut);
+        assert_eq!(
+            poll_like_autoscript(&http, "https://h/r", "id", Duration::from_millis(1), 2).unwrap(),
+            PollOutcome::TimedOut
+        );
     }
 }

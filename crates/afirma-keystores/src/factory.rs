@@ -54,7 +54,8 @@ impl EnvSwitches {
             enable_gydsc_native_driver: env_flag("AFIRMA_NSS_ENABLE_GYDSC_NATIVE_DRIVER"),
             load_sscd_only: env_flag("AFIRMA_NSS_LOAD_SSCD_ONLY"),
             force_reset: env_flag("AFIRMA_FORCE_STORE_RESET") || env_flag("es.gob.afirma.keystores.ForceReset"),
-            do_not_reuse_pkcs11: env_flag("AFIRMA_DO_NOT_REUSE_PKCS11_PROVIDER") || env_flag("es.gob.afirma.keystores.DoNotReusePkcs11Provider"),
+            do_not_reuse_pkcs11: env_flag("AFIRMA_DO_NOT_REUSE_PKCS11_PROVIDER")
+                || env_flag("es.gob.afirma.keystores.DoNotReusePkcs11Provider"),
         }
     }
 }
@@ -170,23 +171,38 @@ pub fn open_store(spec: &StoreSpec, opts: &OpenOptions) -> Result<Arc<dyn KeySto
     }
     let store = open_uncached(spec, opts)?;
     if cacheable(spec.kind, &opts.switches)
-        && let Ok(mut c) = cache().lock() {
-            c.retain(|(k, _)| *k != key);
-            c.push((key, store.clone()));
-        }
+        && let Ok(mut c) = cache().lock()
+    {
+        c.retain(|(k, _)| *k != key);
+        c.push((key, store.clone()));
+    }
     Ok(store)
 }
 
 fn open_uncached(spec: &StoreSpec, opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreError> {
     let os = Os::current();
-    tracing::info!("Apertura del almacén {} ({})", spec.kind.id(), opts.description.as_deref().unwrap_or("AutoFirma"));
+    tracing::info!(
+        "Apertura del almacén {} ({})",
+        spec.kind.id(),
+        opts.description.as_deref().unwrap_or("AutoFirma")
+    );
     match spec.kind {
         KeyStoreKind::Pkcs12 => {
-            let path = spec.lib.as_deref().filter(|l| !l.is_empty()).map(PathBuf::from).ok_or_else(|| KeyStoreError::FileNotFound(PathBuf::new()))?;
+            let path = spec
+                .lib
+                .as_deref()
+                .filter(|l| !l.is_empty())
+                .map(PathBuf::from)
+                .ok_or_else(|| KeyStoreError::FileNotFound(PathBuf::new()))?;
             Ok(Arc::new(Pkcs12Store::open(&path, opts.callback.as_ref(), opts.pkcs12)?))
         }
         KeyStoreKind::Pkcs11 => {
-            let lib = spec.lib.as_deref().filter(|l| !l.is_empty()).map(PathBuf::from).ok_or_else(|| KeyStoreError::LibraryNotFound(PathBuf::new()))?;
+            let lib = spec
+                .lib
+                .as_deref()
+                .filter(|l| !l.is_empty())
+                .map(PathBuf::from)
+                .ok_or_else(|| KeyStoreError::LibraryNotFound(PathBuf::new()))?;
             if !lib.is_file() {
                 return Err(KeyStoreError::LibraryNotFound(lib));
             }
@@ -197,7 +213,12 @@ fn open_uncached(spec: &StoreSpec, opts: &OpenOptions) -> Result<Arc<dyn KeyStor
             Ok(Arc::new(Pkcs11Store::open(&lib, config, opts.callback.clone())?))
         }
         KeyStoreKind::Single => {
-            let path = spec.lib.as_deref().filter(|l| !l.is_empty()).map(PathBuf::from).ok_or_else(|| KeyStoreError::FileNotFound(PathBuf::new()))?;
+            let path = spec
+                .lib
+                .as_deref()
+                .filter(|l| !l.is_empty())
+                .map(PathBuf::from)
+                .ok_or_else(|| KeyStoreError::FileNotFound(PathBuf::new()))?;
             Ok(Arc::new(crate::single::SingleCertStore::open(&path)?))
         }
         KeyStoreKind::Windows if os == Os::Windows => open_windows(opts),
@@ -206,7 +227,11 @@ fn open_uncached(spec: &StoreSpec, opts: &OpenOptions) -> Result<Arc<dyn KeyStor
         KeyStoreKind::SharedNss if os == Os::Linux => open_shared_nss(opts),
         KeyStoreKind::Apple if os == Os::MacOs => open_apple(opts),
         KeyStoreKind::DnieJava | KeyStoreKind::Ceres430 | KeyStoreKind::Ceres | KeyStoreKind::SmartCafe => {
-            Ok(Arc::new(smartcard::open_card_store(spec.kind, &opts.smartcard(), opts.callback.clone())?))
+            Ok(Arc::new(smartcard::open_card_store(
+                spec.kind,
+                &opts.smartcard(),
+                opts.callback.clone(),
+            )?))
         }
         other => Err(other.unsupported_error(os)),
     }
@@ -269,7 +294,11 @@ fn open_windows(_opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreError>
 #[cfg(windows)]
 fn open_windows_public(kind: KeyStoreKind) -> Result<Arc<dyn KeyStore>, KeyStoreError> {
     use crate::capi::{CapiStore, SystemStore};
-    let store = if kind == KeyStoreKind::WinAddressBook { SystemStore::AddressBook } else { SystemStore::Ca };
+    let store = if kind == KeyStoreKind::WinAddressBook {
+        SystemStore::AddressBook
+    } else {
+        SystemStore::Ca
+    };
     Ok(Arc::new(CapiStore::open(store)?))
 }
 
@@ -317,7 +346,10 @@ fn open_mozilla(kind: KeyStoreKind, opts: &OpenOptions) -> Result<Arc<dyn KeySto
     }
     if kind == KeyStoreKind::MozUniWithOs {
         let os_store = match Os::current() {
-            Os::Windows => Some(open_windows(&OpenOptions { force_reset: true, ..opts.clone() })),
+            Os::Windows => Some(open_windows(&OpenOptions {
+                force_reset: true,
+                ..opts.clone()
+            })),
             Os::MacOs => Some(open_apple(opts)),
             _ => None,
         };
@@ -331,26 +363,26 @@ fn open_mozilla(kind: KeyStoreKind, opts: &OpenOptions) -> Result<Arc<dyn KeySto
         }
     }
     let (preferred, exclude_native_dnie) = add_preferred(&agg, opts);
-    if !preferred
-        && let Ok(p) = &profile {
-            let filter = ModuleFilter {
-                exclude_native_dnie,
-                disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
-                include_known_modules: true,
-                windows_system_dir: nss::windows_system_dir(&env),
-            };
-            let modules = nss::external_modules(p, &env, &filter);
-            for s in nss::open_external_modules(&modules, kind, opts.callback.clone(), opts.load_all_external_modules) {
-                agg.add(Arc::new(s));
-            }
+    if !preferred && let Ok(p) = &profile {
+        let filter = ModuleFilter {
+            exclude_native_dnie,
+            disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
+            include_known_modules: true,
+            windows_system_dir: nss::windows_system_dir(&env),
+        };
+        let modules = nss::external_modules(p, &env, &filter);
+        for s in nss::open_external_modules(&modules, kind, opts.callback.clone(), opts.load_all_external_modules) {
+            agg.add(Arc::new(s));
         }
+    }
     if agg.is_empty()
-        && let Some(e) = nss_error {
-            return Err(match e {
-                KeyStoreError::Firefox(m) => KeyStoreError::Firefox(m),
-                other => KeyStoreError::load(kind, other.to_string()),
-            });
-        }
+        && let Some(e) = nss_error
+    {
+        return Err(match e {
+            KeyStoreError::Firefox(m) => KeyStoreError::Firefox(m),
+            other => KeyStoreError::load(kind, other.to_string()),
+        });
+    }
     Ok(Arc::new(agg))
 }
 
@@ -365,7 +397,13 @@ fn open_shared_nss(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreErro
     if !opts.switches.load_sscd_only {
         let result = dir.clone().and_then(|d| {
             let lib_dir = nss::libdir::nss_lib_dir(&env, None)?;
-            nss::open_internal(&lib_dir, &d, KeyStoreKind::SharedNss, &NssOptions::from_env(&env), opts.callback.clone())
+            nss::open_internal(
+                &lib_dir,
+                &d,
+                KeyStoreKind::SharedNss,
+                &NssOptions::from_env(&env),
+                opts.callback.clone(),
+            )
         });
         match result {
             Ok(s) => agg.add(Arc::new(s)),
@@ -374,19 +412,23 @@ fn open_shared_nss(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreErro
         }
     }
     let (preferred, cancelled) = add_preferred(&agg, opts);
-    if !preferred
-        && let Ok(d) = &dir {
-            let filter = ModuleFilter {
-                exclude_native_dnie: cancelled,
-                disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
-                include_known_modules: false,
-                windows_system_dir: None,
-            };
-            let modules = nss::external_modules(d, &env, &filter);
-            for s in nss::open_external_modules(&modules, KeyStoreKind::SharedNss, opts.callback.clone(), opts.load_all_external_modules) {
-                agg.add(Arc::new(s));
-            }
+    if !preferred && let Ok(d) = &dir {
+        let filter = ModuleFilter {
+            exclude_native_dnie: cancelled,
+            disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
+            include_known_modules: false,
+            windows_system_dir: None,
+        };
+        let modules = nss::external_modules(d, &env, &filter);
+        for s in nss::open_external_modules(
+            &modules,
+            KeyStoreKind::SharedNss,
+            opts.callback.clone(),
+            opts.load_all_external_modules,
+        ) {
+            agg.add(Arc::new(s));
         }
+    }
     Ok(Arc::new(agg))
 }
 
@@ -400,7 +442,10 @@ pub fn open_default_store(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeySt
 /// flujos del protocolo y de la aplicación). Devuelve también el error
 /// original, si lo hubo, para que la interfaz pueda informar
 /// ("No se ha podido obtener el almacén de claves por defecto…").
-pub fn open_with_fallback(spec: &StoreSpec, opts: &OpenOptions) -> Result<(Arc<dyn KeyStore>, Option<KeyStoreError>), KeyStoreError> {
+pub fn open_with_fallback(
+    spec: &StoreSpec,
+    opts: &OpenOptions,
+) -> Result<(Arc<dyn KeyStore>, Option<KeyStoreError>), KeyStoreError> {
     match open_store(spec, opts) {
         Ok(s) => Ok((s, None)),
         Err(e) if e.is_cancelled() || matches!(e, KeyStoreError::WrongPassword { .. }) => Err(e),
@@ -409,7 +454,10 @@ pub fn open_with_fallback(spec: &StoreSpec, opts: &OpenOptions) -> Result<(Arc<d
             if default == spec.kind {
                 return Err(e);
             }
-            tracing::warn!("No se ha podido abrir el almacen {}: {e}. Se cargara el del sistema", spec.kind.id());
+            tracing::warn!(
+                "No se ha podido abrir el almacen {}: {e}. Se cargara el del sistema",
+                spec.kind.id()
+            );
             let s = open_store(&StoreSpec::new(default), opts)?;
             Ok((s, Some(e)))
         }
@@ -418,7 +466,11 @@ pub fn open_with_fallback(spec: &StoreSpec, opts: &OpenOptions) -> Result<(Arc<d
 
 /// Comprueba que una biblioteca PKCS#11 se puede cargar e inicializar
 /// (botón "Conectar" de las tarjetas registradas en preferencias).
-pub fn test_pkcs11_library(lib: &Path, name: &str, callback: Arc<dyn PasswordCallback>) -> Result<usize, KeyStoreError> {
+pub fn test_pkcs11_library(
+    lib: &Path,
+    name: &str,
+    callback: Arc<dyn PasswordCallback>,
+) -> Result<usize, KeyStoreError> {
     let store = Pkcs11Store::open(lib, Pkcs11Config::new(KeyStoreKind::Pkcs11).with_name(name), callback)?;
     Ok(store.entries()?.len())
 }
@@ -435,18 +487,32 @@ mod tests {
         let p12 = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki/firmante-ec.p12");
         let s = open_store(&StoreSpec::with_lib(KeyStoreKind::Pkcs12, p12.to_string_lossy()), &opts).unwrap();
         assert_eq!(s.aliases().unwrap(), vec!["firmante-ec".to_string()]);
-        assert!(matches!(open_store(&StoreSpec::new(KeyStoreKind::Pkcs12), &opts), Err(KeyStoreError::FileNotFound(_))));
+        assert!(matches!(
+            open_store(&StoreSpec::new(KeyStoreKind::Pkcs12), &opts),
+            Err(KeyStoreError::FileNotFound(_))
+        ));
         assert!(matches!(
             open_store(&StoreSpec::with_lib(KeyStoreKind::Pkcs11, "/no/existe.so"), &opts),
             Err(KeyStoreError::LibraryNotFound(_))
         ));
-        for k in [KeyStoreKind::Temd, KeyStoreKind::Other, KeyStoreKind::KnownSmartcards, KeyStoreKind::Java] {
+        for k in [
+            KeyStoreKind::Temd,
+            KeyStoreKind::Other,
+            KeyStoreKind::KnownSmartcards,
+            KeyStoreKind::Java,
+        ] {
             let e = open_store(&StoreSpec::new(k), &opts).err().unwrap();
             assert_eq!(e.code().code, 600011, "{k:?}");
         }
         if Os::current() != Os::Windows {
             let e = open_store(&StoreSpec::new(KeyStoreKind::Windows), &opts).err().unwrap();
-            assert!(matches!(e, KeyStoreError::Unsupported { alternative: Some(_), .. }));
+            assert!(matches!(
+                e,
+                KeyStoreError::Unsupported {
+                    alternative: Some(_),
+                    ..
+                }
+            ));
         }
     }
 
@@ -454,10 +520,19 @@ mod tests {
     fn card_store_without_card_or_modules() {
         let mut opts = OpenOptions::new(Arc::new(NoPassword));
         opts.smartcard_modules = Some(vec![]);
-        assert!(matches!(open_store(&StoreSpec::new(KeyStoreKind::DnieJava), &opts), Err(KeyStoreError::CardNotPresent)));
-        assert!(matches!(smartcard::probe_preferred(&opts.smartcard(), opts.callback.clone()), Preferred::None));
+        assert!(matches!(
+            open_store(&StoreSpec::new(KeyStoreKind::DnieJava), &opts),
+            Err(KeyStoreError::CardNotPresent)
+        ));
+        assert!(matches!(
+            smartcard::probe_preferred(&opts.smartcard(), opts.callback.clone()),
+            Preferred::None
+        ));
         opts.enabled_smartcard_drivers = false;
-        assert!(matches!(smartcard::probe_preferred(&opts.smartcard(), opts.callback.clone()), Preferred::None));
+        assert!(matches!(
+            smartcard::probe_preferred(&opts.smartcard(), opts.callback.clone()),
+            Preferred::None
+        ));
     }
 
     /// Firefox de extremo a extremo (requiere SoftHSM2 y las herramientas de
@@ -468,11 +543,15 @@ mod tests {
     /// externos.
     #[test]
     fn softhsm_firefox_unified_with_external_module_and_preferred_card() {
-        use crate::pkcs11::tests::{DNIE_TOKEN_LABEL, SOFTHSM, USER_PIN, prepare_dnie_token, prepare_token, softhsm_lib};
+        use crate::pkcs11::tests::{
+            DNIE_TOKEN_LABEL, SOFTHSM, USER_PIN, prepare_dnie_token, prepare_token, softhsm_lib,
+        };
         use afirma_core::algorithms::{DigestAlgorithm, KeyAlgorithm, SignatureAlgorithm};
         use std::process::Command;
         let Some(lib) = softhsm_lib() else { return };
-        if Command::new("modutil").arg("-help").output().is_err() || Command::new("pk12util").arg("-h").output().is_err() {
+        if Command::new("modutil").arg("-help").output().is_err()
+            || Command::new("pk12util").arg("-h").output().is_err()
+        {
             eprintln!("modutil/pk12util no disponibles: se omite la prueba");
             return;
         }
@@ -486,9 +565,23 @@ mod tests {
         let profile = ff.join("p.default-release");
         std::fs::create_dir_all(&profile).unwrap();
         let db = format!("sql:{}", profile.display());
-        assert!(Command::new("certutil").args(["-N", "-d", &db, "--empty-password"]).status().unwrap().success());
+        assert!(
+            Command::new("certutil")
+                .args(["-N", "-d", &db, "--empty-password"])
+                .status()
+                .unwrap()
+                .success()
+        );
         let p12 = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki/firmante-rsa.p12");
-        assert!(Command::new("pk12util").args(["-i"]).arg(&p12).args(["-d", &db, "-W", "12341234", "-K", ""]).status().unwrap().success());
+        assert!(
+            Command::new("pk12util")
+                .args(["-i"])
+                .arg(&p12)
+                .args(["-d", &db, "-W", "12341234", "-K", ""])
+                .status()
+                .unwrap()
+                .success()
+        );
         assert!(
             Command::new("modutil")
                 .args(["-dbdir", &db, "-add", "SoftHSM pruebas", "-libfile"])
@@ -501,30 +594,67 @@ mod tests {
         for i in 0..10 {
             std::fs::write(profile.join(format!("relleno{i}")), b"x").unwrap();
         }
-        std::fs::write(ff.join("profiles.ini"), "[Profile0]\nName=default-release\nIsRelative=1\nPath=p.default-release\nDefault=1\n").unwrap();
+        std::fs::write(
+            ff.join("profiles.ini"),
+            "[Profile0]\nName=default-release\nIsRelative=1\nPath=p.default-release\nDefault=1\n",
+        )
+        .unwrap();
         let prompts = Arc::new(Mutex::new(Vec::<String>::new()));
         let p2 = prompts.clone();
-        let cb = Arc::new(crate::callback::FnPasswordCallback(move |r: &crate::PasswordRequest| {
-            p2.lock().unwrap().push(r.prompt.clone());
-            crate::PasswordResponse::provided(USER_PIN)
-        }));
+        let cb = Arc::new(crate::callback::FnPasswordCallback(
+            move |r: &crate::PasswordRequest| {
+                p2.lock().unwrap().push(r.prompt.clone());
+                crate::PasswordResponse::provided(USER_PIN)
+            },
+        ));
         let mut opts = OpenOptions::new(cb);
-        opts.moz_env = Some(MozEnv { os: Os::current(), home: home.path().to_path_buf(), user_name: None, vars: Default::default() });
+        opts.moz_env = Some(MozEnv {
+            os: Os::current(),
+            home: home.path().to_path_buf(),
+            user_name: None,
+            vars: Default::default(),
+        });
         opts.smartcard_modules = Some(vec![]);
         opts.force_reset = true;
         // 1) Sin tarjeta preferente: NSS + primer módulo externo (SoftHSM).
         let store = open_store(&StoreSpec::new(KeyStoreKind::MozUni), &opts).unwrap();
         assert_eq!(store.kind(), KeyStoreKind::MozUni);
-        assert!(prompts.lock().unwrap().iter().all(|p| p == "Introduzca la contraseña de SoftHSM pruebas"), "{prompts:?}");
+        assert!(
+            prompts
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|p| p == "Introduzca la contraseña de SoftHSM pruebas"),
+            "{prompts:?}"
+        );
         let entries = store.entries().unwrap();
-        let ids: Vec<&str> = entries.iter().filter(|e| e.capabilities.has_private_key).map(|e| e.id.as_str()).collect();
+        let ids: Vec<&str> = entries
+            .iter()
+            .filter(|e| e.capabilities.has_private_key)
+            .map(|e| e.id.as_str())
+            .collect();
         // El mismo certificado en NSS y en SoftHSM: sin eliminar duplicados
         // (paridad con Java), con identificadores distintos.
-        assert!(ids.contains(&"0:firmante-rsa") && ids.contains(&"1:firmante-rsa") && ids.contains(&"1:firmante-ec"), "{ids:?}");
+        assert!(
+            ids.contains(&"0:firmante-rsa") && ids.contains(&"1:firmante-rsa") && ids.contains(&"1:firmante-ec"),
+            "{ids:?}"
+        );
         let k = store.signing_key("1:firmante-ec").unwrap();
-        crate::verify::sign_and_verify(k.as_ref(), b"x", SignatureAlgorithm::new(DigestAlgorithm::Sha384, KeyAlgorithm::Ec)).unwrap();
+        crate::verify::sign_and_verify(
+            k.as_ref(),
+            b"x",
+            SignatureAlgorithm::new(DigestAlgorithm::Sha384, KeyAlgorithm::Ec),
+        )
+        .unwrap();
         // La caché devuelve el mismo almacén.
-        let again = open_store(&StoreSpec::new(KeyStoreKind::MozUni), &OpenOptions { force_reset: false, ..opts.clone() }).unwrap();
+        let again = open_store(
+            &StoreSpec::new(KeyStoreKind::MozUni),
+            &OpenOptions {
+                force_reset: false,
+                ..opts.clone()
+            },
+        )
+        .unwrap();
         assert!(Arc::ptr_eq(&store, &again));
         drop((store, again, k));
         // 2) Con un "DNIe" en SoftHSM como tarjeta preferente.
@@ -537,7 +667,11 @@ mod tests {
             .unwrap()
             .into_iter()
             .filter(|e| e.capabilities.has_private_key)
-            .map(|e| CertEntryView { id: e.id, alias: e.alias, pin_at_sign: e.capabilities.pin_at_sign })
+            .map(|e| CertEntryView {
+                id: e.id,
+                alias: e.alias,
+                pin_at_sign: e.capabilities.pin_at_sign,
+            })
             .collect();
         // El certificado de NSS queda oculto por la tarjeta y no se cargan
         // módulos externos.
@@ -546,8 +680,16 @@ mod tests {
         assert!(keyed[0].pin_at_sign);
         assert!(prompts.lock().unwrap().is_empty(), "sin PIN al abrir");
         let k = store.signing_key("CertFirmaDigital").unwrap();
-        crate::verify::sign_and_verify(k.as_ref(), b"x", SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa)).unwrap();
-        assert_eq!(*prompts.lock().unwrap(), vec!["Por favor, introduzca el PIN del DNIe.".to_string()]);
+        crate::verify::sign_and_verify(
+            k.as_ref(),
+            b"x",
+            SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa),
+        )
+        .unwrap();
+        assert_eq!(
+            *prompts.lock().unwrap(),
+            vec!["Por favor, introduzca el PIN del DNIe.".to_string()]
+        );
         let _ = DNIE_TOKEN_LABEL;
         drop((store, k));
         clear_store_cache();

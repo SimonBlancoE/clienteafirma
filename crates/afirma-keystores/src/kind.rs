@@ -26,7 +26,11 @@ impl Os {
             Os::Windows
         } else if cfg!(target_os = "macos") {
             Os::MacOs
-        } else if cfg!(target_os = "linux") || cfg!(target_os = "freebsd") || cfg!(target_os = "openbsd") || cfg!(target_os = "netbsd") {
+        } else if cfg!(target_os = "linux")
+            || cfg!(target_os = "freebsd")
+            || cfg!(target_os = "openbsd")
+            || cfg!(target_os = "netbsd")
+        {
             // Java (`Platform.getOS()`) trata los UNIX libres como Linux.
             Os::Linux
         } else if cfg!(target_os = "solaris") || cfg!(target_os = "illumos") {
@@ -261,7 +265,9 @@ impl KeyStoreKind {
     /// espacios), como el primer paso de `SimpleKeyStoreManager.getKeyStore`.
     pub fn from_display_name(name: &str) -> Option<KeyStoreKind> {
         let n = name.trim();
-        Self::ALL.into_iter().find(|k| k.display_name().eq_ignore_ascii_case(n) || unicode_eq_ignore_case(k.display_name(), n))
+        Self::ALL
+            .into_iter()
+            .find(|k| k.display_name().eq_ignore_ascii_case(n) || unicode_eq_ignore_case(k.display_name(), n))
     }
 
     /// Busca por identificador exacto (`AOKeyStore.valueOf`: sensible a
@@ -330,24 +336,42 @@ impl KeyStoreKind {
 
     /// Error "no soportado" de la factoría para este tipo.
     pub fn unsupported_error(self, os: Os) -> KeyStoreError {
-        KeyStoreError::Unsupported { store: self.display_name().to_string(), os: os.name().to_string(), alternative: self.alternative(os) }
+        KeyStoreError::Unsupported {
+            store: self.display_name().to_string(),
+            os: os.name().to_string(),
+            alternative: self.alternative(os),
+        }
     }
 
     /// Indica si necesita un fichero o biblioteca (`lib`).
     pub fn needs_lib(self) -> bool {
-        matches!(self, KeyStoreKind::Pkcs12 | KeyStoreKind::Pkcs11 | KeyStoreKind::Java | KeyStoreKind::Jceks | KeyStoreKind::JavaCe | KeyStoreKind::Single)
+        matches!(
+            self,
+            KeyStoreKind::Pkcs12
+                | KeyStoreKind::Pkcs11
+                | KeyStoreKind::Java
+                | KeyStoreKind::Jceks
+                | KeyStoreKind::JavaCe
+                | KeyStoreKind::Single
+        )
     }
 
     /// Tipos implementados en Java con el controlador jmulticard (DNIe y
     /// CERES), que en AutoFirma-rs se implementan sobre PKCS#11. Son
     /// almacenes "preferentes": ocultan los duplicados de los demás.
     pub fn is_card_driver(self) -> bool {
-        matches!(self, KeyStoreKind::DnieJava | KeyStoreKind::Ceres | KeyStoreKind::Ceres430 | KeyStoreKind::SmartCafe)
+        matches!(
+            self,
+            KeyStoreKind::DnieJava | KeyStoreKind::Ceres | KeyStoreKind::Ceres430 | KeyStoreKind::SmartCafe
+        )
     }
 
     /// Tipos basados en NSS/Firefox.
     pub fn is_mozilla(self) -> bool {
-        matches!(self, KeyStoreKind::MozUni | KeyStoreKind::MozUniWithOs | KeyStoreKind::SharedNss)
+        matches!(
+            self,
+            KeyStoreKind::MozUni | KeyStoreKind::MozUniWithOs | KeyStoreKind::SharedNss
+        )
     }
 
     /// Texto para pedir la contraseña del almacén (`null` si el tipo no la pide).
@@ -384,7 +408,9 @@ impl KeyStoreKind {
 /// (`String.equalsIgnoreCase`).
 fn unicode_eq_ignore_case(a: &str, b: &str) -> bool {
     a.chars().count() == b.chars().count()
-        && a.chars().zip(b.chars()).all(|(x, y)| x == y || x.to_uppercase().eq(y.to_uppercase()) || x.to_lowercase().eq(y.to_lowercase()))
+        && a.chars()
+            .zip(b.chars())
+            .all(|(x, y)| x == y || x.to_uppercase().eq(y.to_uppercase()) || x.to_lowercase().eq(y.to_lowercase()))
 }
 
 impl fmt::Display for KeyStoreKind {
@@ -399,10 +425,19 @@ mod tests {
 
     #[test]
     fn names_and_ids() {
-        assert_eq!(KeyStoreKind::from_display_name("  windows "), Some(KeyStoreKind::Windows));
+        assert_eq!(
+            KeyStoreKind::from_display_name("  windows "),
+            Some(KeyStoreKind::Windows)
+        );
         assert_eq!(KeyStoreKind::from_display_name("nss"), Some(KeyStoreKind::SharedNss));
-        assert_eq!(KeyStoreKind::from_display_name("PKCS#12 / PFX"), Some(KeyStoreKind::Pkcs12));
-        assert_eq!(KeyStoreKind::from_display_name("LLAVERO DE MAC"), Some(KeyStoreKind::Apple));
+        assert_eq!(
+            KeyStoreKind::from_display_name("PKCS#12 / PFX"),
+            Some(KeyStoreKind::Pkcs12)
+        );
+        assert_eq!(
+            KeyStoreKind::from_display_name("LLAVERO DE MAC"),
+            Some(KeyStoreKind::Apple)
+        );
         assert_eq!(KeyStoreKind::from_id("MOZ_UNI"), Some(KeyStoreKind::MozUni));
         assert_eq!(KeyStoreKind::from_id("moz_uni"), None);
         assert_eq!(KeyStoreKind::from_id(" MOZ_UNI"), None);
@@ -419,7 +454,10 @@ mod tests {
         assert_eq!(KeyStoreKind::default_for(Os::Solaris), Some(KeyStoreKind::MozUni));
         assert_eq!(KeyStoreKind::default_for(Os::Other), None);
         assert_eq!(KeyStoreKind::Windows.alternative(Os::Linux), Some(KeyStoreKind::Pkcs12));
-        assert_eq!(KeyStoreKind::MozUni.alternative(Os::Windows), Some(KeyStoreKind::Windows));
+        assert_eq!(
+            KeyStoreKind::MozUni.alternative(Os::Windows),
+            Some(KeyStoreKind::Windows)
+        );
         assert_eq!(KeyStoreKind::Pkcs12.alternative(Os::Windows), None);
         assert!(!KeyStoreKind::Windows.is_supported_on(Os::Linux));
         assert!(KeyStoreKind::SharedNss.is_supported_on(Os::Linux));
@@ -432,6 +470,9 @@ mod tests {
             KeyStoreKind::Pkcs12.store_password_prompt(Some("a.p12")).unwrap(),
             "Introduzca la contraseña del almacén a.p12."
         );
-        assert_eq!(KeyStoreKind::Pkcs11.store_password_prompt(None).unwrap(), "Introduzca la contraseña del almacén PKCS#11.");
+        assert_eq!(
+            KeyStoreKind::Pkcs11.store_password_prompt(None).unwrap(),
+            "Introduzca la contraseña del almacén PKCS#11."
+        );
     }
 }

@@ -50,7 +50,12 @@ pub struct MockTsa {
 
 impl MockTsa {
     pub fn new(key: Box<dyn SigningKey>) -> Self {
-        MockTsa { key, serial: AtomicU64::new(1), misbehavior: Misbehavior::None, fixed_time: None }
+        MockTsa {
+            key,
+            serial: AtomicU64::new(1),
+            misbehavior: Misbehavior::None,
+            fixed_time: None,
+        }
     }
 
     /// Procesa una petición y devuelve la respuesta `TimeStampResp` (DER).
@@ -83,7 +88,10 @@ impl MockTsa {
         }
         if self.misbehavior == Misbehavior::WrongImprint {
             let parts = mi.children().map_err(|e| e.to_string())?;
-            let mut imprint = parts.get(1).and_then(|o| o.octet_string_content().ok()).unwrap_or_default();
+            let mut imprint = parts
+                .get(1)
+                .and_then(|o| o.octet_string_content().ok())
+                .unwrap_or_default();
             if let Some(b) = imprint.first_mut() {
                 *b ^= 0xff;
             }
@@ -124,9 +132,10 @@ impl MockTsa {
         let alg = SignatureAlgorithm::new(digest, self.key.key_algorithm());
         let mut sig = self.key.sign(&set, alg).map_err(|e| e.to_string())?;
         if self.misbehavior == Misbehavior::BadSignature
-            && let Some(b) = sig.last_mut() {
-                *b ^= 0x01;
-            }
+            && let Some(b) = sig.last_mut()
+        {
+            *b ^= 0x01;
+        }
         let si = encode_signer_info(
             &view.issuer_and_serial(),
             &alg::digest_alg_id(digest),
@@ -135,7 +144,10 @@ impl MockTsa {
             &sig,
             None,
         );
-        let encap = der::sequence([der::oid_str(oids::TST_INFO), der::explicit(0, &der::octet_string(tst_info))]);
+        let encap = der::sequence([
+            der::oid_str(oids::TST_INFO),
+            der::explicit(0, &der::octet_string(tst_info)),
+        ]);
         Ok(SignedDataParts {
             digest_algorithms: vec![alg::digest_alg_id(digest)],
             encap_content_info: encap,

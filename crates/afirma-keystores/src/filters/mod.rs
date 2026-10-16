@@ -104,9 +104,16 @@ pub enum CertFilter {
     /// cumplen nunca.
     KeyUsage(KeyUsagePattern),
     /// `subject.rfc2254:`, `issuer.rfc2254:`, `issuer.rfc2254.recurse:`.
-    Rfc2254 { subject: Option<String>, issuer: Option<String>, recurse: bool },
+    Rfc2254 {
+        subject: Option<String>,
+        issuer: Option<String>,
+        recurse: bool,
+    },
     /// `subject.contains:`, `issuer.contains:` (`TextContainedCertificateFilter`).
-    TextContained { subject: Option<String>, issuer: Option<String> },
+    TextContained {
+        subject: Option<String>,
+        issuer: Option<String>,
+    },
     /// `thumbprint:<alg>:<hex>`.
     Thumbprint { algorithm: String, thumbprint: String },
     /// `policyid:<oid>[,<oid>...]`: todas las políticas del certificado deben
@@ -148,8 +155,12 @@ impl<'a> Prepared<'a> {
         use x509_parser::prelude::*;
         let der = &entry.certificate;
         let parsed = X509Certificate::from_der(der).ok().map(|(_, c)| c);
-        let subject = parsed.as_ref().and_then(|c| DistinguishedName::from_der(c.subject().as_raw()));
-        let issuer = parsed.as_ref().and_then(|c| DistinguishedName::from_der(c.issuer().as_raw()));
+        let subject = parsed
+            .as_ref()
+            .and_then(|c| DistinguishedName::from_der(c.subject().as_raw()));
+        let issuer = parsed
+            .as_ref()
+            .and_then(|c| DistinguishedName::from_der(c.issuer().as_raw()));
         let serial_raw = parsed.as_ref().map(|c| c.raw_serial().to_vec()).unwrap_or_default();
         let ku = entry.info.as_ref().and_then(|i| i.key_usage).map(|k| {
             [
@@ -175,7 +186,11 @@ impl<'a> Prepared<'a> {
                 }
             }
         }
-        let policies = entry.info.as_ref().filter(|_| has_policies_ext).map(|i| i.policies.clone());
+        let policies = entry
+            .info
+            .as_ref()
+            .filter(|_| has_policies_ext)
+            .map(|i| i.policies.clone());
         let subject_rfc = subject.as_ref().map(|s| s.rfc2253_string()).unwrap_or_default();
         let subject_sn = dn::get_rdn_value("serialnumber", &subject_rfc)
             .or_else(|| dn::get_rdn_value("2.5.4.5", &subject_rfc))
@@ -204,7 +219,10 @@ impl<'a> Prepared<'a> {
 
     /// `yyyy-MM-dd` de `notAfter` en la zona horaria local.
     fn expiry_date(&self) -> Option<String> {
-        self.entry.info.as_ref().map(|i| i.not_after.with_timezone(&chrono::Local).format("%Y-%m-%d").to_string())
+        self.entry
+            .info
+            .as_ref()
+            .map(|i| i.not_after.with_timezone(&chrono::Local).format("%Y-%m-%d").to_string())
     }
 }
 
@@ -223,9 +241,12 @@ fn canonical_name(name: &DistinguishedName) -> String {
                     let kw = a.rfc2253_keyword().to_uppercase();
                     let string_type = matches!(a.tag, 0x13 | 0x0c) && !kw.starts_with(|c: char| c.is_ascii_digit());
                     let value = match a.java_string_value() {
-                        Some(v) if string_type => {
-                            v.split_whitespace().collect::<Vec<_>>().join(" ").to_uppercase().to_lowercase()
-                        }
+                        Some(v) if string_type => v
+                            .split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .to_uppercase()
+                            .to_lowercase(),
                         _ => format!("#{}", hex::encode(&a.value_der)),
                     };
                     format!("{kw}={value}")
@@ -240,15 +261,21 @@ fn canonical_name(name: &DistinguishedName) -> String {
 
 /// Comprueba si una extensión QCStatements contiene QcSSCD (0.4.0.1862.1.4).
 fn qc_has_sscd(value: &[u8]) -> bool {
-    let Some((0x30, content, _, _)) = dn::read_tlv(value) else { return false };
+    let Some((0x30, content, _, _)) = dn::read_tlv(value) else {
+        return false;
+    };
     let mut rest = content;
     while !rest.is_empty() {
-        let Some((tag, stmt, _, r)) = dn::read_tlv(rest) else { return false };
+        let Some((tag, stmt, _, r)) = dn::read_tlv(rest) else {
+            return false;
+        };
         rest = r;
         if tag != 0x30 {
             return false;
         }
-        let Some((0x06, oid, _, _)) = dn::read_tlv(stmt) else { return false };
+        let Some((0x06, oid, _, _)) = dn::read_tlv(stmt) else {
+            return false;
+        };
         // 0.4.0.1862.1.4 = 04 00 8E 46 01 04
         if oid == [0x04, 0x00, 0x8e, 0x46, 0x01, 0x04] {
             return true;
@@ -299,7 +326,16 @@ fn is_authentication_dnie(p: &Prepared) -> bool {
 fn is_signature_cert(p: &Prepared) -> bool {
     let Some(ku) = p.ku else { return false };
     let pattern: [Option<bool>; 8] = if p.issuer_java == ACCV_SIGN_ISSUER {
-        [Some(true), Some(false), Some(false), Some(false), Some(false), Some(false), Some(false), Some(false)]
+        [
+            Some(true),
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+        ]
     } else {
         [None, Some(true), None, None, None, None, None, None]
     };
@@ -351,16 +387,23 @@ impl CertFilter {
                     && issuer.as_deref().is_none_or(|f| rfc2254_name(f, p.issuer.as_ref()))
             }
             CertFilter::TextContained { subject, issuer } => {
-                subject.as_deref().is_none_or(|t| java_lower(&p.subject_java).contains(&java_lower(t)))
-                    && issuer.as_deref().is_none_or(|t| java_lower(&p.issuer_java).contains(&java_lower(t)))
+                subject
+                    .as_deref()
+                    .is_none_or(|t| java_lower(&p.subject_java).contains(&java_lower(t)))
+                    && issuer
+                        .as_deref()
+                        .is_none_or(|t| java_lower(&p.issuer_java).contains(&java_lower(t)))
             }
             CertFilter::Thumbprint { algorithm, thumbprint } => digest_by_java_name(algorithm, &p.entry.certificate)
                 .is_some_and(|d| eq_ignore_case(thumbprint, &hex::encode_upper(d))),
-            CertFilter::PolicyId(allowed) => {
-                p.policies.as_ref().is_some_and(|pols| !pols.is_empty() && pols.iter().all(|o| allowed.contains(o)))
-            }
+            CertFilter::PolicyId(allowed) => p
+                .policies
+                .as_ref()
+                .is_some_and(|pols| !pols.is_empty() && pols.iter().all(|o| allowed.contains(o))),
             CertFilter::EncodedCert(b64) => *b64 == afirma_core::base64_encode(&p.entry.certificate),
-            CertFilter::Ssl(serial) | CertFilter::Qualified(serial) => eq_ignore_case(&prepare_serial(&p.serial_hex), serial),
+            CertFilter::Ssl(serial) | CertFilter::Qualified(serial) => {
+                eq_ignore_case(&prepare_serial(&p.serial_hex), serial)
+            }
             CertFilter::Pseudonym { .. } => p.pseudonym,
             CertFilter::Multiple(fs) => fs.iter().all(|f| f.matches_prepared(p, now)),
         }
@@ -377,7 +420,11 @@ impl CertFilter {
                 }
                 cur
             }
-            CertFilter::Rfc2254 { subject, issuer, recurse: true } => idx
+            CertFilter::Rfc2254 {
+                subject,
+                issuer,
+                recurse: true,
+            } => idx
                 .iter()
                 .copied()
                 .filter(|&i| {
@@ -385,7 +432,9 @@ impl CertFilter {
                     p.valid()
                         && subject.as_deref().is_none_or(|f| rfc2254_name(f, p.subject.as_ref()))
                         && p.entry.chain.iter().any(|c| {
-                            issuer.as_deref().is_none_or(|f| rfc2254_name(f, dn::subject_of(c).as_ref()))
+                            issuer
+                                .as_deref()
+                                .is_none_or(|f| rfc2254_name(f, dn::subject_of(c).as_ref()))
                         })
                 })
                 .collect(),
@@ -404,7 +453,9 @@ impl CertFilter {
                             j != pos
                                 && q.valid()
                                 && is_signature_dnie(q)
-                                && q.subject_sn.as_deref().is_some_and(|qs| sn.is_some_and(|s| eq_ignore_case(qs, s)))
+                                && q.subject_sn
+                                    .as_deref()
+                                    .is_some_and(|qs| sn.is_some_and(|s| eq_ignore_case(qs, s)))
                                 && q.expiry_date() == date
                         });
                         if let Some((_, &k)) = twin {
@@ -444,9 +495,14 @@ impl CertFilter {
                 }
                 dedup(out)
             }
-            CertFilter::Pseudonym { only: true } => idx.iter().copied().filter(|&i| prepared[i].valid() && prepared[i].pseudonym).collect(),
+            CertFilter::Pseudonym { only: true } => idx
+                .iter()
+                .copied()
+                .filter(|&i| prepared[i].valid() && prepared[i].pseudonym)
+                .collect(),
             CertFilter::Pseudonym { only: false } => {
-                let (pseudo, others): (Vec<usize>, Vec<usize>) = idx.iter().copied().partition(|&i| prepared[i].pseudonym);
+                let (pseudo, others): (Vec<usize>, Vec<usize>) =
+                    idx.iter().copied().partition(|&i| prepared[i].pseudonym);
                 if pseudo.is_empty() {
                     return idx.to_vec();
                 }
@@ -457,7 +513,11 @@ impl CertFilter {
                     .collect();
                 idx.iter().copied().filter(|i| !hidden.contains(i)).collect()
             }
-            _ => idx.iter().copied().filter(|&i| self.matches_prepared(&prepared[i], now)).collect(),
+            _ => idx
+                .iter()
+                .copied()
+                .filter(|&i| self.matches_prepared(&prepared[i], now))
+                .collect(),
         }
     }
 }
@@ -475,7 +535,9 @@ fn dedup(v: Vec<usize>) -> Vec<usize> {
 /// `PseudonymFilter.isPseudonymFor`: mismo emisor, mismos usos de clave y
 /// menos de 60 s de diferencia en `notAfter`.
 fn is_pseudonym_for(pseudo: &Prepared, other: &Prepared) -> bool {
-    let (Some(a), Some(b)) = (pseudo.entry.info.as_ref(), other.entry.info.as_ref()) else { return false };
+    let (Some(a), Some(b)) = (pseudo.entry.info.as_ref(), other.entry.info.as_ref()) else {
+        return false;
+    };
     pseudo.issuer_canonical == other.issuer_canonical
         && pseudo.ku == other.ku
         && (a.not_after - b.not_after).num_milliseconds().abs() < 60_000
@@ -535,24 +597,37 @@ fn parse_expression(expression: &str) -> Result<ParsedExpression, FilterError> {
         } else if lower.starts_with("keyusage.") {
             filters.push(CertFilter::KeyUsage(keyusage_pattern(&items, i)));
         } else if lower.starts_with("nonexpired:") {
-            let show_expired = if item.eq_ignore_ascii_case("nonexpired:") { false } else { !parse_bool(&sub("nonexpired:")) };
+            let show_expired = if item.eq_ignore_ascii_case("nonexpired:") {
+                false
+            } else {
+                !parse_bool(&sub("nonexpired:"))
+            };
             filters.push(CertFilter::Expired { show_expired });
         } else if lower.starts_with("sscd:") {
             filters.push(CertFilter::Sscd);
         } else if lower.starts_with("subject.rfc2254:") {
             filters.push(rfc2254_filter(Some(sub("subject.rfc2254:")), None, false)?);
         } else if lower.starts_with("subject.contains:") {
-            filters.push(CertFilter::TextContained { subject: Some(sub("subject.contains:")), issuer: None });
+            filters.push(CertFilter::TextContained {
+                subject: Some(sub("subject.contains:")),
+                issuer: None,
+            });
         } else if lower.starts_with("issuer.rfc2254:") {
             filters.push(rfc2254_filter(None, Some(sub("issuer.rfc2254:")), false)?);
         } else if lower.starts_with("issuer.rfc2254.recurse:") {
             filters.push(rfc2254_filter(None, Some(sub("issuer.rfc2254.recurse:")), true)?);
         } else if lower.starts_with("issuer.contains:") {
-            filters.push(CertFilter::TextContained { subject: None, issuer: Some(sub("issuer.contains:")) });
+            filters.push(CertFilter::TextContained {
+                subject: None,
+                issuer: Some(sub("issuer.contains:")),
+            });
         } else if lower.starts_with("thumbprint:") {
             let params = java_split(&sub("thumbprint:"), ':');
             if params.len() == 2 {
-                filters.push(CertFilter::Thumbprint { algorithm: params[0].clone(), thumbprint: params[1].replace(' ', "") });
+                filters.push(CertFilter::Thumbprint {
+                    algorithm: params[0].clone(),
+                    thumbprint: params[1].replace(' ', ""),
+                });
             }
         } else if lower.starts_with("policyid:") {
             let oids = sub("policyid:");
@@ -572,8 +647,15 @@ fn parse_expression(expression: &str) -> Result<ParsedExpression, FilterError> {
             tracing::warn!("Se omitira el filtro '{item}' por no estar reconocido");
         }
     }
-    let filter = if filters.len() == 1 { filters.remove(0) } else { CertFilter::Multiple(filters) };
-    Ok(ParsedExpression { filter, disable_external_stores: disable })
+    let filter = if filters.len() == 1 {
+        filters.remove(0)
+    } else {
+        CertFilter::Multiple(filters)
+    };
+    Ok(ParsedExpression {
+        filter,
+        disable_external_stores: disable,
+    })
 }
 
 fn rfc2254_filter(subject: Option<String>, issuer: Option<String>, recurse: bool) -> Result<CertFilter, FilterError> {
@@ -582,7 +664,11 @@ fn rfc2254_filter(subject: Option<String>, issuer: Option<String>, recurse: bool
     if subject.is_none() && issuer.is_none() {
         return Err(FilterError::EmptyCriteria);
     }
-    Ok(CertFilter::Rfc2254 { subject, issuer, recurse })
+    Ok(CertFilter::Rfc2254 {
+        subject,
+        issuer,
+        recurse,
+    })
 }
 
 /// `generateKeyUsageFiltersPattern`: patrón formado por el elemento `pos` y
@@ -593,9 +679,16 @@ fn keyusage_pattern(items: &[String], pos: usize) -> KeyUsagePattern {
     loop {
         let item = &items[i];
         let lower = java_lower(item);
-        if let Some(k) = KEYUSAGE_NAMES.iter().position(|n| lower.starts_with(&format!("keyusage.{n}:"))) {
+        if let Some(k) = KEYUSAGE_NAMES
+            .iter()
+            .position(|n| lower.starts_with(&format!("keyusage.{n}:")))
+        {
             let value = item.split_once(':').map(|(_, v)| v).unwrap_or("");
-            pattern[k] = if value.eq_ignore_ascii_case("null") { None } else { Some(parse_bool(value)) };
+            pattern[k] = if value.eq_ignore_ascii_case("null") {
+                None
+            } else {
+                Some(parse_bool(value))
+            };
         }
         if items.len() > i + 1 && items[i + 1].starts_with("keyusage.") {
             i += 1;
@@ -666,7 +759,11 @@ pub struct CertFilterManager {
 impl CertFilterManager {
     /// Gestor con filtros explícitos.
     pub fn new(filters: Vec<CertFilter>, mandatory_certificate: bool, allow_external_stores: bool) -> Self {
-        CertFilterManager { filters, mandatory: mandatory_certificate, allow_external_stores }
+        CertFilterManager {
+            filters,
+            mandatory: mandatory_certificate,
+            allow_external_stores,
+        }
     }
 
     /// Gestor a partir de los `extraParams` de una operación (claves
@@ -692,7 +789,11 @@ impl CertFilterManager {
                 i += 1;
             }
         }
-        let mut manager = CertFilterManager { filters: Vec::new(), mandatory: headless || omit_selection, allow_external_stores: true };
+        let mut manager = CertFilterManager {
+            filters: Vec::new(),
+            mandatory: headless || omit_selection,
+            allow_external_stores: true,
+        };
         for v in values {
             let parsed = parse_expression(&v)?;
             if parsed.disable_external_stores {
@@ -716,7 +817,11 @@ impl CertFilterManager {
 
     /// Gestor con los filtros de las preferencias de la aplicación local.
     pub fn from_local_prefs(prefs: &LocalFilterPrefs) -> Self {
-        CertFilterManager { filters: prefs.filters(), mandatory: false, allow_external_stores: true }
+        CertFilterManager {
+            filters: prefs.filters(),
+            mandatory: false,
+            allow_external_stores: true,
+        }
     }
 
     /// Filtros (uno por expresión; se combinan con O).
@@ -771,7 +876,10 @@ pub fn apply_filter_indices(filters: &[CertFilter], entries: &[CertEntry], now: 
 
 /// [`apply_filter_indices`] devolviendo las entradas.
 pub fn apply_filters(filters: &[CertFilter], entries: &[CertEntry], now: DateTime<Utc>) -> Vec<CertEntry> {
-    apply_filter_indices(filters, entries, now).into_iter().map(|i| entries[i].clone()).collect()
+    apply_filter_indices(filters, entries, now)
+        .into_iter()
+        .map(|i| entries[i].clone())
+        .collect()
 }
 
 #[cfg(test)]

@@ -39,14 +39,7 @@ pub enum Language {
 
 impl Language {
     /// Todos los idiomas.
-    pub const ALL: [Language; 6] = [
-        Self::EsEs,
-        Self::EnUs,
-        Self::CaEs,
-        Self::GlEs,
-        Self::EuEs,
-        Self::VaEs,
-    ];
+    pub const ALL: [Language; 6] = [Self::EsEs, Self::EnUs, Self::CaEs, Self::GlEs, Self::EuEs, Self::VaEs];
 
     /// Código Java del idioma (`es_ES`...).
     pub fn code(self) -> &'static str {
@@ -84,8 +77,8 @@ impl Language {
         let mut parts = base.split('_');
         let lang = parts.next().unwrap_or("").to_ascii_lowercase();
         let rest: Vec<String> = parts.map(|p| p.to_ascii_lowercase()).collect();
-        let valencia = modifier.is_some_and(|m| m.eq_ignore_ascii_case("valencia"))
-            || rest.iter().any(|p| p == "valencia");
+        let valencia =
+            modifier.is_some_and(|m| m.eq_ignore_ascii_case("valencia")) || rest.iter().any(|p| p == "valencia");
         match lang.as_str() {
             "es" => Some(Self::EsEs),
             "en" => Some(Self::EnUs),
@@ -139,11 +132,7 @@ const VALIDATION_BUNDLES: [&[u8]; 6] = [
     include_bytes!("../i18n/validationmessages_va_ES.properties"),
 ];
 
-fn bundle(
-    cache: &'static [OnceLock<ExtraParams>; 6],
-    sources: &[&[u8]; 6],
-    lang: Language,
-) -> &'static ExtraParams {
+fn bundle(cache: &'static [OnceLock<ExtraParams>; 6], sources: &[&[u8]; 6], lang: Language) -> &'static ExtraParams {
     cache[lang.index()].get_or_init(|| ExtraParams::parse_bytes(sources[lang.index()]))
 }
 
@@ -345,28 +334,13 @@ mod tests {
 
     #[test]
     fn seleccion_de_idioma() {
-        assert_eq!(
-            Language::resolve(Some("en_US"), Some("es_ES")),
-            Language::EnUs
-        );
+        assert_eq!(Language::resolve(Some("en_US"), Some("es_ES")), Language::EnUs);
         assert_eq!(Language::resolve(None, Some("ca_ES.UTF-8")), Language::CaEs);
-        assert_eq!(
-            Language::resolve(Some(""), Some("gl_ES@euro")),
-            Language::GlEs
-        );
-        assert_eq!(
-            Language::resolve(None, Some("ca_ES@valencia")),
-            Language::VaEs
-        );
-        assert_eq!(
-            Language::resolve(None, Some("ca-ES-valencia")),
-            Language::VaEs
-        );
+        assert_eq!(Language::resolve(Some(""), Some("gl_ES@euro")), Language::GlEs);
+        assert_eq!(Language::resolve(None, Some("ca_ES@valencia")), Language::VaEs);
+        assert_eq!(Language::resolve(None, Some("ca-ES-valencia")), Language::VaEs);
         assert_eq!(Language::resolve(None, Some("en_GB")), Language::EnUs);
-        assert_eq!(
-            Language::resolve(Some("fr_FR"), Some("en_US")),
-            Language::EsEs
-        );
+        assert_eq!(Language::resolve(Some("fr_FR"), Some("en_US")), Language::EsEs);
         assert_eq!(Language::resolve(None, None), Language::EsEs);
         assert_eq!(Language::resolve(None, Some("de_DE")), Language::EsEs);
         assert_eq!(Language::from_locale("eu"), Some(Language::EuEs));
@@ -412,10 +386,7 @@ mod tests {
             ValidityError::CertificateProblem,
             ValidityError::SignProfileNotChecked,
         ] {
-            assert_eq!(
-                es.validity_text(&SignValidity::ko(e)),
-                SignValidity::ko(e).to_string()
-            );
+            assert_eq!(es.validity_text(&SignValidity::ko(e)), SignValidity::ko(e).to_string());
         }
         let en = Messages::new(Language::EnUs);
         assert_eq!(

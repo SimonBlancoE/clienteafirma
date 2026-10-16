@@ -32,11 +32,7 @@ enum Op {
 }
 
 fn alg(key: &str) -> &'static str {
-    if key == EC {
-        "SHA256withECDSA"
-    } else {
-        "SHA256withRSA"
-    }
+    if key == EC { "SHA256withECDSA" } else { "SHA256withRSA" }
 }
 
 fn run(signer: &dyn Signer, op: Op, input: &[u8], key_name: &str, p: &[(&str, &str)]) -> Vec<u8> {
@@ -105,14 +101,8 @@ const XMLDSIG: &[XCase] = &[
         &[
             ("format", "XMLDSig Enveloped"),
             ("xmlSignaturePrefix", "dsig"),
-            (
-                "canonicalizationAlgorithm",
-                "http://www.w3.org/2001/10/xml-exc-c14n#",
-            ),
-            (
-                "referencesDigestMethod",
-                "http://www.w3.org/2001/04/xmlenc#sha256",
-            ),
+            ("canonicalizationAlgorithm", "http://www.w3.org/2001/10/xml-exc-c14n#"),
+            ("referencesDigestMethod", "http://www.w3.org/2001/04/xmlenc#sha256"),
         ],
         RSA,
     ),
@@ -140,10 +130,7 @@ const XMLDSIG: &[XCase] = &[
         "doc.xml",
         &[
             ("xmlTransforms", "1"),
-            (
-                "xmlTransform0Type",
-                "http://www.w3.org/2002/06/xmldsig-filter2",
-            ),
+            ("xmlTransform0Type", "http://www.w3.org/2002/06/xmldsig-filter2"),
             ("xmlTransform0Subtype", "subtract"),
             ("xmlTransform0Body", "/doc/a"),
         ],
@@ -156,20 +143,8 @@ const XMLDSIG: &[XCase] = &[
         &[],
         RSA,
     ),
-    (
-        "xmldsig-cosign-detached",
-        Op::Cosign,
-        "@xmldsig-detached-xml",
-        &[],
-        RSA,
-    ),
-    (
-        "xmldsig-cosign-enveloped",
-        Op::Cosign,
-        "@xmldsig-enveloped",
-        &[],
-        RSA,
-    ),
+    ("xmldsig-cosign-detached", Op::Cosign, "@xmldsig-detached-xml", &[], RSA),
+    ("xmldsig-cosign-enveloped", Op::Cosign, "@xmldsig-enveloped", &[], RSA),
     (
         "xmldsig-countersign-tree",
         Op::CounterTree,
@@ -282,25 +257,14 @@ fn facturae_matches_java_and_validates() {
         assert!(signer.is_sign(&out, &none()));
         // Una factura firmada no admite una segunda firma.
         let key = key(RSA);
-        let err = signer
-            .sign(&out, "SHA256withRSA", &key, &none())
-            .unwrap_err();
-        assert_eq!(
-            err.code,
-            Some(codes::FACTURAE_ALREADY_SIGNED),
-            "{name}: {err}"
-        );
+        let err = signer.sign(&out, "SHA256withRSA", &key, &none()).unwrap_err();
+        assert_eq!(err.code, Some(codes::FACTURAE_ALREADY_SIGNED), "{name}: {err}");
     }
     // Datos que no son factura.
     let key = key(RSA);
     assert!(
         signer
-            .sign(
-                &read("testdata/xades/inputs/doc.xml"),
-                "SHA256withRSA",
-                &key,
-                &none()
-            )
+            .sign(&read("testdata/xades/inputs/doc.xml"), "SHA256withRSA", &key, &none())
             .is_err()
     );
 }
@@ -331,27 +295,15 @@ fn asic_matches_java_and_validates() {
         let v = asic::validate_container(&golden, false).unwrap();
         assert_eq!(v, vec![SignValidity::ok()], "{name} (Java)");
         assert_eq!(
-            signer
-                .signers_structure(&out, &none())
-                .unwrap()
-                .signers
-                .len(),
+            signer.signers_structure(&out, &none()).unwrap().signers.len(),
             expected,
             "{name}"
         );
-        assert_eq!(
-            signer.get_data(&out, &none()).unwrap(),
-            Some(hello.clone()),
-            "{name}"
-        );
+        assert_eq!(signer.get_data(&out, &none()).unwrap(), Some(hello.clone()), "{name}");
         // `mimetype` es la primera entrada y se almacena sin comprimir.
         let first = &out[30..30 + 8];
         assert_eq!(first, b"mimetype", "{name}");
-        assert_eq!(
-            u16::from_le_bytes([out[8], out[9]]),
-            0,
-            "{name}: mimetype comprimido"
-        );
+        assert_eq!(u16::from_le_bytes([out[8], out[9]]), 0, "{name}: mimetype comprimido");
     }
 }
 
@@ -394,12 +346,7 @@ fn xades_t_unreachable_tsa_fails() {
     let key = key(RSA);
     let p = params(&[("tsaURL", "http://127.0.0.1:9/tsa")]);
     let err = signer
-        .sign(
-            &read("testdata/xades/inputs/hello.txt"),
-            "SHA256withRSA",
-            &key,
-            &p,
-        )
+        .sign(&read("testdata/xades/inputs/hello.txt"), "SHA256withRSA", &key, &p)
         .unwrap_err();
     assert_eq!(err.code, Some(codes::TSA_CONNECTION_ERROR), "{err}");
 }
@@ -413,16 +360,11 @@ fn exp_policy_age_expanded_by_caller() {
     let expanded = afirma_core::policy::expand_properties(&p, Some(&data), Some("XAdES")).unwrap();
     let signer = afirma_xml::xades::XadesSigner::new();
     let key = key(RSA);
-    let out = signer
-        .sign(&data, "SHA256withRSA", &key, &expanded)
-        .unwrap();
+    let out = signer.sign(&data, "SHA256withRSA", &key, &expanded).unwrap();
     let s = String::from_utf8(out.clone()).unwrap();
     assert!(s.contains("urn:oid:2.16.724.1.3.1.1.2.1.9"), "{s}");
     assert!(s.contains("G7roucf600+f03r/o0bAOQ6WAs0="), "{s}");
-    assert_eq!(
-        validation::validate(&out, false, &NoResolver),
-        vec![SignValidity::ok()]
-    );
+    assert_eq!(validation::validate(&out, false, &NoResolver), vec![SignValidity::ok()]);
     // Firma avanzada con SigningCertificate: el detector Java la clasifica como B-Level.
     assert_eq!(validation::signature_format(&out), "XAdES B-Level");
 }
@@ -446,27 +388,14 @@ fn entry(package: &[u8], name: &str) -> Vec<u8> {
 fn odf_matches_java_and_verifies() {
     let parity = odf::OdfSigner::java_parity();
     let cases: &[Case] = &[
-        (
-            "odf-odt",
-            Op::Sign,
-            read("testdata/office/inputs/in.odt"),
-            &[],
-        ),
+        ("odf-odt", Op::Sign, read("testdata/office/inputs/in.odt"), &[]),
         (
             "odf-ods-sha256",
             Op::Sign,
             read("testdata/office/inputs/in.ods"),
-            &[(
-                "referencesDigestMethod",
-                "http://www.w3.org/2001/04/xmlenc#sha256",
-            )],
+            &[("referencesDigestMethod", "http://www.w3.org/2001/04/xmlenc#sha256")],
         ),
-        (
-            "odf-odp",
-            Op::Sign,
-            read("testdata/office/inputs/in.odp"),
-            &[],
-        ),
+        ("odf-odp", Op::Sign, read("testdata/office/inputs/in.odp"), &[]),
         ("odf-cosign", Op::Cosign, office_golden("odf-odt"), &[]),
     ];
     for (name, op, inp, p) in cases {
@@ -479,18 +408,10 @@ fn odf_matches_java_and_verifies() {
         );
         let n = if *name == "odf-cosign" { 2 } else { 1 };
         assert_eq!(odf::verify_package(&out).unwrap(), vec![true; n], "{name}");
-        assert_eq!(
-            odf::verify_package(&golden).unwrap(),
-            vec![true; n],
-            "{name} (Java)"
-        );
+        assert_eq!(odf::verify_package(&golden).unwrap(), vec![true; n], "{name} (Java)");
         assert!(parity.is_sign(&out, &none()));
         assert_eq!(
-            parity
-                .signers_structure(&out, &none())
-                .unwrap()
-                .signers
-                .len(),
+            parity.signers_structure(&out, &none()).unwrap().signers.len(),
             n,
             "{name}"
         );
@@ -525,41 +446,26 @@ fn odf_requested_algorithm_and_ec() {
 #[test]
 fn odf_tampered_content_fails() {
     let signer = odf::OdfSigner::new();
-    let out = run(
-        &signer,
-        Op::Sign,
-        &read("testdata/office/inputs/in.odt"),
-        RSA,
-        &[],
-    );
+    let out = run(&signer, Op::Sign, &read("testdata/office/inputs/in.odt"), RSA, &[]);
     let mut b = afirma_xml::office::ZipBuilder::new(codes::INVALID_SIGNATURE);
     for e in read_zip(&out, codes::INVALID_SIGNATURE).unwrap() {
         let mut data = e.data.clone();
         if e.name == "content.xml" {
-            let s = String::from_utf8(data).unwrap().replacen(
-                "<office:text>",
-                "<office:text><text:p>X</text:p>",
-                1,
-            );
+            let s = String::from_utf8(data)
+                .unwrap()
+                .replacen("<office:text>", "<office:text><text:p>X</text:p>", 1);
             data = s.into_bytes();
         }
-        b.add(&e.name, &data, e.name == "mimetype", e.is_dir)
-            .unwrap();
+        b.add(&e.name, &data, e.name == "mimetype", e.is_dir).unwrap();
     }
-    assert_eq!(
-        odf::verify_package(&b.finish().unwrap()).unwrap(),
-        vec![false]
-    );
+    assert_eq!(odf::verify_package(&b.finish().unwrap()).unwrap(), vec![false]);
 }
 
 // ---------------------------------------------------------------- OOXML
 
 fn ooxml_structure(package: &[u8]) -> Vec<String> {
     // Las cofirmas se ordenan por estructura (los nombres llevan UUID).
-    let mut sigs: Vec<Vec<String>> = ooxml::ooxml_signatures(package)
-        .iter()
-        .map(|x| structure(x))
-        .collect();
+    let mut sigs: Vec<Vec<String>> = ooxml::ooxml_signatures(package).iter().map(|x| structure(x)).collect();
     sigs.sort();
     sigs.concat()
 }
@@ -568,12 +474,7 @@ fn ooxml_structure(package: &[u8]) -> Vec<String> {
 fn ooxml_matches_java_and_verifies() {
     let signer = ooxml::OoxmlSigner::new();
     let cases: &[Case] = &[
-        (
-            "ooxml-docx",
-            Op::Sign,
-            read("testdata/office/inputs/in.docx"),
-            &[],
-        ),
+        ("ooxml-docx", Op::Sign, read("testdata/office/inputs/in.docx"), &[]),
         (
             "ooxml-docx-params",
             Op::Sign,
@@ -590,12 +491,7 @@ fn ooxml_matches_java_and_verifies() {
                 ("commitmentTypeIndication0Description", "Aprobado"),
             ],
         ),
-        (
-            "ooxml-xlsx",
-            Op::Sign,
-            read("testdata/office/inputs/in.xlsx"),
-            &[],
-        ),
+        ("ooxml-xlsx", Op::Sign, read("testdata/office/inputs/in.xlsx"), &[]),
         ("ooxml-cosign", Op::Cosign, office_golden("ooxml-docx"), &[]),
     ];
     for (name, op, inp, p) in cases {
@@ -605,19 +501,12 @@ fn ooxml_matches_java_and_verifies() {
         let n = if *name == "ooxml-cosign" { 2 } else { 1 };
         let rv = ooxml::verify_package(&out).unwrap();
         assert_eq!(rv.len(), n, "{name}");
-        assert!(
-            rv.iter().all(|(ok, bad)| *ok && bad.is_empty()),
-            "{name}: {rv:?}"
-        );
+        assert!(rv.iter().all(|(ok, bad)| *ok && bad.is_empty()), "{name}: {rv:?}");
         let jv = ooxml::verify_package(&golden).unwrap();
         assert!(jv.iter().all(|(ok, _)| *ok), "{name} (Java): {jv:?}");
         assert!(signer.is_sign(&out, &none()), "{name}");
         assert_eq!(
-            signer
-                .signers_structure(&out, &none())
-                .unwrap()
-                .signers
-                .len(),
+            signer.signers_structure(&out, &none()).unwrap().signers.len(),
             n,
             "{name}"
         );
@@ -628,33 +517,17 @@ fn ooxml_matches_java_and_verifies() {
 fn ooxml_pptx_and_word_signed_sample() {
     let signer = ooxml::OoxmlSigner::new();
     // PowerPoint: se firman también las partes de `ppt/` (desviación).
-    let out = run(
-        &signer,
-        Op::Sign,
-        &read("testdata/office/inputs/in.pptx"),
-        RSA,
-        &[],
-    );
+    let out = run(&signer, Op::Sign, &read("testdata/office/inputs/in.pptx"), RSA, &[]);
     let sig = String::from_utf8(ooxml::ooxml_signatures(&out).remove(0)).unwrap();
     assert!(sig.contains("/ppt/presentation.xml?"), "{sig}");
     assert!(sig.contains("/ppt/slides/slide1.xml?"), "{sig}");
     // Como Office: las propiedades de presentación no se firman.
     assert!(!sig.contains("presProps.xml?"), "{sig}");
-    assert!(
-        ooxml::verify_package(&out)
-            .unwrap()
-            .iter()
-            .all(|(ok, _)| *ok)
-    );
+    assert!(ooxml::verify_package(&out).unwrap().iter().all(|(ok, _)| *ok));
     // Documento firmado con Microsoft Word: se reconoce, se valida y se cofirma.
     let word = read("testdata/office/inputs/word-signed.docx");
     assert!(signer.is_sign(&word, &none()));
-    assert!(
-        ooxml::verify_package(&word)
-            .unwrap()
-            .iter()
-            .all(|(ok, _)| *ok)
-    );
+    assert!(ooxml::verify_package(&word).unwrap().iter().all(|(ok, _)| *ok));
     let co = run(&signer, Op::Cosign, &word, EC, &[]);
     let v = ooxml::verify_package(&co).unwrap();
     assert_eq!(v.len(), 2);
@@ -664,22 +537,15 @@ fn ooxml_pptx_and_word_signed_sample() {
 #[test]
 fn ooxml_tampered_part_fails() {
     let signer = ooxml::OoxmlSigner::new();
-    let out = run(
-        &signer,
-        Op::Sign,
-        &read("testdata/office/inputs/in.docx"),
-        RSA,
-        &[],
-    );
+    let out = run(&signer, Op::Sign, &read("testdata/office/inputs/in.docx"), RSA, &[]);
     let mut b = afirma_xml::office::ZipBuilder::new(codes::INVALID_SIGNATURE);
     for e in read_zip(&out, codes::INVALID_SIGNATURE).unwrap() {
         let mut data = e.data.clone();
         if e.name == "word/document.xml" {
-            let s = String::from_utf8(data).unwrap().replacen(
-                "<w:body>",
-                "<w:body><w:p><w:r><w:t>X</w:t></w:r></w:p>",
-                1,
-            );
+            let s =
+                String::from_utf8(data)
+                    .unwrap()
+                    .replacen("<w:body>", "<w:body><w:p><w:r><w:t>X</w:t></w:r></w:p>", 1);
             data = s.into_bytes();
         }
         b.add(&e.name, &data, false, e.is_dir).unwrap();
@@ -687,10 +553,7 @@ fn ooxml_tampered_part_fails() {
     let v = ooxml::verify_package(&b.finish().unwrap()).unwrap();
     assert_eq!(v.len(), 1);
     assert!(!v[0].0);
-    assert!(
-        v[0].1.iter().any(|u| u.contains("/word/document.xml")),
-        "{v:?}"
-    );
+    assert!(v[0].1.iter().any(|u| u.contains("/word/document.xml")), "{v:?}");
 }
 
 // ---------------------------------------------------------------- signer_for

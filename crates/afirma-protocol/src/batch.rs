@@ -27,7 +27,11 @@ pub const RESULT_NAMES: &[&str] = &[
 
 /// Cadena de certificados de los lotes: Base64 URL-safe separados por `;`.
 pub fn batch_cert_chain(chain: &[Vec<u8>]) -> String {
-    chain.iter().map(|c| jbase64::encode_url_safe(c)).collect::<Vec<_>>().join(";")
+    chain
+        .iter()
+        .map(|c| jbase64::encode_url_safe(c))
+        .collect::<Vec<_>>()
+        .join(";")
 }
 
 /// Resultado parcial devuelto por la prefirma.
@@ -47,7 +51,8 @@ pub struct PresignBatch {
 
 /// Analiza la respuesta de prefirma de un lote JSON.
 pub fn parse_presign_response(json: &[u8]) -> Result<PresignBatch, String> {
-    let obj = json_lenient::parse_object_bytes(json).map_err(|e| format!("El JSON de prefirma del lote no esta formado correctamente: {e}"))?;
+    let obj = json_lenient::parse_object_bytes(json)
+        .map_err(|e| format!("El JSON de prefirma del lote no esta formado correctamente: {e}"))?;
     let td = match obj.get("td") {
         Some(_) => Some(TriphaseData::from_json(obj.get_object("td")?)?),
         None => None,
@@ -73,7 +78,11 @@ pub fn parse_presign_response(json: &[u8]) -> Result<PresignBatch, String> {
                         Some(_) => Some(r.get_string("description")?.to_string()),
                         None => None,
                     };
-                    out.push(PresignResult { id, result, description });
+                    out.push(PresignResult {
+                        id,
+                        result,
+                        description,
+                    });
                 }
                 Some(out)
             }
@@ -104,12 +113,15 @@ fn results_json(results: &[PresignResult]) -> String {
 /// `JSONBatchInfo.updateResults`: marca en el lote las firmas que ya
 /// fallaron en la prefirma.
 pub fn update_batch_results(batch: &[u8], results: &[PresignResult]) -> Result<String, String> {
-    let mut obj = json_lenient::parse_object_bytes(batch).map_err(|e| format!("El JSON del lote de firmas no esta formado correctamente: {e}"))?;
+    let mut obj = json_lenient::parse_object_bytes(batch)
+        .map_err(|e| format!("El JSON del lote de firmas no esta formado correctamente: {e}"))?;
     let Some(JsonValue::Array(signs)) = obj.0.iter_mut().find(|(k, _)| k == "singlesigns").map(|(_, v)| v) else {
         return Err("JSONObject[\"singlesigns\"] not found.".into());
     };
     for s in signs.iter_mut() {
-        let JsonValue::Object(single) = s else { return Err("JSONArray[i] is not a JSONObject.".into()) };
+        let JsonValue::Object(single) = s else {
+            return Err("JSONArray[i] is not a JSONObject.".into());
+        };
         let id = single.get_string("id")?.to_string();
         if let Some(r) = results.iter().find(|r| r.id == id) {
             for k in ["datareference", "format", "suboperation", "extraparams"] {
@@ -229,14 +241,22 @@ pub fn sign_json_batch(
     extra: &ExtraParams,
 ) -> Result<String, BatchError> {
     if batch.is_empty() {
-        return Err(BatchError::InvalidArgument("El lote de firma no puede ser nulo ni vacio".into()));
+        return Err(BatchError::InvalidArgument(
+            "El lote de firma no puede ser nulo ni vacio".into(),
+        ));
     }
     let chain = key.certificate_chain();
     if chain.is_empty() {
-        return Err(BatchError::InvalidArgument("La cadena de certificados del firmante no puede ser nula ni vacia".into()));
+        return Err(BatchError::InvalidArgument(
+            "La cadena de certificados del firmante no puede ser nula ni vacia".into(),
+        ));
     }
     let algorithm = json_batch_algorithm(batch).map_err(|e| {
-        AfirmaError::new(codes::MALFORMED_JSON_BATCH, "El lote proporcionado no es un JSON bien formado o no tiene la estructura correcta").with_cause(e)
+        AfirmaError::new(
+            codes::MALFORMED_JSON_BATCH,
+            "El lote proporcionado no es un JSON bien formado o no tiene la estructura correcta",
+        )
+        .with_cause(e)
     })?;
     let certs = batch_cert_chain(&chain);
     let mut batch_b64 = jbase64::encode_url_safe(batch);
@@ -252,13 +272,20 @@ pub fn sign_json_batch(
         });
     };
     if let Some(results) = &presign.results {
-        batch_b64 = jbase64::encode_url_safe(update_batch_results(batch, results).map_err(BatchError::Internal)?.as_bytes());
+        batch_b64 = jbase64::encode_url_safe(
+            update_batch_results(batch, results)
+                .map_err(BatchError::Internal)?
+                .as_bytes(),
+        );
     }
     td.sign_all(key, &algorithm)?;
     let tridata = jbase64::encode_url_safe(td.to_json().as_bytes());
     let ret = http
         .with_ssl_error_handling(afirma_core::http::SslErrorHandling::None)
-        .post(postsigner_url, &format!("json={batch_b64}&certs={certs}&tridata={tridata}"))
+        .post(
+            postsigner_url,
+            &format!("json={batch_b64}&certs={certs}&tridata={tridata}"),
+        )
         .map_err(|e| map_http(e, &JSON_POST, "postfirma de lotes JSON"))?;
     Ok(String::from_utf8_lossy(&ret).into_owned())
 }
@@ -274,14 +301,22 @@ pub fn sign_xml_batch(
     extra: &ExtraParams,
 ) -> Result<String, BatchError> {
     if batch.is_empty() {
-        return Err(BatchError::InvalidArgument("El lote de firma no puede ser nulo ni vacio".into()));
+        return Err(BatchError::InvalidArgument(
+            "El lote de firma no puede ser nulo ni vacio".into(),
+        ));
     }
     let chain = key.certificate_chain();
     if chain.is_empty() {
-        return Err(BatchError::InvalidArgument("La cadena de certificados del firmante no puede ser nula ni vacia".into()));
+        return Err(BatchError::InvalidArgument(
+            "La cadena de certificados del firmante no puede ser nula ni vacia".into(),
+        ));
     }
     let algorithm = xml_batch_algorithm(batch).map_err(|e| {
-        AfirmaError::new(codes::MALFORMED_XML_BATCH, "El lote proporcionado no es un XML bien formado o no tiene la estructura correcta").with_cause(e)
+        AfirmaError::new(
+            codes::MALFORMED_XML_BATCH,
+            "El lote proporcionado no es un XML bien formado o no tiene la estructura correcta",
+        )
+        .with_cause(e)
     })?;
     let certs = batch_cert_chain(&chain);
     let batch_b64 = jbase64::encode_url_safe(batch);
@@ -290,13 +325,20 @@ pub fn sign_xml_batch(
         .post(presigner_url, &format!("xml={batch_b64}&certs={certs}"))
         .map_err(|e| map_http(e, &XML_PRE, "prefirma de lotes XML"))?;
     let mut td = TriphaseData::parse_xml(&ret).map_err(|e| {
-        if e.0.contains("'firmas'") { BatchError::InvalidArgument(e.0) } else { BatchError::Internal(e.0) }
+        if e.0.contains("'firmas'") {
+            BatchError::InvalidArgument(e.0)
+        } else {
+            BatchError::Internal(e.0)
+        }
     })?;
     td.sign_all(key, &algorithm)?;
     let tridata = jbase64::encode_url_safe(td.to_xml().as_bytes());
     let ret = http
         .with_ssl_error_handling(afirma_core::http::SslErrorHandling::None)
-        .post(postsigner_url, &format!("xml={batch_b64}&certs={certs}&tridata={tridata}"))
+        .post(
+            postsigner_url,
+            &format!("xml={batch_b64}&certs={certs}&tridata={tridata}"),
+        )
         .map_err(|e| map_http(e, &XML_POST, "postfirma de lotes XML"))?;
     Ok(String::from_utf8_lossy(&ret).into_owned())
 }
@@ -350,7 +392,11 @@ pub fn parse_local_batch(batch: &[u8]) -> Result<LocalBatch, LocalBatchParseErro
 
 fn parse_local_batch_obj(json: &JsonObject) -> Result<LocalBatch, String> {
     let stop_on_error = json.has("stoponerror") && json.get_boolean("stoponerror")?;
-    let sub_op = if json.has("suboperation") { CryptoOperation::parse(json.get_string("suboperation")?) } else { Some(CryptoOperation::Sign) };
+    let sub_op = if json.has("suboperation") {
+        CryptoOperation::parse(json.get_string("suboperation")?)
+    } else {
+        Some(CryptoOperation::Sign)
+    };
     if !json.has("format") {
         return Err("El lote no declaraba el formato de firma".into());
     }
@@ -359,7 +405,11 @@ fn parse_local_batch_obj(json: &JsonObject) -> Result<LocalBatch, String> {
         return Err("El lote no declaraba el algoritmo de firma".into());
     }
     let algorithm = json.get_string("algorithm")?.to_string();
-    let extra = if json.has("extraparams") { expand_batch_extra_params(json.get_string("extraparams")?)? } else { None };
+    let extra = if json.has("extraparams") {
+        expand_batch_extra_params(json.get_string("extraparams")?)?
+    } else {
+        None
+    };
     let mut signs = Vec::new();
     for item in json.get_array("singlesigns")? {
         let s = item.as_object().ok_or("JSONArray[i] is not a JSONObject.")?;
@@ -371,14 +421,29 @@ fn parse_local_batch_obj(json: &JsonObject) -> Result<LocalBatch, String> {
             return Err("No se ha incluido la referencia de un documento del lote".into());
         }
         let data = jbase64::decode(s.get_string("datareference")?).map_err(|e| e.to_string())?;
-        let operation = if s.has("suboperation") { CryptoOperation::parse(s.get_string("suboperation")?) } else { sub_op };
-        let format = if s.has("format") { s.get_string("format")?.to_string() } else { format.clone() };
+        let operation = if s.has("suboperation") {
+            CryptoOperation::parse(s.get_string("suboperation")?)
+        } else {
+            sub_op
+        };
+        let format = if s.has("format") {
+            s.get_string("format")?.to_string()
+        } else {
+            format.clone()
+        };
         let extra_params = if s.has("extraparams") {
             expand_batch_extra_params(s.get_string("extraparams")?)?.unwrap_or_default()
         } else {
             extra.clone().unwrap_or_default()
         };
-        signs.push(LocalSingleSign { id, data, operation, format, algorithm: algorithm.clone(), extra_params });
+        signs.push(LocalSingleSign {
+            id,
+            data,
+            operation,
+            format,
+            algorithm: algorithm.clone(),
+            extra_params,
+        });
     }
     Ok(LocalBatch { stop_on_error, signs })
 }
@@ -395,16 +460,29 @@ pub struct LocalSingleResult {
 /// `LocalBatchSigner.signLocalBatch`: firma secuencial con la semántica de
 /// `stoponerror` (al primer error, los anteriores pasan a `SKIPPED` sin
 /// firma, el erróneo es `ERROR_PRE` y los siguientes `SKIPPED`).
-pub fn run_local_batch(batch: &LocalBatch, mut sign: impl FnMut(&LocalSingleSign) -> Result<Vec<u8>, String>) -> Vec<LocalSingleResult> {
+pub fn run_local_batch(
+    batch: &LocalBatch,
+    mut sign: impl FnMut(&LocalSingleSign) -> Result<Vec<u8>, String>,
+) -> Vec<LocalSingleResult> {
     let mut results: Vec<LocalSingleResult> = Vec::new();
     let mut error = false;
     for s in &batch.signs {
         if error && batch.stop_on_error {
-            results.push(LocalSingleResult { id: s.id.clone(), result: "SKIPPED", description: None, signature: None });
+            results.push(LocalSingleResult {
+                id: s.id.clone(),
+                result: "SKIPPED",
+                description: None,
+                signature: None,
+            });
             continue;
         }
         match sign(s) {
-            Ok(sig) => results.push(LocalSingleResult { id: s.id.clone(), result: "DONE_AND_SAVED", description: None, signature: Some(sig) }),
+            Ok(sig) => results.push(LocalSingleResult {
+                id: s.id.clone(),
+                result: "DONE_AND_SAVED",
+                description: None,
+                signature: Some(sig),
+            }),
             Err(description) => {
                 error = true;
                 if batch.stop_on_error {
@@ -413,7 +491,12 @@ pub fn run_local_batch(batch: &LocalBatch, mut sign: impl FnMut(&LocalSingleSign
                         r.signature = None;
                     }
                 }
-                results.push(LocalSingleResult { id: s.id.clone(), result: "ERROR_PRE", description: Some(description), signature: None });
+                results.push(LocalSingleResult {
+                    id: s.id.clone(),
+                    result: "ERROR_PRE",
+                    description: Some(description),
+                    signature: None,
+                });
             }
         }
     }
@@ -451,12 +534,22 @@ mod tests {
         let p = parse_presign_response(br#"{"td":{"format":"XAdES","signs":[{"signinfo":[{"id":"a1","params":{"PRE":"AA=="}}]}]},"results":[{"id":"a2","result":"ERROR_PRE","description":"mal"}]}"#).unwrap();
         assert_eq!(p.td.unwrap().signs[0].id.as_deref(), Some("a1"));
         assert_eq!(p.results.unwrap()[0].description.as_deref(), Some("mal"));
-        assert_eq!(parse_presign_response(b"{\"results\":[]}").unwrap(), PresignBatch { td: None, results: None });
+        assert_eq!(
+            parse_presign_response(b"{\"results\":[]}").unwrap(),
+            PresignBatch {
+                td: None,
+                results: None
+            }
+        );
         assert!(parse_presign_response(br#"{"results":[{"id":"x","result":"RARO"}]}"#).is_err());
         assert!(parse_presign_response(br#"{"results":[{"id":"x"}]}"#).is_err());
         assert!(parse_presign_response(b"no json").is_err());
         assert_eq!(
-            results_json(&[PresignResult { id: "a2".into(), result: "ERROR_PRE".into(), description: None }]),
+            results_json(&[PresignResult {
+                id: "a2".into(),
+                result: "ERROR_PRE".into(),
+                description: None
+            }]),
             r#"{"signs":[{"result":"ERROR_PRE","id":"a2"}]}"#
         );
     }
@@ -464,7 +557,15 @@ mod tests {
     #[test]
     fn update_results() {
         let batch = br#"{"algorithm":"SHA256withRSA","format":"XAdES","singlesigns":[{"id":"a1","datareference":"AA==","format":"XAdES"},{"id":"a2","datareference":"AQ=="}]}"#;
-        let out = update_batch_results(batch, &[PresignResult { id: "a2".into(), result: "ERROR_PRE".into(), description: Some("d".into()) }]).unwrap();
+        let out = update_batch_results(
+            batch,
+            &[PresignResult {
+                id: "a2".into(),
+                result: "ERROR_PRE".into(),
+                description: Some("d".into()),
+            }],
+        )
+        .unwrap();
         let o = json_lenient::parse_object(&out).unwrap();
         let signs = o.get_array("singlesigns").unwrap();
         let a2 = signs[1].as_object().unwrap();
@@ -479,7 +580,10 @@ mod tests {
         assert_eq!(json_batch_algorithm(br#"{"algorithm":"SHA256"}"#).unwrap(), "SHA256");
         assert!(json_batch_algorithm(br#"{"format":"x"}"#).is_err());
         assert!(json_batch_algorithm(br#"{"algorithm":256}"#).is_err());
-        assert_eq!(xml_batch_algorithm(b"<SignBatch algorithm=\"SHA512\"><singlesign/></SignBatch>").unwrap(), "SHA512");
+        assert_eq!(
+            xml_batch_algorithm(b"<SignBatch algorithm=\"SHA512\"><singlesign/></SignBatch>").unwrap(),
+            "SHA512"
+        );
         assert!(xml_batch_algorithm(b"<lote algorithm=\"SHA512\"/>").is_err());
         assert!(xml_batch_algorithm(b"<signbatch/>").is_err());
     }
@@ -497,24 +601,47 @@ mod tests {
         assert_eq!(b.signs[1].operation, None);
         assert_eq!(b.signs[1].format, "XAdES");
         assert!(b.signs[1].extra_params.is_empty());
-        let results = run_local_batch(&b, |s| if s.id == "2" { Err("fallo".into()) } else { Ok(vec![1, 2]) });
+        let results = run_local_batch(&b, |s| {
+            if s.id == "2" {
+                Err("fallo".into())
+            } else {
+                Ok(vec![1, 2])
+            }
+        });
         let names: Vec<&str> = results.iter().map(|r| r.result).collect();
         assert_eq!(names, ["SKIPPED", "ERROR_PRE", "SKIPPED"]);
         assert!(results[0].signature.is_none());
         let json = local_batch_result_json(&results);
-        assert_eq!(json, r#"{"signs":[{"result":"SKIPPED","id":"1"},{"result":"ERROR_PRE","description":"fallo","id":"2"},{"result":"SKIPPED","id":"3"}]}"#);
+        assert_eq!(
+            json,
+            r#"{"signs":[{"result":"SKIPPED","id":"1"},{"result":"ERROR_PRE","description":"fallo","id":"2"},{"result":"SKIPPED","id":"3"}]}"#
+        );
         // Sin stoponerror.
         let mut b2 = b.clone();
         b2.stop_on_error = false;
-        let results = run_local_batch(&b2, |s| if s.id == "2" { Err("fallo".into()) } else { Ok(vec![1, 2]) });
+        let results = run_local_batch(&b2, |s| {
+            if s.id == "2" {
+                Err("fallo".into())
+            } else {
+                Ok(vec![1, 2])
+            }
+        });
         let names: Vec<&str> = results.iter().map(|r| r.result).collect();
         assert_eq!(names, ["DONE_AND_SAVED", "ERROR_PRE", "DONE_AND_SAVED"]);
         assert!(local_batch_result_json(&results).contains(r#""signature":"AQI=""#));
         // Errores de análisis.
-        assert!(matches!(parse_local_batch(b"{"), Err(LocalBatchParseError::InvalidJson(_))));
-        assert!(matches!(parse_local_batch(br#"{"algorithm":"SHA256","singlesigns":[]}"#), Err(LocalBatchParseError::Malformed(_))));
         assert!(matches!(
-            parse_local_batch(br#"{"algorithm":"SHA256","format":"CAdES","singlesigns":[{"id":"1","datareference":"-_8="}]}"#),
+            parse_local_batch(b"{"),
+            Err(LocalBatchParseError::InvalidJson(_))
+        ));
+        assert!(matches!(
+            parse_local_batch(br#"{"algorithm":"SHA256","singlesigns":[]}"#),
+            Err(LocalBatchParseError::Malformed(_))
+        ));
+        assert!(matches!(
+            parse_local_batch(
+                br#"{"algorithm":"SHA256","format":"CAdES","singlesigns":[{"id":"1","datareference":"-_8="}]}"#
+            ),
             Err(LocalBatchParseError::Malformed(_))
         ));
     }

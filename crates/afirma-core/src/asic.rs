@@ -69,7 +69,9 @@ pub fn create_s_container(
         return Err(AsicError::IllegalArgument("La firma no puede ser nula ni vacia".into()));
     }
     if data.is_empty() {
-        return Err(AsicError::IllegalArgument("Los datos no pueden ser nulos ni vacios".into()));
+        return Err(AsicError::IllegalArgument(
+            "Los datos no pueden ser nulos ni vacios".into(),
+        ));
     }
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
@@ -78,20 +80,27 @@ pub fn create_s_container(
     zw.set_comment(format!("mimetype={ASIC_S_MIMETYPE}")).map_err(io)?;
     zw.start_file(ASIC_ENTRY_NAME_MIMETYPE, options).map_err(io)?;
     zw.write_all(ASIC_S_MIMETYPE.as_bytes()).map_err(io)?;
-    let data_name = data_filename.map(str::to_string).unwrap_or_else(|| default_data_filename(data));
+    let data_name = data_filename
+        .map(str::to_string)
+        .unwrap_or_else(|| default_data_filename(data));
     zw.start_file(data_name, options).map_err(io)?;
     zw.write_all(data).map_err(io)?;
-    zw.start_file(signature_filename.unwrap_or(ASIC_ENTRY_NAME_BINARY_SIGNATURE), options).map_err(io)?;
+    zw.start_file(signature_filename.unwrap_or(ASIC_ENTRY_NAME_BINARY_SIGNATURE), options)
+        .map_err(io)?;
     zw.write_all(signature).map_err(io)?;
     Ok(zw.finish().map_err(io)?.into_inner())
 }
 
 fn check_input(asic: &[u8]) -> Result<(), AsicError> {
     if asic.is_empty() {
-        return Err(AsicError::IllegalArgument("La firma ASiC proporcionada no puede ser nula ni vacia".into()));
+        return Err(AsicError::IllegalArgument(
+            "La firma ASiC proporcionada no puede ser nula ni vacia".into(),
+        ));
     }
     if asic.len() >= THRESHOLD_FILE_SIZE {
-        return Err(AsicError::Io("El archivo tiene un tamano superior al permitido.".into()));
+        return Err(AsicError::Io(
+            "El archivo tiene un tamano superior al permitido.".into(),
+        ));
     }
     Ok(())
 }
@@ -164,7 +173,12 @@ pub fn get_data(asic: &[u8]) -> Result<HashMap<String, Vec<u8>>, AsicError> {
     let mut out = HashMap::new();
     walk_entries(asic, |name, r| {
         if is_data_entry(name) {
-            let base = name.trim_end_matches('/').rsplit('/').next().unwrap_or(name).to_string();
+            let base = name
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or(name)
+                .to_string();
             let mut v = Vec::new();
             r.read_to_end(&mut v).map_err(io)?;
             out.insert(base, v);
@@ -206,15 +220,28 @@ mod tests {
         assert_eq!(archive.len(), 3);
         let mut archive = archive;
         assert_eq!(archive.by_index(0).unwrap().name().unwrap(), "mimetype");
-        assert_eq!(archive.by_index(0).unwrap().compression(), zip::CompressionMethod::Deflated);
+        assert_eq!(
+            archive.by_index(0).unwrap().compression(),
+            zip::CompressionMethod::Deflated
+        );
         assert_eq!(archive.by_index(1).unwrap().name().unwrap(), "dataobject.pdf");
         assert_eq!(archive.by_index(2).unwrap().name().unwrap(), "META-INF/signature.p7s");
         assert_eq!(get_binary_signature(&asic).unwrap(), b"FIRMA");
-        assert!(get_xml_signature(&asic).unwrap_err().to_string().ends_with("META-INF/signatures.xml"));
+        assert!(
+            get_xml_signature(&asic)
+                .unwrap_err()
+                .to_string()
+                .ends_with("META-INF/signatures.xml")
+        );
         assert_eq!(get_data_filename(&asic).unwrap(), "dataobject.pdf");
         assert_eq!(get_data(&asic).unwrap().get("dataobject.pdf").unwrap(), data);
-        let xml =
-            create_s_container(b"<x/>", b"datos", Some("META-INF/signatures.xml"), Some("carpeta/datos.txt")).unwrap();
+        let xml = create_s_container(
+            b"<x/>",
+            b"datos",
+            Some("META-INF/signatures.xml"),
+            Some("carpeta/datos.txt"),
+        )
+        .unwrap();
         assert_eq!(get_xml_signature(&xml).unwrap(), b"<x/>");
         assert!(get_data(&xml).unwrap().contains_key("datos.txt"));
         assert_eq!(get_data_filename(&xml).unwrap(), "carpeta/datos.txt");

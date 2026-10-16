@@ -24,17 +24,20 @@ pub fn from_preferences(kind: SignerKind, pref: &dyn Fn(&str) -> Option<String>)
             if let Some(v) = get(&format!("{prefix}PolicyIdentifierHashAlgorithm")) {
                 p.set("policyIdentifierHashAlgorithm", v);
             }
-            if with_qualifier
-                && let Some(v) = get(&format!("{prefix}PolicyQualifier")) {
-                    p.set("policyQualifier", v);
-                }
+            if with_qualifier && let Some(v) = get(&format!("{prefix}PolicyQualifier")) {
+                p.set("policyQualifier", v);
+            }
         }
     };
     match kind {
         SignerKind::FacturaE => {
             policy(&mut p, "facturae", false);
             for f in ["City", "Province", "PostalCode", "Country"] {
-                copy(&mut p, &format!("facturaeSignatureProduction{f}"), &format!("signatureProduction{f}"));
+                copy(
+                    &mut p,
+                    &format!("facturaeSignatureProduction{f}"),
+                    &format!("signatureProduction{f}"),
+                );
             }
             copy(&mut p, "facturaeSignerRole", "signerClaimedRoles");
         }
@@ -43,7 +46,11 @@ pub fn from_preferences(kind: SignerKind, pref: &dyn Fn(&str) -> Option<String>)
             policy(&mut p, "xades", true);
             copy(&mut p, "xadesSignerClaimedRole", "signerClaimedRoles");
             for f in ["City", "Province", "PostalCode", "Country"] {
-                copy(&mut p, &format!("xadesSignatureProduction{f}"), &format!("signatureProduction{f}"));
+                copy(
+                    &mut p,
+                    &format!("xadesSignatureProduction{f}"),
+                    &format!("signatureProduction{f}"),
+                );
             }
             copy(&mut p, "xadesSignFormat", "format");
         }
@@ -53,14 +60,18 @@ pub fn from_preferences(kind: SignerKind, pref: &dyn Fn(&str) -> Option<String>)
             copy(&mut p, "padesSignProductionCity", "signatureProductionCity");
             copy(&mut p, "padesSignerContact", "signerContact");
             copy(&mut p, "padesBasicFormat", "signatureSubFilter");
-            let obfuscate = get("padesObfuscateCertInfo").map(|v| v.eq_ignore_ascii_case("true")).unwrap_or(true);
+            let obfuscate = get("padesObfuscateCertInfo")
+                .map(|v| v.eq_ignore_ascii_case("true"))
+                .unwrap_or(true);
             p.set("obfuscateCertText", obfuscate.to_string());
         }
         // CAdES y cualquier otro firmador (OOXML y ODF reciben también estos
         // parámetros, como en Java).
         _ => {
             policy(&mut p, "cades", true);
-            let implicit = get("cadesImplicitMode").map(|v| v.eq_ignore_ascii_case("true")).unwrap_or(true);
+            let implicit = get("cadesImplicitMode")
+                .map(|v| v.eq_ignore_ascii_case("true"))
+                .unwrap_or(true);
             p.set("mode", if implicit { "implicit" } else { "explicit" });
         }
     }

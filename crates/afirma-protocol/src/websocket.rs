@@ -50,7 +50,11 @@ pub struct WebSocketOptions {
 
 impl Default for WebSocketOptions {
     fn default() -> Self {
-        WebSocketOptions { idle_timeout: Duration::from_secs(30), max_message_size: 512 << 20, bind_address: IpAddr::V4(Ipv4Addr::LOCALHOST) }
+        WebSocketOptions {
+            idle_timeout: Duration::from_secs(30),
+            max_message_size: 512 << 20,
+            bind_address: IpAddr::V4(Ipv4Addr::LOCALHOST),
+        }
     }
 }
 
@@ -74,7 +78,11 @@ pub struct WebSocketServer {
 
 /// Comprueba la versión del canal WebSocket (versión principal 3 o 4).
 pub fn check_version(v: ProtocolVersion) -> Result<(), ChannelError> {
-    if v.major == 3 || v.major == 4 { Ok(()) } else { Err(ChannelError::UnsupportedVersion(v)) }
+    if v.major == 3 || v.major == 4 {
+        Ok(())
+    } else {
+        Err(ChannelError::UnsupportedVersion(v))
+    }
 }
 
 /// Liga el primer puerto disponible de la lista (en orden).
@@ -94,7 +102,11 @@ pub(crate) async fn bind_first(addr: IpAddr, ports: &[u16]) -> Result<(TcpListen
 impl WebSocketServer {
     /// Comprueba la versión, carga el material TLS y liga el puerto (en el
     /// orden de Java: versión, almacén TLS, puertos).
-    pub async fn bind(request: &ChannelRequest, tls: &TlsSource, options: WebSocketOptions) -> Result<WebSocketServer, ChannelError> {
+    pub async fn bind(
+        request: &ChannelRequest,
+        tls: &TlsSource,
+        options: WebSocketOptions,
+    ) -> Result<WebSocketServer, ChannelError> {
         check_version(request.version)?;
         if request.ports_invalid {
             return Err(ChannelError::InvalidPorts);
@@ -102,7 +114,13 @@ impl WebSocketServer {
         let tls = tls.server_config()?;
         let ports = request.candidate_ports(Some(DEFAULT_WEBSOCKET_PORT));
         let (listener, port) = bind_first(options.bind_address, &ports).await?;
-        Ok(WebSocketServer { listener, port, tls, request: request.clone(), options })
+        Ok(WebSocketServer {
+            listener,
+            port,
+            tls,
+            request: request.clone(),
+            options,
+        })
     }
 
     /// Puerto en el que escucha.
@@ -127,7 +145,9 @@ impl WebSocketServer {
         });
         let acceptor = TlsAcceptor::from(self.tls.clone());
         let mut config = WebSocketConfig::default();
-        config = config.max_message_size(Some(self.options.max_message_size)).max_frame_size(Some(self.options.max_message_size));
+        config = config
+            .max_message_size(Some(self.options.max_message_size))
+            .max_frame_size(Some(self.options.max_message_size));
         let next_id = AtomicU64::new(1);
         let idle = tokio::time::sleep(self.options.idle_timeout);
         tokio::pin!(idle);
@@ -189,7 +209,10 @@ pub fn run_blocking(
     tls: &TlsSource,
     options: WebSocketOptions,
 ) -> Result<ServerExit, ChannelError> {
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().map_err(|_| ChannelError::NoPortAvailable)?;
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| ChannelError::NoPortAvailable)?;
     let result = rt.block_on(async move {
         let server = WebSocketServer::bind(request, tls, options).await?;
         Ok(server.serve(launcher).await)
@@ -231,8 +254,12 @@ pub fn message_session_id(message: &str) -> Option<String> {
     })
 }
 
-async fn handle_connection<S>(ws: tokio_tungstenite::WebSocketStream<S>, peer: SocketAddr, origin: Option<String>, st: Arc<State>)
-where
+async fn handle_connection<S>(
+    ws: tokio_tungstenite::WebSocketStream<S>,
+    peer: SocketAddr,
+    origin: Option<String>,
+    st: Arc<State>,
+) where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let (mut sink, mut stream) = ws.split();
@@ -244,9 +271,10 @@ where
         };
         let reply = handle_message(&text, peer, &origin, &st).await;
         if let Some(r) = reply
-            && sink.send(Message::Text(r.into())).await.is_err() {
-                break;
-            }
+            && sink.send(Message::Text(r.into())).await.is_err()
+        {
+            break;
+        }
     }
 }
 
@@ -267,7 +295,11 @@ async fn run_op(st: &Arc<State>, message: String, origin: Option<String>) -> Str
     match task.await {
         Ok(r) => r,
         // Java dejaba a la página esperando indefinidamente.
-        Err(_) => format_error(Some(version), codes::UNKNOWN_SIGNING_BY_SOCKETS_ERROR, st.launcher.config().locale),
+        Err(_) => format_error(
+            Some(version),
+            codes::UNKNOWN_SIGNING_BY_SOCKETS_ERROR,
+            st.launcher.config().locale,
+        ),
     }
 }
 
@@ -291,9 +323,10 @@ async fn handle_message(message: &str, peer: SocketAddr, origin: &Option<String>
         return Some(format_error(Some(st.version), codes::EXTERNAL_REQUEST, locale));
     }
     if let Some(expected) = &st.session_id
-        && message_session_id(message).as_deref() != Some(expected.as_str()) {
-            return Some(format_error(Some(st.version), codes::INVALID_SESSION_ID, locale));
-        }
+        && message_session_id(message).as_deref() != Some(expected.as_str())
+    {
+        return Some(format_error(Some(st.version), codes::INVALID_SESSION_ID, locale));
+    }
     mark_working(st);
     if message.starts_with("echo=") {
         return Some("OK".into());
@@ -304,7 +337,9 @@ async fn handle_message(message: &str, peer: SocketAddr, origin: &Option<String>
     let key = st.session_id.clone();
     if message.starts_with(GET_RESULT_PREFIX) {
         let mut ops = st.ops.lock().unwrap_or_else(|e| e.into_inner());
-        let done = ops.get(&key).and_then(|slot| slot.result.lock().unwrap_or_else(|e| e.into_inner()).take());
+        let done = ops
+            .get(&key)
+            .and_then(|slot| slot.result.lock().unwrap_or_else(|e| e.into_inner()).take());
         return Some(match done {
             Some(r) => {
                 ops.remove(&key);
@@ -313,8 +348,13 @@ async fn handle_message(message: &str, peer: SocketAddr, origin: &Option<String>
             None => WAIT_RESPONSE.into(),
         });
     }
-    let slot = Arc::new(OpSlot { result: Mutex::new(None) });
-    st.ops.lock().unwrap_or_else(|e| e.into_inner()).insert(key, slot.clone());
+    let slot = Arc::new(OpSlot {
+        result: Mutex::new(None),
+    });
+    st.ops
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(key, slot.clone());
     let st2 = st.clone();
     let message = message.to_string();
     let origin = origin.clone();
@@ -332,7 +372,10 @@ mod tests {
     #[test]
     fn session_extraction() {
         assert_eq!(message_session_id("echo=-idsession=ABC@EOF").as_deref(), Some("ABC"));
-        assert_eq!(message_session_id("afirma://sign?op=sign&idsession=ABC&dat=x").as_deref(), Some("ABC"));
+        assert_eq!(
+            message_session_id("afirma://sign?op=sign&idsession=ABC&dat=x").as_deref(),
+            Some("ABC")
+        );
         assert_eq!(message_session_id("getresult?idsession=ABC").as_deref(), Some("ABC"));
         assert_eq!(message_session_id("afirma://sign?op=sign"), None);
         assert!(check_version(ProtocolVersion::V4_1).is_ok());

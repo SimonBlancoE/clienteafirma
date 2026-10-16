@@ -88,7 +88,10 @@ fn percent_decode(s: &str) -> String {
             && bytes[i + 2].is_ascii_hexdigit()
         {
             let hex = [bytes[i + 1], bytes[i + 2]];
-            if let Some(v) = std::str::from_utf8(&hex).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
+            if let Some(v) = std::str::from_utf8(&hex)
+                .ok()
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+            {
                 out.push(v);
                 i += 3;
                 continue;
@@ -127,7 +130,9 @@ fn check_uri_syntax(s: &str) -> Result<(), AoUtilError> {
                 let ok = bytes.get(i + 1).is_some_and(u8::is_ascii_hexdigit)
                     && bytes.get(i + 2).is_some_and(u8::is_ascii_hexdigit);
                 if !ok {
-                    return Err(AoUtilError::UriSyntax(format!("Malformed escape pair at index {i}: {s}")));
+                    return Err(AoUtilError::UriSyntax(format!(
+                        "Malformed escape pair at index {i}: {s}"
+                    )));
                 }
                 false
             }
@@ -154,11 +159,15 @@ fn check_uri_syntax(s: &str) -> Result<(), AoUtilError> {
 /// letra de unidad) pasan a `file://` (con `#` escapado).
 pub fn create_uri(file: &str) -> Result<JavaUri, AoUtilError> {
     if file.is_empty() {
-        return Err(AoUtilError::IllegalArgument("No se puede crear una URI a partir de un nulo".into()));
+        return Err(AoUtilError::IllegalArgument(
+            "No se puede crear una URI a partir de un nulo".into(),
+        ));
     }
     let filename = file.trim_matches(|c: char| c <= ' ');
     if filename.is_empty() {
-        return Err(AoUtilError::IllegalArgument("La URI no puede ser una cadena vacia".into()));
+        return Err(AoUtilError::IllegalArgument(
+            "La URI no puede ser una cadena vacia".into(),
+        ));
     }
     let mut filename = filename.replace('\\', "/");
     for (from, to) in [
@@ -178,9 +187,10 @@ pub fn create_uri(file: &str) -> Result<JavaUri, AoUtilError> {
     }
     check_uri_syntax(&filename)?;
     match uri_scheme(&filename) {
-        Some(scheme) if SUPPORTED_URI_SCHEMES.contains(&scheme) => {
-            Ok(JavaUri { scheme: scheme.to_string(), text: filename })
-        }
+        Some(scheme) if SUPPORTED_URI_SCHEMES.contains(&scheme) => Ok(JavaUri {
+            scheme: scheme.to_string(),
+            text: filename,
+        }),
         None => create_uri(&format!("file://{}", filename.replace('#', "%23"))),
         Some(scheme) if scheme.len() == 1 && scheme.chars().all(|c| c.is_alphabetic()) => {
             create_uri(&format!("file://{}", filename.replace('#', "%23")))
@@ -197,9 +207,9 @@ pub fn load_file(uri: &JavaUri, client: &dyn HttpClient) -> Result<Vec<u8>, AoUt
             let path = uri.file_path().unwrap_or_default();
             std::fs::read(&path).map_err(|e| AoUtilError::Io(format!("{path} ({e})")))
         }
-        "http" | "https" => {
-            client.read_url(&HttpRequest::get(uri.as_str())).map_err(|e| AoUtilError::Io(e.to_string()))
-        }
+        "http" | "https" => client
+            .read_url(&HttpRequest::get(uri.as_str()))
+            .map_err(|e| AoUtilError::Io(e.to_string())),
         other => Err(AoUtilError::Io(format!("unknown protocol: {other}"))),
     }
 }
@@ -227,10 +237,14 @@ pub fn load_byte_array_from_extra_params(
     let len = value.encode_utf16().count();
     if !secure_mode && len > 0 && len < crate::constants::MAX_PATH_SIZE && !crate::base64::is_base64(value) {
         let uri = create_uri(value).map_err(|e| {
-            AoUtilError::Io(format!("El propiedad '{name}' no contiene una ruta valida a un recurso: {e}"))
+            AoUtilError::Io(format!(
+                "El propiedad '{name}' no contiene una ruta valida a un recurso: {e}"
+            ))
         })?;
         return load_file(&uri, client).map_err(|e| {
-            AoUtilError::Io(format!("El propiedad '{name}' no contiene una ruta valida a un recurso: {e}"))
+            AoUtilError::Io(format!(
+                "El propiedad '{name}' no contiene una ruta valida a un recurso: {e}"
+            ))
         });
     }
     crate::base64::decode(value).map_err(|e| AoUtilError::Io(e.to_string()))
@@ -263,7 +277,9 @@ pub fn properties_as_string(p: &ExtraParams) -> String {
 /// ISO-8859-1 (los caracteres no ASCII se corrompen salvo escritos como
 /// `\uXXXX`). Los errores devuelven lo leído hasta el momento (aquí, vacío).
 pub fn convert_to_properties(entries: Option<&str>) -> ExtraParams {
-    let Some(entries) = entries else { return ExtraParams::new() };
+    let Some(entries) = entries else {
+        return ExtraParams::new();
+    };
     ExtraParams::load_iso_8859_1(entries.as_bytes()).unwrap_or_default()
 }
 
@@ -494,7 +510,12 @@ mod tests {
             let cols: Vec<&str> = line.split('\t').collect();
             let input = unesc(cols[0]);
             let got = match create_uri(&input) {
-                Ok(u) => format!("{}\t{}\t{}", esc(u.as_str()), esc(u.scheme()), esc(&u.scheme_specific_part())),
+                Ok(u) => format!(
+                    "{}\t{}\t{}",
+                    esc(u.as_str()),
+                    esc(u.scheme()),
+                    esc(&u.scheme_specific_part())
+                ),
                 Err(AoUtilError::IllegalArgument(m)) => format!("ERR:IllegalArgumentException:{}", esc(&m)),
                 Err(AoUtilError::UriSyntax(m)) => format!("ERR:URISyntaxException:{}", esc(&m)),
                 Err(e) => format!("ERR:{e}"),
@@ -552,7 +573,11 @@ mod tests {
             let cols: Vec<&str> = line.split('\t').collect();
             let principal = unesc(cols[1]);
             assert_eq!(esc(&get_cn(&principal)), cols[2], "getCN {principal:?}");
-            assert_eq!(esc(&get_ous(&principal).join("|")), cols.get(3).copied().unwrap_or(""), "getOUS {principal:?}");
+            assert_eq!(
+                esc(&get_ous(&principal).join("|")),
+                cols.get(3).copied().unwrap_or(""),
+                "getOUS {principal:?}"
+            );
         }
         assert_eq!(hexify(&[], true), "");
         assert_eq!(hexify_with(&[0xab, 0x01], None), "AB01");
@@ -563,7 +588,10 @@ mod tests {
 
     #[test]
     fn shortener() {
-        assert_eq!(path_length_shortener("C:\\Users\\foo\\bar\\file.txt", 20), "C:\\Users\\...file.txt");
+        assert_eq!(
+            path_length_shortener("C:\\Users\\foo\\bar\\file.txt", 20),
+            "C:\\Users\\...file.txt"
+        );
         assert_eq!(path_length_shortener("/corto", 20), "/corto");
         assert_eq!(path_length_shortener("/a/nombre-muy-largo.txt", 10), "...rgo.txt");
         assert_eq!(path_length_shortener("/abc/defghij.txt", 13), "...efghij.txt");
@@ -588,12 +616,24 @@ mod tests {
         p.set("b64", "AQID");
         p.set("url", "https://servidor/recurso");
         p.set("mala", "no/existe/fichero.bin");
-        assert_eq!(load_byte_array_from_extra_params(&p, "img", false, &NoHttp).unwrap(), vec![1, 2, 3]);
+        assert_eq!(
+            load_byte_array_from_extra_params(&p, "img", false, &NoHttp).unwrap(),
+            vec![1, 2, 3]
+        );
         assert!(load_byte_array_from_extra_params(&p, "img", true, &NoHttp).is_ok_and(|v| v != vec![1, 2, 3]));
-        assert_eq!(load_byte_array_from_extra_params(&p, "b64", false, &NoHttp).unwrap(), vec![1, 2, 3]);
-        assert_eq!(load_byte_array_from_extra_params(&p, "url", false, &NoHttp).unwrap(), b"https://servidor/recurso");
+        assert_eq!(
+            load_byte_array_from_extra_params(&p, "b64", false, &NoHttp).unwrap(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            load_byte_array_from_extra_params(&p, "url", false, &NoHttp).unwrap(),
+            b"https://servidor/recurso"
+        );
         let e = load_byte_array_from_extra_params(&p, "mala", false, &NoHttp).unwrap_err();
-        assert!(e.to_string().starts_with("El propiedad 'mala' no contiene una ruta valida a un recurso"));
+        assert!(
+            e.to_string()
+                .starts_with("El propiedad 'mala' no contiene una ruta valida a un recurso")
+        );
         let e = load_byte_array_from_extra_params(&p, "falta", false, &NoHttp).unwrap_err();
         assert_eq!(e.to_string(), "La propiedad 'falta' no se encuentra en el extraParams");
         std::fs::remove_dir_all(&dir).unwrap();
@@ -617,7 +657,12 @@ pub struct BoundedLineReader<I: Iterator<Item = char>> {
 impl<I: Iterator<Item = char>> BoundedLineReader<I> {
     /// Lector con los límites por defecto (4096 líneas de 4096 caracteres).
     pub fn new(chars: I) -> Self {
-        BoundedLineReader { chars: chars.peekable(), max_lines: 4096, max_line_len: 4096, current_line: 1 }
+        BoundedLineReader {
+            chars: chars.peekable(),
+            max_lines: 4096,
+            max_line_len: 4096,
+            current_line: 1,
+        }
     }
 
     /// Lector con límites explícitos (ambos mayores que cero).
@@ -627,7 +672,12 @@ impl<I: Iterator<Item = char>> BoundedLineReader<I> {
                 "BoundedBufferedReader - maxLines and maxLineLen must be greater than 0".into(),
             ));
         }
-        Ok(BoundedLineReader { chars: chars.peekable(), max_lines, max_line_len, current_line: 1 })
+        Ok(BoundedLineReader {
+            chars: chars.peekable(),
+            max_lines,
+            max_line_len,
+            current_line: 1,
+        })
     }
 
     /// Lee la siguiente línea (`None` al final).

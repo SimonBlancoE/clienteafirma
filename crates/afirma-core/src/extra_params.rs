@@ -256,7 +256,10 @@ impl ExtraParams {
 
 impl<K: Into<String>, V: Into<String>> FromIterator<(K, V)> for ExtraParams {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        ExtraParams(iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect(), BTreeSet::new())
+        ExtraParams(
+            iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            BTreeSet::new(),
+        )
     }
 }
 
@@ -548,7 +551,12 @@ mod tests {
             let stored = unesc(cols[1]);
             let p = ExtraParams::load(&stored).unwrap();
             assert_eq!(sorted(&p), cols[0]);
-            assert_eq!(p.store_with(Some(""), "DATE", "\n", false), stored, "propiedades {}", cols[0]);
+            assert_eq!(
+                p.store_with(Some(""), "DATE", "\n", false),
+                stored,
+                "propiedades {}",
+                cols[0]
+            );
             checked += 1;
         }
         assert!(checked >= 9);
@@ -575,13 +583,19 @@ mod tests {
         assert_eq!(p.get("clave con=raro"), Some("v"));
         assert_eq!(p.get("vacia"), Some(""));
         assert_eq!(p.get("sinvalor"), Some(""));
-        assert_eq!(p.get("layer2Text"), Some("Firmado por $$SUBJECTCN$$\nel día $$SIGNDATE=dd/MM/yyyy$$"));
+        assert_eq!(
+            p.get("layer2Text"),
+            Some("Firmado por $$SUBJECTCN$$\nel día $$SIGNDATE=dd/MM/yyyy$$")
+        );
         assert!(!p.contains("# comentario"));
         // Continuación con CRLF (Windows).
         assert_eq!(ExtraParams::parse("a=b\\\r\n   c\r\nd=e").get("a"), Some("bc"));
         // Tolerante frente a estricto.
         assert_eq!(ExtraParams::parse("a=\\u00zz").get("a"), Some("u00zz"));
-        assert_eq!(ExtraParams::load("a=\\u00zz").unwrap_err(), PropertiesError::MalformedUnicodeEscape);
+        assert_eq!(
+            ExtraParams::load("a=\\u00zz").unwrap_err(),
+            PropertiesError::MalformedUnicodeEscape
+        );
     }
 
     #[test]
@@ -621,7 +635,13 @@ mod tests {
     fn latin1_bytes() {
         let p = ExtraParams::parse_bytes(b"ciudad=Le\xf3n");
         assert_eq!(p.get("ciudad"), Some("León"));
-        assert_eq!(ExtraParams::load_iso_8859_1(b"ciudad=Le\xf3n").unwrap().get("ciudad"), Some("León"));
-        assert_eq!(ExtraParams::load_utf8(b"ciudad=Le\xf3n").unwrap().get("ciudad"), Some("Le\u{fffd}n"));
+        assert_eq!(
+            ExtraParams::load_iso_8859_1(b"ciudad=Le\xf3n").unwrap().get("ciudad"),
+            Some("León")
+        );
+        assert_eq!(
+            ExtraParams::load_utf8(b"ciudad=Le\xf3n").unwrap().get("ciudad"),
+            Some("Le\u{fffd}n")
+        );
     }
 }

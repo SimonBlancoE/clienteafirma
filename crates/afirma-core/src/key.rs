@@ -291,7 +291,10 @@ pub mod ecdsa_format {
             assert!(decode_signature(&[0x30, 0x05, 0x02, 0x00, 0x02, 0x01, 0x01]).is_err());
             assert!(decode_signature(&[0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01]).is_err());
             assert!(decode_signature(&[0x31, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01]).is_err());
-            assert_eq!(decode_signature(&[]).unwrap_err().to_string(), "Invalid encoding for signature");
+            assert_eq!(
+                decode_signature(&[]).unwrap_err().to_string(),
+                "Invalid encoding for signature"
+            );
             // Codificación e ida y vuelta.
             let raw = [0x00, 0x80, 0x00, 0x01];
             let der = encode_signature(&raw).unwrap();

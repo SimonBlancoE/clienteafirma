@@ -126,8 +126,8 @@ fn to_offset(dt: chrono::DateTime<chrono::Utc>) -> Result<::time::OffsetDateTime
 /// Genera una CA y un certificado SSL nuevos.
 pub fn generate(profile: &CertProfile) -> Result<CertPack> {
     use rcgen::{
-        CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose as Eku, IsCa,
-        KeyIdMethod, KeyPair, KeyUsagePurpose as Ku, SanType,
+        CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose as Eku, IsCa, KeyIdMethod, KeyPair,
+        KeyUsagePurpose as Ku, SanType,
     };
 
     let now = chrono::Utc::now();
@@ -168,13 +168,9 @@ pub fn generate(profile: &CertProfile) -> Result<CertPack> {
     p.is_ca = IsCa::ExplicitNoCa;
     p.key_usages = vec![Ku::DigitalSignature, Ku::KeyEncipherment];
     p.extended_key_usages = vec![Eku::ServerAuth];
-    let mut sans = vec![SanType::IpAddress(std::net::IpAddr::V4(
-        std::net::Ipv4Addr::LOCALHOST,
-    ))];
+    let mut sans = vec![SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))];
     if profile.include_ipv6 {
-        sans.push(SanType::IpAddress(std::net::IpAddr::V6(
-            std::net::Ipv6Addr::LOCALHOST,
-        )));
+        sans.push(SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)));
     }
     sans.push(SanType::DnsName("localhost".try_into().map_err(cert_err)?));
     p.subject_alt_names = sans;
@@ -227,12 +223,8 @@ pub struct PfxContent {
 
 /// Abre un PKCS#12 con la contraseña indicada y devuelve la primera entrada con clave.
 pub fn read_pfx(data: &[u8], password: &str) -> Result<PfxContent> {
-    let ks = p12_keystore::KeyStore::from_pkcs12(
-        data,
-        password,
-        p12_keystore::Pkcs12ImportPolicy::Relaxed,
-    )
-    .map_err(cert_err)?;
+    let ks = p12_keystore::KeyStore::from_pkcs12(data, password, p12_keystore::Pkcs12ImportPolicy::Relaxed)
+        .map_err(cert_err)?;
     let (alias, chain) = ks
         .private_key_chain()
         .ok_or_else(|| cert_err("el almacén no contiene ninguna clave privada"))?;
@@ -270,9 +262,7 @@ pub fn parse_cert_file(data: &[u8]) -> Result<Vec<u8>> {
             .find("-----END CERTIFICATE-----")
             .ok_or_else(|| cert_err("PEM incompleto"))?;
         let b64: String = rest[..end].chars().filter(|c| !c.is_whitespace()).collect();
-        return base64::engine::general_purpose::STANDARD
-            .decode(b64)
-            .map_err(cert_err);
+        return base64::engine::general_purpose::STANDARD.decode(b64).map_err(cert_err);
     }
     X509Certificate::from_der(data).map_err(cert_err)?;
     Ok(data.to_vec())
@@ -346,11 +336,7 @@ pub fn cert_info(der: &[u8]) -> Result<CertInfo> {
         not_after: c.validity().not_after.timestamp(),
         sha1: sha1_hex(der),
         sha256: sha256_hex(der),
-        is_ca: c
-            .basic_constraints()
-            .ok()
-            .flatten()
-            .is_some_and(|b| b.value.ca),
+        is_ca: c.basic_constraints().ok().flatten().is_some_and(|b| b.value.ca),
         san_dns,
         san_ip,
         server_auth,
@@ -359,10 +345,7 @@ pub fn cert_info(der: &[u8]) -> Result<CertInfo> {
 
 /// `true` si `ca_der` firma `leaf_der`.
 pub fn verifies(leaf_der: &[u8], ca_der: &[u8]) -> bool {
-    let (Ok((_, leaf)), Ok((_, ca))) = (
-        X509Certificate::from_der(leaf_der),
-        X509Certificate::from_der(ca_der),
-    ) else {
+    let (Ok((_, leaf)), Ok((_, ca))) = (X509Certificate::from_der(leaf_der), X509Certificate::from_der(ca_der)) else {
         return false;
     };
     leaf.verify_signature(Some(ca.public_key())).is_ok()
@@ -458,10 +441,7 @@ pub fn inspect(dir: &Path) -> CertStatus {
                 st.alias = Some(c.alias);
                 st.ssl = cert_info(&c.ssl_der).ok();
                 let chain_ca = c.chain.last().filter(|_| c.chain.len() > 1).cloned();
-                if let Some(ca_der) = std::fs::read(&ca_path)
-                    .ok()
-                    .and_then(|d| parse_cert_file(&d).ok())
-                {
+                if let Some(ca_der) = std::fs::read(&ca_path).ok().and_then(|d| parse_cert_file(&d).ok()) {
                     st.chain_ok = verifies(&c.ssl_der, &ca_der);
                     st.ca = cert_info(&ca_der).ok();
                 } else if let Some(ca) = &chain_ca {
@@ -601,10 +581,7 @@ pub fn ensure(
         let pfx = std::fs::read(dir.join(KS_FILENAME)).map_err(io_at(&dir.join(KS_FILENAME)))?;
         let content = read_pfx(&pfx, KS_PASSWORD)?;
         let ca_path = dir.join(CA_CERT_FILENAME);
-        let ca_der = match std::fs::read(&ca_path)
-            .ok()
-            .and_then(|d| parse_cert_file(&d).ok())
-        {
+        let ca_der = match std::fs::read(&ca_path).ok().and_then(|d| parse_cert_file(&d).ok()) {
             Some(d) => d,
             None => {
                 let ca = content
@@ -654,13 +631,7 @@ pub fn locate(ctx: &Context) -> Option<LocalCerts> {
         let ca_der = std::fs::read(d.join(CA_CERT_FILENAME))
             .ok()
             .and_then(|x| parse_cert_file(&x).ok())
-            .or_else(|| {
-                content
-                    .chain
-                    .last()
-                    .filter(|_| content.chain.len() > 1)
-                    .cloned()
-            })?;
+            .or_else(|| content.chain.last().filter(|_| content.chain.len() > 1).cloned())?;
         Some(LocalCerts {
             dir: d.to_path_buf(),
             ca_der,
@@ -710,40 +681,16 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let ctx = Context::for_tests(Os::Linux, t.path());
         let dir = t.path().join("certs");
-        let a = ensure(
-            &ctx,
-            &dir,
-            Regenerate::IfInvalid,
-            None,
-            &CertProfile::default(),
-        )
-        .unwrap();
+        let a = ensure(&ctx, &dir, Regenerate::IfInvalid, None, &CertProfile::default()).unwrap();
         assert!(a.generated);
         assert!(inspect(&dir).usable());
-        let b = ensure(
-            &ctx,
-            &dir,
-            Regenerate::IfInvalid,
-            None,
-            &CertProfile::default(),
-        )
-        .unwrap();
+        let b = ensure(&ctx, &dir, Regenerate::IfInvalid, None, &CertProfile::default()).unwrap();
         assert!(!b.generated);
         assert_eq!(a.certs.ca_der, b.certs.ca_der);
         std::fs::remove_file(dir.join(CA_CERT_FILENAME)).unwrap();
-        let c = ensure(
-            &ctx,
-            &dir,
-            Regenerate::IfInvalid,
-            None,
-            &CertProfile::default(),
-        )
-        .unwrap();
+        let c = ensure(&ctx, &dir, Regenerate::IfInvalid, None, &CertProfile::default()).unwrap();
         assert!(!c.generated, "se recupera la CA de la cadena");
-        assert_eq!(
-            std::fs::read(dir.join(CA_CERT_FILENAME)).unwrap(),
-            a.certs.ca_der
-        );
+        assert_eq!(std::fs::read(dir.join(CA_CERT_FILENAME)).unwrap(), a.certs.ca_der);
         // Caducado → se regenera.
         let short = generate(&CertProfile {
             validity_days: 10,
@@ -753,25 +700,12 @@ mod tests {
         std::fs::write(dir.join(KS_FILENAME), &short.pfx).unwrap();
         std::fs::write(dir.join(CA_CERT_FILENAME), &short.ca_der).unwrap();
         assert!(inspect(&dir).needs_renewal());
-        let d = ensure(
-            &ctx,
-            &dir,
-            Regenerate::IfInvalid,
-            None,
-            &CertProfile::default(),
-        )
-        .unwrap();
+        let d = ensure(&ctx, &dir, Regenerate::IfInvalid, None, &CertProfile::default()).unwrap();
         assert!(d.generated);
         assert!(
-            !ensure(
-                &ctx,
-                &dir,
-                Regenerate::IfMissing,
-                None,
-                &CertProfile::default()
-            )
-            .unwrap()
-            .generated
+            !ensure(&ctx, &dir, Regenerate::IfMissing, None, &CertProfile::default())
+                .unwrap()
+                .generated
         );
     }
 

@@ -33,7 +33,10 @@ pub fn tmpdir(name: &str) -> PathBuf {
 
 /// Indica si hay un `openssl` utilizable.
 pub fn have_openssl() -> bool {
-    Command::new("openssl").arg("version").output().is_ok_and(|o| o.status.success())
+    Command::new("openssl")
+        .arg("version")
+        .output()
+        .is_ok_and(|o| o.status.success())
 }
 
 /// `openssl cms -verify` de una firma (con los datos si es explícita).
@@ -47,11 +50,21 @@ pub fn openssl_verify(name: &str, sign: &[u8], data: Option<&[u8]>) -> Option<(b
     let sp = dir.join(format!("{name}.p7s"));
     std::fs::write(&sp, sign).unwrap();
     let mut cmd = Command::new("openssl");
-    cmd.args(["cms", "-verify", "-binary", "-inform", "DER", "-purpose", "any", "-no_check_time", "-in"])
-        .arg(&sp)
-        .arg("-CAfile")
-        .arg(testdata("pki/ca.crt"))
-        .args(["-out", if cfg!(windows) { "NUL" } else { "/dev/null" }]);
+    cmd.args([
+        "cms",
+        "-verify",
+        "-binary",
+        "-inform",
+        "DER",
+        "-purpose",
+        "any",
+        "-no_check_time",
+        "-in",
+    ])
+    .arg(&sp)
+    .arg("-CAfile")
+    .arg(testdata("pki/ca.crt"))
+    .args(["-out", if cfg!(windows) { "NUL" } else { "/dev/null" }]);
     if let Some(d) = data {
         let dp = dir.join(format!("{name}.data"));
         std::fs::write(&dp, d).unwrap();

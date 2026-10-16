@@ -34,23 +34,14 @@ pub enum KeyValueData {
 }
 
 fn strip_zeros(b: &[u8]) -> Vec<u8> {
-    let first = b
-        .iter()
-        .position(|&x| x != 0)
-        .unwrap_or(b.len().saturating_sub(1));
+    let first = b.iter().position(|&x| x != 0).unwrap_or(b.len().saturating_sub(1));
     b[first..].to_vec()
 }
 
 /// Tipo de clave del certificado.
 pub fn cert_key_algorithm(cert_der: &[u8]) -> Option<KeyAlgorithm> {
     let (_, cert) = X509Certificate::from_der(cert_der).ok()?;
-    match cert
-        .public_key()
-        .algorithm
-        .algorithm
-        .to_id_string()
-        .as_str()
-    {
+    match cert.public_key().algorithm.algorithm.to_id_string().as_str() {
         OID_RSA => Some(KeyAlgorithm::Rsa),
         OID_EC => Some(KeyAlgorithm::Ec),
         "1.2.840.10040.4.1" => Some(KeyAlgorithm::Dsa),
@@ -90,13 +81,7 @@ pub fn key_value_data(cert_der: &[u8]) -> Option<KeyValueData> {
             })
         }
         OID_EC => {
-            let curve_oid = spki
-                .algorithm
-                .parameters
-                .as_ref()?
-                .as_oid()
-                .ok()?
-                .to_id_string();
+            let curve_oid = spki.algorithm.parameters.as_ref()?.as_oid().ok()?.to_id_string();
             Some(KeyValueData::Ec {
                 curve_oid,
                 point: spki.subject_public_key.data.to_vec(),
@@ -169,23 +154,22 @@ impl PublicKey {
                 };
                 k.verify(scheme, &hash, signature).is_ok()
             }
-            PublicKey::P256(k) => p256::ecdsa::Signature::from_slice(signature)
-                .is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok()),
-            PublicKey::P384(k) => p384::ecdsa::Signature::from_slice(signature)
-                .is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok()),
-            PublicKey::P521(k) => p521::ecdsa::Signature::from_slice(signature)
-                .is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok()),
+            PublicKey::P256(k) => {
+                p256::ecdsa::Signature::from_slice(signature).is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok())
+            }
+            PublicKey::P384(k) => {
+                p384::ecdsa::Signature::from_slice(signature).is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok())
+            }
+            PublicKey::P521(k) => {
+                p521::ecdsa::Signature::from_slice(signature).is_ok_and(|s| k.verify_prehash(&hash, &s).is_ok())
+            }
         }
     }
 }
 
 /// Firma `data` con la clave y devuelve el valor para `SignatureValue`
 /// (PKCS#1 v1.5 para RSA, `r || s` para ECDSA).
-pub fn sign_xml(
-    key: &dyn SigningKey,
-    algorithm: SignatureAlgorithm,
-    data: &[u8],
-) -> afirma_core::Result<Vec<u8>> {
+pub fn sign_xml(key: &dyn SigningKey, algorithm: SignatureAlgorithm, data: &[u8]) -> afirma_core::Result<Vec<u8>> {
     let sig = key.sign(data, algorithm).map_err(AfirmaError::from)?;
     if algorithm.key == KeyAlgorithm::Ec {
         let field = cert_curve_oid(key.certificate())
@@ -195,12 +179,8 @@ pub fn sign_xml(
         if sig.len() == 2 * field && sig.first() != Some(&0x30) {
             return Ok(sig);
         }
-        return afirma_core::key::ecdsa_format::der_to_raw(&sig, field).ok_or_else(|| {
-            AfirmaError::new(
-                codes::SIGNING_PKCS1_ERROR,
-                "Firma ECDSA con formato no reconocido",
-            )
-        });
+        return afirma_core::key::ecdsa_format::der_to_raw(&sig, field)
+            .ok_or_else(|| AfirmaError::new(codes::SIGNING_PKCS1_ERROR, "Firma ECDSA con formato no reconocido"));
     }
     Ok(sig)
 }

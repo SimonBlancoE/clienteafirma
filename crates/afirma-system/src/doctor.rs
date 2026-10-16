@@ -73,11 +73,7 @@ impl DoctorReport {
 
     /// Código de salida sugerido (0 bien o avisos, 1 errores).
     pub fn exit_code(&self) -> i32 {
-        if self.worst() == CheckStatus::Error {
-            1
-        } else {
-            0
-        }
+        if self.worst() == CheckStatus::Error { 1 } else { 0 }
     }
 
     /// Texto legible.
@@ -133,8 +129,7 @@ fn trust_to_status(t: &TrustCheck) -> (CheckStatus, String) {
     }
 }
 
-const FIX_RESTORE: &str =
-    "Ejecute «autofirma restore-config» (o «Herramientas > Restaurar instalación»)";
+const FIX_RESTORE: &str = "Ejecute «autofirma restore-config» (o «Herramientas > Restaurar instalación»)";
 
 /// Ejecuta el diagnóstico.
 pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
@@ -172,11 +167,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
             } else if st.needs_renewal() {
                 (
                     CheckStatus::Warning,
-                    format!(
-                        "{}: caducan en {} días",
-                        c.dir.display(),
-                        st.days_left.unwrap_or(0)
-                    ),
+                    format!("{}: caducan en {} días", c.dir.display(), st.days_left.unwrap_or(0)),
                 )
             } else {
                 (
@@ -202,8 +193,18 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
                     "certs.san",
                     if localhost { CheckStatus::Ok } else { CheckStatus::Info },
                     "Nombres del certificado SSL",
-                    format!("IP: {} · DNS: {}", ssl.san_ip.join(", "), if ssl.san_dns.is_empty() { "-".into() } else { ssl.san_dns.join(", ") }),
-                    (!localhost).then_some("Sin DNS:localhost (certificado de «Restaurar instalación» de Java); válido para 127.0.0.1"),
+                    format!(
+                        "IP: {} · DNS: {}",
+                        ssl.san_ip.join(", "),
+                        if ssl.san_dns.is_empty() {
+                            "-".into()
+                        } else {
+                            ssl.san_dns.join(", ")
+                        }
+                    ),
+                    (!localhost).then_some(
+                        "Sin DNS:localhost (certificado de «Restaurar instalación» de Java); válido para 127.0.0.1",
+                    ),
                 ));
             }
         }
@@ -213,8 +214,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
     if let Some(c) = &located {
         match ctx.os {
             Os::Windows => {
-                let m =
-                    trust::windows::check(ctx.win_certs.as_ref(), TrustScope::Machine, &c.ca_der);
+                let m = trust::windows::check(ctx.win_certs.as_ref(), TrustScope::Machine, &c.ca_der);
                 let u = trust::windows::check(ctx.win_certs.as_ref(), TrustScope::User, &c.ca_der);
                 let ok = m.ok() || u.ok();
                 let (st, _) = trust_to_status(if ok { &TrustCheck::Trusted } else { &m });
@@ -257,8 +257,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
                     st,
                     "Anclas de confianza del sistema (Linux)",
                     d,
-                    (!t.ok())
-                        .then_some("sudo autofirma install (opcional: Chrome/Firefox usan NSS)"),
+                    (!t.ok()).then_some("sudo autofirma install (opcional: Chrome/Firefox usan NSS)"),
                 ));
             }
         }
@@ -312,9 +311,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
             let t = nss::check(ctx, db, b, &c.ca_der);
             let (mut st, d) = trust_to_status(&t);
             // En Windows/macOS Firefox puede confiar en el almacén del sistema.
-            if st == CheckStatus::Error
-                && ctx.os != Os::Linux
-                && firefox::enterprise_roots_state(&db.dir) == Some(true)
+            if st == CheckStatus::Error && ctx.os != Os::Linux && firefox::enterprise_roots_state(&db.dir) == Some(true)
             {
                 st = CheckStatus::Info;
             }
@@ -343,8 +340,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
                 match s {
                     Some(true) => "activada en user.js".to_string(),
                     Some(false) => {
-                        "desactivada en user.js (Java la desactivaba en «Restaurar instalación»)"
-                            .to_string()
+                        "desactivada en user.js (Java la desactivaba en «Restaurar instalación»)".to_string()
                     }
                     None => "valor por defecto de Firefox".to_string(),
                 },
@@ -360,9 +356,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
     } else if !ps.points_to_current {
         (
             CheckStatus::Warning,
-            Some(
-                "El protocolo apunta a otra instalación (¿AutoFirma Java?): ejecute «autofirma restore-config»",
-            ),
+            Some("El protocolo apunta a otra instalación (¿AutoFirma Java?): ejecute «autofirma restore-config»"),
         )
     } else {
         (CheckStatus::Ok, None)
@@ -382,11 +376,7 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
         let free = std::net::TcpListener::bind(("127.0.0.1", *port)).is_ok();
         checks.push(check(
             "ports",
-            if free {
-                CheckStatus::Ok
-            } else {
-                CheckStatus::Warning
-            },
+            if free { CheckStatus::Ok } else { CheckStatus::Warning },
             format!("Puerto local {port}"),
             if free {
                 "libre".to_string()
@@ -427,15 +417,27 @@ pub fn run(ctx: &Context, opts: &DoctorOptions) -> DoctorReport {
             let locked = p.effective().iter().filter(|e| e.lock.is_some()).count();
             checks.push(check(
                 "prefs.policy",
-                if pol.warnings.is_empty() { CheckStatus::Info } else { CheckStatus::Warning },
+                if pol.warnings.is_empty() {
+                    CheckStatus::Info
+                } else {
+                    CheckStatus::Warning
+                },
                 "Directivas de AutoFirma",
                 format!(
                     "orígenes: {}; obligatorias: {}; recomendadas: {}; bloqueo: {}; claves bloqueadas: {locked}{}",
-                    if pol.sources.is_empty() { "ninguno".into() } else { pol.sources.join(", ") },
+                    if pol.sources.is_empty() {
+                        "ninguno".into()
+                    } else {
+                        pol.sources.join(", ")
+                    },
                     pol.mandatory.len(),
                     pol.recommended.len(),
                     if p.is_blocked() { "sí" } else { "no" },
-                    if pol.warnings.is_empty() { String::new() } else { format!("; avisos: {}", pol.warnings.join(" | ")) }
+                    if pol.warnings.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; avisos: {}", pol.warnings.join(" | "))
+                    }
                 ),
                 None,
             ));

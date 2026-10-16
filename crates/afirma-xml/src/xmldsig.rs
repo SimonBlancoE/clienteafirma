@@ -97,13 +97,7 @@ impl SigParts {
         } else {
             format!("<{}{} {id_attr}>", ds.q("Signature"), ds.xmlns())
         };
-        s.push_str(&dsig::render_signed_info(
-            ds,
-            &self.c14n,
-            &self.sig_uri,
-            &self.refs,
-            ph,
-        ));
+        s.push_str(&dsig::render_signed_info(ds, &self.c14n, &self.sig_uri, &self.refs, ph));
         s.push_str(&format!(
             "<{sv} Id=\"SignatureValue-{}\">{}</{sv}>",
             self.id,
@@ -185,12 +179,7 @@ impl XmldsigSigner {
     }
 }
 
-fn sign_impl(
-    data: &[u8],
-    algorithm: &str,
-    key: &dyn SigningKey,
-    p: &ExtraParams,
-) -> afirma_core::Result<Vec<u8>> {
+fn sign_impl(data: &[u8], algorithm: &str, key: &dyn SigningKey, p: &ExtraParams) -> afirma_core::Result<Vec<u8>> {
     let (sig_uri, sig_alg) = resolve_alg(algorithm, key).map_err(|_| {
         AfirmaError::new(
             codes::UNSUPPORTED_SIGNATURE_ALGORITHM,
@@ -199,19 +188,14 @@ fn sign_impl(
     })?;
     let format_raw = p.get_or("format", FORMAT_ENVELOPING).to_string();
     let mode_raw = p.get_or("mode", "implicit").to_string();
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST).to_string();
     let c14n_param = p.get_or("canonicalizationAlgorithm", C14N_10).to_string();
     let avoid_b64 = p.get_bool("avoidBase64Transforms", false);
     let avoid_xpath = p.get_bool("avoidXpathExtraTransformsOnEnveloped", false);
     let prefix = p.get_or("xmlSignaturePrefix", "ds").to_string();
     let mut mime_type = p.get("mimeType").map(str::to_string);
     let mut encoding = p.get("encoding").map(str::to_string);
-    if encoding
-        .as_deref()
-        .is_some_and(|e| e.eq_ignore_ascii_case("base64"))
-    {
+    if encoding.as_deref().is_some_and(|e| e.eq_ignore_ascii_case("base64")) {
         encoding = Some(dsig::BASE64.to_string());
     }
     let mut uri = p
@@ -253,9 +237,7 @@ fn sign_impl(
         )));
     };
     if data.is_empty() && !(format == FORMAT_EXTERNALLY_DETACHED && uri.is_some()) {
-        return Err(AfirmaError::invalid_argument(
-            "No se han indicado los datos a firmar",
-        ));
+        return Err(AfirmaError::invalid_argument("No se han indicado los datos a firmar"));
     }
     let ds = DsNames::new(&prefix);
     let content_id = format!("CONTENT-{}-CONTENT", uuid_v4());
@@ -274,9 +256,10 @@ fn sign_impl(
                     encoding = doc.xml_decl.as_ref().and_then(|d| d.encoding.clone());
                 }
                 if let Some(e) = &encoding
-                    && e != dsig::BASE64 {
-                        output_encoding = Some(e.clone());
-                    }
+                    && e != dsig::BASE64
+                {
+                    output_encoding = Some(e.clone());
+                }
                 let root = doc.document_element().expect("raíz");
                 if format == FORMAT_DETACHED {
                     data_text = format!(
@@ -299,13 +282,10 @@ fn sign_impl(
                 }
                 uri = None;
                 encoding = Some(dsig::BASE64.to_string());
-                let mut mt = mime_type
-                    .clone()
-                    .unwrap_or_else(|| mime::DEFAULT_MIMETYPE.to_string());
+                let mut mt = mime_type.clone().unwrap_or_else(|| mime::DEFAULT_MIMETYPE.to_string());
                 let text;
                 if util::is_base64(data) {
-                    let decoded =
-                        util::b64_decode(&String::from_utf8_lossy(data)).unwrap_or_default();
+                    let decoded = util::b64_decode(&String::from_utf8_lossy(data)).unwrap_or_default();
                     mt = mime::detect(&decoded);
                     text = String::from_utf8_lossy(data).into_owned();
                 } else {
@@ -340,9 +320,7 @@ fn sign_impl(
     if dsig::digest_from_uri(&digest_uri).is_none() {
         return Err(AfirmaError::new(
             codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
-            format!(
-                "No se ha podido obtener un generador de huellas digitales para el algoritmo {digest_uri}"
-            ),
+            format!("No se ha podido obtener un generador de huellas digitales para el algoritmo {digest_uri}"),
         ));
     }
     let c14n: Option<String> = if c14n_param.eq_ignore_ascii_case("none") {
@@ -351,9 +329,7 @@ fn sign_impl(
         if C14n::from_uri(&c14n_param).is_none() {
             return Err(AfirmaError::new(
                 codes::INVALID_CANONICALIZATION_URI,
-                format!(
-                    "No se ha podido crear la transformacion de canonicalizacion para el algoritmo {c14n_param}"
-                ),
+                format!("No se ha podido crear la transformacion de canonicalizacion para el algoritmo {c14n_param}"),
             ));
         }
         Some(c14n_param.clone())
@@ -410,13 +386,9 @@ fn sign_impl(
         FORMAT_EXTERNALLY_DETACHED => {
             let scheme = uri.as_deref().and_then(uri_scheme);
             if precalc.is_some()
-                && (uri.is_none()
-                    || scheme.as_deref() == Some("")
-                    || scheme.as_deref() == Some("file"))
+                && (uri.is_none() || scheme.as_deref() == Some("") || scheme.as_deref() == Some("file"))
             {
-                let name = afirma_core::algorithms::java_digest_algorithm_name(
-                    precalc.as_deref().unwrap_or(""),
-                );
+                let name = afirma_core::algorithms::java_digest_algorithm_name(precalc.as_deref().unwrap_or(""));
                 let dm = match name.to_uppercase().as_str() {
                     "SHA1" => "http://www.w3.org/2000/09/xmldsig#sha1",
                     "SHA-256" => "http://www.w3.org/2001/04/xmlenc#sha256",
@@ -489,8 +461,7 @@ fn sign_impl(
     let out = if format == FORMAT_ENVELOPED {
         let doc = xml_doc.expect("XML");
         let root = doc.document_element().expect("raíz");
-        let in_scope = doc.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS)
-            && !prefix.is_empty();
+        let in_scope = doc.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS) && !prefix.is_empty();
         let text = splice::insert_last_child(&doc, root, &parts.render(&mut ph, in_scope));
         let signed = complete(text, &ph, &parts, key, sig_alg)?;
         splice::finish_preserving(&doc, &signed, &enc)
@@ -521,20 +492,15 @@ fn local(doc: &Document, n: NodeId) -> &str {
 }
 
 fn parse_sign(sign: &[u8]) -> afirma_core::Result<Document> {
-    Document::parse_bytes(sign).map(|(d, _)| d).map_err(|e| {
-        AfirmaError::invalid_signature_format(format!(
-            "No se ha podido leer el documento de firmas: {e}"
-        ))
-    })
+    Document::parse_bytes(sign)
+        .map(|(d, _)| d)
+        .map_err(|e| AfirmaError::invalid_signature_format(format!("No se ha podido leer el documento de firmas: {e}")))
 }
 
 /// Raíz con envoltorio `<AFIRMA>` si la raíz es una firma.
 fn wrap_if_signature(doc: &Document) -> (String, bool) {
     let root = doc.document_element().expect("raíz");
-    if doc
-        .element(root)
-        .is_some_and(|e| e.is(DSIG_NS, "Signature"))
-    {
+    if doc.element(root).is_some_and(|e| e.is(DSIG_NS, "Signature")) {
         (format!("<AFIRMA>{}</AFIRMA>", doc.node_source(root)), true)
     } else {
         (doc.source().to_string(), false)
@@ -575,41 +541,29 @@ fn is_enveloping_root(doc: &Document) -> bool {
                 .is_some_and(|&c| local(doc, c) == "Signature"))
 }
 
-fn cosign_impl(
-    sign: &[u8],
-    algorithm: &str,
-    key: &dyn SigningKey,
-    p: &ExtraParams,
-) -> afirma_core::Result<Vec<u8>> {
+fn cosign_impl(sign: &[u8], algorithm: &str, key: &dyn SigningKey, p: &ExtraParams) -> afirma_core::Result<Vec<u8>> {
     let (sig_uri, sig_alg) = resolve_alg(algorithm, key).map_err(|_| {
         AfirmaError::new(
             codes::UNSUPPORTED_SIGNATURE_ALGORITHM,
             format!("Los formatos de firma XML no soportan el algoritmo de firma {algorithm}"),
         )
     })?;
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST).to_string();
     let c14n = p.get_or("canonicalizationAlgorithm", C14N_10).to_string();
     let prefix = p.get_or("xmlSignaturePrefix", "ds").to_string();
     let only_cert = p.get_bool("includeOnlySignningCertificate", false);
     if dsig::digest_from_uri(&digest_uri).is_none() || C14n::from_uri(&c14n).is_none() {
-        return Err(AfirmaError::unsupported(
-            "Hay al menos un algoritmo no soportado",
-        ));
+        return Err(AfirmaError::unsupported("Hay al menos un algoritmo no soportado"));
     }
     let doc0 = parse_sign(sign)?;
     let (text, _) = wrap_if_signature(&doc0);
-    let doc = Document::parse(&text)
-        .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+    let doc = Document::parse(&text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
     let root = doc.document_element().expect("raíz");
     let first = doc
         .find_descendants(doc.root(), DSIG_NS, "Signature")
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            AfirmaError::invalid_signature_format("No se ha encontrado ninguna firma")
-        })?;
+        .ok_or_else(|| AfirmaError::invalid_signature_format("No se ha encontrado ninguna firma"))?;
     let ds = DsNames::new(&prefix);
     let enveloping = is_enveloping_root(&doc);
     let mut refs = Vec::new();
@@ -620,9 +574,7 @@ fn cosign_impl(
         .enumerate()
     {
         let re = doc.element(r).expect("elemento");
-        let style = re
-            .attr("Id")
-            .is_some_and(|x| x.starts_with("StyleReference-"));
+        let style = re.attr("Id").is_some_and(|x| x.starts_with("StyleReference-"));
         if i != 0 && !style {
             continue;
         }
@@ -676,12 +628,10 @@ fn cosign_impl(
         objects: object.into_iter().collect(),
     };
     let mut ph = Placeholders::new();
-    let in_scope =
-        !prefix.is_empty() && doc.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS);
+    let in_scope = !prefix.is_empty() && doc.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS);
     let full = splice::insert_last_child(&doc, root, &parts.render(&mut ph, in_scope));
     let signed = complete(full, &ph, &parts, key, sig_alg)?;
-    splice::finish(&strip_decl(&signed), "UTF-8")
-        .map_err(|m| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, m))
+    splice::finish(&strip_decl(&signed), "UTF-8").map_err(|m| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, m))
 }
 
 /// Quita la declaración XML del texto (se reescribe al serializar).
@@ -700,11 +650,7 @@ fn signature_value_id(doc: &Document, sig: NodeId) -> Option<String> {
     doc.find_descendants(sig, DSIG_NS, "SignatureValue")
         .into_iter()
         .next()
-        .and_then(|v| {
-            doc.element(v)
-                .and_then(|e| e.attr("Id"))
-                .map(str::to_string)
-        })
+        .and_then(|v| doc.element(v).and_then(|e| e.attr("Id")).map(str::to_string))
 }
 
 fn first_cert_cn(doc: &Document, sig: NodeId) -> Option<String> {
@@ -714,9 +660,7 @@ fn first_cert_cn(doc: &Document, sig: NodeId) -> Option<String> {
         .next()?;
     let der = util::b64_decode(&doc.text_content(c))?;
     let (_, cert) = x509_parser::parse_x509_certificate(&der).ok()?;
-    Some(afirma_core::aoutil::get_cn(&crate::dn::java_name(
-        cert.subject(),
-    )))
+    Some(afirma_core::aoutil::get_cn(&crate::dn::java_name(cert.subject())))
 }
 
 fn countersign_impl(
@@ -732,16 +676,12 @@ fn countersign_impl(
             format!("Los formatos de firma XML no soportan el algoritmo de firma {algorithm}"),
         )
     })?;
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST).to_string();
     let c14n = p.get_or("canonicalizationAlgorithm", C14N_10).to_string();
     let prefix = p.get_or("xmlSignaturePrefix", "ds").to_string();
     let only_cert = p.get_bool("includeOnlySignningCertificate", false);
     if dsig::digest_from_uri(&digest_uri).is_none() || C14n::from_uri(&c14n).is_none() {
-        return Err(AfirmaError::unsupported(
-            "Hay al menos un algoritmo no soportado",
-        ));
+        return Err(AfirmaError::unsupported("Hay al menos un algoritmo no soportado"));
     }
     let doc0 = parse_sign(sign)?;
     let declared = doc0.xml_decl.as_ref().and_then(|d| d.encoding.clone());
@@ -751,18 +691,13 @@ fn countersign_impl(
         None => declared.unwrap_or_else(|| "UTF-8".into()),
     };
     let (mut text, _) = wrap_if_signature(&doc0);
-    let doc = Document::parse(&text)
-        .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+    let doc = Document::parse(&text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
     let root = doc.document_element().expect("raíz");
     let sigs = doc.find_descendants(root, DSIG_NS, "Signature");
     let all_uris: Vec<String> = doc
         .find_descendants(doc.root(), DSIG_NS, "Reference")
         .into_iter()
-        .filter_map(|r| {
-            doc.element(r)
-                .and_then(|e| e.attr("URI"))
-                .map(str::to_string)
-        })
+        .filter_map(|r| doc.element(r).and_then(|e| e.attr("URI")).map(str::to_string))
         .collect();
     let targets: Vec<NodeId> = match target {
         CounterSignTarget::Tree => sigs.clone(),
@@ -791,17 +726,19 @@ fn countersign_impl(
             fn add_sub(doc: &Document, sigs: &[NodeId], sv_id: &str, out: &mut Vec<NodeId>) {
                 for &s in sigs {
                     let refs_it = doc.find_descendants(s, DSIG_NS, "Reference");
-                    if refs_it.iter().any(|&r| {
-                        doc.element(r).and_then(|e| e.attr("URI")) == Some(&format!("#{sv_id}"))
-                    }) {
+                    if refs_it
+                        .iter()
+                        .any(|&r| doc.element(r).and_then(|e| e.attr("URI")) == Some(&format!("#{sv_id}")))
+                    {
                         if out.contains(&s) {
                             continue;
                         }
                         out.push(s);
                         if let Some(id) = signature_value_id(doc, s)
-                            && id != sv_id {
-                                add_sub(doc, sigs, &id, out);
-                            }
+                            && id != sv_id
+                        {
+                            add_sub(doc, sigs, &id, out);
+                        }
                     }
                 }
             }
@@ -833,8 +770,8 @@ fn countersign_impl(
         .map(|&s| signature_value_id(&doc, s).unwrap_or_default())
         .collect();
     for sv in target_svs {
-        let d = Document::parse(&text)
-            .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+        let d =
+            Document::parse(&text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
         let root = d.document_element().expect("raíz");
         let mut r = ReferenceSpec::new(format!("#{sv}"), &digest_uri);
         r.id = Some(format!("Reference-{}", uuid_v4()));
@@ -852,15 +789,12 @@ fn countersign_impl(
             objects: vec![],
         };
         let mut ph = Placeholders::new();
-        let in_scope = !prefix.is_empty()
-            && d.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS);
+        let in_scope = !prefix.is_empty() && d.lookup_namespace(root, Some(&prefix)).as_deref() == Some(DSIG_NS);
         let full = splice::insert_last_child(&d, root, &parts.render(&mut ph, in_scope));
         text = complete(full, &ph, &parts, key, sig_alg)?;
     }
-    let d = Document::parse(&text)
-        .map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
-    splice::finish_preserving(&d, &text, &enc)
-        .map_err(|m| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, m))
+    let d = Document::parse(&text).map_err(|e| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, e.to_string()))?;
+    splice::finish_preserving(&d, &text, &enc).map_err(|m| AfirmaError::new(codes::INTERNAL_XML_SIGNING_ERROR, m))
 }
 
 /// `XmlDSigUtil.guessXmlDSigNamespacePrefix`.
@@ -898,8 +832,7 @@ fn signers_structure_impl(sign: &[u8]) -> afirma_core::Result<SignersTree> {
     } else {
         doc0.source().to_string()
     };
-    let doc =
-        Document::parse(&text).map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))?;
+    let doc = Document::parse(&text).map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))?;
     let root = doc.document_element().expect("raíz");
     let sigs: Vec<NodeId> = doc
         .descendants(root)
@@ -911,23 +844,14 @@ fn signers_structure_impl(sign: &[u8]) -> afirma_core::Result<SignersTree> {
     let mut refs = Vec::new();
     let mut infos = Vec::new();
     for &s in &sigs {
-        ids.push(
-            doc.element(s)
-                .and_then(|e| e.attr("Id"))
-                .unwrap_or("")
-                .to_string(),
-        );
+        ids.push(doc.element(s).and_then(|e| e.attr("Id")).unwrap_or("").to_string());
         infos.push(xades::info::simple_sign_info(
             &doc,
             s,
             Some("http://uri.etsi.org/01903#"),
         ));
-        let first_ref = doc
-            .find_descendants(s, DSIG_NS, "Reference")
-            .into_iter()
-            .next();
-        let is_cs =
-            first_ref.and_then(|r| doc.element(r).and_then(|e| e.attr("Type"))) == Some(CSURI);
+        let first_ref = doc.find_descendants(s, DSIG_NS, "Reference").into_iter().next();
+        let is_cs = first_ref.and_then(|r| doc.element(r).and_then(|e| e.attr("Type"))) == Some(CSURI);
         if is_cs {
             let uri = first_ref
                 .and_then(|r| doc.element(r).and_then(|e| e.attr("URI")))
@@ -942,11 +866,7 @@ fn signers_structure_impl(sign: &[u8]) -> afirma_core::Result<SignersTree> {
                 })
                 .find(|&v| doc.element(v).and_then(|e| e.attr("Id")) == Some(target.as_str()))
                 .and_then(|v| doc.parent(v))
-                .and_then(|p| {
-                    doc.element(p)
-                        .and_then(|e| e.attr("Id"))
-                        .map(str::to_string)
-                })
+                .and_then(|p| doc.element(p).and_then(|e| e.attr("Id")).map(str::to_string))
                 .unwrap_or_default();
             refs.push(parent_id);
         } else {
@@ -968,9 +888,7 @@ fn signers_structure_impl(sign: &[u8]) -> afirma_core::Result<SignersTree> {
 
 fn is_sign_impl(data: &[u8]) -> bool {
     match Document::parse_bytes(data) {
-        Ok((d, _)) => !d
-            .find_descendants(d.root(), DSIG_NS, "Signature")
-            .is_empty(),
+        Ok((d, _)) => !d.find_descendants(d.root(), DSIG_NS, "Signature").is_empty(),
         Err(_) => false,
     }
 }
@@ -1011,9 +929,7 @@ fn get_data_impl(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
             doc.element(inner).ok_or_else(bad)?;
             return Ok(Some(xml(inner, &[])));
         }
-        return util::b64_decode(&doc.text_content(first))
-            .map(Some)
-            .ok_or_else(bad);
+        return util::b64_decode(&doc.text_content(first)).map(Some).ok_or_else(bad);
     }
     if is_enveloped_root(&doc) {
         // Java recorre una lista "viva": solo elimina las firmas 0, 2, 4...
@@ -1040,9 +956,7 @@ fn get_data_impl(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
             doc.element(first).ok_or_else(bad)?;
             return Ok(Some(xml(first, &[])));
         }
-        return util::b64_decode(&doc.text_content(object))
-            .map(Some)
-            .ok_or_else(bad);
+        return util::b64_decode(&doc.text_content(object)).map(Some).ok_or_else(bad);
     }
     Ok(None)
 }
@@ -1084,11 +998,7 @@ impl Signer for XmldsigSigner {
         countersign_impl(sign, algorithm, target, key, extra)
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         signers_structure_impl(sign)
     }
 
@@ -1101,11 +1011,7 @@ impl Signer for XmldsigSigner {
     }
 
     fn signed_name(&self, original: Option<&str>, in_text: Option<&str>) -> String {
-        format!(
-            "{}{}.xsig",
-            original.unwrap_or("null"),
-            in_text.unwrap_or("")
-        )
+        format!("{}{}.xsig", original.unwrap_or("null"), in_text.unwrap_or(""))
     }
 
     fn get_data(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<Option<Vec<u8>>> {

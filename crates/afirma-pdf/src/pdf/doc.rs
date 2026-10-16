@@ -111,11 +111,7 @@ impl SignatureEntry {
         self.dict
             .get(b"ByteRange")
             .and_then(Object::as_array)
-            .map(|a| {
-                a.iter()
-                    .filter_map(|x| x.as_float().ok().map(|f| f as i64))
-                    .collect()
-            })
+            .map(|a| a.iter().filter_map(|x| x.as_float().ok().map(|f| f as i64)).collect())
             .unwrap_or_default()
     }
     pub fn contents(&self) -> Vec<u8> {
@@ -216,9 +212,8 @@ impl PdfDoc {
         let pwd = password.unwrap_or("");
         let doc = if let Some(enc_ref) = encrypt_ref {
             encrypted = true;
-            let enc = scan_object(bytes, enc_ref).ok_or_else(|| {
-                OpenError::NotPdf("no se encuentra el diccionario de cifrado".into())
-            })?;
+            let enc = scan_object(bytes, enc_ref)
+                .ok_or_else(|| OpenError::NotPdf("no se encuentra el diccionario de cifrado".into()))?;
             if enc
                 .as_dict()
                 .ok()
@@ -250,8 +245,7 @@ impl PdfDoc {
                 password: Some(pwd.to_string()),
                 ..Default::default()
             };
-            Document::load_mem_with_options(bytes, opts)
-                .map_err(|e| OpenError::NotPdf(e.to_string()))?
+            Document::load_mem_with_options(bytes, opts).map_err(|e| OpenError::NotPdf(e.to_string()))?
         } else {
             Document::load_mem(bytes).map_err(|e| OpenError::NotPdf(e.to_string()))?
         };
@@ -274,22 +268,14 @@ impl PdfDoc {
         let mut doc = doc;
         if let Some(sx) = startxref.filter(|_| !broken) {
             for n in parse::effectively_free_objects(bytes, start, sx) {
-                let ids: Vec<ObjectId> = doc
-                    .objects
-                    .range((n, 0)..=(n, u16::MAX))
-                    .map(|(id, _)| *id)
-                    .collect();
+                let ids: Vec<ObjectId> = doc.objects.range((n, 0)..=(n, u16::MAX)).map(|(id, _)| *id).collect();
                 for id in ids {
                     doc.objects.remove(&id);
                 }
             }
         }
         let max_obj = doc.objects.keys().next_back().map_or(0, |k| k.0);
-        let trailer_size = last_trailer
-            .get(b"Size")
-            .and_then(Object::as_i64)
-            .unwrap_or(0)
-            .max(0) as u32;
+        let trailer_size = last_trailer.get(b"Size").and_then(Object::as_i64).unwrap_or(0).max(0) as u32;
         let size = trailer_size.max(doc.reference_table.size).max(max_obj + 1);
         let encryption = doc.encryption_state.clone();
         Ok(PdfDoc {
@@ -486,14 +472,8 @@ impl PdfDoc {
         let Some(top) = self.acroform() else {
             return items;
         };
-        let declared: HashSet<u32> = match self
-            .dict_get(top, b"Fields")
-            .and_then(|o| o.as_array().ok())
-        {
-            Some(a) if !a.is_empty() => a
-                .iter()
-                .filter_map(|o| o.as_reference().ok().map(|r| r.0))
-                .collect(),
+        let declared: HashSet<u32> = match self.dict_get(top, b"Fields").and_then(|o| o.as_array().ok()) {
+            Some(a) if !a.is_empty() => a.iter().filter_map(|o| o.as_reference().ok().map(|r| r.0)).collect(),
             _ => return items,
         };
         for (pi, page) in self.pages().into_iter().enumerate() {
@@ -541,15 +521,17 @@ impl PdfDoc {
                         name = format!("{t}.{name}");
                     }
                     if last_v.is_none()
-                        && let Ok(v) = d.get(b"V") {
-                            last_v = Some(self.resolve(v).clone());
-                        }
+                        && let Ok(v) = d.get(b"V")
+                    {
+                        last_v = Some(self.resolve(v).clone());
+                    }
                     if value.is_none() && t.is_some() {
                         let mut vd = d.clone();
                         if vd.get(b"V").is_err()
-                            && let Some(lv) = &last_v {
-                                vd.set("V", lv.clone());
-                            }
+                            && let Some(lv) = &last_v
+                        {
+                            vd.set("V", lv.clone());
+                        }
                         value = Some((cur_id, vd));
                     }
                     cur = d.get(b"Parent").ok().and_then(|p| {
@@ -587,37 +569,36 @@ impl PdfDoc {
             .and_then(|o| o.as_i64().ok())
             .unwrap_or(0);
         if sig_flags & 1 == 1
-            && let Some(Object::Array(fields)) = self.dict_get(top, b"Fields") {
-                for f in fields {
-                    let Some(annot) = self.dict(f) else { continue };
-                    if self.dict_get_name(annot, b"Subtype") != Some(b"Widget")
-                        || self.dict_get(annot, b"Kids").is_some()
-                    {
-                        continue;
-                    }
-                    let Some(t) = self
-                        .dict_get(annot, b"T")
-                        .and_then(|o| o.as_str().ok())
-                        .map(decode_text_string)
-                    else {
-                        continue;
-                    };
-                    if items.iter().any(|i| i.name == t) {
-                        continue;
-                    }
-                    let id = f.as_reference().ok();
-                    items.push(FieldItem {
-                        name: t,
-                        value_id: id,
-                        value: annot.clone(),
-                        widget_id: id,
-                        widget: annot.clone(),
-                        merged: annot.clone(),
-                        page: 0,
-                        annot_index: 0,
-                    });
+            && let Some(Object::Array(fields)) = self.dict_get(top, b"Fields")
+        {
+            for f in fields {
+                let Some(annot) = self.dict(f) else { continue };
+                if self.dict_get_name(annot, b"Subtype") != Some(b"Widget") || self.dict_get(annot, b"Kids").is_some() {
+                    continue;
                 }
+                let Some(t) = self
+                    .dict_get(annot, b"T")
+                    .and_then(|o| o.as_str().ok())
+                    .map(decode_text_string)
+                else {
+                    continue;
+                };
+                if items.iter().any(|i| i.name == t) {
+                    continue;
+                }
+                let id = f.as_reference().ok();
+                items.push(FieldItem {
+                    name: t,
+                    value_id: id,
+                    value: annot.clone(),
+                    widget_id: id,
+                    widget: annot.clone(),
+                    merged: annot.clone(),
+                    page: 0,
+                    annot_index: 0,
+                });
             }
+        }
         items
     }
 
@@ -673,10 +654,7 @@ impl PdfDoc {
             let Some(v) = self.dict(vref).cloned() else {
                 continue;
             };
-            if !matches!(
-                v.get(b"Contents").map(|o| self.resolve(o)),
-                Ok(Object::String(..))
-            ) {
+            if !matches!(v.get(b"Contents").map(|o| self.resolve(o)), Ok(Object::String(..))) {
                 continue;
             }
             let Some(br) = v
@@ -703,11 +681,7 @@ impl PdfDoc {
                     n(&br[1]).max(0) as usize + self.pdf_start,
                     n(&br[2]).max(0) as usize + self.pdf_start,
                 );
-                if a < b
-                    && b <= self.bytes.len()
-                    && self.bytes[a] == b'<'
-                    && self.bytes[b - 1] == b'>'
-                {
+                if a < b && b <= self.bytes.len() && self.bytes[a] == b'<' && self.bytes[b - 1] == b'>' {
                     let hexs: Vec<u8> = self.bytes[a + 1..b - 1]
                         .iter()
                         .copied()
@@ -753,9 +727,7 @@ impl PdfDoc {
         let names: HashSet<String> = sigs.into_iter().map(|s| s.name).collect();
         self.form_fields()
             .into_iter()
-            .filter(|f| {
-                self.dict_get_name(&f.merged, b"FT") == Some(b"Sig") && !names.contains(&f.name)
-            })
+            .filter(|f| self.dict_get_name(&f.merged, b"FT") == Some(b"Sig") && !names.contains(&f.name))
             .collect()
     }
 
@@ -810,11 +782,7 @@ impl PdfDoc {
 
     /// Mapa de objetos de las páginas (id → índice 1..N).
     pub fn page_index(&self) -> BTreeMap<ObjectId, usize> {
-        self.pages()
-            .into_iter()
-            .enumerate()
-            .map(|(i, p)| (p, i + 1))
-            .collect()
+        self.pages().into_iter().enumerate().map(|(i, p)| (p, i + 1)).collect()
     }
 }
 

@@ -59,7 +59,9 @@ fn countersign_keeps_signed_parts() {
         let orig = read(f);
         let sd = SignedData::parse(&orig).unwrap();
         for target in [CounterSignTarget::Tree, CounterSignTarget::Leafs] {
-            let out = CadesSigner.countersign(&orig, "SHA256withRSA", &target, &k, &allow_lts()).unwrap();
+            let out = CadesSigner
+                .countersign(&orig, "SHA256withRSA", &target, &k, &allow_lts())
+                .unwrap();
             for si in sd.all_signer_infos() {
                 let signed = afirma_cms::cms::to_der_preserving(si.signed_attrs.as_ref().unwrap());
                 assert!(contains(&out, &signed), "{f}: atributos firmados alterados");
@@ -88,8 +90,14 @@ fn long_term_signatures_need_confirmation() {
             ErrorKind::NeedsIntervention { denied, .. } => assert_eq!(denied, p.contains("allowSignLTSignature")),
             other => panic!("{other:?}"),
         }
-        let e = CadesSigner.countersign(&cades_a, "SHA256withRSA", &CounterSignTarget::Tree, &k, &p).unwrap_err();
+        let e = CadesSigner
+            .countersign(&cades_a, "SHA256withRSA", &CounterSignTarget::Tree, &k, &p)
+            .unwrap_err();
         assert_eq!(e.code, Some(codes::SIGNING_LTS));
     }
-    assert!(CadesSigner.countersign(&cades_a, "SHA256withRSA", &CounterSignTarget::Leafs, &k, &allow_lts()).is_ok());
+    assert!(
+        CadesSigner
+            .countersign(&cades_a, "SHA256withRSA", &CounterSignTarget::Leafs, &k, &allow_lts())
+            .is_ok()
+    );
 }

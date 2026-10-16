@@ -10,12 +10,14 @@ use afirma_core::error::{ConfirmEffect, codes};
 use afirma_core::http::{HttpClient as CoreHttp, HttpClientError, HttpMethod, HttpRequest};
 use afirma_core::{AfirmaError, SigningKey};
 use afirma_protocol::{
-    CertificateRequest, ConfirmRequest, CryptoOperation, ErrorDialog, FileData, LoadRequest, LocalSignRequest, LocalSigner, OpenFileRequest,
-    OperationHandler, PasswordRequest, RequestInfo, SaveFileRequest,
+    CertificateRequest, ConfirmRequest, CryptoOperation, ErrorDialog, FileData, LoadRequest, LocalSignRequest,
+    LocalSigner, OpenFileRequest, OperationHandler, PasswordRequest, RequestInfo, SaveFileRequest,
 };
 
 pub fn testdata(path: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata").join(path)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata")
+        .join(path)
 }
 
 /// Clave de la PKI de pruebas (`firmante-rsa`, `firmante-ec`...).
@@ -58,24 +60,42 @@ impl FakeHandler {
 
 impl OperationHandler for FakeHandler {
     fn select_certificate(&self, req: &CertificateRequest<'_>) -> Result<Arc<dyn SigningKey>, AfirmaError> {
-        self.cert_requests.lock().unwrap().push((req.restrict_to_certificate.map(<[u8]>::to_vec), req.info.clone()));
+        self.cert_requests
+            .lock()
+            .unwrap()
+            .push((req.restrict_to_certificate.map(<[u8]>::to_vec), req.info.clone()));
         if let Some(r) = self.keys.lock().unwrap().pop_front() {
             return r;
         }
-        self.default_key.lock().unwrap().clone().ok_or_else(|| AfirmaError::from_code(codes::CERTIFICATE_NEEDED))
+        self.default_key
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| AfirmaError::from_code(codes::CERTIFICATE_NEEDED))
     }
 
     fn choose_file_to_sign(&self, _req: &OpenFileRequest) -> Result<FileData, AfirmaError> {
-        self.file_to_sign.lock().unwrap().clone().ok_or_else(AfirmaError::cancelled)
+        self.file_to_sign
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(AfirmaError::cancelled)
     }
 
     fn save_file(&self, req: &SaveFileRequest<'_>) -> Result<(), AfirmaError> {
-        self.saved.lock().unwrap().push((req.proposed_name.clone(), req.data.to_vec()));
+        self.saved
+            .lock()
+            .unwrap()
+            .push((req.proposed_name.clone(), req.data.to_vec()));
         Ok(())
     }
 
     fn load_files(&self, _req: &LoadRequest) -> Result<Vec<FileData>, AfirmaError> {
-        self.load_result.lock().unwrap().clone().ok_or_else(AfirmaError::cancelled)
+        self.load_result
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(AfirmaError::cancelled)
     }
 
     fn confirm(&self, req: &ConfirmRequest) -> bool {
@@ -111,15 +131,27 @@ pub struct FakeSigner {
 
 impl LocalSigner for FakeSigner {
     fn supports_format(&self, format: &str) -> bool {
-        ["cades", "xades", "pades", "facturae", "none", "xades detached"].contains(&format.to_ascii_lowercase().as_str())
+        ["cades", "xades", "pades", "facturae", "none", "xades detached"]
+            .contains(&format.to_ascii_lowercase().as_str())
     }
 
     fn sign(&self, req: &LocalSignRequest<'_>) -> Result<Vec<u8>, AfirmaError> {
-        self.calls.lock().unwrap().push((req.operation, req.format.to_string(), req.algorithm.to_string(), req.extra_params.clone()));
+        self.calls.lock().unwrap().push((
+            req.operation,
+            req.format.to_string(),
+            req.algorithm.to_string(),
+            req.extra_params.clone(),
+        ));
         match self.script.lock().unwrap().pop_front() {
             Some(Scripted::WrongPin) => return Err(AfirmaError::new(codes::INVALID_SMARTCARD_PIN, "PIN incorrecto")),
             Some(Scripted::NeedsConfirm) if !req.extra_params.get_bool("allowSignLTSignature", false) => {
-                return Err(AfirmaError::needs_confirmation(codes::SIGNING_LTS, "LTS", "signingLts", "allowSignLTSignature", ConfirmEffect::SetParamTrue));
+                return Err(AfirmaError::needs_confirmation(
+                    codes::SIGNING_LTS,
+                    "LTS",
+                    "signingLts",
+                    "allowSignLTSignature",
+                    ConfirmEffect::SetParamTrue,
+                ));
             }
             Some(Scripted::Fail(c)) => return Err(AfirmaError::from_code(c)),
             _ => {}
@@ -140,7 +172,11 @@ impl LocalSigner for FakeSigner {
     }
 
     fn signed_file_name(&self, format: &str, original: &str) -> String {
-        if format.eq_ignore_ascii_case("CAdES") { format!("{original}.csig") } else { format!("{original}.xsig") }
+        if format.eq_ignore_ascii_case("CAdES") {
+            format!("{original}.csig")
+        } else {
+            format!("{original}.xsig")
+        }
     }
 }
 
@@ -162,11 +198,20 @@ pub struct MockHttp {
 
 impl MockHttp {
     pub fn new(f: impl Fn(&Seen) -> Result<(u16, Vec<u8>), HttpClientError> + Send + Sync + 'static) -> Arc<Self> {
-        Arc::new(MockHttp { seen: Mutex::new(Vec::new()), responder: Box::new(f) })
+        Arc::new(MockHttp {
+            seen: Mutex::new(Vec::new()),
+            responder: Box::new(f),
+        })
     }
 
     pub fn bodies_to(&self, url_part: &str) -> Vec<String> {
-        self.seen.lock().unwrap().iter().filter(|s| s.url.contains(url_part)).map(|s| s.body.clone()).collect()
+        self.seen
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|s| s.url.contains(url_part))
+            .map(|s| s.body.clone())
+            .collect()
     }
 }
 
@@ -179,11 +224,20 @@ impl CoreHttp for MockHttp {
                 (u, b.unwrap_or_default())
             }
         };
-        let seen = Seen { method: req.method, url: url.clone(), body };
+        let seen = Seen {
+            method: req.method,
+            url: url.clone(),
+            body,
+        };
         self.seen.lock().unwrap().push(seen.clone());
         let (status, body) = (self.responder)(&seen)?;
         if status >= 400 {
-            return Err(HttpClientError::Http(afirma_core::http::HttpError { status, reason: None, body, url }));
+            return Err(HttpClientError::Http(afirma_core::http::HttpError {
+                status,
+                reason: None,
+                body,
+                url,
+            }));
         }
         Ok(body)
     }
@@ -191,5 +245,6 @@ impl CoreHttp for MockHttp {
 
 /// Valor de un parámetro de un cuerpo `k=v&...` (sin decodificar).
 pub fn form_value<'a>(body: &'a str, key: &str) -> Option<&'a str> {
-    body.split('&').find_map(|kv| kv.split_once('=').filter(|(k, _)| *k == key).map(|(_, v)| v))
+    body.split('&')
+        .find_map(|kv| kv.split_once('=').filter(|(k, _)| *k == key).map(|(_, v)| v))
 }

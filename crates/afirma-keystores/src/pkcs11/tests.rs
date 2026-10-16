@@ -21,7 +21,12 @@ pub(crate) const USER_PIN: &str = "1234";
 const SO_PIN: &str = "4321";
 
 fn pki(name: &str) -> Vec<u8> {
-    std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap()
+    std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../testdata/pki")
+            .join(name),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -42,7 +47,11 @@ fn helpers() {
 
 #[test]
 fn missing_library() {
-    let r = Pkcs11Store::open(Path::new("/no/existe/libpkcs11.so"), Pkcs11Config::new(KeyStoreKind::Pkcs11), Arc::new(NoPassword));
+    let r = Pkcs11Store::open(
+        Path::new("/no/existe/libpkcs11.so"),
+        Pkcs11Config::new(KeyStoreKind::Pkcs11),
+        Arc::new(NoPassword),
+    );
     assert!(matches!(r, Err(KeyStoreError::LibraryNotFound(_))));
 }
 
@@ -53,7 +62,9 @@ pub(crate) fn softhsm_lib() -> Option<PathBuf> {
     match std::env::var("AFIRMA_TEST_SOFTHSM_LIB") {
         Ok(p) if !p.is_empty() => Some(PathBuf::from(p)),
         _ => {
-            eprintln!("AFIRMA_TEST_SOFTHSM_LIB no definida: se omite la prueba con SoftHSM2 (ver tools/oracle/keystores-softhsm.sh)");
+            eprintln!(
+                "AFIRMA_TEST_SOFTHSM_LIB no definida: se omite la prueba con SoftHSM2 (ver tools/oracle/keystores-softhsm.sh)"
+            );
             None
         }
     }
@@ -77,12 +88,15 @@ pub(crate) fn prepare_dnie_token(lib: &Path) -> Arc<Pkcs11Module> {
         .into_iter()
         .find(|s| ctx.get_token_info(*s).map(|i| !i.token_initialized()).unwrap_or(false))
         .expect("ranura libre en SoftHSM2");
-    ctx.init_token(slot, &AuthPin::new(SO_PIN.into()), DNIE_TOKEN_LABEL).unwrap();
+    ctx.init_token(slot, &AuthPin::new(SO_PIN.into()), DNIE_TOKEN_LABEL)
+        .unwrap();
     let session = ctx.open_rw_session(slot).unwrap();
     session.login(UserType::So, Some(&AuthPin::new(SO_PIN.into()))).unwrap();
     session.init_pin(&AuthPin::new(USER_PIN.into())).unwrap();
     session.logout().unwrap();
-    session.login(UserType::User, Some(&AuthPin::new(USER_PIN.into()))).unwrap();
+    session
+        .login(UserType::User, Some(&AuthPin::new(USER_PIN.into())))
+        .unwrap();
     import_p12(&session, "firmante-rsa.p12", b"CertFirmaDigital", "CertFirmaDigital");
     drop(session);
     module
@@ -106,7 +120,9 @@ pub(crate) fn prepare_token(lib: &Path) -> Arc<Pkcs11Module> {
     session.login(UserType::So, Some(&AuthPin::new(SO_PIN.into()))).unwrap();
     session.init_pin(&AuthPin::new(USER_PIN.into())).unwrap();
     session.logout().unwrap();
-    session.login(UserType::User, Some(&AuthPin::new(USER_PIN.into()))).unwrap();
+    session
+        .login(UserType::User, Some(&AuthPin::new(USER_PIN.into())))
+        .unwrap();
     import_p12(&session, "firmante-rsa.p12", b"01", "firmante-rsa");
     import_p12(&session, "firmante-ec.p12", b"02", "firmante-ec");
     // Certificado de la CA sin clave.
@@ -180,8 +196,18 @@ fn entry_pkcs8(e: &crate::pkcs12::Pkcs12Entry) -> Vec<u8> {
 
 fn algs(key: KeyAlgorithm) -> Vec<SignatureAlgorithm> {
     let digests: &[DigestAlgorithm] = match key {
-        KeyAlgorithm::Rsa => &[DigestAlgorithm::Sha1, DigestAlgorithm::Sha256, DigestAlgorithm::Sha384, DigestAlgorithm::Sha512],
-        _ => &[DigestAlgorithm::Sha1, DigestAlgorithm::Sha256, DigestAlgorithm::Sha384, DigestAlgorithm::Sha512],
+        KeyAlgorithm::Rsa => &[
+            DigestAlgorithm::Sha1,
+            DigestAlgorithm::Sha256,
+            DigestAlgorithm::Sha384,
+            DigestAlgorithm::Sha512,
+        ],
+        _ => &[
+            DigestAlgorithm::Sha1,
+            DigestAlgorithm::Sha256,
+            DigestAlgorithm::Sha384,
+            DigestAlgorithm::Sha512,
+        ],
     };
     digests.iter().map(|d| SignatureAlgorithm::new(*d, key)).collect()
 }
@@ -195,7 +221,10 @@ fn softhsm_pin_at_open_sign_and_verify() {
     let Some(lib) = softhsm_lib() else { return };
     let _g = SOFTHSM.lock().unwrap_or_else(|e| e.into_inner());
     let _module = prepare_token(&lib);
-    let config = Pkcs11Config { token_filter: Some(afirma_only()), ..Pkcs11Config::new(KeyStoreKind::Pkcs11).with_name("Mi tarjeta") };
+    let config = Pkcs11Config {
+        token_filter: Some(afirma_only()),
+        ..Pkcs11Config::new(KeyStoreKind::Pkcs11).with_name("Mi tarjeta")
+    };
     let asked = Arc::new(Mutex::new(Vec::<PasswordRequest>::new()));
     let a2 = asked.clone();
     let cb = Arc::new(FnPasswordCallback(move |r: &PasswordRequest| {
@@ -215,12 +244,21 @@ fn softhsm_pin_at_open_sign_and_verify() {
     assert_eq!(store.lib_name().as_deref(), Some("libsofthsm2.so"));
     let entries = store.entries().unwrap();
     let names: Vec<&str> = entries.iter().map(|e| e.alias.as_str()).collect();
-    assert!(names.contains(&"firmante-rsa") && names.contains(&"firmante-ec") && names.contains(&"AC de pruebas"), "{names:?}");
+    assert!(
+        names.contains(&"firmante-rsa") && names.contains(&"firmante-ec") && names.contains(&"AC de pruebas"),
+        "{names:?}"
+    );
     let ca = entries.iter().find(|e| e.alias == "AC de pruebas").unwrap();
     assert!(!ca.capabilities.has_private_key);
     // Mismos alias que lista Java (SunPKCS11) con el mismo token.
-    let golden = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/keystores/pkcs11-softhsm-java-aliases.txt")).unwrap();
-    let mut java: Vec<&str> = golden.lines().filter(|l| !l.starts_with('#') && !l.is_empty()).collect();
+    let golden = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/keystores/pkcs11-softhsm-java-aliases.txt"),
+    )
+    .unwrap();
+    let mut java: Vec<&str> = golden
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+        .collect();
     java.sort();
     let mut ours = store.aliases().unwrap();
     ours.sort();
@@ -231,8 +269,11 @@ fn softhsm_pin_at_open_sign_and_verify() {
         assert_eq!(e.chain.len(), 2, "cadena construida con la CA del token");
         let k = store.signing_key(alias).unwrap();
         for alg in algs(key) {
-            let sig = k.sign(b"datos de prueba", alg).unwrap_or_else(|e| panic!("{alias} {alg}: {e}"));
-            crate::verify::verify_signature(k.certificate(), alg, b"datos de prueba", &sig).unwrap_or_else(|e| panic!("{alias} {alg}: {e}"));
+            let sig = k
+                .sign(b"datos de prueba", alg)
+                .unwrap_or_else(|e| panic!("{alias} {alg}: {e}"));
+            crate::verify::verify_signature(k.certificate(), alg, b"datos de prueba", &sig)
+                .unwrap_or_else(|e| panic!("{alias} {alg}: {e}"));
         }
         // Firma con la huella de un fichero grande (sin problema de tamaño).
         let big = vec![7u8; 1 << 20];
@@ -246,7 +287,12 @@ fn softhsm_pin_at_open_sign_and_verify() {
     // la firma abre otra sesión y, si el módulo cerró la sesión de usuario,
     // vuelve a pedir el PIN (SoftHSM la conserva).
     let slot_id = store.tokens()[0].slot_id;
-    store.shared.module.raw.close_all_sessions(slot_id as cryptoki_sys::CK_SLOT_ID).unwrap();
+    store
+        .shared
+        .module
+        .raw
+        .close_all_sessions(slot_id as cryptoki_sys::CK_SLOT_ID)
+        .unwrap();
     let k = store.signing_key("firmante-rsa").unwrap();
     let alg = SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa);
     let sig = k.sign(b"otra vez", alg).unwrap();
@@ -269,7 +315,10 @@ fn softhsm_raw_mechanisms_digest_info_path() {
     let module = prepare_token(&lib);
     let store = Pkcs11Store::open_module(
         module,
-        Pkcs11Config { token_filter: Some(afirma_only()), ..Pkcs11Config::new(KeyStoreKind::Pkcs11) },
+        Pkcs11Config {
+            token_filter: Some(afirma_only()),
+            ..Pkcs11Config::new(KeyStoreKind::Pkcs11)
+        },
         Arc::new(FixedPassword::new(USER_PIN)),
     )
     .unwrap();
@@ -286,7 +335,11 @@ fn softhsm_raw_mechanisms_digest_info_path() {
                 mechanisms: vec![MechanismType::RSA_PKCS, MechanismType::ECDSA],
                 session: Mutex::new(None),
             }),
-            cka_id: Some(if key == KeyAlgorithm::Rsa { b"01".to_vec() } else { b"02".to_vec() }),
+            cka_id: Some(if key == KeyAlgorithm::Rsa {
+                b"01".to_vec()
+            } else {
+                b"02".to_vec()
+            }),
             label: None,
             alias: alias.into(),
             curve: certificate_curve(k.certificate()),
@@ -307,7 +360,10 @@ fn softhsm_wrong_pin_retry_cancel_and_no_password() {
     let Some(lib) = softhsm_lib() else { return };
     let _g = SOFTHSM.lock().unwrap_or_else(|e| e.into_inner());
     let module = prepare_token(&lib);
-    let config = || Pkcs11Config { token_filter: Some(afirma_only()), ..Pkcs11Config::new(KeyStoreKind::Pkcs11) };
+    let config = || Pkcs11Config {
+        token_filter: Some(afirma_only()),
+        ..Pkcs11Config::new(KeyStoreKind::Pkcs11)
+    };
 
     // PIN fijo erróneo (CLI): error sin reintentar.
     let r = Pkcs11Store::open_module(module.clone(), config(), Arc::new(FixedPassword::new("0000")));
@@ -342,10 +398,28 @@ fn softhsm_wrong_pin_retry_cancel_and_no_password() {
     // autenticar.
     let store = Pkcs11Store::open_module(module.clone(), config(), Arc::new(NoPassword)).unwrap();
     let e = store.entries().unwrap();
-    assert!(e.iter().find(|e| e.alias == "firmante-rsa").unwrap().capabilities.has_private_key);
-    assert!(!e.iter().find(|e| e.alias == "AC de pruebas").unwrap().capabilities.has_private_key);
+    assert!(
+        e.iter()
+            .find(|e| e.alias == "firmante-rsa")
+            .unwrap()
+            .capabilities
+            .has_private_key
+    );
+    assert!(
+        !e.iter()
+            .find(|e| e.alias == "AC de pruebas")
+            .unwrap()
+            .capabilities
+            .has_private_key
+    );
     let k = store.signing_key("firmante-rsa").unwrap();
-    assert!(k.sign(b"x", SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa)).is_err());
+    assert!(
+        k.sign(
+            b"x",
+            SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Rsa)
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -369,7 +443,10 @@ fn softhsm_pin_at_sign_with_cache_like_dnie() {
             assert_eq!(r.prompt, "Por favor, introduzca el PIN del DNIe.");
             assert_eq!(r.title.as_deref(), Some("DNI Electrónico: Introducción de PIN"));
             assert!(r.allow_remember && r.smartcard);
-            PasswordResponse::Provided { secret: USER_PIN.into(), remember: true }
+            PasswordResponse::Provided {
+                secret: USER_PIN.into(),
+                remember: true,
+            }
         }
         fn confirm_signature(&self, r: &ConfirmRequest) -> bool {
             self.confirms.fetch_add(1, Ordering::SeqCst);
@@ -377,7 +454,15 @@ fn softhsm_pin_at_sign_with_cache_like_dnie() {
             true
         }
     }
-    let store = Pkcs11Store::open_module(module, config, Arc::new(Ui { pin_calls: pin_calls.clone(), confirms: confirms.clone() })).unwrap();
+    let store = Pkcs11Store::open_module(
+        module,
+        config,
+        Arc::new(Ui {
+            pin_calls: pin_calls.clone(),
+            confirms: confirms.clone(),
+        }),
+    )
+    .unwrap();
     assert!(store.is_preferred());
     assert_eq!(store.kind(), KeyStoreKind::DnieJava);
     // Sin PIN al abrir; las claves se suponen presentes.
@@ -398,6 +483,10 @@ fn softhsm_pin_at_sign_with_cache_like_dnie() {
     // Tras recargar, la caché se vacía.
     store.refresh().unwrap();
     let k = store.signing_key("firmante-ec").unwrap();
-    k.sign(b"hola", SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Ec)).unwrap();
+    k.sign(
+        b"hola",
+        SignatureAlgorithm::new(DigestAlgorithm::Sha256, KeyAlgorithm::Ec),
+    )
+    .unwrap();
     assert_eq!(pin_calls.load(Ordering::SeqCst), 2);
 }

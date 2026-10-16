@@ -8,8 +8,7 @@ use crate::dom::{Document, NodeId, NodeKind, XML_NS};
 use crate::xpath::{XNode, namespace_nodes};
 
 pub const C14N_10: &str = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
-pub const C14N_10_WITH_COMMENTS: &str =
-    "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments";
+pub const C14N_10_WITH_COMMENTS: &str = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments";
 pub const C14N_11: &str = "http://www.w3.org/2006/12/xml-c14n11";
 pub const C14N_11_WITH_COMMENTS: &str = "http://www.w3.org/2006/12/xml-c14n11#WithComments";
 pub const EXC_C14N: &str = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -221,12 +220,7 @@ impl C14n {
 }
 
 /// Atajo: canonicaliza con el algoritmo indicado por URI.
-pub fn canonicalize_uri(
-    uri: &str,
-    doc: &Document,
-    node: NodeId,
-    exclude: &[NodeId],
-) -> Option<Vec<u8>> {
+pub fn canonicalize_uri(uri: &str, doc: &Document, node: NodeId, exclude: &[NodeId]) -> Option<Vec<u8>> {
     C14n::from_uri(uri).map(|m| m.canonicalize(doc, node, exclude))
 }
 
@@ -366,16 +360,13 @@ impl Writer<'_> {
                 utilized.insert(e.prefix.clone().unwrap_or_default());
                 for (k, a) in e.attrs.iter().enumerate() {
                     if let Some(p) = &a.prefix
-                        && set.contains_attr(id, k as u32) {
-                            utilized.insert(p.clone());
-                        }
+                        && set.contains_attr(id, k as u32)
+                    {
+                        utilized.insert(p.clone());
+                    }
                 }
                 for p in &self.method.inclusive_prefixes {
-                    let p = if p == "#default" {
-                        String::new()
-                    } else {
-                        p.clone()
-                    };
+                    let p = if p == "#default" { String::new() } else { p.clone() };
                     if in_scope.contains_key(&p) && ns_in(&p) {
                         utilized.insert(p);
                     }
@@ -433,9 +424,7 @@ impl Writer<'_> {
                                 .attrs
                                 .iter()
                                 .any(|o| o.ns.as_deref() == Some(XML_NS) && o.local == a.local)
-                            && !attrs
-                                .iter()
-                                .any(|(ns, l, _, _)| ns == XML_NS && *l == a.local)
+                            && !attrs.iter().any(|(ns, l, _, _)| ns == XML_NS && *l == a.local)
                         {
                             attrs.push((
                                 XML_NS.to_string(),
@@ -531,8 +520,7 @@ mod tests {
 
     #[test]
     fn subtree_inherits_namespaces_and_xml_attrs() {
-        let src =
-            "<r xmlns=\"urn:d\" xmlns:a=\"urn:a\" xml:lang=\"es\"><a:x b=\"1\"><y/></a:x></r>";
+        let src = "<r xmlns=\"urn:d\" xmlns:a=\"urn:a\" xml:lang=\"es\"><a:x b=\"1\"><y/></a:x></r>";
         let doc = Document::parse(src).unwrap();
         let x = doc.descendants(doc.root())[2];
         let inc = C14n::new(Kind::Inclusive10, false).canonicalize(&doc, x, &[]);
@@ -556,13 +544,10 @@ mod tests {
 
     #[test]
     fn exclusion_of_enveloped_signature() {
-        let src = "<doc><a>1</a><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"><x/></ds:Signature></doc>";
+        let src =
+            "<doc><a>1</a><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"><x/></ds:Signature></doc>";
         let doc = Document::parse(src).unwrap();
-        let sig = doc.find_descendants(
-            doc.root(),
-            "http://www.w3.org/2000/09/xmldsig#",
-            "Signature",
-        )[0];
+        let sig = doc.find_descendants(doc.root(), "http://www.w3.org/2000/09/xmldsig#", "Signature")[0];
         let out = C14n::new(Kind::Inclusive10, false).canonicalize(&doc, doc.root(), &[sig]);
         assert_eq!(String::from_utf8(out).unwrap(), "<doc><a>1</a></doc>");
     }

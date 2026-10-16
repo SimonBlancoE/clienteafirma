@@ -36,15 +36,12 @@ const NS141: &str = "http://uri.etsi.org/01903/v1.4.1#";
 /// `getXMLElement`: primer descendiente con el espacio de nombres y nombre
 /// dados o, si no hay, el primero cuyo nombre cualificado sea `name`.
 fn xml_element(doc: &Document, parent: NodeId, ns: &str, name: &str) -> Option<NodeId> {
-    doc.find_descendants(parent, ns, name)
-        .into_iter()
-        .next()
-        .or_else(|| {
-            doc.descendants(parent)
-                .into_iter()
-                .skip(1)
-                .find(|&n| doc.element(n).is_some_and(|e| e.qname() == name))
-        })
+    doc.find_descendants(parent, ns, name).into_iter().next().or_else(|| {
+        doc.descendants(parent)
+            .into_iter()
+            .skip(1)
+            .find(|&n| doc.element(n).is_some_and(|e| e.qname() == name))
+    })
 }
 
 fn has_desc(doc: &Document, parent: NodeId, ns: &str, name: &str) -> bool {
@@ -75,11 +72,7 @@ fn is_b_level_with(doc: &Document, sig: NodeId, cert_tag: &str) -> bool {
     if has_desc(doc, sig, NS132, "QualifyingPropertiesReference") {
         return false;
     }
-    let Some(sp) = doc
-        .find_descendants(sig, NS132, "SignedProperties")
-        .into_iter()
-        .next()
-    else {
+    let Some(sp) = doc.find_descendants(sig, NS132, "SignedProperties").into_iter().next() else {
         return false;
     };
     let mut has_cert = false;
@@ -101,10 +94,11 @@ fn is_b_level_with(doc: &Document, sig: NodeId, cert_tag: &str) -> bool {
         .find_descendants(sp, NS132, "SignedDataObjectProperties")
         .into_iter()
         .next()
-        && let Some(dof) = xml_element(doc, sdop, NS132, "DataObjectFormat") {
-            has_dof = true;
-            has_mime = has_desc(doc, dof, NS132, "MimeType");
-        }
+        && let Some(dof) = xml_element(doc, sdop, NS132, "DataObjectFormat")
+    {
+        has_dof = true;
+        has_mime = has_desc(doc, dof, NS132, "MimeType");
+    }
     has_time && has_cert && has_dof && has_mime
 }
 
@@ -113,8 +107,7 @@ fn is_t(doc: &Document, sig: NodeId) -> bool {
 }
 
 fn is_c(doc: &Document, sig: NodeId) -> bool {
-    usp_has(doc, sig, NS132, "CompleteCertificateRefs")
-        && usp_has(doc, sig, NS132, "CompleteRevocationRefs")
+    usp_has(doc, sig, NS132, "CompleteCertificateRefs") && usp_has(doc, sig, NS132, "CompleteRevocationRefs")
 }
 
 fn is_x1(doc: &Document, sig: NodeId) -> bool {
@@ -126,23 +119,17 @@ fn is_x2(doc: &Document, sig: NodeId) -> bool {
 }
 
 fn is_xl1(doc: &Document, sig: NodeId) -> bool {
-    is_x1(doc, sig)
-        && usp_has(doc, sig, NS132, "CertificateValues")
-        && usp_has(doc, sig, NS132, "RevocationValues")
+    is_x1(doc, sig) && usp_has(doc, sig, NS132, "CertificateValues") && usp_has(doc, sig, NS132, "RevocationValues")
 }
 
 fn is_xl2(doc: &Document, sig: NodeId) -> bool {
-    is_x2(doc, sig)
-        && usp_has(doc, sig, NS132, "CertificateValues")
-        && usp_has(doc, sig, NS132, "RevocationValues")
+    is_x2(doc, sig) && usp_has(doc, sig, NS132, "CertificateValues") && usp_has(doc, sig, NS132, "RevocationValues")
 }
 
 fn is_a(doc: &Document, sig: NodeId) -> bool {
     usp(doc, sig).is_some_and(|u| {
-        doc.child_elements(u).any(|c| {
-            doc.element(c)
-                .is_some_and(|e| e.local == "ArchiveTimeStamp")
-        })
+        doc.child_elements(u)
+            .any(|c| doc.element(c).is_some_and(|e| e.local == "ArchiveTimeStamp"))
     })
 }
 
@@ -287,10 +274,7 @@ pub fn signature_format(data: &[u8]) -> &'static str {
 pub fn is_xades_baseline(format: &str) -> bool {
     matches!(
         format,
-        level::XADES_B_LEVEL
-            | level::XADES_T_LEVEL
-            | level::XADES_LT_LEVEL
-            | level::XADES_LTA_LEVEL
+        level::XADES_B_LEVEL | level::XADES_T_LEVEL | level::XADES_LT_LEVEL | level::XADES_LTA_LEVEL
     )
 }
 
@@ -298,11 +282,7 @@ pub fn is_xades_baseline(format: &str) -> bool {
 fn profile_checked(f: &str) -> bool {
     matches!(
         f,
-        level::XADES_B_LEVEL
-            | level::UNRECOGNIZED
-            | level::XADES_B_B_LEVEL
-            | level::XADES_BES
-            | level::XADES_EPES
+        level::XADES_B_LEVEL | level::UNRECOGNIZED | level::XADES_B_B_LEVEL | level::XADES_BES | level::XADES_EPES
     )
 }
 
@@ -314,12 +294,14 @@ pub fn check_long_standing(mut list: Vec<SignValidity>) -> Vec<SignValidity> {
     let other_ko = list
         .iter()
         .any(|v| v.validity == Validity::Ko && v.error != Some(ValidityError::CertificateExpired));
-    if expired && !other_ko
-        && let Some(pos) = list.iter().rposition(|v| {
-            v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked)
-        }) {
-            list.swap(0, pos);
-        }
+    if expired
+        && !other_ko
+        && let Some(pos) = list
+            .iter()
+            .rposition(|v| v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked))
+    {
+        list.swap(0, pos);
+    }
     list
 }
 
@@ -330,28 +312,24 @@ enum Abort {
 
 fn classify(e: DsigError) -> Abort {
     match e {
-        DsigError::Dereference(_) | DsigError::Processing(_) | DsigError::KeyNotFound => {
-            Abort::BadBuild(e.to_string())
-        }
+        DsigError::Dereference(_) | DsigError::Processing(_) | DsigError::KeyNotFound => Abort::BadBuild(e.to_string()),
         DsigError::Malformed(_) | DsigError::Unsupported(_) => Abort::Unknown(e.to_string()),
     }
 }
 
 fn push_abort(result: &mut Vec<SignValidity>, e: DsigError) {
     match classify(e) {
-        Abort::BadBuild(m) => {
-            result.push(SignValidity::ko(ValidityError::BadBuildSign).with_detail(m))
-        }
-        Abort::Unknown(m) => {
-            result.push(SignValidity::unknown(ValidityError::UnknownError).with_detail(m))
-        }
+        Abort::BadBuild(m) => result.push(SignValidity::ko(ValidityError::BadBuildSign).with_detail(m)),
+        Abort::Unknown(m) => result.push(SignValidity::unknown(ValidityError::UnknownError).with_detail(m)),
     }
 }
 
 /// Certificado del firmante (primer `X509Certificate` de `KeyInfo`) de
 /// cada `ds:Signature` del documento, en orden.
 pub fn signature_certificates(sign: &[u8]) -> Vec<Vec<u8>> {
-    let Some(x) = crate::xades::sign::load_xml(sign) else { return Vec::new() };
+    let Some(x) = crate::xades::sign::load_xml(sign) else {
+        return Vec::new();
+    };
     let doc = x.doc;
     doc.find_descendants(doc.root(), DSIG_NS, "Signature")
         .into_iter()
@@ -374,11 +352,7 @@ fn keyinfo_certificates(doc: &Document, sig: NodeId) -> Option<Vec<Vec<u8>>> {
 }
 
 /// Resultado de validar un documento XML firmado (`ValidateXMLSignature.validate`).
-pub fn validate(
-    sign: &[u8],
-    check_certificates: bool,
-    resolver: &dyn Resolver,
-) -> Vec<SignValidity> {
+pub fn validate(sign: &[u8], check_certificates: bool, resolver: &dyn Resolver) -> Vec<SignValidity> {
     let doc = match crate::xades::sign::load_xml(sign) {
         Some(x) => x.doc,
         None => return vec![SignValidity::ko(ValidityError::NoSign)],
@@ -415,12 +389,7 @@ pub fn validate(
             resolver,
         };
         let refs = dsig::ds_children(&doc, si, "Reference");
-        let uri_of = |r: NodeId| {
-            doc.element(r)
-                .and_then(|e| e.attr("URI"))
-                .unwrap_or("")
-                .to_string()
-        };
+        let uri_of = |r: NodeId| doc.element(r).and_then(|e| e.attr("URI")).unwrap_or("").to_string();
         let mut failing: Vec<String> = Vec::new();
         if sv_ok {
             for &r in &refs {
@@ -439,8 +408,7 @@ pub fn validate(
             }
             for uri in failing {
                 result.push(
-                    SignValidity::ko(ValidityError::NoMatchData)
-                        .with_detail(format!("Referencia no valida: {uri}")),
+                    SignValidity::ko(ValidityError::NoMatchData).with_detail(format!("Referencia no valida: {uri}")),
                 );
             }
         } else {
@@ -465,10 +433,7 @@ pub fn validate(
         }
         if check_certificates {
             let Some(certs) = keyinfo_certificates(&doc, sig) else {
-                result.push(
-                    SignValidity::unknown(ValidityError::UnknownError)
-                        .with_detail("Objeto KeyInfo nulo"),
-                );
+                result.push(SignValidity::unknown(ValidityError::UnknownError).with_detail("Objeto KeyInfo nulo"));
                 break;
             };
             for der in certs {
@@ -505,9 +470,7 @@ pub fn validate_signature(
     resolver: &dyn Resolver,
 ) -> Vec<SignValidity> {
     if externally_detached {
-        return vec![SignValidity::unknown(
-            ValidityError::CantValidateExternallyDetached,
-        )];
+        return vec![SignValidity::unknown(ValidityError::CantValidateExternallyDetached)];
     }
     let mut out = Vec::new();
     match dsig::validate_core(doc, sig, resolver, None) {
@@ -517,12 +480,8 @@ pub fn validate_signature(
             }
         }
         Err(e) => match classify(e) {
-            Abort::BadBuild(m) => {
-                out.push(SignValidity::ko(ValidityError::BadBuildSign).with_detail(m))
-            }
-            Abort::Unknown(m) => {
-                out.push(SignValidity::unknown(ValidityError::UnknownError).with_detail(m))
-            }
+            Abort::BadBuild(m) => out.push(SignValidity::ko(ValidityError::BadBuildSign).with_detail(m)),
+            Abort::Unknown(m) => out.push(SignValidity::unknown(ValidityError::UnknownError).with_detail(m)),
         },
     }
     if !profile_checked(profile) {

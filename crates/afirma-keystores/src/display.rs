@@ -221,7 +221,11 @@ pub enum CertificateView {
 }
 
 impl CertificateView {
-    pub const ALL: [CertificateView; 3] = [CertificateView::Personal, CertificateView::Representative, CertificateView::Pseudonym];
+    pub const ALL: [CertificateView; 3] = [
+        CertificateView::Personal,
+        CertificateView::Representative,
+        CertificateView::Pseudonym,
+    ];
 
     /// Valor persistido (`PERSONAL`, `REPRESENTATIVE`, `PSEUDONYM`).
     pub fn pref_value(self) -> &'static str {
@@ -309,7 +313,11 @@ pub fn row_text(cert_der: &[u8], friendly_name: &str, view: CertificateView, os:
     let (nb, na) = info.as_ref().map(|i| (i.not_before, i.not_after)).unwrap_or((now, now));
     let validity = validity_state(nb, na, now);
     let family = issuer_family(cert_der);
-    let state_text = if is_expired(nb, na, now) { STATE_INVALID } else { STATE_VALID };
+    let state_text = if is_expired(nb, na, now) {
+        STATE_INVALID
+    } else {
+        STATE_VALID
+    };
     let dates = format!("Válido desde: {} hasta {}", format_date(nb), format_date(na));
     let ku = key_usage_text_from(info.as_ref().and_then(|i| i.key_usage.as_ref()));
     let subject_cn = dn::certificate_cn(cert_der).unwrap_or_default();
@@ -317,7 +325,9 @@ pub fn row_text(cert_der: &[u8], friendly_name: &str, view: CertificateView, os:
     let link_other = if os == Os::MacOs { None } else { Some(PROPERTIES_LINK) };
     match view {
         CertificateView::Personal => {
-            let issuer_cn = dn::rfc2253_issuer_string(cert_der).map(|s| get_cn(&s)).unwrap_or_default();
+            let issuer_cn = dn::rfc2253_issuer_string(cert_der)
+                .map(|s| get_cn(&s))
+                .unwrap_or_default();
             RowText {
                 line1: friendly_name.to_string(),
                 line2: format!("Emisor: {issuer_cn}. Uso: {ku}."),
@@ -348,7 +358,8 @@ pub fn row_text(cert_der: &[u8], friendly_name: &str, view: CertificateView, os:
                 (Some(t), None) => t.clone(),
                 _ => friendly_name.to_string(),
             };
-            let organization = principal_structure_value(&subject_rfc, "OU").or_else(|| principal_structure_value(&subject_rfc, "O"));
+            let organization =
+                principal_structure_value(&subject_rfc, "OU").or_else(|| principal_structure_value(&subject_rfc, "O"));
             let (line2, tooltip) = match &organization {
                 Some(org) => (
                     format!("Organismo: {org}. Uso: {ku}."),
@@ -359,10 +370,21 @@ pub fn row_text(cert_der: &[u8], friendly_name: &str, view: CertificateView, os:
                 ),
                 None => {
                     let issuer_cn = dn::java_issuer_string(cert_der).map(|s| get_cn(&s)).unwrap_or_default();
-                    (format!("Emisor: {issuer_cn}. Uso: {ku}."), format!("Certificado emitido para {subject_cn}. Estado: {state_text}."))
+                    (
+                        format!("Emisor: {issuer_cn}. Uso: {ku}."),
+                        format!("Certificado emitido para {subject_cn}. Estado: {state_text}."),
+                    )
                 }
             };
-            RowText { line1, line2, dates, link: link_other, tooltip, validity, family }
+            RowText {
+                line1,
+                line2,
+                dates,
+                link: link_other,
+                tooltip,
+                validity,
+                family,
+            }
         }
     }
 }
@@ -391,26 +413,55 @@ mod tests {
     fn usage_texts() {
         assert_eq!(key_usage_text(&cert("pki/firmante-rsa.crt")), "Firma y autenticación");
         assert_eq!(key_usage_text(&cert("pki/autenticacion.crt")), "Autenticación");
-        assert_eq!(key_usage_text(&cert("keystores/filters/sin-keyusage.der")), "Desconocido");
-        assert_eq!(key_usage_text(&cert("keystores/filters/ku-todos.der")), "Firma, autenticación y cifrado");
+        assert_eq!(
+            key_usage_text(&cert("keystores/filters/sin-keyusage.der")),
+            "Desconocido"
+        );
+        assert_eq!(
+            key_usage_text(&cert("keystores/filters/ku-todos.der")),
+            "Firma, autenticación y cifrado"
+        );
         assert_eq!(key_usage_text(&cert("keystores/filters/ku-cifrado.der")), "Cifrado");
         assert_eq!(key_usage_text(&cert("keystores/filters/ku-agreement.der")), "Otros");
         assert_eq!(key_usage_text(&cert("keystores/filters/dnie-firma.der")), "Firma");
-        let only_sign_cyph = afirma_core::cert::KeyUsageFlags { non_repudiation: true, data_encipherment: true, ..Default::default() };
+        let only_sign_cyph = afirma_core::cert::KeyUsageFlags {
+            non_repudiation: true,
+            data_encipherment: true,
+            ..Default::default()
+        };
         assert_eq!(key_usage_text_from(Some(&only_sign_cyph)), "Firma");
-        let auth_cyph = afirma_core::cert::KeyUsageFlags { digital_signature: true, data_encipherment: true, ..Default::default() };
+        let auth_cyph = afirma_core::cert::KeyUsageFlags {
+            digital_signature: true,
+            data_encipherment: true,
+            ..Default::default()
+        };
         assert_eq!(key_usage_text_from(Some(&auth_cyph)), "Autenticación y cifrado");
     }
 
     #[test]
     fn families_and_icons() {
-        assert_eq!(issuer_family(&cert("keystores/filters/dnie-firma.der")), IssuerFamily::Dnie);
+        assert_eq!(
+            issuer_family(&cert("keystores/filters/dnie-firma.der")),
+            IssuerFamily::Dnie
+        );
         assert_eq!(issuer_family(&cert("keystores/filters/cnp.der")), IssuerFamily::Cnp);
-        assert_eq!(issuer_family(&cert("keystores/filters/pseudonimo.der")), IssuerFamily::Fnmt);
-        assert_eq!(issuer_family(&cert("keystores/filters/accv-firma.der")), IssuerFamily::Accv);
+        assert_eq!(
+            issuer_family(&cert("keystores/filters/pseudonimo.der")),
+            IssuerFamily::Fnmt
+        );
+        assert_eq!(
+            issuer_family(&cert("keystores/filters/accv-firma.der")),
+            IssuerFamily::Accv
+        );
         assert_eq!(issuer_family(&cert("pki/firmante-rsa.crt")), IssuerFamily::Other);
-        assert_eq!(icon_resource(IssuerFamily::Dnie, ValidityState::ExpiringSoon), "dnieicon_w.png");
-        assert_eq!(icon_description(IssuerFamily::Dnie, ValidityState::Invalid), "Certificado de DNIe caducado o aun no válido");
+        assert_eq!(
+            icon_resource(IssuerFamily::Dnie, ValidityState::ExpiringSoon),
+            "dnieicon_w.png"
+        );
+        assert_eq!(
+            icon_description(IssuerFamily::Dnie, ValidityState::Invalid),
+            "Certificado de DNIe caducado o aun no válido"
+        );
     }
 
     #[test]
@@ -419,25 +470,49 @@ mod tests {
         let na = Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap();
         // Exactamente 7 días: ya no es aviso.
         assert_eq!(validity_state(nb, na, now()), ValidityState::Valid);
-        assert_eq!(validity_state(nb, na, now() + chrono::Duration::seconds(1)), ValidityState::ExpiringSoon);
+        assert_eq!(
+            validity_state(nb, na, now() + chrono::Duration::seconds(1)),
+            ValidityState::ExpiringSoon
+        );
         assert_eq!(validity_state(nb, na, na), ValidityState::Invalid);
         assert_eq!(validity_state(nb, na, nb), ValidityState::Invalid);
-        assert_eq!(validity_state(now() + chrono::Duration::days(1), na, now()), ValidityState::Invalid);
+        assert_eq!(
+            validity_state(now() + chrono::Duration::days(1), na, now()),
+            ValidityState::Invalid
+        );
     }
 
     #[test]
     fn personal_view() {
         let der = cert("keystores/filters/dnie-firma.der");
-        let r = row_text(&der, "ESPAÑOL ESPAÑOL, JUAN (FIRMA)", CertificateView::Personal, Os::Linux, now());
+        let r = row_text(
+            &der,
+            "ESPAÑOL ESPAÑOL, JUAN (FIRMA)",
+            CertificateView::Personal,
+            Os::Linux,
+            now(),
+        );
         assert_eq!(r.line1, "ESPAÑOL ESPAÑOL, JUAN (FIRMA)");
         assert_eq!(r.line2, "Emisor: AC DNIE 004. Uso: Firma.");
         assert!(r.dates.starts_with("Válido desde: 01/01/2020 hasta "), "{}", r.dates);
         assert_eq!(r.link, Some(PROPERTIES_LINK));
-        assert_eq!(r.tooltip, "Certificado emitido para ESPAÑOL ESPAÑOL, JUAN (FIRMA). Estado: vigente.");
+        assert_eq!(
+            r.tooltip,
+            "Certificado emitido para ESPAÑOL ESPAÑOL, JUAN (FIRMA). Estado: vigente."
+        );
         assert_eq!(r.validity, ValidityState::Valid);
         let exp = cert("pki/caducado.crt");
-        let r = row_text(&exp, "CERTIFICADO CADUCADO", CertificateView::Personal, Os::Linux, now());
-        assert_eq!(r.tooltip, "Certificado emitido para CERTIFICADO CADUCADO. Estado: caducado o aún no válido.");
+        let r = row_text(
+            &exp,
+            "CERTIFICADO CADUCADO",
+            CertificateView::Personal,
+            Os::Linux,
+            now(),
+        );
+        assert_eq!(
+            r.tooltip,
+            "Certificado emitido para CERTIFICADO CADUCADO. Estado: caducado o aún no válido."
+        );
         assert_eq!(r.validity, ValidityState::Invalid);
     }
 
@@ -448,11 +523,20 @@ mod tests {
         // El valor RFC 2253 tiene la coma escapada y Java corta en ella.
         assert_eq!(r.line1, "EMPRESA DE PRUEBAS\\");
         assert_eq!(r.line2, "Representante: 44444444A JUAN PRUEBA (R: B12345678)");
-        assert_eq!(r.tooltip, "Certificado de EMPRESA DE PRUEBAS\\ emitido para 44444444A JUAN PRUEBA (R: B12345678). Estado: vigente.");
+        assert_eq!(
+            r.tooltip,
+            "Certificado de EMPRESA DE PRUEBAS\\ emitido para 44444444A JUAN PRUEBA (R: B12345678). Estado: vigente."
+        );
         assert_eq!(r.link, Some(PROPERTIES_LINK));
         let r = row_text(&der, "fn", CertificateView::Representative, Os::MacOs, now());
         assert_eq!(r.link, None);
-        let r = row_text(&cert("pki/firmante-rsa.crt"), "NOMBRE", CertificateView::Representative, Os::Linux, now());
+        let r = row_text(
+            &cert("pki/firmante-rsa.crt"),
+            "NOMBRE",
+            CertificateView::Representative,
+            Os::Linux,
+            now(),
+        );
         assert_eq!(r.line1, "NOMBRE");
     }
 
@@ -462,22 +546,52 @@ mod tests {
         let r = row_text(&der, "fn", CertificateView::Pseudonym, Os::Linux, now());
         assert_eq!(r.line1, "JEFE DE SERVICIO (PSEUDO-0001)");
         assert_eq!(r.line2, "Organismo: UNIDAD DE PRUEBAS. Uso: Firma y autenticación.");
-        assert_eq!(r.tooltip, "Certificado de JEFE DE SERVICIO perteneciente a UNIDAD DE PRUEBAS. Estado: vigente.");
-        let r = row_text(&cert("keystores/filters/cnp.der"), "AGENTE CNP", CertificateView::Pseudonym, Os::Linux, now());
+        assert_eq!(
+            r.tooltip,
+            "Certificado de JEFE DE SERVICIO perteneciente a UNIDAD DE PRUEBAS. Estado: vigente."
+        );
+        let r = row_text(
+            &cert("keystores/filters/cnp.der"),
+            "AGENTE CNP",
+            CertificateView::Pseudonym,
+            Os::Linux,
+            now(),
+        );
         assert_eq!(r.line1, "AGENTE CNP");
         assert_eq!(r.line2, "Emisor: AC CNP 001. Uso: Firma.");
         assert_eq!(r.tooltip, "Certificado emitido para AGENTE CNP. Estado: vigente.");
-        let r = row_text(&cert("keystores/filters/solo-o.der"), "X", CertificateView::Pseudonym, Os::Linux, now());
+        let r = row_text(
+            &cert("keystores/filters/solo-o.der"),
+            "X",
+            CertificateView::Pseudonym,
+            Os::Linux,
+            now(),
+        );
         assert_eq!(r.line2, "Organismo: ORGANIZACION SIN CN. Uso: Firma.");
-        assert_eq!(r.tooltip, "Certificado de ORGANIZACION SIN CN perteneciente a ORGANIZACION SIN CN. Estado: vigente.");
+        assert_eq!(
+            r.tooltip,
+            "Certificado de ORGANIZACION SIN CN perteneciente a ORGANIZACION SIN CN. Estado: vigente."
+        );
     }
 
     #[test]
     fn misc_texts() {
-        assert_eq!(dialog_title("Windows", None), "Diálogo de seguridad del almacén Windows");
-        assert_eq!(dialog_title("PKCS#11", Some("opensc-pkcs11.so")), "Diálogo de seguridad del almacén PKCS#11 : opensc-pkcs11.so");
-        assert_eq!(help_url("es", "ES"), "https://github.com/ctt-gob-es/clienteafirma/wiki/Help-desktop-select-certs-es-ES");
-        assert_eq!(CertificateView::from_pref(Some("PSEUDONYM")), CertificateView::Pseudonym);
+        assert_eq!(
+            dialog_title("Windows", None),
+            "Diálogo de seguridad del almacén Windows"
+        );
+        assert_eq!(
+            dialog_title("PKCS#11", Some("opensc-pkcs11.so")),
+            "Diálogo de seguridad del almacén PKCS#11 : opensc-pkcs11.so"
+        );
+        assert_eq!(
+            help_url("es", "ES"),
+            "https://github.com/ctt-gob-es/clienteafirma/wiki/Help-desktop-select-certs-es-ES"
+        );
+        assert_eq!(
+            CertificateView::from_pref(Some("PSEUDONYM")),
+            CertificateView::Pseudonym
+        );
         assert_eq!(CertificateView::from_pref(Some("x")), CertificateView::Personal);
         assert_eq!(CertificateView::Representative.pref_value(), "REPRESENTATIVE");
     }

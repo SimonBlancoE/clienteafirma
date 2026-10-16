@@ -23,7 +23,11 @@ fn exercise(data: &[u8]) {
 #[test]
 fn truncated_and_corrupted_inputs() {
     let k = key("firmante-rsa");
-    for file in ["cades/cades_counter_tree.java.csig", "cades/fixtures/java_cmstimestamper_ber.csig", "cades/asics_sign.java.asics"] {
+    for file in [
+        "cades/cades_counter_tree.java.csig",
+        "cades/fixtures/java_cmstimestamper_ber.csig",
+        "cades/asics_sign.java.asics",
+    ] {
         let sig = read(file);
         let step = (sig.len() / 97).max(1);
         for len in (0..sig.len()).step_by(step) {
@@ -35,7 +39,13 @@ fn truncated_and_corrupted_inputs() {
             exercise(&bad);
             // Las multifirmas sobre datos corruptos deben fallar limpiamente o funcionar.
             let _ = CadesSigner.cosign(None, &bad, "SHA256withRSA", &k, &ExtraParams::new());
-            let _ = CmsSigner.countersign(&bad, "SHA256withRSA", &CounterSignTarget::Leafs, &k, &ExtraParams::new());
+            let _ = CmsSigner.countersign(
+                &bad,
+                "SHA256withRSA",
+                &CounterSignTarget::Leafs,
+                &k,
+                &ExtraParams::new(),
+            );
         }
     }
     // Anidamiento profundo e indefinido.

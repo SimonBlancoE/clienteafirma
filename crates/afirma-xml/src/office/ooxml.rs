@@ -25,11 +25,9 @@ const RELS_NS: &str = "http://schemas.openxmlformats.org/package/2006/relationsh
 const CT_NS: &str = "http://schemas.openxmlformats.org/package/2006/content-types";
 const MS_DIGSIG_NS: &str = "http://schemas.microsoft.com/office/2006/digsig";
 const RELS_CONTENT_TYPE: &str = "application/vnd.openxmlformats-package.relationships+xml";
-const SIGNATURE_CONTENT_TYPE: &str =
-    "application/vnd.openxmlformats-package.digital-signature-xmlsignature+xml";
+const SIGNATURE_CONTENT_TYPE: &str = "application/vnd.openxmlformats-package.digital-signature-xmlsignature+xml";
 const ORIGIN_CONTENT_TYPE: &str = "application/vnd.openxmlformats-package.digital-signature-origin";
-const ORIGIN_REL_TYPE: &str =
-    "http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/origin";
+const ORIGIN_REL_TYPE: &str = "http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/origin";
 const SIGNATURE_REL_TYPE: &str =
     "http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/signature";
 
@@ -111,12 +109,7 @@ fn parse_relationships(data: &[u8]) -> Option<Vec<Relationship>> {
     let (doc, _) = Document::parse_bytes(data).ok()?;
     let root = doc.document_element()?;
     let re = doc.element(root)?;
-    if re.qname() != "Relationships"
-        || !re
-            .ns_decls
-            .iter()
-            .any(|d| d.prefix.is_none() && d.uri == RELS_NS)
-    {
+    if re.qname() != "Relationships" || !re.ns_decls.iter().any(|d| d.prefix.is_none() && d.uri == RELS_NS) {
         return None;
     }
     let mut out = Vec::new();
@@ -286,9 +279,7 @@ pub fn package_resolver(entries: &[ZipEntry]) -> impl Fn(&str) -> Option<Externa
 
 /// `yyyy-MM-dd'T'hh:mm:ss'Z'` en hora local de 12 horas (como Java).
 fn signature_time_value() -> String {
-    chrono::Local::now()
-        .format("%Y-%m-%dT%I:%M:%SZ")
-        .to_string()
+    chrono::Local::now().format("%Y-%m-%dT%I:%M:%SZ").to_string()
 }
 
 /// Nombre de la parte destino de una relación interna (`Target` relativo a
@@ -297,10 +288,7 @@ fn relationship_target(rels_name: &str, target: &str) -> String {
     let mut parts: Vec<&str> = Vec::new();
     if !target.starts_with('/') {
         // `ppt/_rels/presentation.xml.rels` -> origen `ppt/presentation.xml`.
-        let dir = rels_name
-            .rsplit_once("_rels/")
-            .map(|(d, _)| d)
-            .unwrap_or("");
+        let dir = rels_name.rsplit_once("_rels/").map(|(d, _)| d).unwrap_or("");
         parts.extend(dir.split('/').filter(|p| !p.is_empty()));
     }
     for seg in target.split('/') {
@@ -335,23 +323,14 @@ fn manifest_references(entries: &[ZipEntry]) -> afirma_core::Result<Vec<Referenc
         for el in doc.child_elements(root).filter_map(|c| doc.element(c)) {
             if EXCLUDED_RELATIONSHIPS.contains(&el.attr("Type").unwrap_or("")) {
                 if el.attr("TargetMode") != Some("External") {
-                    excluded_parts.push(relationship_target(
-                        &e.name,
-                        el.attr("Target").unwrap_or(""),
-                    ));
+                    excluded_parts.push(relationship_target(&e.name, el.attr("Target").unwrap_or("")));
                 }
             } else {
                 ids.push(el.attr("Id").unwrap_or("").to_string());
             }
         }
-        let mut r = ReferenceSpec::new(
-            format!("/{}?ContentType={RELS_CONTENT_TYPE}", e.name),
-            SHA256,
-        );
-        r.transforms = vec![
-            TransformSpec::Relationships(ids),
-            TransformSpec::Plain(C14N_10.into()),
-        ];
+        let mut r = ReferenceSpec::new(format!("/{}?ContentType={RELS_CONTENT_TYPE}", e.name), SHA256);
+        r.transforms = vec![TransformSpec::Relationships(ids), TransformSpec::Plain(C14N_10.into())];
         refs.push(r);
     }
     let ct_entry = entries
@@ -363,12 +342,8 @@ fn manifest_references(entries: &[ZipEntry]) -> afirma_core::Result<Vec<Referenc
                 "El documento OOXML es invalido ya que no contiene el fichero [Content_Types].xml",
             )
         })?;
-    let ct = ContentTypes::parse(&ct_entry.data).ok_or_else(|| {
-        AfirmaError::new(
-            codes::UNKWNON_OOXML_SIGNING_ERROR,
-            "[Content_Types].xml no valido",
-        )
-    })?;
+    let ct = ContentTypes::parse(&ct_entry.data)
+        .ok_or_else(|| AfirmaError::new(codes::UNKWNON_OOXML_SIGNING_ERROR, "[Content_Types].xml no valido"))?;
     for e in entries {
         if !CONTENT_DIRS.iter().any(|d| e.name.starts_with(d)) || excluded_parts.contains(&e.name) {
             continue;
@@ -384,14 +359,9 @@ fn manifest_references(entries: &[ZipEntry]) -> afirma_core::Result<Vec<Referenc
 }
 
 fn office_object(sig_prefix: &str, p: &ExtraParams, screen: &ScreenInfo, with_cti: bool) -> String {
-    let mut v1 = format!(
-        "<SignatureInfoV1 xmlns=\"{MS_DIGSIG_NS}\"><SetupID/><SignatureText/><SignatureImage/>"
-    );
+    let mut v1 = format!("<SignatureInfoV1 xmlns=\"{MS_DIGSIG_NS}\"><SetupID/><SignatureText/><SignatureImage/>");
     if let Some(c) = p.get("signatureComments") {
-        v1.push_str(&format!(
-            "<SignatureComments>{}</SignatureComments>",
-            esc_text(c)
-        ));
+        v1.push_str(&format!("<SignatureComments>{}</SignatureComments>", esc_text(c)));
     }
     if cfg!(windows) {
         v1.push_str("<WindowsVersion>10.0</WindowsVersion>");
@@ -430,15 +400,12 @@ fn signed_xml(
     } else {
         algorithm
     };
-    let (sig_uri, sig_alg) = crate::xades::resolve_algorithm(algorithm, key.key_algorithm())
-        .map_err(|_| {
-            AfirmaError::new(
-                codes::UNKWNON_OOXML_SIGNING_ERROR,
-                format!(
-                    "Los formatos de firma XML no soportan el algoritmo de firma '{algorithm}'"
-                ),
-            )
-        })?;
+    let (sig_uri, sig_alg) = crate::xades::resolve_algorithm(algorithm, key.key_algorithm()).map_err(|_| {
+        AfirmaError::new(
+            codes::UNKWNON_OOXML_SIGNING_ERROR,
+            format!("Los formatos de firma XML no soportan el algoritmo de firma '{algorithm}'"),
+        )
+    })?;
     let ds = DsNames::new("ds");
     let sig_prefix = format!("xmldsig-{}", uuid_v4());
     let mut ph = Placeholders::new();
@@ -502,9 +469,7 @@ fn signed_xml(
         "<ds:Signature xmlns:ds=\"{}\" Id=\"{sig_prefix}-Signature\">",
         dsig::DSIG_NS
     );
-    sig.push_str(&dsig::render_signed_info(
-        &ds, C14N_10, &sig_uri, &refs, &mut ph,
-    ));
+    sig.push_str(&dsig::render_signed_info(&ds, C14N_10, &sig_uri, &refs, &mut ph));
     sig.push_str(&format!(
         "<ds:SignatureValue Id=\"{sig_prefix}-SignatureValue\">{}</ds:SignatureValue>",
         ph.signature_value()
@@ -532,8 +497,8 @@ fn signed_xml(
 
 /// Añade un elemento como último hijo de la raíz de un XML.
 fn append_to_root(xml: &[u8], ns: &str, element: &str) -> afirma_core::Result<Vec<u8>> {
-    let (doc, enc) = Document::parse_bytes(xml)
-        .map_err(|e| AfirmaError::new(codes::UNKWNON_OOXML_SIGNING_ERROR, e.to_string()))?;
+    let (doc, enc) =
+        Document::parse_bytes(xml).map_err(|e| AfirmaError::new(codes::UNKWNON_OOXML_SIGNING_ERROR, e.to_string()))?;
     let root = doc.document_element().expect("raíz");
     let el = if doc.lookup_namespace(root, None).as_deref() == Some(ns) {
         element.to_string()
@@ -583,9 +548,7 @@ fn sign_ooxml(
             let mut c = append_to_root(
                 &e.data,
                 CT_NS,
-                &format!(
-                    "<Override PartName=\"/{sig_entry}\" ContentType=\"{SIGNATURE_CONTENT_TYPE}\"/>"
-                ),
+                &format!("<Override PartName=\"/{sig_entry}\" ContentType=\"{SIGNATURE_CONTENT_TYPE}\"/>"),
             )?;
             if !root_has(&c, "Default", "Extension", "sigs") {
                 c = append_to_root(
@@ -628,12 +591,7 @@ fn sign_ooxml(
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Relationships xmlns=\"{RELS_NS}\"><Relationship Id=\"rel-{}\" Type=\"{SIGNATURE_REL_TYPE}\" Target=\"{sig_file}\"/></Relationships>",
             uuid_v4()
         );
-        zb.add(
-            "_xmlsignatures/_rels/origin.sigs.rels",
-            rels.as_bytes(),
-            false,
-            false,
-        )?;
+        zb.add("_xmlsignatures/_rels/origin.sigs.rels", rels.as_bytes(), false, false)?;
         zb.add("_xmlsignatures/origin.sigs", &[], false, false)?;
     }
     zb.add(&sig_entry, &xml, false, false)?;
@@ -679,11 +637,7 @@ impl Signer for OoxmlSigner {
         ))
     }
 
-    fn signers_structure(
-        &self,
-        sign: &[u8],
-        _params: &ExtraParams,
-    ) -> afirma_core::Result<SignersTree> {
+    fn signers_structure(&self, sign: &[u8], _params: &ExtraParams) -> afirma_core::Result<SignersTree> {
         check_size(sign)?;
         if !self.is_sign(sign, &ExtraParams::new()) {
             return Err(AfirmaError::invalid_signature_format(
@@ -753,8 +707,7 @@ pub fn verify_package(package: &[u8]) -> afirma_core::Result<Vec<(bool, Vec<Stri
     let resolver = package_resolver(&entries);
     let mut out = Vec::new();
     for xml in ooxml_signatures(package) {
-        let (doc, _) = Document::parse_bytes(&xml)
-            .map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))?;
+        let (doc, _) = Document::parse_bytes(&xml).map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))?;
         let Some(sig) = doc.document_element() else {
             continue;
         };
@@ -769,12 +722,7 @@ pub fn verify_package(package: &[u8]) -> afirma_core::Result<Vec<(bool, Vec<Stri
         for m in doc.find_descendants(sig, dsig::DSIG_NS, "Manifest") {
             for r in dsig::ds_children(&doc, m, "Reference") {
                 if !ctx.check_reference(r).unwrap_or(false) {
-                    bad.push(
-                        doc.element(r)
-                            .and_then(|e| e.attr("URI"))
-                            .unwrap_or("")
-                            .to_string(),
-                    );
+                    bad.push(doc.element(r).and_then(|e| e.attr("URI")).unwrap_or("").to_string());
                 }
             }
         }

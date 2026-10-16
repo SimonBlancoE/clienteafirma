@@ -86,10 +86,7 @@ pub fn check(ctx: &Context, scope: TrustScope, certs: &LocalCerts) -> TrustCheck
     let ssl = certs.ssl_path();
     if ssl.is_file() {
         let s = ssl.to_string_lossy();
-        match security(
-            ctx,
-            &["verify-cert", "-c", &s, "-p", "ssl", "-s", SSL_CN, "-L"],
-        ) {
+        match security(ctx, &["verify-cert", "-c", &s, "-p", "ssl", "-s", SSL_CN, "-L"]) {
             Ok(o) if o.success() => TrustCheck::Trusted,
             Ok(o) => TrustCheck::Mismatch(format!(
                 "la CA está en el llavero pero no es de confianza: {}",
@@ -132,11 +129,7 @@ pub fn install(ctx: &Context, scope: TrustScope, certs: &LocalCerts) -> Result<C
     let kcs = kc.to_string_lossy().into_owned();
     if check(ctx, scope, certs).ok() {
         let removed = delete_old(ctx, &kc, &[&certs.ca_der, &certs.ssl_der])?;
-        return Ok(if removed {
-            Change::Changed
-        } else {
-            Change::Unchanged
-        });
+        return Ok(if removed { Change::Changed } else { Change::Unchanged });
     }
     delete_old(ctx, &kc, &[])?;
     let ca = certs.ca_path().to_string_lossy().into_owned();
@@ -208,9 +201,7 @@ mod tests {
             if c.args.first().map(String::as_str) == Some("find-certificate")
                 && c.args.get(3).map(String::as_str) == Some(CA_CN)
             {
-                Ok(Output::ok(format!(
-                    "SHA-256 hash: X\nSHA-1 hash: Y\n{old_pem}"
-                )))
+                Ok(Output::ok(format!("SHA-256 hash: X\nSHA-1 hash: Y\n{old_pem}")))
             } else if c.args.first().map(String::as_str) == Some("find-certificate") {
                 Ok(Output::fail(
                     44,
@@ -221,24 +212,22 @@ mod tests {
             }
         }));
         ctx.runner = runner.clone();
-        assert_eq!(
-            install(&ctx, TrustScope::Machine, &out.certs).unwrap(),
-            Change::Changed
-        );
+        assert_eq!(install(&ctx, TrustScope::Machine, &out.certs).unwrap(), Change::Changed);
         let lines = runner.call_lines();
-        assert!(lines.iter().any(|l| l.contains("delete-certificate -Z")
-            && l.contains(&crate::certs::sha1_hex(&old.ca_der))));
         assert!(
             lines
                 .iter()
-                .any(|l| l.contains("add-trusted-cert -d -r trustRoot -k")
-                    && l.contains("Autofirma_ROOT.cer"))
+                .any(|l| l.contains("delete-certificate -Z") && l.contains(&crate::certs::sha1_hex(&old.ca_der)))
         );
         assert!(
             lines
                 .iter()
-                .any(|l| l.contains("add-trusted-cert -d -r trustAsRoot -p ssl")
-                    && l.contains("autofirma.cer"))
+                .any(|l| l.contains("add-trusted-cert -d -r trustRoot -k") && l.contains("Autofirma_ROOT.cer"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.contains("add-trusted-cert -d -r trustAsRoot -p ssl") && l.contains("autofirma.cer"))
         );
     }
 }

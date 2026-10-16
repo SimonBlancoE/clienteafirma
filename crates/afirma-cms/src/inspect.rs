@@ -60,7 +60,11 @@ fn details(sd: &SignedData<'_>, si: &SignerInfo<'_>) -> SignerDetails {
         signed_attribute_oids: signed.iter().map(|a| a.oid.to_dotted()).collect(),
         unsigned_attribute_oids: unsigned.iter().map(|a| a.oid.to_dotted()).collect(),
         policy_oid,
-        timestamps: si.timestamp_tokens().iter().filter_map(|t| parse_timestamp_token(t).ok()).collect(),
+        timestamps: si
+            .timestamp_tokens()
+            .iter()
+            .filter_map(|t| parse_timestamp_token(t).ok())
+            .collect(),
         profile: validation::resolve_asn1_format(sd, si),
         countersigners: si.counter_signatures().iter().map(|c| details(sd, c)).collect(),
     }
@@ -86,8 +90,13 @@ pub fn structure_summary(sign: &[u8]) -> afirma_core::Result<String> {
     let sd = SignedData::parse(sign).map_err(|e| AfirmaError::invalid_signature_format(e.to_string()))?;
     let mut out = String::new();
     out.push_str(&format!("SignedData v{}\n", sd.version));
-    let algs: Vec<String> =
-        sd.digest_algorithms.children().unwrap_or_default().iter().map(|a| hex::encode(a.raw)).collect();
+    let algs: Vec<String> = sd
+        .digest_algorithms
+        .children()
+        .unwrap_or_default()
+        .iter()
+        .map(|a| hex::encode(a.raw))
+        .collect();
     out.push_str(&format!(" digestAlgorithms: {}\n", algs.join(" ")));
     let content = sd.content();
     out.push_str(&format!(
@@ -115,7 +124,11 @@ pub fn structure_summary(sign: &[u8]) -> afirma_core::Result<String> {
     }
     out.push_str(&format!(
         " crls: {}\n",
-        sd.crls.as_ref().and_then(|c| c.children().ok()).map(|c| c.len().to_string()).unwrap_or_else(|| "none".into())
+        sd.crls
+            .as_ref()
+            .and_then(|c| c.children().ok())
+            .map(|c| c.len().to_string())
+            .unwrap_or_else(|| "none".into())
     ));
     for si in &sd.signer_infos {
         summary_signer(si, 1, &mut out);
@@ -146,7 +159,11 @@ fn summary_signer(si: &SignerInfo<'_>, depth: usize, out: &mut String) {
             } else if a.is(oids::MESSAGE_DIGEST) && depth > 1 {
                 "<messageDigest>".to_string()
             } else {
-                a.values.iter().map(|v| hex::encode(v.raw)).collect::<Vec<_>>().join(",")
+                a.values
+                    .iter()
+                    .map(|v| hex::encode(v.raw))
+                    .collect::<Vec<_>>()
+                    .join(",")
             };
             out.push_str(&format!("{pad}  {} = {}\n", a.oid, v));
         }

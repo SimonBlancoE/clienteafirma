@@ -3,8 +3,8 @@
 //! arrastre...), dibujados a mano para tener un aspecto coherente y moderno.
 
 use eframe::egui::{
-    self, Align2, Color32, CornerRadius, FontFamily, FontId, Frame, Margin, Pos2, Rect, Response, RichText, Sense,
-    Shadow, Shape, Stroke, StrokeKind, Ui, UiBuilder, Vec2, WidgetInfo, Role,
+    self, Align2, Color32, CornerRadius, FontFamily, FontId, Frame, Margin, Pos2, Rect, Response, RichText, Role,
+    Sense, Shadow, Shape, Stroke, StrokeKind, Ui, UiBuilder, Vec2, WidgetInfo,
 };
 
 use super::icons;
@@ -37,7 +37,10 @@ pub fn card<R>(ui: &mut Ui, p: &Palette, add: impl FnOnce(&mut Ui) -> R) -> R {
 
 /// Icono de la fuente Phosphor.
 pub fn icon_text(glyph: &str, size: f32, color: Color32) -> RichText {
-    RichText::new(glyph).family(super::theme::icons()).size(size).color(color)
+    RichText::new(glyph)
+        .family(super::theme::icons())
+        .size(size)
+        .color(color)
 }
 
 /// Título de página con subtítulo opcional.
@@ -81,7 +84,9 @@ pub fn button_sized(
     height: f32,
 ) -> Response {
     let font = FontId::new(14.5, semibold());
-    let text_galley = ui.painter().layout_no_wrap(label.to_owned(), font.clone(), Color32::WHITE);
+    let text_galley = ui
+        .painter()
+        .layout_no_wrap(label.to_owned(), font.clone(), Color32::WHITE);
     let icon_size = 17.0;
     let icon_w = if icon.is_some() { icon_size + 8.0 } else { 0.0 };
     let pad = if kind == ButtonKind::Ghost { 10.0 } else { 18.0 };
@@ -99,19 +104,31 @@ pub fn button_sized(
                 (fill, Stroke::NONE, p.on_primary)
             }
             ButtonKind::Danger => {
-                let fill = if hovered { p.danger.gamma_multiply(0.9) } else { p.danger };
+                let fill = if hovered {
+                    p.danger.gamma_multiply(0.9)
+                } else {
+                    p.danger
+                };
                 (fill, Stroke::NONE, Color32::WHITE)
             }
             ButtonKind::Secondary => {
                 let fill = if hovered { p.surface_alt } else { p.surface };
-                (fill, Stroke::new(1.0, if hovered { p.text_faint } else { p.border }), p.text)
+                (
+                    fill,
+                    Stroke::new(1.0, if hovered { p.text_faint } else { p.border }),
+                    p.text,
+                )
             }
             ButtonKind::Ghost => {
                 let fill = if hovered { p.surface_alt } else { Color32::TRANSPARENT };
                 (fill, Stroke::NONE, p.primary)
             }
         };
-        let (fill, fg) = if enabled { (fill, fg) } else { (fill.gamma_multiply(0.45), fg.gamma_multiply(0.7)) };
+        let (fill, fg) = if enabled {
+            (fill, fg)
+        } else {
+            (fill.gamma_multiply(0.45), fg.gamma_multiply(0.7))
+        };
         let painter = ui.painter();
         let radius = CornerRadius::same(8);
         let rect = if pressed { rect.shrink(0.5) } else { rect };
@@ -120,12 +137,23 @@ pub fn button_sized(
             painter.rect_stroke(rect, radius, stroke, StrokeKind::Inside);
         }
         if response.has_focus() {
-            painter.rect_stroke(rect.expand(3.0), CornerRadius::same(10), Stroke::new(2.0, p.primary.gamma_multiply(0.6)), StrokeKind::Inside);
+            painter.rect_stroke(
+                rect.expand(3.0),
+                CornerRadius::same(10),
+                Stroke::new(2.0, p.primary.gamma_multiply(0.6)),
+                StrokeKind::Inside,
+            );
         }
         let content_w = text_galley.size().x + icon_w;
         let mut x = rect.center().x - content_w / 2.0;
         if let Some(icon) = icon {
-            painter.text(Pos2::new(x, rect.center().y), Align2::LEFT_CENTER, icon, FontId::new(icon_size, super::theme::icons()), fg);
+            painter.text(
+                Pos2::new(x, rect.center().y),
+                Align2::LEFT_CENTER,
+                icon,
+                FontId::new(icon_size, super::theme::icons()),
+                fg,
+            );
             x += icon_w;
         }
         let galley = painter.layout_no_wrap(label.to_owned(), font, fg);
@@ -148,13 +176,21 @@ pub fn nav_item(ui: &mut Ui, p: &Palette, icon: &str, label: &str, selected: boo
         let hovered = response.hovered();
         if selected {
             painter.rect_filled(rect, CornerRadius::same(8), p.primary_soft);
-            let bar = Rect::from_min_size(Pos2::new(rect.left(), rect.top() + 9.0), Vec2::new(3.0, rect.height() - 18.0));
+            let bar = Rect::from_min_size(
+                Pos2::new(rect.left(), rect.top() + 9.0),
+                Vec2::new(3.0, rect.height() - 18.0),
+            );
             painter.rect_filled(bar, CornerRadius::same(2), p.primary);
         } else if hovered {
             painter.rect_filled(rect, CornerRadius::same(8), p.surface_alt);
         }
         if response.has_focus() {
-            painter.rect_stroke(rect, CornerRadius::same(8), Stroke::new(2.0, p.primary.gamma_multiply(0.6)), StrokeKind::Inside);
+            painter.rect_stroke(
+                rect,
+                CornerRadius::same(8),
+                Stroke::new(2.0, p.primary.gamma_multiply(0.6)),
+                StrokeKind::Inside,
+            );
         }
         let color = if selected { p.primary } else { p.text_muted };
         let text_color = if selected { p.text } else { p.text_muted };
@@ -162,7 +198,14 @@ pub fn nav_item(ui: &mut Ui, p: &Palette, icon: &str, label: &str, selected: boo
             Pos2::new(rect.left() + 16.0, rect.center().y),
             Align2::LEFT_CENTER,
             icon,
-            FontId::new(19.0, if selected { super::theme::icons_fill() } else { super::theme::icons() }),
+            FontId::new(
+                19.0,
+                if selected {
+                    super::theme::icons_fill()
+                } else {
+                    super::theme::icons()
+                },
+            ),
             color,
         );
         painter.text(
@@ -217,11 +260,21 @@ pub fn drop_zone(ui: &mut Ui, p: &Palette, height: f32, highlighted: bool, add: 
         let painter = ui.painter();
         let fill = if highlighted { p.primary_soft } else { p.surface };
         painter.rect_filled(rect, CornerRadius::same(16), fill);
-        let color = if highlighted { p.primary } else if response.hovered() { p.text_faint } else { p.border.gamma_multiply(1.6) };
+        let color = if highlighted {
+            p.primary
+        } else if response.hovered() {
+            p.text_faint
+        } else {
+            p.border.gamma_multiply(1.6)
+        };
         let pts = rounded_rect_points(rect.shrink(1.0), 16.0);
         painter.extend(Shape::dashed_line(&pts, Stroke::new(1.6, color), 8.0, 6.0));
     }
-    let mut child = ui.new_child(UiBuilder::new().max_rect(rect.shrink(24.0)).layout(egui::Layout::top_down(egui::Align::Center)));
+    let mut child = ui.new_child(
+        UiBuilder::new()
+            .max_rect(rect.shrink(24.0))
+            .layout(egui::Layout::top_down(egui::Align::Center)),
+    );
     add(&mut child);
     response
 }
@@ -242,13 +295,21 @@ pub fn status_circle(ui: &mut Ui, glyph: &str, size: f32, fg: Color32, bg: Color
 /// Fila "etiqueta: valor" para fichas de detalle.
 pub fn kv_row(ui: &mut Ui, p: &Palette, key: &str, value: &str) {
     ui.horizontal_top(|ui| {
-        ui.allocate_ui_with_layout(Vec2::new(150.0, 18.0), egui::Layout::left_to_right(egui::Align::Min), |ui| {
-            ui.set_min_width(150.0);
-            ui.set_max_width(150.0);
-            // Con ajuste de línea para no desplazar el valor si la etiqueta es larga.
-            ui.add(egui::Label::new(RichText::new(key).color(p.text_muted).size(13.0)).wrap());
-        });
-        ui.add(egui::Label::new(RichText::new(value).color(p.text).size(13.5)).wrap().selectable(true));
+        ui.allocate_ui_with_layout(
+            Vec2::new(150.0, 18.0),
+            egui::Layout::left_to_right(egui::Align::Min),
+            |ui| {
+                ui.set_min_width(150.0);
+                ui.set_max_width(150.0);
+                // Con ajuste de línea para no desplazar el valor si la etiqueta es larga.
+                ui.add(egui::Label::new(RichText::new(key).color(p.text_muted).size(13.0)).wrap());
+            },
+        );
+        ui.add(
+            egui::Label::new(RichText::new(value).color(p.text).size(13.5))
+                .wrap()
+                .selectable(true),
+        );
     });
 }
 
@@ -260,18 +321,31 @@ pub fn callout(ui: &mut Ui, p: &Palette, kind: CalloutKind, title: &str, body: O
         CalloutKind::Warning => (p.warning, p.warning_soft, icons::WARNING),
         CalloutKind::Error => (p.danger, p.danger_soft, icons::X_CIRCLE),
     };
-    Frame::new().fill(bg).corner_radius(CornerRadius::same(10)).inner_margin(Margin::symmetric(14, 12)).show(ui, |ui| {
-        ui.set_width(ui.available_width());
-        ui.horizontal_top(|ui| {
-            ui.label(RichText::new(glyph).family(super::theme::icons_fill()).size(18.0).color(fg));
-            ui.vertical(|ui| {
-                ui.label(RichText::new(title).font(FontId::new(14.0, semibold())).color(if p.dark { fg } else { p.text }));
-                if let Some(b) = body {
-                    ui.label(RichText::new(b).size(13.0).color(p.text_muted));
-                }
+    Frame::new()
+        .fill(bg)
+        .corner_radius(CornerRadius::same(10))
+        .inner_margin(Margin::symmetric(14, 12))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal_top(|ui| {
+                ui.label(
+                    RichText::new(glyph)
+                        .family(super::theme::icons_fill())
+                        .size(18.0)
+                        .color(fg),
+                );
+                ui.vertical(|ui| {
+                    ui.label(
+                        RichText::new(title)
+                            .font(FontId::new(14.0, semibold()))
+                            .color(if p.dark { fg } else { p.text }),
+                    );
+                    if let Some(b) = body {
+                        ui.label(RichText::new(b).size(13.0).color(p.text_muted));
+                    }
+                });
             });
         });
-    });
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -287,8 +361,26 @@ pub enum CalloutKind {
 pub fn icon_job(icon: &str, text: &str, size: f32, icon_color: Color32, text_color: Color32) -> egui::text::LayoutJob {
     use egui::text::{LayoutJob, TextFormat};
     let mut job = LayoutJob::default();
-    job.append(icon, 0.0, TextFormat { font_id: FontId::new(size + 2.0, super::theme::icons()), color: icon_color, valign: egui::Align::Center, ..Default::default() });
-    job.append(text, 7.0, TextFormat { font_id: FontId::new(size, FontFamily::Proportional), color: text_color, valign: egui::Align::Center, ..Default::default() });
+    job.append(
+        icon,
+        0.0,
+        TextFormat {
+            font_id: FontId::new(size + 2.0, super::theme::icons()),
+            color: icon_color,
+            valign: egui::Align::Center,
+            ..Default::default()
+        },
+    );
+    job.append(
+        text,
+        7.0,
+        TextFormat {
+            font_id: FontId::new(size, FontFamily::Proportional),
+            color: text_color,
+            valign: egui::Align::Center,
+            ..Default::default()
+        },
+    );
     job
 }
 

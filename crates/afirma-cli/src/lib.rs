@@ -75,10 +75,7 @@ pub use help::SystemCommand;
 pub use messages::{Language, Messages};
 pub use params::Command;
 pub use store::{CertificateChoice, CertificateChooser, CertificateRequest};
-pub use system::{
-    DoctorRequest, InstallRequest, RestoreRequest, Scope, SystemOps, SystemOutcome,
-    UninstallRequest,
-};
+pub use system::{DoctorRequest, InstallRequest, RestoreRequest, Scope, SystemOps, SystemOutcome, UninstallRequest};
 
 /// Estado de salida correcto.
 pub const STATUS_SUCCESS: i32 = 0;
@@ -161,10 +158,7 @@ impl CliEnv {
     }
 
     /// Con una consulta de preferencias.
-    pub fn with_preferences(
-        mut self,
-        lookup: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
-    ) -> Self {
+    pub fn with_preferences(mut self, lookup: impl Fn(&str) -> Option<String> + Send + Sync + 'static) -> Self {
         self.preferences = Arc::new(lookup);
         self
     }
@@ -288,18 +282,10 @@ pub fn run(args: &[String], env: &CliEnv) -> CliOutcome {
     let m = Messages::new(env.language());
     let app = env.app_name.as_str();
     let Some(first) = args.first() else {
-        return CliOutcome::printed(
-            STATUS_SUCCESS,
-            Some(help::general_help(&m, app, None)),
-            None,
-        );
+        return CliOutcome::printed(STATUS_SUCCESS, Some(help::general_help(&m, app, None)), None);
     };
     if first.eq_ignore_ascii_case("-help") || first == "--help" {
-        return CliOutcome::printed(
-            STATUS_SUCCESS,
-            Some(help::general_help(&m, app, None)),
-            None,
-        );
+        return CliOutcome::printed(STATUS_SUCCESS, Some(help::general_help(&m, app, None)), None);
     }
     if first == "-version" || first == "--version" {
         return CliOutcome::printed(STATUS_SUCCESS, Some(env.version.clone()), None);
@@ -338,19 +324,9 @@ pub fn run(args: &[String], env: &CliEnv) -> CliOutcome {
 }
 
 /// `processCommand`.
-fn process_command(
-    command: Command,
-    args: &[String],
-    env: &CliEnv,
-    m: &Messages,
-) -> Result<Reply, CliError> {
+fn process_command(command: Command, args: &[String], env: &CliEnv, m: &Messages) -> Result<Reply, CliError> {
     if args.get(1).is_some_and(|a| a.eq_ignore_ascii_case("-help")) {
-        return Ok(Reply::Text(help::command_help(
-            command,
-            m,
-            &env.app_name,
-            None,
-        )));
+        return Ok(Reply::Text(help::command_help(command, m, &env.app_name, None)));
     }
     let parse_env = params::ParseEnv {
         home: env.home_dir.clone(),
@@ -372,13 +348,7 @@ fn process_command(
 }
 
 /// Tratamiento de errores de `processCommandLine` (§5.11).
-fn error_outcome(
-    e: CliError,
-    command: Option<Command>,
-    need_xml: bool,
-    m: &Messages,
-    app: &str,
-) -> CliOutcome {
+fn error_outcome(e: CliError, command: Option<Command>, need_xml: bool, m: &Messages, app: &str) -> CliOutcome {
     let wrap = |msg: Option<String>| -> Option<String> {
         if need_xml {
             Some(response::xml_response(false, msg.as_deref(), None))
@@ -396,11 +366,7 @@ fn error_outcome(
                 Some(c) => help::command_help(c, m, app, Some(&message)),
                 None => message.clone(),
             };
-            CliOutcome::printed(
-                STATUS_ERROR,
-                Some(text),
-                using_gui.then(|| dialog(&message)),
-            )
+            CliOutcome::printed(STATUS_ERROR, Some(text), using_gui.then(|| dialog(&message)))
         }
         CliError::Command { message, using_gui } => {
             let gui = if using_gui {
@@ -410,11 +376,7 @@ fn error_outcome(
             };
             CliOutcome::printed(STATUS_ERROR, wrap(message), gui)
         }
-        CliError::Unsupported(message) => {
-            CliOutcome::printed(STATUS_ERROR, wrap(Some(message)), None)
-        }
-        CliError::Unexpected(message) => {
-            CliOutcome::printed(STATUS_ERROR, wrap(Some(m.fmt(50, &[&message]))), None)
-        }
+        CliError::Unsupported(message) => CliOutcome::printed(STATUS_ERROR, wrap(Some(message)), None),
+        CliError::Unexpected(message) => CliOutcome::printed(STATUS_ERROR, wrap(Some(m.fmt(50, &[&message]))), None),
     }
 }

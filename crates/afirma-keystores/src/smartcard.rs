@@ -35,13 +35,24 @@ pub struct SmartcardOptions {
 
 impl Default for SmartcardOptions {
     fn default() -> Self {
-        SmartcardOptions { enabled: true, disable_dnie: false, disable_ceres: false, enable_smartcafe: false, modules: None }
+        SmartcardOptions {
+            enabled: true,
+            disable_dnie: false,
+            disable_ceres: false,
+            enable_smartcafe: false,
+            modules: None,
+        }
     }
 }
 
 impl SmartcardOptions {
     fn module_paths(&self) -> Vec<PathBuf> {
-        self.modules.clone().unwrap_or_else(|| detect_smartcard_modules(Os::current()).into_iter().map(|m| m.path).collect())
+        self.modules.clone().unwrap_or_else(|| {
+            detect_smartcard_modules(Os::current())
+                .into_iter()
+                .map(|m| m.path)
+                .collect()
+        })
     }
 }
 
@@ -59,7 +70,11 @@ pub fn family_for(kind: KeyStoreKind) -> Option<CardFamily> {
 /// Abre el almacén de tarjeta del tipo indicado con el primer controlador
 /// que tenga un token de esa familia. Sin tarjeta →
 /// [`KeyStoreError::CardNotPresent`].
-pub fn open_card_store(kind: KeyStoreKind, opts: &SmartcardOptions, callback: Arc<dyn PasswordCallback>) -> Result<Pkcs11Store, KeyStoreError> {
+pub fn open_card_store(
+    kind: KeyStoreKind,
+    opts: &SmartcardOptions,
+    callback: Arc<dyn PasswordCallback>,
+) -> Result<Pkcs11Store, KeyStoreError> {
     let family = family_for(kind).ok_or_else(|| kind.unsupported_error(Os::current()))?;
     let mut last = KeyStoreError::CardNotPresent;
     for lib in opts.module_paths() {
@@ -72,13 +87,19 @@ pub fn open_card_store(kind: KeyStoreKind, opts: &SmartcardOptions, callback: Ar
             Ok(_) => {}
             Err(e) if e.is_cancelled() => return Err(e),
             Err(e) => {
-                tracing::debug!("No se ha podido usar {} para {}: {e}", lib.display(), kind.display_name());
+                tracing::debug!(
+                    "No se ha podido usar {} para {}: {e}",
+                    lib.display(),
+                    kind.display_name()
+                );
                 last = e;
             }
         }
     }
     Err(match last {
-        KeyStoreError::LibraryNotFound(_) | KeyStoreError::Load { .. } | KeyStoreError::Pkcs11 { .. } => KeyStoreError::CardNotPresent,
+        KeyStoreError::LibraryNotFound(_) | KeyStoreError::Load { .. } | KeyStoreError::Pkcs11 { .. } => {
+            KeyStoreError::CardNotPresent
+        }
         other => other,
     })
 }
@@ -115,7 +136,10 @@ pub fn probe_preferred(opts: &SmartcardOptions, callback: Arc<dyn PasswordCallba
         return Preferred::None;
     }
     // Se detectan los módulos una sola vez para todos los tipos.
-    let opts = SmartcardOptions { modules: Some(opts.module_paths()), ..opts.clone() };
+    let opts = SmartcardOptions {
+        modules: Some(opts.module_paths()),
+        ..opts.clone()
+    };
     for kind in kinds {
         match open_card_store(kind, &opts, callback.clone()) {
             Ok(s) if !s.entries().map(|e| e.is_empty()).unwrap_or(true) => return Preferred::Found(Arc::new(s)),
@@ -139,7 +163,9 @@ pub fn open_known_smartcards(callback: Arc<dyn PasswordCallback>, skip_fnmt: boo
         if !lib.is_file() {
             continue;
         }
-        let config = Pkcs11Config::new(KeyStoreKind::KnownSmartcards).with_name(name).with_pin_prompt(crate::kind::prompts::known_card(name));
+        let config = Pkcs11Config::new(KeyStoreKind::KnownSmartcards)
+            .with_name(name)
+            .with_pin_prompt(crate::kind::prompts::known_card(name));
         match Pkcs11Store::open(&lib, config, callback.clone()) {
             Ok(s) => return Some(s),
             Err(e) => tracing::info!("No se ha podido cargar la tarjeta {name} ({}): {e}", lib.display()),

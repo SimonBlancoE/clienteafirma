@@ -31,7 +31,11 @@ pub enum KeyStoreError {
     NoCertificates,
     /// Combinación de almacén y sistema operativo no soportada (600011).
     #[error("La plataforma de navegador '{store}' mas sistema operativo '{os}' no esta soportada")]
-    Unsupported { store: String, os: String, alternative: Option<KeyStoreKind> },
+    Unsupported {
+        store: String,
+        os: String,
+        alternative: Option<KeyStoreKind>,
+    },
     /// No hay almacén por defecto para este sistema operativo (201116).
     #[error("No hay definido un almacen de claves por defecto para este sistema operativo")]
     UndefinedDefault,
@@ -73,7 +77,10 @@ pub enum KeyStoreError {
 impl KeyStoreError {
     /// Error de carga de un almacén del tipo indicado.
     pub fn load(kind: KeyStoreKind, message: impl Into<String>) -> Self {
-        KeyStoreError::Load { kind, message: message.into() }
+        KeyStoreError::Load {
+            kind,
+            message: message.into(),
+        }
     }
 
     /// Indica si es una cancelación del usuario.
@@ -138,7 +145,9 @@ impl From<KeyStoreError> for KeyError {
     fn from(e: KeyStoreError) -> Self {
         match e {
             KeyStoreError::Cancelled => KeyError::Cancelled,
-            KeyStoreError::WrongPin { .. } | KeyStoreError::PinLengthInvalid | KeyStoreError::WrongPassword { .. } => KeyError::WrongPin,
+            KeyStoreError::WrongPin { .. } | KeyStoreError::PinLengthInvalid | KeyStoreError::WrongPassword { .. } => {
+                KeyError::WrongPin
+            }
             KeyStoreError::Locked { .. } => KeyError::PinLocked,
             KeyStoreError::CardNotPresent => KeyError::DeviceUnavailable,
             KeyStoreError::Key(k) => k,
@@ -159,7 +168,13 @@ mod tests {
         assert_eq!(KeyStoreError::Locked { smartcard: false }.code().code, 511003);
         assert_eq!(KeyStoreError::UndefinedDefault.code().code, 201116);
         assert_eq!(
-            KeyStoreError::Unsupported { store: "Windows".into(), os: "Linux".into(), alternative: None }.code().code,
+            KeyStoreError::Unsupported {
+                store: "Windows".into(),
+                os: "Linux".into(),
+                alternative: None
+            }
+            .code()
+            .code,
             600011
         );
         assert_eq!(KeyStoreError::load(KeyStoreKind::Pkcs12, "x").code().code, 201110);
@@ -167,7 +182,12 @@ mod tests {
         let a: AfirmaError = KeyStoreError::Cancelled.into();
         assert!(a.is_cancelled());
         assert_eq!(
-            KeyStoreError::Unsupported { store: "Windows".into(), os: "Linux".into(), alternative: None }.to_string(),
+            KeyStoreError::Unsupported {
+                store: "Windows".into(),
+                os: "Linux".into(),
+                alternative: None
+            }
+            .to_string(),
             "La plataforma de navegador 'Windows' mas sistema operativo 'Linux' no esta soportada"
         );
     }

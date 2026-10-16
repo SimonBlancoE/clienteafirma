@@ -138,10 +138,7 @@ fn hash_parallel(
         return Err(errors.swap_remove(0).1);
     }
     let results = results.into_inner().unwrap_or_else(|e| e.into_inner());
-    results
-        .into_iter()
-        .map(|r| r.ok_or(HashError::Cancelled))
-        .collect()
+    results.into_iter().map(|r| r.ok_or(HashError::Cancelled)).collect()
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -156,10 +153,7 @@ pub fn default_directory_document_name(dir: &Path, format: DirDocumentFormat) ->
 
 /// Directorio propuesto para guardar el informe: el padre del directorio comprobado.
 pub fn default_report_dir(checked_dir: &Path) -> Option<PathBuf> {
-    std::path::absolute(checked_dir)
-        .ok()?
-        .parent()
-        .map(Path::to_path_buf)
+    std::path::absolute(checked_dir).ok()?.parent().map(Path::to_path_buf)
 }
 
 /// Informe de comprobación de las huellas de un directorio (`HashReport`).
@@ -194,9 +188,7 @@ impl HashReport {
 
     /// `true` si alguna huella no coincide o falta algún fichero o huella.
     pub fn has_errors(&self) -> bool {
-        !self.not_matching_hash.is_empty()
-            || !self.hash_without_file.is_empty()
-            || !self.file_without_hash.is_empty()
+        !self.not_matching_hash.is_empty() || !self.hash_without_file.is_empty() || !self.file_without_hash.is_empty()
     }
 
     /// Ficheros cuya huella se ha comprobado (coincida o no).
@@ -237,10 +229,7 @@ impl HashReport {
                 out.push_str("        <entry name=\"");
                 push_attr(&mut out, name).map_err(|c| HashError::UnrepresentableName {
                     name: name.clone(),
-                    reason: format!(
-                        "contiene el carácter U+{:04X}, no admitido en XML",
-                        u32::from(c)
-                    ),
+                    reason: format!("contiene el carácter U+{:04X}, no admitido en XML", u32::from(c)),
                 })?;
                 out.push_str("\"/>\n");
             }
@@ -348,32 +337,14 @@ mod tests {
     #[test]
     fn calculo_recursivo_y_no_recursivo() {
         let tmp = tree();
-        let doc = hash_directory(
-            tmp.path(),
-            true,
-            DigestAlgorithm::Sha256,
-            &HashOptions::default(),
-        )
-        .unwrap();
+        let doc = hash_directory(tmp.path(), true, DigestAlgorithm::Sha256, &HashOptions::default()).unwrap();
         assert_eq!(
             doc.entries.keys().collect::<Vec<_>>(),
             ["sub/deep/datos.bin", "sub/hola.txt", "vacio.txt"]
         );
-        assert_eq!(
-            doc.entries["vacio.txt"],
-            DigestAlgorithm::Sha256.digest(b"")
-        );
-        assert_eq!(
-            doc.entries["sub/hola.txt"],
-            DigestAlgorithm::Sha256.digest(b"hola\n")
-        );
-        let doc = hash_directory(
-            tmp.path(),
-            false,
-            DigestAlgorithm::Sha1,
-            &HashOptions::default(),
-        )
-        .unwrap();
+        assert_eq!(doc.entries["vacio.txt"], DigestAlgorithm::Sha256.digest(b""));
+        assert_eq!(doc.entries["sub/hola.txt"], DigestAlgorithm::Sha256.digest(b"hola\n"));
+        let doc = hash_directory(tmp.path(), false, DigestAlgorithm::Sha1, &HashOptions::default()).unwrap();
         assert_eq!(doc.entries.keys().collect::<Vec<_>>(), ["vacio.txt"]);
         assert!(!doc.recursive);
         assert_eq!(doc.algorithm, DigestAlgorithm::Sha1);
@@ -442,24 +413,15 @@ mod tests {
         if fs::File::open(&f).is_ok() {
             return; // Ejecutando como root.
         }
-        let r = hash_directory(
-            tmp.path(),
-            false,
-            DigestAlgorithm::Sha256,
-            &HashOptions::default(),
-        );
-        assert!(
-            matches!(r, Err(HashError::Io { ref path, .. }) if path == &f),
-            "{r:?}"
-        );
+        let r = hash_directory(tmp.path(), false, DigestAlgorithm::Sha256, &HashOptions::default());
+        assert!(matches!(r, Err(HashError::Io { ref path, .. }) if path == &f), "{r:?}");
     }
 
     #[test]
     fn comprobacion_e_informe() {
         let tmp = tree();
         let root = tmp.path();
-        let doc =
-            hash_directory(root, true, DigestAlgorithm::Sha256, &HashOptions::default()).unwrap();
+        let doc = hash_directory(root, true, DigestAlgorithm::Sha256, &HashOptions::default()).unwrap();
         let report = check_directory(root, &doc, &HashOptions::default()).unwrap();
         assert!(!report.has_errors());
         assert_eq!(report.processed_files_count(), 3);
@@ -498,13 +460,7 @@ mod tests {
     fn comprobacion_no_recursiva_segun_documento() {
         let tmp = tree();
         let root = tmp.path();
-        let doc = hash_directory(
-            root,
-            false,
-            DigestAlgorithm::Sha384,
-            &HashOptions::default(),
-        )
-        .unwrap();
+        let doc = hash_directory(root, false, DigestAlgorithm::Sha384, &HashOptions::default()).unwrap();
         let report = check_directory(root, &doc, &HashOptions::default()).unwrap();
         assert!(!report.has_errors());
         assert_eq!(report.matching_hash, ["vacio.txt"]);
@@ -517,14 +473,10 @@ mod tests {
         let tmp = tree();
         let root = tmp.path();
         let mut doc = HashDocument::new(DigestAlgorithm::Sha256, true);
-        doc.entries.insert(
-            "sub\\hola.txt".into(),
-            DigestAlgorithm::Sha256.digest(b"hola\n"),
-        );
-        doc.entries.insert(
-            "sub\\deep\\datos.bin".into(),
-            DigestAlgorithm::Sha256.digest(b"otro"),
-        );
+        doc.entries
+            .insert("sub\\hola.txt".into(), DigestAlgorithm::Sha256.digest(b"hola\n"));
+        doc.entries
+            .insert("sub\\deep\\datos.bin".into(), DigestAlgorithm::Sha256.digest(b"otro"));
         doc.entries
             .insert("vacio.txt".into(), DigestAlgorithm::Sha256.digest(b""));
         doc.entries
@@ -550,13 +502,7 @@ mod tests {
     fn el_documento_dentro_del_directorio_no_tiene_huella() {
         let tmp = tree();
         let root = tmp.path();
-        let doc = hash_directory(
-            root,
-            false,
-            DigestAlgorithm::Sha256,
-            &HashOptions::default(),
-        )
-        .unwrap();
+        let doc = hash_directory(root, false, DigestAlgorithm::Sha256, &HashOptions::default()).unwrap();
         let path = root.join("dir.hashfiles");
         fs::write(&path, doc.to_xml().unwrap()).unwrap();
         let report = check_directory_with_file(root, &path, &HashOptions::default()).unwrap();

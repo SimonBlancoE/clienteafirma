@@ -70,23 +70,17 @@ pub fn normalize(key: &str, raw: &RawPolicyValue) -> Result<String, String> {
             0 => "false".into(),
             1 => "true".into(),
             _ => {
-                return Err(format!(
-                    "valor numérico {i} no válido para la clave booleana «{key}»"
-                ));
+                return Err(format!("valor numérico {i} no válido para la clave booleana «{key}»"));
             }
         },
         (RawPolicyValue::Int(i), _) => i.to_string(),
-        (RawPolicyValue::Str(s), Some(Kind::Bool)) => {
-            match s.trim().to_ascii_lowercase().as_str() {
-                "true" | "1" => "true".into(),
-                "false" | "0" => "false".into(),
-                _ => {
-                    return Err(format!(
-                        "valor «{s}» no válido para la clave booleana «{key}»"
-                    ));
-                }
+        (RawPolicyValue::Str(s), Some(Kind::Bool)) => match s.trim().to_ascii_lowercase().as_str() {
+            "true" | "1" => "true".into(),
+            "false" | "0" => "false".into(),
+            _ => {
+                return Err(format!("valor «{s}» no válido para la clave booleana «{key}»"));
             }
-        }
+        },
         (RawPolicyValue::Str(s), _) => s.clone(),
     };
     if let Some(i) = info
@@ -106,9 +100,7 @@ fn insert_checked(
     overwrite: bool,
 ) {
     if keys::info(key).is_none() {
-        warnings.push(format!(
-            "{origin}: clave desconocida «{key}» (se aplica igualmente)"
-        ));
+        warnings.push(format!("{origin}: clave desconocida «{key}» (se aplica igualmente)"));
     }
     match normalize(key, raw) {
         Ok(v) => {
@@ -157,14 +149,7 @@ fn load_windows(ctx: &Context, ps: &mut PolicySet) {
             if let Some(raw) = reg_to_raw(&v)
                 && !name.is_empty()
             {
-                insert_checked(
-                    &mut ps.mandatory,
-                    &mut ps.warnings,
-                    &origin,
-                    &name,
-                    &raw,
-                    false,
-                );
+                insert_checked(&mut ps.mandatory, &mut ps.warnings, &origin, &name, &raw, false);
             }
         }
         let rec_key = format!(r"{WIN_POLICY_KEY}\Recommended");
@@ -173,14 +158,7 @@ fn load_windows(ctx: &Context, ps: &mut PolicySet) {
                 if let Some(raw) = reg_to_raw(&v)
                     && !name.is_empty()
                 {
-                    insert_checked(
-                        &mut ps.recommended,
-                        &mut ps.warnings,
-                        &origin,
-                        &name,
-                        &raw,
-                        false,
-                    );
+                    insert_checked(&mut ps.recommended, &mut ps.warnings, &origin, &name, &raw, false);
                 }
             }
         }
@@ -231,14 +209,7 @@ fn load_macos(ctx: &Context, ps: &mut PolicySet) {
                     if let Some(rd) = v.as_dictionary() {
                         for (rk, rv) in rd {
                             if let Some(raw) = plist_to_raw(rv) {
-                                insert_checked(
-                                    &mut ps.recommended,
-                                    &mut ps.warnings,
-                                    &origin,
-                                    rk,
-                                    &raw,
-                                    false,
-                                );
+                                insert_checked(&mut ps.recommended, &mut ps.warnings, &origin, rk, &raw, false);
                             }
                         }
                     }
@@ -247,9 +218,7 @@ fn load_macos(ctx: &Context, ps: &mut PolicySet) {
                     if let Some(sd) = v.as_dictionary() {
                         for (n, l) in sd {
                             if let Some(l) = l.as_string() {
-                                ps.smartcards
-                                    .entry(n.clone())
-                                    .or_insert_with(|| l.to_string());
+                                ps.smartcards.entry(n.clone()).or_insert_with(|| l.to_string());
                             }
                         }
                     }
@@ -258,14 +227,7 @@ fn load_macos(ctx: &Context, ps: &mut PolicySet) {
                 k if k.starts_with("PayloadUUID") || k == "PayloadType" => {}
                 _ => {
                     if let Some(raw) = plist_to_raw(v) {
-                        insert_checked(
-                            &mut ps.mandatory,
-                            &mut ps.warnings,
-                            &origin,
-                            k,
-                            &raw,
-                            false,
-                        );
+                        insert_checked(&mut ps.mandatory, &mut ps.warnings, &origin, k, &raw, false);
                     }
                 }
             }
@@ -286,8 +248,7 @@ fn json_to_raw(v: &serde_json::Value) -> Option<RawPolicyValue> {
 /// Los ficheros posteriores sobrescriben a los anteriores.
 pub fn apply_json(ps: &mut PolicySet, origin: &str, doc: &serde_json::Value) {
     let Some(obj) = doc.as_object() else {
-        ps.warnings
-            .push(format!("{origin}: el documento no es un objeto JSON"));
+        ps.warnings.push(format!("{origin}: el documento no es un objeto JSON"));
         return;
     };
     for (section, v) in obj {
@@ -300,8 +261,7 @@ pub fn apply_json(ps: &mut PolicySet, origin: &str, doc: &serde_json::Value) {
             "mandatory" | "recommended" => {
                 for (k, val) in m {
                     let Some(raw) = json_to_raw(val) else {
-                        ps.warnings
-                            .push(format!("{origin}: tipo no admitido para «{k}»"));
+                        ps.warnings.push(format!("{origin}: tipo no admitido para «{k}»"));
                         continue;
                     };
                     let dst = if section == "mandatory" {
@@ -319,9 +279,7 @@ pub fn apply_json(ps: &mut PolicySet, origin: &str, doc: &serde_json::Value) {
                     }
                 }
             }
-            other => ps
-                .warnings
-                .push(format!("{origin}: sección desconocida «{other}»")),
+            other => ps.warnings.push(format!("{origin}: sección desconocida «{other}»")),
         }
     }
 }
@@ -431,31 +389,17 @@ mod tests {
         )
         .unwrap();
         let ps = load(&ctx);
+        assert_eq!(ps.mandatory.get("preferencesBlocked").map(String::as_str), Some("true"));
         assert_eq!(
-            ps.mandatory.get("preferencesBlocked").map(String::as_str),
-            Some("true")
-        );
-        assert_eq!(
-            ps.mandatory
-                .get("signatureHashAlgorithm")
-                .map(String::as_str),
+            ps.mandatory.get("signatureHashAlgorithm").map(String::as_str),
             Some("SHA512"),
             "HKLM gana a HKCU"
         );
-        assert_eq!(
-            ps.mandatory.get("omitAskOnClose").map(String::as_str),
-            Some("true")
-        );
+        assert_eq!(ps.mandatory.get("omitAskOnClose").map(String::as_str), Some("true"));
         assert!(!ps.mandatory.contains_key("xadesSignFormat"));
         assert_eq!(ps.warnings.len(), 1);
-        assert_eq!(
-            ps.recommended.get("default.locale").map(String::as_str),
-            Some("ca_ES")
-        );
-        assert_eq!(
-            ps.smartcards.get("Corp").map(String::as_str),
-            Some(r"C:\x.dll")
-        );
+        assert_eq!(ps.recommended.get("default.locale").map(String::as_str), Some("ca_ES"));
+        assert_eq!(ps.smartcards.get("Corp").map(String::as_str), Some(r"C:\x.dll"));
     }
 
     #[test]
@@ -464,7 +408,11 @@ mod tests {
         let ctx = Context::for_tests(Os::Linux, t.path());
         std::fs::create_dir_all(t.path().join("etc/autofirma/policy.d")).unwrap();
         std::fs::write(t.path().join("etc/autofirma/policy.json"), r#"{"mandatory":{"preferencesBlocked":true,"signatureHashAlgorithm":"SHA256"},"recommended":{"default.locale":"gl_ES"}}"#).unwrap();
-        std::fs::write(t.path().join("etc/autofirma/policy.d/50-corp.json"), r#"{"mandatory":{"signatureHashAlgorithm":"SHA512"},"smartcards":{"Corp":"/usr/lib/corp.so"}}"#).unwrap();
+        std::fs::write(
+            t.path().join("etc/autofirma/policy.d/50-corp.json"),
+            r#"{"mandatory":{"signatureHashAlgorithm":"SHA512"},"smartcards":{"Corp":"/usr/lib/corp.so"}}"#,
+        )
+        .unwrap();
         let ps = load(&ctx);
         assert_eq!(ps.mandatory["signatureHashAlgorithm"], "SHA512");
         assert_eq!(ps.mandatory["preferencesBlocked"], "true");
@@ -483,10 +431,7 @@ mod tests {
         d.insert("preferencesBlocked".into(), plist::Value::Boolean(true));
         d.insert("PayloadUUID".into(), plist::Value::String("x".into()));
         let mut rec = plist::Dictionary::new();
-        rec.insert(
-            "default.locale".into(),
-            plist::Value::String("en_US".into()),
-        );
+        rec.insert("default.locale".into(), plist::Value::String("en_US".into()));
         d.insert("Recommended".into(), plist::Value::Dictionary(rec));
         plist::Value::Dictionary(d)
             .to_file_xml(dir.join(format!("{}.plist", crate::ctx::MACOS_BUNDLE_ID)))

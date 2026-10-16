@@ -27,13 +27,23 @@ pub struct CustomProxy {
 impl CustomProxy {
     /// Proxy sin autenticación ni exclusiones.
     pub fn new(host: impl Into<String>, port: u16) -> Self {
-        CustomProxy { host: host.into(), port, username: None, password: None, excluded_hosts: Vec::new() }
+        CustomProxy {
+            host: host.into(),
+            port,
+            username: None,
+            password: None,
+            excluded_hosts: Vec::new(),
+        }
     }
 
     /// Interpreta la preferencia de exclusiones (`proxyExcludedUrls`,
     /// guardada con `|` como separador; la interfaz usa `,`).
     pub fn parse_excluded_hosts(list: &str) -> Vec<String> {
-        list.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
+        list.split(['|', ','])
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect()
     }
 
     /// Indica si el servidor está excluido del uso del proxy.
@@ -138,7 +148,9 @@ pub(crate) struct ProxyEndpoint {
 
 impl ProxyEndpoint {
     pub(crate) fn to_ureq(&self) -> Option<ureq::Proxy> {
-        let mut b = ureq::Proxy::builder(ureq::ProxyProtocol::Http).host(&self.host).port(self.port);
+        let mut b = ureq::Proxy::builder(ureq::ProxyProtocol::Http)
+            .host(&self.host)
+            .port(self.port);
         if let Some(u) = &self.username {
             b = b.username(u);
         }
@@ -171,7 +183,10 @@ fn system_proxy_for(scheme: &str, host: &str) -> Option<ProxyEndpoint> {
             return None;
         }
         if !matches!(p.protocol(), ureq::ProxyProtocol::Http | ureq::ProxyProtocol::Https) {
-            tracing::warn!("Proxy del sistema no soportado ({}), se conectara directamente", p.protocol());
+            tracing::warn!(
+                "Proxy del sistema no soportado ({}), se conectara directamente",
+                p.protocol()
+            );
             return None;
         }
         return Some(ProxyEndpoint {
@@ -185,9 +200,17 @@ fn system_proxy_for(scheme: &str, host: &str) -> Option<ProxyEndpoint> {
     if platform.exclusions.iter().any(|e| non_proxy_host_matches(host, e)) {
         return None;
     }
-    let entry =
-        if scheme == "https" { platform.https.as_ref().or(platform.http.as_ref()) } else { platform.http.as_ref() };
-    entry.map(|(h, p)| ProxyEndpoint { host: h.clone(), port: *p, username: None, password: None })
+    let entry = if scheme == "https" {
+        platform.https.as_ref().or(platform.http.as_ref())
+    } else {
+        platform.http.as_ref()
+    };
+    entry.map(|(h, p)| ProxyEndpoint {
+        host: h.clone(),
+        port: *p,
+        username: None,
+        password: None,
+    })
 }
 
 /// Proxy configurado en el escritorio (macOS o GNOME).
@@ -220,7 +243,9 @@ pub fn system_proxy(host: &str) -> Option<String> {
 
 fn run(cmd: &str, args: &[&str]) -> Option<String> {
     let out = std::process::Command::new(cmd).args(args).output().ok()?;
-    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 /// Interpreta la salida de `scutil --proxy` (macOS).
@@ -251,10 +276,17 @@ pub(crate) fn parse_scutil_proxy(output: &str) -> Option<PlatformProxy> {
             return None;
         }
         let host = values.get(&format!("{prefix}Proxy"))?.clone();
-        let port = values.get(&format!("{prefix}Port")).and_then(|p| p.parse().ok()).unwrap_or(80);
+        let port = values
+            .get(&format!("{prefix}Port"))
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(80);
         Some((host, port))
     };
-    let p = PlatformProxy { http: entry("HTTP"), https: entry("HTTPS"), exclusions };
+    let p = PlatformProxy {
+        http: entry("HTTP"),
+        https: entry("HTTPS"),
+        exclusions,
+    };
     (p.http.is_some() || p.https.is_some()).then_some(p)
 }
 
@@ -272,7 +304,11 @@ fn gnome_proxy() -> Option<PlatformProxy> {
         Some((host, port))
     };
     let ignore = get("org.gnome.system.proxy", "ignore-hosts").unwrap_or_default();
-    Some(parse_gnome(entry("org.gnome.system.proxy.http"), entry("org.gnome.system.proxy.https"), &ignore))
+    Some(parse_gnome(
+        entry("org.gnome.system.proxy.http"),
+        entry("org.gnome.system.proxy.https"),
+        &ignore,
+    ))
 }
 
 pub(crate) fn parse_gnome(
@@ -287,7 +323,11 @@ pub(crate) fn parse_gnome(
         .map(|s| s.trim().trim_matches('\'').to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    PlatformProxy { http, https, exclusions }
+    PlatformProxy {
+        http,
+        https,
+        exclusions,
+    }
 }
 
 #[cfg(test)]
@@ -319,11 +359,27 @@ mod tests {
 
     #[test]
     fn preferences() {
-        assert_eq!(ProxyMode::from_preferences(None, false, None, None, None, None, None), ProxyMode::System);
-        assert_eq!(ProxyMode::from_preferences(None, true, Some(" "), Some("8080"), None, None, None), ProxyMode::None);
-        assert_eq!(ProxyMode::from_preferences(Some("raro"), false, None, None, None, None, None), ProxyMode::None);
-        let m =
-            ProxyMode::from_preferences(Some("CUSTOM"), false, Some("p"), Some("x"), Some("u"), Some("s"), Some("a|b"));
+        assert_eq!(
+            ProxyMode::from_preferences(None, false, None, None, None, None, None),
+            ProxyMode::System
+        );
+        assert_eq!(
+            ProxyMode::from_preferences(None, true, Some(" "), Some("8080"), None, None, None),
+            ProxyMode::None
+        );
+        assert_eq!(
+            ProxyMode::from_preferences(Some("raro"), false, None, None, None, None, None),
+            ProxyMode::None
+        );
+        let m = ProxyMode::from_preferences(
+            Some("CUSTOM"),
+            false,
+            Some("p"),
+            Some("x"),
+            Some("u"),
+            Some("s"),
+            Some("a|b"),
+        );
         let ProxyMode::Custom(c) = m else { panic!() };
         assert_eq!(c.port, 80);
         assert_eq!(c.username.as_deref(), Some("u"));
@@ -341,7 +397,11 @@ mod tests {
         assert_eq!(p.https, Some(("sproxy.empresa.es".into(), 8443)));
         assert_eq!(p.exclusions, vec!["*.local", "169.254/16"]);
         assert!(parse_scutil_proxy("<dictionary> {\n  HTTPEnable : 0\n}").is_none());
-        let g = parse_gnome(None, Some(("p".into(), 3128)), "['localhost', '127.0.0.0/8', '*.intra']");
+        let g = parse_gnome(
+            None,
+            Some(("p".into(), 3128)),
+            "['localhost', '127.0.0.0/8', '*.intra']",
+        );
         assert_eq!(g.exclusions, vec!["localhost", "127.0.0.0/8", "*.intra"]);
         assert!(parse_gnome(None, None, "@as []").exclusions.is_empty());
     }

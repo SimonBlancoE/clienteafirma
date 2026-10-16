@@ -195,18 +195,14 @@ pub fn render_qualifying_object(
     };
     let ds_decl = ds.xmlns();
     let xades_decl = format!(" xmlns:{xades_prefix}=\"{}\"", esc_attr(xades_ns));
-    let id_target =
-        format!(" Id=\"{sig_prefix}-QualifyingProperties\" Target=\"#{sig_prefix}-Signature\"");
+    let id_target = format!(" Id=\"{sig_prefix}-QualifyingProperties\" Target=\"#{sig_prefix}-Signature\"");
     w.out.push_str(&format!("<{}>", ds.q("Object")));
     if in_scope_xades {
         let mut attrs = vec![id_target.trim().to_string()];
         attrs.extend([ds_decl.trim().to_string(), xades_decl.trim().to_string()]);
         // Orden por nombre cualificado (Id, Target, xmlns:...).
-        w.out.push_str(&format!(
-            "<{}:QualifyingProperties {}>",
-            xades_prefix,
-            attrs.join(" ")
-        ));
+        w.out
+            .push_str(&format!("<{}:QualifyingProperties {}>", xades_prefix, attrs.join(" ")));
     } else {
         w.out.push_str(&format!(
             "<{}:QualifyingProperties{xades_decl}{id_target}{ds_decl}>",
@@ -292,37 +288,35 @@ pub fn render_qualifying_object(
         render_policy(&mut w);
     }
     if let Some(place) = &props.place
-        && !place.is_empty(props.baseline) {
-            let name = if props.baseline {
-                "SignatureProductionPlaceV2"
-            } else {
-                "SignatureProductionPlace"
-            };
-            w.open(name);
-            if let Some(v) = &place.city {
-                w.leaf("City", v);
-            }
-            if props.baseline
-                && let Some(v) = &place.street {
-                    w.leaf("StreetAddress", v);
-                }
-            if let Some(v) = &place.province {
-                w.leaf("StateOrProvince", v);
-            }
-            if let Some(v) = &place.postal_code {
-                w.leaf("PostalCode", v);
-            }
-            if let Some(v) = &place.country {
-                w.leaf("CountryName", v);
-            }
-            w.close(name);
-        }
-    if !props.roles.is_empty() {
+        && !place.is_empty(props.baseline)
+    {
         let name = if props.baseline {
-            "SignerRoleV2"
+            "SignatureProductionPlaceV2"
         } else {
-            "SignerRole"
+            "SignatureProductionPlace"
         };
+        w.open(name);
+        if let Some(v) = &place.city {
+            w.leaf("City", v);
+        }
+        if props.baseline
+            && let Some(v) = &place.street
+        {
+            w.leaf("StreetAddress", v);
+        }
+        if let Some(v) = &place.province {
+            w.leaf("StateOrProvince", v);
+        }
+        if let Some(v) = &place.postal_code {
+            w.leaf("PostalCode", v);
+        }
+        if let Some(v) = &place.country {
+            w.leaf("CountryName", v);
+        }
+        w.close(name);
+    }
+    if !props.roles.is_empty() {
+        let name = if props.baseline { "SignerRoleV2" } else { "SignerRole" };
         w.open(name);
         w.open("ClaimedRoles");
         for r in &props.roles {
@@ -401,10 +395,8 @@ pub fn render_qualifying_object(
         }
         w.close("SignedDataObjectProperties");
     }
-    w.out
-        .push_str(&format!("</{}:SignedProperties>", xades_prefix));
-    w.out
-        .push_str(&format!("</{}:QualifyingProperties>", xades_prefix));
+    w.out.push_str(&format!("</{}:SignedProperties>", xades_prefix));
+    w.out.push_str(&format!("</{}:QualifyingProperties>", xades_prefix));
     w.out.push_str(&format!("</{}>", ds.q("Object")));
     w.out
 }
@@ -424,30 +416,34 @@ pub fn render_key_info(ds: &DsNames, id: &str, o: &KeyInfoOptions) -> String {
     s.push_str(&dsig::render_x509_data(ds, &o.certs));
     let first = o.certs.first().cloned().unwrap_or_default();
     let is_ec = crate::crypto::cert_key_algorithm(&first) == Some(afirma_core::KeyAlgorithm::Ec);
-    if o.key_value && !is_ec
-        && let Some(kv) = dsig::render_key_value(ds, &first) {
-            s.push_str(&kv);
-        }
+    if o.key_value
+        && !is_ec
+        && let Some(kv) = dsig::render_key_value(ds, &first)
+    {
+        s.push_str(&kv);
+    }
     let names = CertNames::from_der(&first);
     if o.key_name
-        && let Some(n) = &names {
-            s.push_str(&format!(
-                "<{k}>{}</{k}>",
-                esc_text(&n.subject_ldap),
-                k = ds.q("KeyName")
-            ));
-        }
+        && let Some(n) = &names
+    {
+        s.push_str(&format!(
+            "<{k}>{}</{k}>",
+            esc_text(&n.subject_ldap),
+            k = ds.q("KeyName")
+        ));
+    }
     if o.issuer_serial
-        && let Some(n) = &names {
-            s.push_str(&format!(
-                "<{is}><{a}>{}</{a}><{b}>{}</{b}></{is}>",
-                esc_text(&n.issuer_ldap),
-                esc_text(&n.serial_decimal),
-                is = ds.q("X509IssuerSerial"),
-                a = ds.q("X509IssuerName"),
-                b = ds.q("X509SerialNumber")
-            ));
-        }
+        && let Some(n) = &names
+    {
+        s.push_str(&format!(
+            "<{is}><{a}>{}</{a}><{b}>{}</{b}></{is}>",
+            esc_text(&n.issuer_ldap),
+            esc_text(&n.serial_decimal),
+            is = ds.q("X509IssuerSerial"),
+            a = ds.q("X509IssuerName"),
+            b = ds.q("X509SerialNumber")
+        ));
+    }
     s.push_str(&format!("</{}>", ds.q("KeyInfo")));
     s
 }
@@ -461,11 +457,7 @@ pub fn render_jxades_key_info(ds: &DsNames, id: &str, cert: &[u8]) -> String {
     }
     let names = CertNames::from_der(cert);
     s.push_str(&format!("<{}>", ds.q("X509Data")));
-    s.push_str(&format!(
-        "<{x}>{}</{x}>",
-        b64(cert),
-        x = ds.q("X509Certificate")
-    ));
+    s.push_str(&format!("<{x}>{}</{x}>", b64(cert), x = ds.q("X509Certificate")));
     if let Some(n) = &names {
         s.push_str(&format!(
             "<{x}>{}</{x}>",
@@ -550,9 +542,7 @@ pub fn policy_from_params(p: &ExtraParams) -> afirma_core::Result<Option<Policy>
 pub fn place_from_params(p: &ExtraParams) -> Option<Place> {
     let place = Place {
         city: p.get("signatureProductionCity").map(str::to_string),
-        street: p
-            .get("signatureProductionStreetAddress")
-            .map(str::to_string),
+        street: p.get("signatureProductionStreetAddress").map(str::to_string),
         province: p.get("signatureProductionProvince").map(str::to_string),
         postal_code: p.get("signatureProductionPostalCode").map(str::to_string),
         country: p.get("signatureProductionCountry").map(str::to_string),
@@ -601,9 +591,7 @@ pub fn commitments_from_params(p: &ExtraParams, signed_data_id: Option<&str>) ->
     let n: i64 = match n.trim().parse() {
         Ok(v) if v >= 1 => v,
         _ => {
-            tracing::warn!(
-                "El parametro 'commitmentTypeIndications' debe contener un entero positivo: {n}"
-            );
+            tracing::warn!("El parametro 'commitmentTypeIndications' debe contener un entero positivo: {n}");
             return vec![];
         }
     };
@@ -617,20 +605,11 @@ pub fn commitments_from_params(p: &ExtraParams, signed_data_id: Option<&str>) ->
             continue;
         };
         let docs = p
-            .get(&format!(
-                "commitmentTypeIndication{i}DocumentationReferences"
-            ))
-            .map(|v| {
-                v.split('|')
-                    .filter(|d| is_java_url(d))
-                    .map(str::to_string)
-                    .collect()
-            })
+            .get(&format!("commitmentTypeIndication{i}DocumentationReferences"))
+            .map(|v| v.split('|').filter(|d| is_java_url(d)).map(str::to_string).collect())
             .unwrap_or_default();
         let quals = p
-            .get(&format!(
-                "commitmentTypeIndication{i}CommitmentTypeQualifiers"
-            ))
+            .get(&format!("commitmentTypeIndication{i}CommitmentTypeQualifiers"))
             .map(|v| v.split('|').map(str::to_string).collect())
             .unwrap_or_default();
         out.push(Commitment {
@@ -657,14 +636,8 @@ mod tests {
         );
         let c = commitments_from_params(&p, Some("Reference-1"));
         assert_eq!(c.len(), 2);
-        assert_eq!(
-            c[1].identifier,
-            "http://uri.etsi.org/01903/v1.2.2#ProofOfApproval"
-        );
-        assert_eq!(
-            c[1].documentation_references,
-            vec!["http://a.es/x".to_string()]
-        );
+        assert_eq!(c[1].identifier, "http://uri.etsi.org/01903/v1.2.2#ProofOfApproval");
+        assert_eq!(c[1].documentation_references, vec!["http://a.es/x".to_string()]);
         assert_eq!(c[0].object_reference.as_deref(), Some("#Reference-1"));
     }
 
@@ -675,10 +648,7 @@ mod tests {
         );
         let pol = policy_from_params(&p).unwrap().unwrap();
         assert_eq!(pol.identifier, "urn:oid:2.16.724.1.3.1.1.2.1.9");
-        assert_eq!(
-            pol.hash_algorithm_uri,
-            "http://www.w3.org/2000/09/xmldsig#sha1"
-        );
+        assert_eq!(pol.hash_algorithm_uri, "http://www.w3.org/2000/09/xmldsig#sha1");
         let bad = ExtraParams::parse(
             "policyIdentifier=x\npolicyIdentifierHash=AA==\npolicyIdentifierHashAlgorithm=SHA-384\n",
         );

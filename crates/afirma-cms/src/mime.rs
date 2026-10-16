@@ -38,7 +38,11 @@ pub struct CoreDetector;
 impl DataTypeDetector for CoreDetector {
     fn analyze(&self, data: &[u8]) -> DataTypeInfo {
         match afirma_core::mime::mime_info(data) {
-            Ok(i) => DataTypeInfo { mime_type: i.mime, description: i.description, extension: i.extension },
+            Ok(i) => DataTypeInfo {
+                mime_type: i.mime,
+                description: i.description,
+                extension: i.extension,
+            },
             Err(e) => {
                 tracing::warn!("No se ha podido identificar el tipo de dato firmado: {e}");
                 DataTypeInfo {
@@ -95,8 +99,14 @@ mod tests {
         assert_eq!(pdf.mime_type, "application/pdf");
         assert_eq!(pdf.description, "PDF document");
         let xml = analyze(b"<?xml version=\"1.0\"?><a/>");
-        assert_eq!((xml.mime_type.as_str(), xml.description.as_str()), ("text/xml", "Documento XML"));
+        assert_eq!(
+            (xml.mime_type.as_str(), xml.description.as_str()),
+            ("text/xml", "Documento XML")
+        );
         let txt = analyze(b"Hola mundo");
-        assert_eq!((txt.mime_type.as_str(), txt.description.as_str()), ("text/plain", "Texto plano"));
+        assert_eq!(
+            (txt.mime_type.as_str(), txt.description.as_str()),
+            ("text/plain", "Texto plano")
+        );
     }
 }

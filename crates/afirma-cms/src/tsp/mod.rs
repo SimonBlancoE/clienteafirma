@@ -104,7 +104,9 @@ impl TsaParams {
             .split_once(':')
             .is_some_and(|(s, _)| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c)));
         if !scheme_ok {
-            return Err(AfirmaError::invalid_argument(format!("Se ha indicado una URL de TSA invalida ({url})")));
+            return Err(AfirmaError::invalid_argument(format!(
+                "Se ha indicado una URL de TSA invalida ({url})"
+            )));
         }
         let mut t = TsaParams::new(url);
         if let Some(pol) = p.get("tsaPolicy") {
@@ -186,7 +188,10 @@ pub fn build_request(
         None => None,
     };
     let nonce_der = der::integer_unsigned(&nonce.to_be_bytes());
-    let mut parts = vec![der::integer_i64(1), der::sequence([alg::digest_alg_id(digest), der::octet_string(imprint)])];
+    let mut parts = vec![
+        der::integer_i64(1),
+        der::sequence([alg::digest_alg_id(digest), der::octet_string(imprint)]),
+    ];
     if let Some(p) = &policy {
         parts.push(der::oid(p));
     }
@@ -206,7 +211,9 @@ pub fn build_request(
         e.push(der::octet_string(&ext.value));
         parts.push(der::implicit_content(0, true, &der::sequence([der::sequence(e)])));
     }
-    let nonce_bytes = Tlv::parse_single(&nonce_der).map(|t| t.value.to_vec()).unwrap_or_default();
+    let nonce_bytes = Tlv::parse_single(&nonce_der)
+        .map(|t| t.value.to_vec())
+        .unwrap_or_default();
     Ok(TimeStampRequest {
         der: der::sequence(parts),
         digest,
@@ -254,9 +261,13 @@ pub fn parse_timestamp_token(token: &[u8]) -> afirma_core::Result<TimeStampToken
     if !si.has_signed_attr(oids::SIGNING_CERTIFICATE) && !si.has_signed_attr(oids::SIGNING_CERTIFICATE_V2) {
         return Err(tsp_error("no signing certificate attribute found, time stamp invalid."));
     }
-    let content = sd.content().ok_or_else(|| tsp_error("El sello de tiempo no contiene el TSTInfo"))?;
+    let content = sd
+        .content()
+        .ok_or_else(|| tsp_error("El sello de tiempo no contiene el TSTInfo"))?;
     let tst = Tlv::parse_single(&content).map_err(|e| tsp_error(format!("TSTInfo no valido: {e}")))?;
-    let f = tst.children().map_err(|e| tsp_error(format!("TSTInfo no valido: {e}")))?;
+    let f = tst
+        .children()
+        .map_err(|e| tsp_error(format!("TSTInfo no valido: {e}")))?;
     let get = |i: usize| f.get(i).copied().ok_or_else(|| tsp_error("TSTInfo incompleto"));
     let policy = get(1)?.as_oid().map_err(|e| tsp_error(e.to_string()))?.to_dotted();
     let mi = get(2)?.children().map_err(|e| tsp_error(e.to_string()))?;
@@ -266,11 +277,20 @@ pub fn parse_timestamp_token(token: &[u8]) -> afirma_core::Result<TimeStampToken
         .and_then(|c| c.first().and_then(|o| o.as_oid().ok()))
         .map(|o| o.to_dotted())
         .ok_or_else(|| tsp_error("MessageImprint no valido"))?;
-    let imprint =
-        mi.get(1).and_then(|o| o.octet_string_content().ok()).ok_or_else(|| tsp_error("MessageImprint no valido"))?;
-    let serial_number = get(3)?.as_integer_bytes().map_err(|e| tsp_error(e.to_string()))?.to_vec();
+    let imprint = mi
+        .get(1)
+        .and_then(|o| o.octet_string_content().ok())
+        .ok_or_else(|| tsp_error("MessageImprint no valido"))?;
+    let serial_number = get(3)?
+        .as_integer_bytes()
+        .map_err(|e| tsp_error(e.to_string()))?
+        .to_vec();
     let gen_time = get(4)?.as_time().map_err(|e| tsp_error(e.to_string()))?;
-    let nonce = f.iter().skip(5).find(|t| t.tag == tags::INTEGER).map(|t| t.value.to_vec());
+    let nonce = f
+        .iter()
+        .skip(5)
+        .find(|t| t.tag == tags::INTEGER)
+        .map(|t| t.value.to_vec());
     let tsa_certificate = sd.signer_certificate(si).map(<[u8]>::to_vec);
     Ok(TimeStampTokenInfo {
         token: to_der_preserving(&sd.content_info),
@@ -303,10 +323,16 @@ pub fn parse_response(resp: &[u8]) -> afirma_core::Result<TimeStampResponse> {
         .expect(tags::SEQUENCE)
         .map_err(|e| bad(e.to_string()))?;
     let parts = top.children().map_err(|e| bad(e.to_string()))?;
-    let status_info =
-        parts.first().ok_or_else(|| bad("sin PKIStatusInfo".into()))?.children().map_err(|e| bad(e.to_string()))?;
-    let status =
-        status_info.first().ok_or_else(|| bad("sin estado".into()))?.as_i64().map_err(|e| bad(e.to_string()))?;
+    let status_info = parts
+        .first()
+        .ok_or_else(|| bad("sin PKIStatusInfo".into()))?
+        .children()
+        .map_err(|e| bad(e.to_string()))?;
+    let status = status_info
+        .first()
+        .ok_or_else(|| bad("sin estado".into()))?
+        .as_i64()
+        .map_err(|e| bad(e.to_string()))?;
     let mut status_strings = Vec::new();
     let mut fail_info = 0u32;
     for t in status_info.iter().skip(1) {
@@ -328,7 +354,12 @@ pub fn parse_response(resp: &[u8]) -> afirma_core::Result<TimeStampResponse> {
         }
     }
     let token = parts.get(1).map(|t| t.to_definite());
-    Ok(TimeStampResponse { status, status_strings, fail_info, token })
+    Ok(TimeStampResponse {
+        status,
+        status_strings,
+        fail_info,
+        token,
+    })
 }
 
 /// Valida la respuesta frente a la petición (`TimeStampResponse.validate`)
@@ -364,11 +395,15 @@ pub fn validate_response(resp: &TimeStampResponse, req: &TimeStampRequest) -> af
         return Err(invalid("response for different message imprint algorithm."));
     }
     if let Some(p) = &req.policy
-        && info.policy != p.to_dotted() {
-            return Err(invalid("TSA responded with wrong policy."));
-        }
+        && info.policy != p.to_dotted()
+    {
+        return Err(invalid("TSA responded with wrong policy."));
+    }
     if resp.fail_info != 0 {
-        return Err(tsp_error(format!("Respuesta invalida de la TSA con el codigo {}", resp.fail_info)));
+        return Err(tsp_error(format!(
+            "Respuesta invalida de la TSA con el codigo {}",
+            resp.fail_info
+        )));
     }
     verify_token_signature(&info)?;
     Ok(info)
@@ -378,7 +413,9 @@ pub fn validate_response(resp: &TimeStampResponse, req: &TimeStampRequest) -> af
 /// de la TSA y el algoritmo es soportado (Java no lo hace; una firma
 /// incorrecta se rechaza, un algoritmo no soportado solo se avisa).
 pub fn verify_token_signature(info: &TimeStampTokenInfo) -> afirma_core::Result<()> {
-    let Some(cert) = &info.tsa_certificate else { return Ok(()) };
+    let Some(cert) = &info.tsa_certificate else {
+        return Ok(());
+    };
     let sd = SignedData::parse(&info.token).map_err(|e| tsp_error(e.to_string()))?;
     let si = &sd.signer_infos[0];
     let content = sd.content().unwrap_or_default();
@@ -405,10 +442,13 @@ pub fn verify_signer_info(
     let digest = DigestAlgorithm::from_oid(&si.digest_oid.to_dotted())
         .ok_or_else(|| verify::VerifyError(format!("huella no soportada: {}", si.digest_oid)))?;
     if let Some(c) = content
-        && si.message_digest().as_deref() != Some(digest.digest(c).as_slice()) {
-            return Ok(false);
-        }
-    let tbs = si.signed_attrs_to_be_signed().ok_or_else(|| verify::VerifyError("sin atributos firmados".into()))?;
+        && si.message_digest().as_deref() != Some(digest.digest(c).as_slice())
+    {
+        return Ok(false);
+    }
+    let tbs = si
+        .signed_attrs_to_be_signed()
+        .ok_or_else(|| verify::VerifyError("sin atributos firmados".into()))?;
     verify::verify_with_certificate(cert, alg, &tbs, &si.signature_value())
 }
 
@@ -421,7 +461,10 @@ pub struct Timestamper {
 impl Timestamper {
     /// Cliente con el transporte por defecto (HTTP/HTTPS/socket).
     pub fn new(params: TsaParams) -> Self {
-        Timestamper { params, transport: Box::new(DefaultTransport) }
+        Timestamper {
+            params,
+            transport: Box::new(DefaultTransport),
+        }
     }
 
     pub fn with_transport(params: TsaParams, transport: Box<dyn TsaTransport>) -> Self {
@@ -467,8 +510,10 @@ impl Timestamper {
         let mut signer_infos = Vec::new();
         for si in &sd.signer_infos {
             let token = self.get_timestamp_token(&digest.digest(&si.signature_value()), digest)?;
-            signer_infos
-                .push(add_unsigned_attribute(si, &cms::encode_attribute(oids::SIGNATURE_TIMESTAMP_TOKEN, &[token])));
+            signer_infos.push(add_unsigned_attribute(
+                si,
+                &cms::encode_attribute(oids::SIGNATURE_TIMESTAMP_TOKEN, &[token]),
+            ));
         }
         Ok(SignedDataParts {
             digest_algorithms: cms::set_elements_der(&sd.digest_algorithms),
@@ -483,7 +528,11 @@ impl Timestamper {
 
 /// Reconstruye un SignerInfo añadiendo un atributo no firmado.
 pub fn add_unsigned_attribute(si: &SignerInfo<'_>, attribute: &[u8]) -> Vec<u8> {
-    let mut unsigned: Vec<Vec<u8>> = si.unsigned_attrs.as_ref().map(cms::set_elements_der).unwrap_or_default();
+    let mut unsigned: Vec<Vec<u8>> = si
+        .unsigned_attrs
+        .as_ref()
+        .map(cms::set_elements_der)
+        .unwrap_or_default();
     unsigned.push(attribute.to_vec());
     cms::rebuild_signer_info(si, Some(&unsigned))
 }

@@ -103,11 +103,7 @@ pub fn finish(text: &str, encoding_name: &str) -> Result<Vec<u8>, String> {
 /// Codifica un documento existente (con su prólogo) conservando su
 /// declaración XML si ya indica la codificación de salida; en otro caso la
 /// sustituye (o la añade) con la codificación indicada.
-pub fn finish_preserving(
-    doc: &Document,
-    text: &str,
-    encoding_name: &str,
-) -> Result<Vec<u8>, String> {
+pub fn finish_preserving(doc: &Document, text: &str, encoding_name: &str) -> Result<Vec<u8>, String> {
     let enc = crate::util::encoding_for(encoding_name)
         .ok_or_else(|| format!("Codificacion no soportada: {encoding_name}"))?;
     let (decl_text, rest) = match &doc.xml_decl {
@@ -120,18 +116,12 @@ pub fn finish_preserving(
                 (text[..d.range.end].to_string(), &text[d.range.end..])
             } else {
                 (
-                    format!(
-                        "<?xml version=\"{}\" encoding=\"{encoding_name}\"?>",
-                        d.version
-                    ),
+                    format!("<?xml version=\"{}\" encoding=\"{encoding_name}\"?>", d.version),
                     &text[d.range.end..],
                 )
             }
         }
-        None => (
-            format!("<?xml version=\"1.0\" encoding=\"{encoding_name}\"?>"),
-            text,
-        ),
+        None => (format!("<?xml version=\"1.0\" encoding=\"{encoding_name}\"?>"), text),
     };
     let full = format!("{decl_text}{rest}");
     Ok(crate::dom::encode(&full, enc))
@@ -145,14 +135,8 @@ mod tests {
     fn insert_into_empty_and_full_elements() {
         let d = Document::parse("<a><b/><c>x</c></a>").unwrap();
         let root = d.document_element().unwrap();
-        assert_eq!(
-            insert_last_child(&d, root, "<s/>"),
-            "<a><b/><c>x</c><s/></a>"
-        );
+        assert_eq!(insert_last_child(&d, root, "<s/>"), "<a><b/><c>x</c><s/></a>");
         let b = d.child_elements(root).next().unwrap();
-        assert_eq!(
-            insert_last_child(&d, b, "<s/>"),
-            "<a><b><s/></b><c>x</c></a>"
-        );
+        assert_eq!(insert_last_child(&d, b, "<s/>"), "<a><b><s/></b><c>x</c></a>");
     }
 }

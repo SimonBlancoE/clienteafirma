@@ -117,26 +117,18 @@ impl Console<'_> {
 }
 
 /// Ejecuta la restauración; `sink` recibe cada línea en cuanto se produce (para la interfaz).
-pub fn restore(
-    ctx: &Context,
-    opts: &RestoreOptions,
-    sink: &mut dyn FnMut(&LogLine),
-) -> RestoreReport {
+pub fn restore(ctx: &Context, opts: &RestoreOptions, sink: &mut dyn FnMut(&LogLine)) -> RestoreReport {
     let mut c = Console {
         rep: RestoreReport::default(),
         sink,
     };
     c.info("Inicio de la restauración");
-    c.info(format!(
-        "Directorio de aplicación: {}",
-        ctx.app.app_dir.display()
-    ));
+    c.info(format!("Directorio de aplicación: {}", ctx.app.app_dir.display()));
     let users = ctx.user_homes(opts.all_users);
 
     // 1. Certificados.
     let app_status = certs::inspect(&ctx.app.app_dir);
-    let reuse_app =
-        app_status.usable() && !app_status.needs_renewal() && opts.regenerate != Regenerate::Always;
+    let reuse_app = app_status.usable() && !app_status.needs_renewal() && opts.regenerate != Regenerate::Always;
     let dir = if reuse_app {
         ctx.app.app_dir.clone()
     } else {
@@ -176,12 +168,8 @@ pub fn restore(
                 } else {
                     TrustScope::User
                 };
-                if scope == TrustScope::User
-                    && trust::windows::check(store, TrustScope::Machine, &local.ca_der).ok()
-                {
-                    c.info(
-                        "El certificado raíz ya se encontraba instalado en el almacén de Windows.",
-                    );
+                if scope == TrustScope::User && trust::windows::check(store, TrustScope::Machine, &local.ca_der).ok() {
+                    c.info("El certificado raíz ya se encontraba instalado en el almacén de Windows.");
                 } else {
                     match trust::windows::install(store, scope, &local.ca_der) {
                         Ok(Change::Unchanged) => c.info("El certificado raíz ya se encontraba instalado en el almacén de Windows."),
@@ -204,14 +192,18 @@ pub fn restore(
                         c.info("Certificado de CA importado.");
                         c.info("Certificado SSL importado.");
                     }
-                    Err(e) => c.error(format!("No se ha podido instalar el certificado de confianza SSL en el llavero del sistema. ({e})")),
+                    Err(e) => c.error(format!(
+                        "No se ha podido instalar el certificado de confianza SSL en el llavero del sistema. ({e})"
+                    )),
                 }
             }
             Os::Linux => {
                 if ctx.elevated {
                     c.info("Instalando el certificado en el almacén del sistema...");
                     if let Err(e) = trust::linux::install(ctx, &local.ca_der) {
-                        c.error(format!("No se ha podido instalar el certificado de confianza SSL en el almacén del sistema. ({e})"));
+                        c.error(format!(
+                            "No se ha podido instalar el certificado de confianza SSL en el almacén del sistema. ({e})"
+                        ));
                     }
                 }
             }
@@ -220,23 +212,15 @@ pub fn restore(
         // 3. NSS (Chrome/Chromium en Linux y Firefox).
         let dbs = nss::discover(ctx, &users, true, true);
         let backend = nss::backend(ctx);
-        let shared: Vec<_> = dbs
-            .iter()
-            .filter(|d| d.purpose == NssPurpose::Shared)
-            .collect();
-        let fx: Vec<_> = dbs
-            .iter()
-            .filter(|d| d.purpose == NssPurpose::Firefox)
-            .collect();
+        let shared: Vec<_> = dbs.iter().filter(|d| d.purpose == NssPurpose::Shared).collect();
+        let fx: Vec<_> = dbs.iter().filter(|d| d.purpose == NssPurpose::Firefox).collect();
         if !shared.is_empty() {
             c.info("Instalando el certificado en el almacén del sistema...");
         }
         if ctx.os == Os::Windows {
             c.info("Instalando el certificado SSL en el almacén de Mozilla Firefox");
         } else {
-            c.info(
-                "Instalando el certificado de confianza SSL en el almacén de Mozilla Firefox...",
-            );
+            c.info("Instalando el certificado de confianza SSL en el almacén de Mozilla Firefox...");
         }
         if fx.is_empty() {
             c.warn("No se ha detectado un perfil de Mozilla Firefox en el que instalar el certificado.");
@@ -273,9 +257,7 @@ pub fn restore(
 
     // 4. Protocolo afirma://
     match ctx.os {
-        Os::Windows => {
-            c.info("Restaurando la configuración del protocolo afirma en el registro de Windows...")
-        }
+        Os::Windows => c.info("Restaurando la configuración del protocolo afirma en el registro de Windows..."),
         _ => c.info("Restaurando la configuración del protocolo \"afirma\" en Mozilla Firefox..."),
     }
     let popts = ProtocolOptions {
@@ -310,9 +292,9 @@ pub fn restore(
     // 5. Confianza de Firefox en las raíces del sistema (Windows y macOS).
     if ctx.os != Os::Linux {
         match opts.firefox_enterprise_roots {
-            Tristate::Leave => c.info(
-                "Se mantiene la configuración de Firefox sobre los certificados raíz del sistema.",
-            ),
+            Tristate::Leave => {
+                c.info("Se mantiene la configuración de Firefox sobre los certificados raíz del sistema.")
+            }
             t => {
                 let enable = t == Tristate::Enable;
                 if enable {
@@ -326,7 +308,10 @@ pub fn restore(
                 }
                 for p in profiles {
                     if ctx.os == Os::MacOs {
-                        c.info(format!("Editamos la confianza de Firefox en el almacén del sistema para el perfil: {}", p.dir.display()));
+                        c.info(format!(
+                            "Editamos la confianza de Firefox en el almacén del sistema para el perfil: {}",
+                            p.dir.display()
+                        ));
                     }
                     if let Err(e) = firefox::set_enterprise_roots(&p.dir, enable) {
                         c.warn(format!(
@@ -352,26 +337,18 @@ mod tests {
         let ctx = Context::for_tests(Os::Windows, t.path());
         // El directorio de instalación no existe/no es escribible: se usa el alternativo.
         let mut lines = Vec::new();
-        let rep = restore(&ctx, &RestoreOptions::default(), &mut |l| {
-            lines.push(l.text())
-        });
+        let rep = restore(&ctx, &RestoreOptions::default(), &mut |l| lines.push(l.text()));
         assert!(rep.ok(), "{}", rep.to_text());
         assert_eq!(
             lines.first().map(String::as_str),
             Some("INFO: Inicio de la restauración")
         );
-        assert_eq!(
-            lines.last().map(String::as_str),
-            Some("INFO: Fin de la restauración")
-        );
+        assert_eq!(lines.last().map(String::as_str), Some("INFO: Fin de la restauración"));
         assert!(ctx.paths.alternative_dir.join(certs::KS_FILENAME).is_file());
         let c = certs::locate(&ctx).unwrap();
         assert!(trust::windows::check(ctx.win_certs.as_ref(), TrustScope::User, &c.ca_der).ok());
         assert!(protocol::status(&ctx).registered);
-        assert!(
-            rep.to_text()
-                .contains("Se mantiene la configuración de Firefox")
-        );
+        assert!(rep.to_text().contains("Se mantiene la configuración de Firefox"));
         // Segunda ejecución: reutiliza y no cambia nada.
         let rep2 = restore(&ctx, &RestoreOptions::default(), &mut |_| {});
         assert!(rep2.to_text().contains("ya se encuentra generado"));

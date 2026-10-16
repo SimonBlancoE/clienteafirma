@@ -28,10 +28,7 @@ pub(crate) fn load_xml(data: &[u8]) -> Option<XmlInput> {
         return None;
     }
     let declared_encoding = doc.xml_decl.as_ref().and_then(|d| d.encoding.clone());
-    Some(XmlInput {
-        doc,
-        declared_encoding,
-    })
+    Some(XmlInput { doc, declared_encoding })
 }
 
 /// `AOUtil.createURI`: comprueba si la URI es utilizable.
@@ -107,9 +104,7 @@ pub(crate) fn custom_transforms(p: &ExtraParams) -> afirma_core::Result<Vec<Tran
         .unwrap_or("0")
         .trim()
         .parse()
-        .map_err(|_| {
-            AfirmaError::invalid_argument("El parametro 'xmlTransforms' debe ser un numero entero")
-        })?;
+        .map_err(|_| AfirmaError::invalid_argument("El parametro 'xmlTransforms' debe ser un numero entero"))?;
     let mut out = Vec::new();
     for i in 0..n {
         let ty = p.get(&format!("xmlTransform{i}Type"));
@@ -123,9 +118,7 @@ pub(crate) fn custom_transforms(p: &ExtraParams) -> afirma_core::Result<Vec<Tran
                 }),
                 other => tracing::warn!("Transformacion XPATH2 de un tipo no soportado: {other:?}"),
             },
-            (Some(t @ (dsig::BASE64 | dsig::ENVELOPED)), _) => {
-                out.push(TransformSpec::Plain(t.to_string()))
-            }
+            (Some(t @ (dsig::BASE64 | dsig::ENVELOPED)), _) => out.push(TransformSpec::Plain(t.to_string())),
             (Some(t), _) => tracing::warn!("Transformacion no soportada, se omite: {t}"),
             _ => {}
         }
@@ -142,12 +135,13 @@ pub(crate) fn data_object_format(
 ) -> DataObjectFormat {
     let mut data_oid = oid.map(str::to_string);
     if data_oid.is_none()
-        && let Some(m) = mime_type {
-            let o = mime::mime_to_oid(m);
-            if !(m != mime::DEFAULT_MIMETYPE && o == mime::DEFAULT_OID) {
-                data_oid = Some(o);
-            }
+        && let Some(m) = mime_type
+    {
+        let o = mime::mime_to_oid(m);
+        if !(m != mime::DEFAULT_MIMETYPE && o == mime::DEFAULT_OID) {
+            data_oid = Some(o);
         }
+    }
     DataObjectFormat {
         object_reference: format!("#{reference_id}"),
         description: None,
@@ -160,14 +154,17 @@ pub(crate) fn data_object_format(
 /// Primer elemento resultado de `insertEnvelopedSignatureOnNodeByXPath`.
 fn xpath_insertion_node(doc: &Document, expr: &str) -> afirma_core::Result<NodeId> {
     let bad = |m: String| AfirmaError::new(codes::INVALID_NODE_SELECTOR_XPATH, m);
-    let xp = XPath::compile(expr, &Default::default())
-        .map_err(|e| bad(format!("No se ha podido evaluar la expresion indicada para la insercion de la firma Enveloped ('{expr}'): {e}")))?;
-    let root = doc
-        .document_element()
-        .ok_or_else(|| bad("documento sin raíz".into()))?;
-    let nodes = xp
-        .select(doc, XNode::Node(root), None)
-        .map_err(|e| bad(format!("No se ha podido evaluar la expresion indicada para la insercion de la firma Enveloped ('{expr}'): {e}")))?;
+    let xp = XPath::compile(expr, &Default::default()).map_err(|e| {
+        bad(format!(
+            "No se ha podido evaluar la expresion indicada para la insercion de la firma Enveloped ('{expr}'): {e}"
+        ))
+    })?;
+    let root = doc.document_element().ok_or_else(|| bad("documento sin raíz".into()))?;
+    let nodes = xp.select(doc, XNode::Node(root), None).map_err(|e| {
+        bad(format!(
+            "No se ha podido evaluar la expresion indicada para la insercion de la firma Enveloped ('{expr}'): {e}"
+        ))
+    })?;
     if nodes.len() > 1 {
         tracing::warn!("La expresion '{expr}' ha devuelto varios nodos, se usara el primero");
     }
@@ -199,12 +196,14 @@ fn percent_decode(s: &str) -> String {
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;
     while i < b.len() {
-        if b[i] == b'%' && i + 2 < b.len()
-            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(v);
-                i += 3;
-                continue;
-            }
+        if b[i] == b'%'
+            && i + 2 < b.len()
+            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
+        {
+            out.push(v);
+            i += 3;
+            continue;
+        }
         out.push(b[i]);
         i += 1;
     }
@@ -216,9 +215,7 @@ pub(crate) fn check_digest_uri(uri: &str) -> afirma_core::Result<()> {
     if dsig::digest_from_uri(uri).is_none() {
         return Err(AfirmaError::new(
             codes::INVALID_REFERENCES_HASH_ALGORITHM_URI,
-            format!(
-                "No se ha podido obtener un generador de huellas digitales para el algoritmo {uri}"
-            ),
+            format!("No se ha podido obtener un generador de huellas digitales para el algoritmo {uri}"),
         ));
     }
     Ok(())
@@ -238,19 +235,18 @@ pub(crate) fn check_c14n_uri(uri: &str) -> afirma_core::Result<()> {
 /// Lee y valida el parámetro `encoding`.
 pub(crate) fn encoding_param(p: &ExtraParams) -> afirma_core::Result<Option<String>> {
     let mut encoding = p.get("encoding").map(str::to_string);
-    if encoding
-        .as_deref()
-        .is_some_and(|e| e.eq_ignore_ascii_case("base64"))
-    {
+    if encoding.as_deref().is_some_and(|e| e.eq_ignore_ascii_case("base64")) {
         encoding = Some(dsig::BASE64.to_string());
     }
     if let Some(e) = &encoding
-        && !e.is_empty() && !util::is_valid_uri(e) {
-            return Err(AfirmaError::new(
-                codes::INVALID_ENCODING_URI,
-                format!("La codificacion indicada en 'encoding' debe ser una URI: {e}"),
-            ));
-        }
+        && !e.is_empty()
+        && !util::is_valid_uri(e)
+    {
+        return Err(AfirmaError::new(
+            codes::INVALID_ENCODING_URI,
+            format!("La codificacion indicada en 'encoding' debe ser una URI: {e}"),
+        ));
+    }
     Ok(encoding)
 }
 
@@ -262,11 +258,7 @@ pub(crate) fn key_info_certs(key: &dyn SigningKey, only_signing: bool) -> Vec<Ve
     } else {
         chain
     };
-    if only_signing {
-        vec![chain[0].clone()]
-    } else {
-        chain
-    }
+    if only_signing { vec![chain[0].clone()] } else { chain }
 }
 
 enum Layout {
@@ -296,16 +288,9 @@ pub fn sign(
     }
     let mut p = extra.clone();
     p.remove("validatePkcs1");
-    let baseline = p
-        .get("profile")
-        .is_some_and(|v| v.eq_ignore_ascii_case("baseline"));
-    if baseline
-        && p.get("xadesNamespace")
-            .is_some_and(|ns| !is_baseline_compatible(ns))
-    {
-        tracing::warn!(
-            "El espacio de nombres indicado no es compatible con el perfil baseline, se ignorara"
-        );
+    let baseline = p.get("profile").is_some_and(|v| v.eq_ignore_ascii_case("baseline"));
+    if baseline && p.get("xadesNamespace").is_some_and(|ns| !is_baseline_compatible(ns)) {
+        tracing::warn!("El espacio de nombres indicado no es compatible con el perfil baseline, se ignorara");
         p.remove("xadesNamespace");
         p.remove("signedPropertiesTypeUrl");
     }
@@ -314,20 +299,12 @@ pub fn sign(
     let avoid_xpath = p.get_bool("avoidXpathExtraTransformsOnEnveloped", false);
     let only_cert = p.get_bool("includeOnlySignningCertificate", false);
     let use_manifest = p.get_bool("useManifest", false);
-    let enveloped_xpath = p
-        .get("insertEnvelopedSignatureOnNodeByXPath")
-        .map(str::to_string);
+    let enveloped_xpath = p.get("insertEnvelopedSignatureOnNodeByXPath").map(str::to_string);
     let mut node_to_sign = p.get("nodeToSign").map(str::to_string);
-    let avoid_enveloped =
-        node_to_sign.is_some() && p.get_bool("avoidEnvelopedTransformWhenSigningNode", false);
+    let avoid_enveloped = node_to_sign.is_some() && p.get_bool("avoidEnvelopedTransformWhenSigningNode", false);
     let format_raw = p.get_or("format", FORMAT_ENVELOPING).to_string();
-    let digest_uri = p
-        .get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD)
-        .to_string();
-    let ext_hash_alg = p
-        .get("precalculatedHashAlgorithm")
-        .unwrap_or(&digest_uri)
-        .to_string();
+    let digest_uri = p.get_or("referencesDigestMethod", DEFAULT_DIGEST_METHOD).to_string();
+    let ext_hash_alg = p.get("precalculatedHashAlgorithm").unwrap_or(&digest_uri).to_string();
     let c14n_param = p.get_or("canonicalizationAlgorithm", C14N_10).to_string();
     let c14n: Option<String> = if c14n_param.eq_ignore_ascii_case("none") {
         None
@@ -335,9 +312,7 @@ pub fn sign(
         Some(c14n_param)
     };
     let xades_ns = p.get_or("xadesNamespace", NS_XADES_132).to_string();
-    let sp_type = p
-        .get_or("signedPropertiesTypeUrl", SIGNED_PROPERTIES_TYPE)
-        .to_string();
+    let sp_type = p.get_or("signedPropertiesTypeUrl", SIGNED_PROPERTIES_TYPE).to_string();
     let avoid_b64 = p.get_bool("avoidBase64Transforms", false);
     let add_key_value = p.get_bool("addKeyInfoKeyValue", true);
     let add_key_name = p.get_bool("addKeyInfoKeyName", false);
@@ -356,10 +331,7 @@ pub fn sign(
     if use_manifest {
         format = Some(FORMAT_EXTERNALLY_DETACHED);
     }
-    let uri_param = p
-        .get("uri")
-        .filter(|u| create_uri_ok(u))
-        .map(str::to_string);
+    let uri_param = p.get("uri").filter(|u| create_uri_ok(u)).map(str::to_string);
     let format = match format {
         Some(f) => f,
         None => {
@@ -417,10 +389,7 @@ pub fn sign(
                         )
                     })?;
                     if el != root {
-                        let parent = doc
-                            .parent(el)
-                            .filter(|&pp| doc.element(pp).is_some())
-                            .unwrap_or(root);
+                        let parent = doc.parent(el).filter(|&pp| doc.element(pp).is_some()).unwrap_or(root);
                         layout = Some(Layout::Splice { parent });
                     } else {
                         data_text = Some(doc.node_source(root).to_string());
@@ -480,15 +449,12 @@ pub fn sign(
     let mut data_refs: Vec<ReferenceSpec> = Vec::new();
     let mut objects_before: Vec<String> = Vec::new();
     let mut manifest_dofs: Option<Vec<DataObjectFormat>> = None;
-    let mime_or_default = mime_type
-        .clone()
-        .unwrap_or_else(|| mime::DEFAULT_MIMETYPE.to_string());
+    let mime_or_default = mime_type.clone().unwrap_or_else(|| mime::DEFAULT_MIMETYPE.to_string());
 
     if format == FORMAT_ENVELOPING {
-        if !is_base64
-            && let Some(c) = &c14n {
-                transforms.push(TransformSpec::Plain(c.clone()));
-            }
+        if !is_base64 && let Some(c) = &c14n {
+            transforms.push(TransformSpec::Plain(c.clone()));
+        }
         let object_id = format!("Object-{}", uuid_v4());
         let mut obj = format!("<{}", ds.q("Object"));
         if let Some(e) = &encoding {
@@ -501,10 +467,7 @@ pub fn sign(
         obj.push_str(data_text.as_deref().unwrap_or(""));
         obj.push_str(&format!("</{}>", ds.q("Object")));
         objects_before.push(obj);
-        let mut r = ReferenceSpec::new(
-            format!("#{}", node_to_sign.clone().unwrap_or(object_id)),
-            &digest_uri,
-        );
+        let mut r = ReferenceSpec::new(format!("#{}", node_to_sign.clone().unwrap_or(object_id)), &digest_uri);
         r.id = Some(reference_id.clone());
         r.ty = if node_to_sign.is_some() {
             None
@@ -514,10 +477,9 @@ pub fn sign(
         r.transforms = transforms.clone();
         data_refs.push(r);
     } else if format == FORMAT_DETACHED {
-        if !is_base64
-            && let Some(c) = &c14n {
-                transforms.push(TransformSpec::Plain(c.clone()));
-            }
+        if !is_base64 && let Some(c) = &c14n {
+            transforms.push(TransformSpec::Plain(c.clone()));
+        }
         let mut r = ReferenceSpec::new(
             format!("#{}", node_to_sign.clone().unwrap_or(content_id.clone())),
             &digest_uri,
@@ -572,10 +534,7 @@ pub fn sign(
             let mut r = ReferenceSpec::new(format!("#{manifest_id}"), &digest_uri);
             r.id = Some(format!("Manifest{reference_id}"));
             r.ty = Some(dsig::MANIFEST_TYPE.into());
-            r.transforms = c14n
-                .iter()
-                .map(|c| TransformSpec::Plain(c.clone()))
-                .collect();
+            r.transforms = c14n.iter().map(|c| TransformSpec::Plain(c.clone())).collect();
             data_refs.push(r);
             manifest_dofs = Some(dofs);
         } else {
@@ -593,15 +552,11 @@ pub fn sign(
                         || uri.to_ascii_lowercase().starts_with("https://")
                     {
                         match resolver.resolve(&uri) {
-                            Some(External::Octets(b)) | Some(External::Xml(b)) => {
-                                r.digest = Some(alg.digest(&b))
-                            }
+                            Some(External::Octets(b)) | Some(External::Xml(b)) => r.digest = Some(alg.digest(&b)),
                             None => {
                                 return Err(AfirmaError::new(
                                     codes::DERREFERENCING_DATA_ERROR,
-                                    format!(
-                                        "Error en la recuperacion de un recurso externo: {uri}"
-                                    ),
+                                    format!("Error en la recuperacion de un recurso externo: {uri}"),
                                 ));
                             }
                         }
@@ -618,28 +573,21 @@ pub fn sign(
         if !avoid_enveloped {
             transforms.push(TransformSpec::Plain(dsig::ENVELOPED.into()));
         }
-        if !facturae
-            && let Some(c) = &c14n {
-                transforms.push(TransformSpec::Plain(c.clone()));
-            }
+        if !facturae && let Some(c) = &c14n {
+            transforms.push(TransformSpec::Plain(c.clone()));
+        }
         if node_to_sign.is_none()
-            && let Some(id) = doc
-                .element(root)
-                .and_then(|e| e.attr("Id"))
-                .filter(|s| !s.is_empty())
-            {
-                node_to_sign = Some(id.to_string());
-            }
+            && let Some(id) = doc.element(root).and_then(|e| e.attr("Id")).filter(|s| !s.is_empty())
+        {
+            node_to_sign = Some(id.to_string());
+        }
         if !facturae && !avoid_xpath {
             transforms.push(TransformSpec::XPath(format!(
                 "not(ancestor-or-self::{DS_PREFIX}:Signature)"
             )));
         }
         let mut r = ReferenceSpec::new(
-            node_to_sign
-                .as_ref()
-                .map(|n| format!("#{n}"))
-                .unwrap_or_default(),
+            node_to_sign.as_ref().map(|n| format!("#{n}")).unwrap_or_default(),
             &digest_uri,
         );
         r.id = Some(reference_id.clone());
@@ -669,11 +617,7 @@ pub fn sign(
                     // Se desenvuelve si solo hay una firma (la nueva).
                     let existing = xml
                         .as_ref()
-                        .map(|x| {
-                            x.doc
-                                .find_descendants(x.doc.root(), DSIG_NS, "Signature")
-                                .len()
-                        })
+                        .map(|x| x.doc.find_descendants(x.doc.root(), DSIG_NS, "Signature").len())
                         .unwrap_or(0);
                     if existing == 0 {
                         Layout::New {
@@ -730,9 +674,9 @@ pub fn sign(
     );
 
     let ds_in_scope = match &layout {
-        Layout::Splice { parent } => xml.as_ref().is_some_and(|x| {
-            x.doc.lookup_namespace(*parent, Some(DS_PREFIX)).as_deref() == Some(DSIG_NS)
-        }),
+        Layout::Splice { parent } => xml
+            .as_ref()
+            .is_some_and(|x| x.doc.lookup_namespace(*parent, Some(DS_PREFIX)).as_deref() == Some(DSIG_NS)),
         Layout::New { .. } => false,
     };
     let assembly = Assembly {
@@ -756,9 +700,7 @@ pub fn sign(
     let sig_text = assembly.render(&mut ph);
     let full = match &layout {
         Layout::New { before, after } => format!("{before}{sig_text}{after}"),
-        Layout::Splice { parent } => {
-            splice::insert_last_child(&xml.as_ref().expect("XML").doc, *parent, &sig_text)
-        }
+        Layout::Splice { parent } => splice::insert_last_child(&xml.as_ref().expect("XML").doc, *parent, &sig_text),
     };
     let completion = dsig::Completion {
         key,
@@ -770,9 +712,7 @@ pub fn sign(
     };
     let signed = dsig::complete(full, &ph, &completion)?;
     let bytes = match &layout {
-        Layout::Splice { .. } => {
-            splice::finish_preserving(&xml.as_ref().expect("XML").doc, &signed, &output_encoding)
-        }
+        Layout::Splice { .. } => splice::finish_preserving(&xml.as_ref().expect("XML").doc, &signed, &output_encoding),
         Layout::New { .. } => splice::finish(&signed, &output_encoding),
     };
     bytes.map_err(|m| AfirmaError::new(codes::UNKWNON_XML_SIGNING_ERROR, m))

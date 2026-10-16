@@ -86,11 +86,7 @@ impl Cmd {
 }
 
 fn quote_arg(a: &str) -> String {
-    if !a.is_empty()
-        && !a
-            .chars()
-            .any(|c| c.is_whitespace() || c == '"' || c == '\'')
-    {
+    if !a.is_empty() && !a.chars().any(|c| c.is_whitespace() || c == '"' || c == '\'') {
         a.to_string()
     } else {
         format!("\"{}\"", a.replace('"', "\\\""))
@@ -171,8 +167,7 @@ impl CommandRunner for SystemRunner {
         let program = if Path::new(&cmd.program).is_absolute() {
             PathBuf::from(&cmd.program)
         } else {
-            self.which(&cmd.program)
-                .unwrap_or_else(|| PathBuf::from(&cmd.program))
+            self.which(&cmd.program).unwrap_or_else(|| PathBuf::from(&cmd.program))
         };
         let mut c = Command::new(&program);
         c.args(&cmd.args)
@@ -233,11 +228,7 @@ impl CommandRunner for SystemRunner {
         let stdout = t_out.join().unwrap_or_default();
         let stderr = t_err.join().unwrap_or_default();
         Ok(Output {
-            code: if timed_out {
-                None
-            } else {
-                status.and_then(|s| s.code())
-            },
+            code: if timed_out { None } else { status.and_then(|s| s.code()) },
             stdout: String::from_utf8_lossy(&stdout).into_owned(),
             stderr: String::from_utf8_lossy(&stderr).into_owned(),
             timed_out,
@@ -316,9 +307,7 @@ pub struct FakeRunner {
 
 impl std::fmt::Debug for FakeRunner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FakeRunner")
-            .field("calls", &self.calls())
-            .finish()
+        f.debug_struct("FakeRunner").field("calls", &self.calls()).finish()
     }
 }
 

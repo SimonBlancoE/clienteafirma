@@ -15,10 +15,7 @@ pub fn mime_to_oid(mime: &str) -> String {
 
 /// `MimeHelper.isZipData` (comprobación por bytes mágicos).
 pub fn is_zip(data: &[u8]) -> bool {
-    data.len() >= 4
-        && data[0] == 0x50
-        && data[1] == 0x4b
-        && matches!((data[2], data[3]), (3, 4) | (5, 6) | (7, 8))
+    data.len() >= 4 && data[0] == 0x50 && data[1] == 0x4b && matches!((data[2], data[3]), (3, 4) | (5, 6) | (7, 8))
 }
 
 /// Lee una entrada de un ZIP.
@@ -63,10 +60,7 @@ pub fn detect(data: &[u8]) -> String {
 
 /// `MimeHelper.getExtension()` (sin punto).
 pub fn extension(data: &[u8]) -> Option<String> {
-    afirma_core::mime::MimeHelper::new(data)
-        .extension()
-        .ok()
-        .flatten()
+    afirma_core::mime::MimeHelper::new(data).extension().ok().flatten()
 }
 
 #[cfg(test)]

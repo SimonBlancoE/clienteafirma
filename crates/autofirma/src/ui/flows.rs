@@ -115,7 +115,13 @@ impl AutoFirmaApp {
         use afirma_hash::cli::GuiRequest;
         self.page = Page::Tools;
         match req {
-            GuiRequest::CreateDigest { path, algorithm, format, recursive, .. } => {
+            GuiRequest::CreateDigest {
+                path,
+                algorithm,
+                format,
+                recursive,
+                ..
+            } => {
                 self.tools.open = Some(if path.is_dir() { Tool::HashDir } else { Tool::HashFile });
                 self.tools.input = Some(path);
                 self.tools.algorithm = algorithm;
@@ -125,8 +131,16 @@ impl AutoFirmaApp {
                 self.tools.recursive = recursive;
                 self.on_tools_actions(ctx, vec![ToolsAction::Run]);
             }
-            GuiRequest::CheckDigest { path, hash_file, directory } => {
-                self.tools.open = Some(if directory { Tool::CheckHashDir } else { Tool::CheckHashFile });
+            GuiRequest::CheckDigest {
+                path,
+                hash_file,
+                directory,
+            } => {
+                self.tools.open = Some(if directory {
+                    Tool::CheckHashDir
+                } else {
+                    Tool::CheckHashFile
+                });
                 let ready = path.is_some() && hash_file.is_some();
                 self.tools.input = path;
                 self.tools.secondary = hash_file;
@@ -217,7 +231,10 @@ impl AutoFirmaApp {
                         if let Some(f) = self.sign.files.get_mut(i) {
                             f.status = FileStatus::Signing;
                         }
-                        self.sign.stage = Stage::Signing { done: i, total: self.sign.files.len() };
+                        self.sign.stage = Stage::Signing {
+                            done: i,
+                            total: self.sign.files.len(),
+                        };
                     }
                     JobEvent::Progress(SignProgress::Finished(i, r)) => {
                         if let Some(f) = self.sign.files.get_mut(i) {
@@ -272,12 +289,24 @@ impl AutoFirmaApp {
     }
 
     pub(crate) fn pref_bool(&self, key: &str, default: bool) -> bool {
-        self.prefs.get(key).map(|v| v.eq_ignore_ascii_case("true")).unwrap_or(default)
+        self.prefs
+            .get(key)
+            .map(|v| v.eq_ignore_ascii_case("true"))
+            .unwrap_or(default)
     }
 
     /// Ficheros arrastrados sobre la ventana.
     pub(crate) fn handle_dropped_files(&mut self, ctx: &egui::Context) {
-        let dropped: Vec<PathBuf> = ctx.input(|i| i.raw.dropped_files.iter().filter_map(|f| { let p = f.path(); (!p.as_os_str().is_empty()).then(|| p.to_path_buf()) }).collect());
+        let dropped: Vec<PathBuf> = ctx.input(|i| {
+            i.raw
+                .dropped_files
+                .iter()
+                .filter_map(|f| {
+                    let p = f.path();
+                    (!p.as_os_str().is_empty()).then(|| p.to_path_buf())
+                })
+                .collect()
+        });
         if dropped.is_empty() {
             return;
         }
@@ -296,7 +325,10 @@ impl AutoFirmaApp {
 
     pub(crate) fn verify_path(&mut self, ctx: &egui::Context, path: PathBuf) {
         self.page = Page::Verify;
-        self.verify = VerifyPage { loading: Some(trf("Verificando {0}…", &[&path.display()])), ..Default::default() };
+        self.verify = VerifyPage {
+            loading: Some(trf("Verificando {0}…", &[&path.display()])),
+            ..Default::default()
+        };
         let mut params = ExtraParams::new();
         // `allowShadowAttack=true` en la preferencia significa "sí comprobar".
         if self.pref_bool("allowShadowAttack", false) {
@@ -304,7 +336,9 @@ impl AutoFirmaApp {
         } else {
             params.set("allowShadowAttack", "true");
         }
-        self.rt.verify_job = Some(Job::spawn(ctx, "verificar", move |_| crate::services::verify::verify_file(&path, &params)));
+        self.rt.verify_job = Some(Job::spawn(ctx, "verificar", move |_| {
+            crate::services::verify::verify_file(&path, &params)
+        }));
     }
 
     /// Acciones de la página de firma.
@@ -312,7 +346,10 @@ impl AutoFirmaApp {
         for a in actions {
             match a {
                 SignAction::PickFiles => {
-                    if let Some(files) = crate::services::desktop::file_dialog().set_title(tr("Selecciona los documentos que quieres firmar")).pick_files() {
+                    if let Some(files) = crate::services::desktop::file_dialog()
+                        .set_title(tr("Selecciona los documentos que quieres firmar"))
+                        .pick_files()
+                    {
                         if let Some(f) = files.first() {
                             crate::services::desktop::remember_dir(f);
                         }
@@ -334,7 +371,10 @@ impl AutoFirmaApp {
                     }
                 }
                 SignAction::ChooseOutputDir => {
-                    if let Some(dir) = crate::services::desktop::file_dialog().set_title(tr("Carpeta donde guardar las firmas")).pick_folder() {
+                    if let Some(dir) = crate::services::desktop::file_dialog()
+                        .set_title(tr("Carpeta donde guardar las firmas"))
+                        .pick_folder()
+                    {
                         self.sign.output_dir = Some(dir);
                     }
                 }
@@ -389,7 +429,10 @@ impl AutoFirmaApp {
                 self.rt.step = SignStep::VisibleSignature;
             }
             Err(e) => {
-                self.notify(trf("No se puede previsualizar el PDF: {0}. Se firmará sin firma visible.", &[&e]));
+                self.notify(trf(
+                    "No se puede previsualizar el PDF: {0}. Se firmará sin firma visible.",
+                    &[&e],
+                ));
             }
         }
     }
@@ -397,14 +440,23 @@ impl AutoFirmaApp {
     fn after_confirm(&mut self, ctx: &egui::Context) {
         let needs_visible = (self.sign.visible_signature || self.sign.visible_stamp)
             && self.rt.visible_params.is_none()
-            && self.sign.files.iter().any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
+            && self
+                .sign
+                .files
+                .iter()
+                .any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
         if needs_visible
-            && let Some(i) = self.sign.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF") {
-                self.open_visible_editor(i);
-                if self.rt.step == SignStep::VisibleSignature {
-                    return;
-                }
+            && let Some(i) = self
+                .sign
+                .files
+                .iter()
+                .position(|f| f.format == "PAdES" || f.format == "Adobe PDF")
+        {
+            self.open_visible_editor(i);
+            if self.rt.step == SignStep::VisibleSignature {
+                return;
             }
+        }
         self.rt.step = SignStep::ChooseCertificate;
         self.picker.accept_label = tr("Firmar").into();
         self.open_picker(ctx);
@@ -469,7 +521,9 @@ impl AutoFirmaApp {
 
     fn start_signing(&mut self, ctx: &egui::Context, index: usize) {
         let Some(store) = self.rt.store.clone() else { return };
-        let Some(entry) = store.entries.get(index).cloned() else { return };
+        let Some(entry) = store.entries.get(index).cloned() else {
+            return;
+        };
         let prefs = self.prefs_snapshot();
         let params_prefs = prefs.clone();
         let input = SignJobInput {
@@ -495,13 +549,20 @@ impl AutoFirmaApp {
                     p
                 })
             },
-            visible_params: if self.sign.visible_signature || self.sign.visible_stamp { self.rt.visible_params.clone() } else { None },
+            visible_params: if self.sign.visible_signature || self.sign.visible_stamp {
+                self.rt.visible_params.clone()
+            } else {
+                None
+            },
             output_dir: self.sign.output_dir.clone(),
             overwrite: prefs.get("massiveOverride").is_some_and(|v| v == "true"),
             bridge: self.rt.bridge.clone(),
         };
         self.rt.step = SignStep::Signing;
-        self.sign.stage = Stage::Signing { done: 0, total: self.sign.files.len() };
+        self.sign.stage = Stage::Signing {
+            done: 0,
+            total: self.sign.files.len(),
+        };
         self.rt.sign_job = Some(Job::spawn(ctx, "firma", move |progress| signing::run(input, progress)));
     }
 
@@ -511,11 +572,17 @@ impl AutoFirmaApp {
         if self.rt.step == SignStep::Confirm {
             let n = self.sign.files.len();
             let msg = if n == 1 {
-                tr("Se va a firmar electrónicamente 1 documento con el certificado que elijas a continuación.").to_string()
+                tr("Se va a firmar electrónicamente 1 documento con el certificado que elijas a continuación.")
+                    .to_string()
             } else {
-                trf("Se van a firmar electrónicamente {0} documentos con el certificado que elijas a continuación.", &[&n])
+                trf(
+                    "Se van a firmar electrónicamente {0} documentos con el certificado que elijas a continuación.",
+                    &[&n],
+                )
             };
-            if let Some(ok) = super::dialogs::confirm_modal(ctx, &p, tr("Autorizar la firma"), &msg, tr("Continuar"), false, false) {
+            if let Some(ok) =
+                super::dialogs::confirm_modal(ctx, &p, tr("Autorizar la firma"), &msg, tr("Continuar"), false, false)
+            {
                 if ok {
                     self.after_confirm(ctx);
                 } else {
@@ -555,7 +622,10 @@ impl AutoFirmaApp {
         for a in actions {
             match a {
                 VerifyAction::PickFile => {
-                    if let Some(p) = crate::services::desktop::file_dialog().set_title(tr("Selecciona la firma o el documento firmado")).pick_file() {
+                    if let Some(p) = crate::services::desktop::file_dialog()
+                        .set_title(tr("Selecciona la firma o el documento firmado"))
+                        .pick_file()
+                    {
                         crate::services::desktop::remember_dir(&p);
                         self.verify_path(ctx, p);
                     }
@@ -574,18 +644,30 @@ impl AutoFirmaApp {
                         self.sign.stage = Stage::Empty;
                         self.load_files(ctx, vec![path]);
                         self.rt.toast = Some((
-                            if countersign { tr("Elige \"Contrafirmar\" en la lista y pulsa Firmar") } else { tr("Pulsa Firmar para añadir tu firma") }
-                                .into(),
+                            if countersign {
+                                tr("Elige \"Contrafirmar\" en la lista y pulsa Firmar")
+                            } else {
+                                tr("Pulsa Firmar para añadir tu firma")
+                            }
+                            .into(),
                             std::time::Instant::now(),
                         ));
                     }
                 }
                 VerifyAction::ExportCertificate(i) => {
-                    if let Some(der) = self.verify.report.as_ref().and_then(|r| r.signatures.get(i)).map(|s| s.cert_der.clone())
-                        && let Some(path) = crate::services::desktop::file_dialog().set_file_name("certificado.cer").save_file()
-                            && let Err(e) = std::fs::write(&path, der) {
-                                self.notify(trf("No se ha podido guardar: {0}", &[&e]));
-                            }
+                    if let Some(der) = self
+                        .verify
+                        .report
+                        .as_ref()
+                        .and_then(|r| r.signatures.get(i))
+                        .map(|s| s.cert_der.clone())
+                        && let Some(path) = crate::services::desktop::file_dialog()
+                            .set_file_name("certificado.cer")
+                            .save_file()
+                        && let Err(e) = std::fs::write(&path, der)
+                    {
+                        self.notify(trf("No se ha podido guardar: {0}", &[&e]));
+                    }
                 }
             }
         }
@@ -595,13 +677,31 @@ impl AutoFirmaApp {
         let Some(report) = &self.verify.report else { return };
         let Ok(data) = std::fs::read(&report.path) else { return };
         let params = ExtraParams::new();
-        let Some((_, signer)) = afirma_signers::detect(&data, &params) else { return };
+        let Some((_, signer)) = afirma_signers::detect(&data, &params) else {
+            return;
+        };
         match signer.get_data(&data, &params) {
             Ok(Some(content)) => {
-                let stem = report.path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "datos".into());
-                let ext = afirma_core::mime::MimeHelper::new(&content).extension().ok().flatten().unwrap_or_else(|| "bin".into());
-                let name = if stem.contains('.') { stem.clone() } else { format!("{stem}.{ext}") };
-                if let Some(path) = crate::services::desktop::file_dialog().set_title(tr("Guardar el documento firmado")).set_file_name(name).save_file() {
+                let stem = report
+                    .path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "datos".into());
+                let ext = afirma_core::mime::MimeHelper::new(&content)
+                    .extension()
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| "bin".into());
+                let name = if stem.contains('.') {
+                    stem.clone()
+                } else {
+                    format!("{stem}.{ext}")
+                };
+                if let Some(path) = crate::services::desktop::file_dialog()
+                    .set_title(tr("Guardar el documento firmado"))
+                    .set_file_name(name)
+                    .save_file()
+                {
                     match std::fs::write(&path, content) {
                         Ok(()) => self.notify(tr("Documento guardado")),
                         Err(e) => self.notify(trf("No se ha podido guardar: {0}", &[&e])),
@@ -613,8 +713,8 @@ impl AutoFirmaApp {
     }
 
     fn pump_tool_job(&mut self, ctx: &egui::Context) {
-        use crate::services::tools::ToolOutcome;
         use super::widgets::CalloutKind;
+        use crate::services::tools::ToolOutcome;
         let Some(job) = &mut self.rt.tool_job else { return };
         let events = job.poll();
         if job.is_finished() {
@@ -624,7 +724,12 @@ impl AutoFirmaApp {
             let JobEvent::Done(out) = ev else { continue };
             self.tools.running = false;
             match out {
-                ToolOutcome::FileHash { content, proposed, ext, clipboard } => {
+                ToolOutcome::FileHash {
+                    content,
+                    proposed,
+                    ext,
+                    clipboard,
+                } => {
                     if self.tools.copy_clipboard {
                         ctx.copy_text(clipboard);
                     }
@@ -638,11 +743,20 @@ impl AutoFirmaApp {
                     };
                     if let Some(path) = dlg.save_file() {
                         self.tools.result = Some(match std::fs::write(&path, content) {
-                            Ok(()) => (CalloutKind::Success, tr("Huella digital guardada").into(), Some(path.display().to_string())),
-                            Err(e) => (CalloutKind::Error, tr("No se ha podido guardar la huella digital").into(), Some(e.to_string())),
+                            Ok(()) => (
+                                CalloutKind::Success,
+                                tr("Huella digital guardada").into(),
+                                Some(path.display().to_string()),
+                            ),
+                            Err(e) => (
+                                CalloutKind::Error,
+                                tr("No se ha podido guardar la huella digital").into(),
+                                Some(e.to_string()),
+                            ),
                         });
                     } else if self.tools.copy_clipboard {
-                        self.tools.result = Some((CalloutKind::Info, tr("Huella copiada al portapapeles").into(), None));
+                        self.tools.result =
+                            Some((CalloutKind::Info, tr("Huella copiada al portapapeles").into(), None));
                     }
                 }
                 ToolOutcome::DirHash { document, proposed } => {
@@ -650,27 +764,50 @@ impl AutoFirmaApp {
                         .set_title(tr("Guardar huellas digitales"))
                         .set_file_name(&proposed)
                         .add_filter(tr("Huellas digitales en formato XML (*.hashfiles)"), &["hashfiles"])
-                        .add_filter(tr("Huellas digitales en formato TXT (*.txthashfiles)"), &["txthashfiles"]);
+                        .add_filter(
+                            tr("Huellas digitales en formato TXT (*.txthashfiles)"),
+                            &["txthashfiles"],
+                        );
                     if let Some(path) = dlg.save_file() {
                         let format = crate::services::tools::dir_format_for(&path);
-                        let r = document.generate(format).map_err(|e| e.to_string()).and_then(|b| std::fs::write(&path, b).map_err(|e| e.to_string()));
+                        let r = document
+                            .generate(format)
+                            .map_err(|e| e.to_string())
+                            .and_then(|b| std::fs::write(&path, b).map_err(|e| e.to_string()));
                         self.tools.result = Some(match r {
-                            Ok(()) => (CalloutKind::Success, trf("Huellas de {0} ficheros guardadas", &[&document.entries.len()]), Some(path.display().to_string())),
-                            Err(e) => (CalloutKind::Error, tr("No se han podido guardar las huellas").into(), Some(e)),
+                            Ok(()) => (
+                                CalloutKind::Success,
+                                trf("Huellas de {0} ficheros guardadas", &[&document.entries.len()]),
+                                Some(path.display().to_string()),
+                            ),
+                            Err(e) => (
+                                CalloutKind::Error,
+                                tr("No se han podido guardar las huellas").into(),
+                                Some(e),
+                            ),
                         });
                     }
                 }
-                ToolOutcome::Check { ok, title, detail, report_xml } => {
-                    self.tools.result = Some((if ok { CalloutKind::Success } else { CalloutKind::Warning }, title, detail));
+                ToolOutcome::Check {
+                    ok,
+                    title,
+                    detail,
+                    report_xml,
+                } => {
+                    self.tools.result = Some((
+                        if ok { CalloutKind::Success } else { CalloutKind::Warning },
+                        title,
+                        detail,
+                    ));
                     if let Some(xml) = report_xml
                         && !ok
-                            && let Some(path) = crate::services::desktop::file_dialog()
-                                .set_title(tr("Guardar informe de huellas digitales"))
-                                .set_file_name("informe.hashreport")
-                                .save_file()
-                            {
-                                let _ = std::fs::write(path, xml);
-                            }
+                        && let Some(path) = crate::services::desktop::file_dialog()
+                            .set_title(tr("Guardar informe de huellas digitales"))
+                            .set_file_name("informe.hashreport")
+                            .save_file()
+                    {
+                        let _ = std::fs::write(path, xml);
+                    }
                 }
                 ToolOutcome::Doctor(rows) => {
                     if self.page != Page::Tools {
@@ -678,12 +815,21 @@ impl AutoFirmaApp {
                         self.notify(if failed == 0 {
                             tr("AutoFirma está integrado con tus navegadores").to_string()
                         } else {
-                            trf("Integración incompleta: {0} comprobaciones con problemas (ver Herramientas)", &[&failed])
+                            trf(
+                                "Integración incompleta: {0} comprobaciones con problemas (ver Herramientas)",
+                                &[&failed],
+                            )
                         });
                     }
                     self.tools.doctor = rows;
                 }
-                ToolOutcome::Error(e) => self.tools.result = Some((CalloutKind::Error, tr("No se ha podido completar la operación").into(), Some(e))),
+                ToolOutcome::Error(e) => {
+                    self.tools.result = Some((
+                        CalloutKind::Error,
+                        tr("No se ha podido completar la operación").into(),
+                        Some(e),
+                    ))
+                }
             }
         }
     }
@@ -708,7 +854,9 @@ impl AutoFirmaApp {
                 ToolsAction::PickInput => {
                     let dlg = crate::services::desktop::file_dialog();
                     let picked = match self.tools.open {
-                        Some(Tool::HashDir | Tool::CheckHashDir) => dlg.set_title(tr("Selecciona la carpeta")).pick_folder(),
+                        Some(Tool::HashDir | Tool::CheckHashDir) => {
+                            dlg.set_title(tr("Selecciona la carpeta")).pick_folder()
+                        }
                         _ => dlg.set_title(tr("Selecciona el fichero")).pick_file(),
                     };
                     if picked.is_some() {
@@ -721,15 +869,25 @@ impl AutoFirmaApp {
                         Some(Tool::CheckHashDir) => &["hashfiles", "txthashfiles", "xml", "txt"],
                         _ => &["hexhash", "hashb64", "hash"],
                     };
-                    if let Some(p) = crate::services::desktop::file_dialog().set_title(tr("Selecciona el fichero de huellas")).add_filter(tr("Huellas digitales"), exts).pick_file() {
+                    if let Some(p) = crate::services::desktop::file_dialog()
+                        .set_title(tr("Selecciona el fichero de huellas"))
+                        .add_filter(tr("Huellas digitales"), exts)
+                        .pick_file()
+                    {
                         self.tools.secondary = Some(p);
                         self.tools.result = None;
                     }
                 }
                 ToolsAction::Run => {
-                    let (Some(tool), Some(input)) = (self.tools.open, self.tools.input.clone()) else { continue };
+                    let (Some(tool), Some(input)) = (self.tools.open, self.tools.input.clone()) else {
+                        continue;
+                    };
                     let secondary = self.tools.secondary.clone();
-                    let (alg, fmt, rec) = (self.tools.algorithm.clone(), self.tools.format.clone(), self.tools.recursive);
+                    let (alg, fmt, rec) = (
+                        self.tools.algorithm.clone(),
+                        self.tools.format.clone(),
+                        self.tools.recursive,
+                    );
                     self.tools.running = true;
                     self.tools.result = None;
                     self.rt.tool_job = Some(Job::spawn(ctx, "herramienta", move |_| match tool {
@@ -759,7 +917,10 @@ impl AutoFirmaApp {
             return;
         }
         let default_id = self.rt.store_spec.kind.id().to_string();
-        for o in crate::services::certs::store_options().into_iter().filter(|o| o.id != "PKCS12") {
+        for o in crate::services::certs::store_options()
+            .into_iter()
+            .filter(|o| o.id != "PKCS12")
+        {
             let description = match o.id.as_str() {
                 "MOZ_UNI" => tr("Certificados de Mozilla Firefox (y sus dispositivos)"),
                 "DNIEJAVA" => tr("DNI electrónico y tarjetas criptográficas"),
@@ -778,18 +939,27 @@ impl AutoFirmaApp {
             });
         }
         self.certificates.default_store = Some(default_id.clone());
-        self.certificates.selected = self.certificates.stores.iter().position(|s| s.id == default_id).unwrap_or(0);
+        self.certificates.selected = self
+            .certificates
+            .stores
+            .iter()
+            .position(|s| s.id == default_id)
+            .unwrap_or(0);
         let i = self.certificates.selected;
         self.load_cert_store(ctx, i);
     }
 
     fn load_cert_store(&mut self, ctx: &egui::Context, index: usize) {
-        let Some(entry) = self.certificates.stores.get_mut(index) else { return };
+        let Some(entry) = self.certificates.stores.get_mut(index) else {
+            return;
+        };
         let (id, lib) = match entry.id.split_once(':') {
             Some((k, l)) => (k.to_string(), Some(l.to_string())),
             None => (entry.id.clone(), None),
         };
-        let Some(spec) = crate::services::certs::spec_for(&id, lib) else { return };
+        let Some(spec) = crate::services::certs::spec_for(&id, lib) else {
+            return;
+        };
         entry.loading = true;
         entry.error = None;
         let bridge = self.rt.bridge.clone();
@@ -808,7 +978,9 @@ impl AutoFirmaApp {
     }
 
     fn pump_certs_job(&mut self) {
-        let Some((index, job)) = &mut self.rt.certs_job else { return };
+        let Some((index, job)) = &mut self.rt.certs_job else {
+            return;
+        };
         let index = *index;
         let events = job.poll();
         if job.is_finished() {
@@ -816,28 +988,38 @@ impl AutoFirmaApp {
         }
         for ev in events {
             if let JobEvent::Done(r) = ev
-                && let Some(s) = self.certificates.stores.get_mut(index) {
-                    s.loading = false;
-                    match r {
-                        Ok(items) => s.certs = Some(items),
-                        Err(e) => {
-                            s.error = Some(e);
-                            s.certs = None;
-                        }
+                && let Some(s) = self.certificates.stores.get_mut(index)
+            {
+                s.loading = false;
+                match r {
+                    Ok(items) => s.certs = Some(items),
+                    Err(e) => {
+                        s.error = Some(e);
+                        s.certs = None;
                     }
                 }
+            }
         }
     }
 
     /// Acciones de la página "Mis certificados".
-    pub(crate) fn on_certs_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::certificates::CertsAction>) {
+    pub(crate) fn on_certs_actions(
+        &mut self,
+        ctx: &egui::Context,
+        actions: Vec<super::pages::certificates::CertsAction>,
+    ) {
         use super::pages::certificates::{CertsAction, StoreEntry};
         for a in actions {
             match a {
                 CertsAction::SelectStore(i) => {
                     self.certificates.selected = i;
                     self.certificates.expanded = None;
-                    if self.certificates.stores.get(i).is_some_and(|s| s.certs.is_none() && !s.loading) {
+                    if self
+                        .certificates
+                        .stores
+                        .get(i)
+                        .is_some_and(|s| s.certs.is_none() && !s.loading)
+                    {
                         self.load_cert_store(ctx, i);
                     }
                 }
@@ -848,7 +1030,10 @@ impl AutoFirmaApp {
                         .add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"])
                         .pick_file()
                     {
-                        let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        let name = p
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or_default();
                         self.certificates.stores.push(StoreEntry {
                             id: format!("PKCS12:{}", p.display()),
                             label: name,
@@ -866,13 +1051,22 @@ impl AutoFirmaApp {
                     }
                 }
                 CertsAction::RegisterPkcs11 => {
-                    let exts: &[&str] = if cfg!(windows) { &["dll"] } else if cfg!(target_os = "macos") { &["dylib", "so"] } else { &["so"] };
+                    let exts: &[&str] = if cfg!(windows) {
+                        &["dll"]
+                    } else if cfg!(target_os = "macos") {
+                        &["dylib", "so"]
+                    } else {
+                        &["so"]
+                    };
                     if let Some(p) = crate::services::desktop::file_dialog()
                         .set_title(tr("Selecciona el controlador PKCS#11 de la tarjeta"))
                         .add_filter(tr("Bibliotecas PKCS#11"), exts)
                         .pick_file()
                     {
-                        let name = p.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        let name = p
+                            .file_stem()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or_default();
                         self.certificates.stores.push(StoreEntry {
                             id: format!("PKCS11:{}", p.display()),
                             label: name,
@@ -903,9 +1097,16 @@ impl AutoFirmaApp {
                         };
                         if let Some(kind) = afirma_keystores::KeyStoreKind::from_id(&id) {
                             let is_system = crate::services::certs::default_spec().kind == kind;
-                            self.prefs.set("defaultKeystore", Some(if is_system { "default" } else { kind.display_name() }));
+                            self.prefs.set(
+                                "defaultKeystore",
+                                Some(if is_system { "default" } else { kind.display_name() }),
+                            );
                             self.prefs.set("defaultLocalKeystorePath", lib.as_deref());
-                            self.rt.store_spec = afirma_keystores::StoreSpec { kind, lib, card_name: None };
+                            self.rt.store_spec = afirma_keystores::StoreSpec {
+                                kind,
+                                lib,
+                                card_name: None,
+                            };
                             self.rt.store = None;
                             self.certificates.default_store = Some(s.id.clone());
                             self.notify(tr("Almacén predeterminado actualizado"));
@@ -913,12 +1114,22 @@ impl AutoFirmaApp {
                     }
                 }
                 CertsAction::Export(si, ci) => {
-                    let der = self.certificates.stores.get(si).and_then(|s| s.certs.as_ref()).and_then(|c| c.get(ci)).map(|c| (c.der.clone(), c.info.subject_cn.clone()));
+                    let der = self
+                        .certificates
+                        .stores
+                        .get(si)
+                        .and_then(|s| s.certs.as_ref())
+                        .and_then(|c| c.get(ci))
+                        .map(|c| (c.der.clone(), c.info.subject_cn.clone()));
                     if let Some((der, cn)) = der
-                        && let Some(path) = crate::services::desktop::file_dialog().set_file_name(format!("{cn}.cer")).add_filter(tr("Certificado (*.cer)"), &["cer"]).save_file()
-                            && let Err(e) = std::fs::write(&path, der) {
-                                self.notify(trf("No se ha podido guardar: {0}", &[&e]));
-                            }
+                        && let Some(path) = crate::services::desktop::file_dialog()
+                            .set_file_name(format!("{cn}.cer"))
+                            .add_filter(tr("Certificado (*.cer)"), &["cer"])
+                            .save_file()
+                        && let Err(e) = std::fs::write(&path, der)
+                    {
+                        self.notify(trf("No se ha podido guardar: {0}", &[&e]));
+                    }
                 }
             }
         }

@@ -36,10 +36,7 @@ fn touch_info(pdf: &[u8]) -> Vec<u8> {
     let doc = PdfDoc::open(pdf, None).unwrap();
     let mut up = Update::new(doc.size);
     let mut info = Dictionary::new();
-    info.set(
-        "Title",
-        Object::String(b"Cambiado".to_vec(), StringFormat::Literal),
-    );
+    info.set("Title", Object::String(b"Cambiado".to_vec(), StringFormat::Literal));
     let id = up.alloc();
     up.put(id, Object::Dictionary(info));
     let kind = if doc.xref_kind == XrefKind::Stream {
@@ -53,8 +50,7 @@ fn touch_info(pdf: &[u8]) -> Vec<u8> {
         encrypt: None,
         id: doc.file_id(),
     };
-    up.write(pdf, doc.startxref, kind, &t, None, doc.pdf_start)
-        .bytes
+    up.write(pdf, doc.startxref, kind, &t, None, doc.pdf_start).bytes
 }
 
 #[test]
@@ -84,10 +80,7 @@ fn renders_signed_page_with_appearance() {
         info.pages.iter().map(|p| p.rotation).collect::<Vec<_>>(),
         vec![0, 90, 180, 270, 0]
     );
-    assert_eq!(
-        info.pages[1].rounded_size(),
-        (w1.round() as i64, h1.round() as i64)
-    );
+    assert_eq!(info.pages[1].rounded_size(), (w1.round() as i64, h1.round() as i64));
 }
 
 #[test]
@@ -152,14 +145,7 @@ fn shadow_attack_and_overlap_detection() {
             id: doc.file_id(),
         };
         doc_with_unsigned_change = up
-            .write(
-                &doc_with_unsigned_change,
-                doc.startxref,
-                kind,
-                &t,
-                None,
-                doc.pdf_start,
-            )
+            .write(&doc_with_unsigned_change, doc.startxref, kind, &t, None, doc.pdf_start)
             .bytes;
     }
     let v = validate_pdf(&doc_with_unsigned_change, &ExtraParams::new(), false).unwrap();
@@ -179,10 +165,7 @@ fn appearance_preview_for_the_gui() {
     let img = afirma_pdf::render::preview_appearance(
         200,
         80,
-        &params(&[
-            ("layer2Text", "Firmado por $$SUBJECTCN$$"),
-            ("layer2FontColor", "red"),
-        ]),
+        &params(&[("layer2Text", "Firmado por $$SUBJECTCN$$"), ("layer2FontColor", "red")]),
         &chain,
         None,
         2.0,
@@ -192,7 +175,9 @@ fn appearance_preview_for_the_gui() {
     // Texto rojo en la parte superior izquierda.
     let red = img
         .data
-        .as_chunks::<4>().0.iter()
+        .as_chunks::<4>()
+        .0
+        .iter()
         .filter(|p| p[0] > 200 && p[1] < 80 && p[2] < 80)
         .count();
     assert!(red > 100, "píxeles rojos: {red}");

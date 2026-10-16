@@ -79,7 +79,11 @@ impl ProtocolVersion {
 
 impl fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.minor == 0 { write!(f, "{}", self.major) } else { write!(f, "{}.{}", self.major, self.minor) }
+        if self.minor == 0 {
+            write!(f, "{}", self.major)
+        } else {
+            write!(f, "{}.{}", self.major, self.minor)
+        }
     }
 }
 
@@ -188,7 +192,8 @@ fn java_parse_long(text: &str) -> Option<i64> {
 fn is_java_space_char(c: char) -> bool {
     matches!(
         c,
-        ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}' | '\u{3000}'
+        ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}' | '\u{3000}'
     )
 }
 
@@ -233,7 +238,11 @@ mod tests {
 
     #[test]
     fn mcv_comparison() {
-        let gt = |a: &str, b: &str| AppVersion::parse(a).unwrap().greater_than(&AppVersion::parse(b).unwrap());
+        let gt = |a: &str, b: &str| {
+            AppVersion::parse(a)
+                .unwrap()
+                .greater_than(&AppVersion::parse(b).unwrap())
+        };
         assert!(gt("1.11", "1.10"));
         assert!(!gt("1.10", "1.10"));
         assert!(!gt("1.9", "1.10"));

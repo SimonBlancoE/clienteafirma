@@ -246,10 +246,7 @@ pub struct Report {
 impl Report {
     /// `true` si ninguna acción falló.
     pub fn ok(&self) -> bool {
-        !self
-            .outcomes
-            .iter()
-            .any(|o| matches!(o.status, Status::Failed(_)))
+        !self.outcomes.iter().any(|o| matches!(o.status, Status::Failed(_)))
     }
 
     /// Código de salida del configurador (0 / −1 como Java).
@@ -312,10 +309,7 @@ pub fn plan_install(ctx: &Context, opts: &InstallOptions) -> Plan {
             false,
         ));
     }
-    let dir = opts
-        .cert_dir
-        .clone()
-        .unwrap_or_else(|| certs::target_dir(ctx));
+    let dir = opts.cert_dir.clone().unwrap_or_else(|| certs::target_dir(ctx));
     if opts.certificates {
         let what = if opts.admin_certs.is_some() {
             "Copiar los certificados SSL del administrador"
@@ -381,10 +375,7 @@ pub fn plan_install(ctx: &Context, opts: &InstallOptions) -> Plan {
                 p.dir.display()
             );
             a.push(action(
-                ActionKind::FirefoxEnterpriseRoots {
-                    profile: p.dir,
-                    enable,
-                },
+                ActionKind::FirefoxEnterpriseRoots { profile: p.dir, enable },
                 d,
                 false,
             ));
@@ -394,10 +385,7 @@ pub fn plan_install(ctx: &Context, opts: &InstallOptions) -> Plan {
         let popts = ProtocolOptions {
             scope,
             menus: opts.menus,
-            locale: opts
-                .default_language
-                .clone()
-                .unwrap_or_else(|| "es_ES".into()),
+            locale: opts.default_language.clone().unwrap_or_else(|| "es_ES".into()),
             ..Default::default()
         };
         let d = match ctx.os {
@@ -405,9 +393,7 @@ pub fn plan_install(ctx: &Context, opts: &InstallOptions) -> Plan {
                 "Registrar el protocolo afirma:// y los menús contextuales en {}\\Software\\Classes",
                 if machine { "HKLM" } else { "HKCU" }
             ),
-            Os::Linux => {
-                "Registrar el protocolo afirma:// (fichero .desktop y mimeapps.list)".to_string()
-            }
+            Os::Linux => "Registrar el protocolo afirma:// (fichero .desktop y mimeapps.list)".to_string(),
             Os::MacOs => "Registrar la aplicación en LaunchServices para afirma://".to_string(),
         };
         a.push(action(
@@ -432,11 +418,7 @@ pub fn plan_install(ctx: &Context, opts: &InstallOptions) -> Plan {
             format!(
                 "Añadir {} al PATH {}",
                 ctx.app.app_dir.display(),
-                if machine {
-                    "del sistema"
-                } else {
-                    "del usuario"
-                }
+                if machine { "del sistema" } else { "del usuario" }
             ),
             machine,
         ));
@@ -517,10 +499,7 @@ pub fn plan_uninstall(ctx: &Context, opts: &UninstallOptions) -> Plan {
     }
     if opts.revert_firefox_enterprise_roots {
         for p in firefox::discover_profiles(ctx, &users) {
-            let d = format!(
-                "Quitar security.enterprise_roots.enabled de {}",
-                p.dir.display()
-            );
+            let d = format!("Quitar security.enterprise_roots.enabled de {}", p.dir.display());
             a.push(action(
                 ActionKind::RemoveFirefoxEnterpriseRoots { profile: p.dir },
                 d,
@@ -577,11 +556,7 @@ pub fn plan_uninstall(ctx: &Context, opts: &UninstallOptions) -> Plan {
         for d in dirs {
             if d.join(certs::KS_FILENAME).exists() || d.join(certs::CA_CERT_FILENAME).exists() {
                 let desc = format!("Borrar los certificados SSL de {}", d.display());
-                a.push(action(
-                    ActionKind::RemoveCertificates { dir: d },
-                    desc,
-                    false,
-                ));
+                a.push(action(ActionKind::RemoveCertificates { dir: d }, desc, false));
             }
         }
     }
@@ -606,9 +581,7 @@ fn need_certs(ctx: &Context, st: &mut ExecState) -> Result<LocalCerts> {
         return Ok(c.clone());
     }
     let c = certs::locate(ctx).ok_or_else(|| {
-        SystemError::Certificate(
-            "no hay certificados locales (genere primero los certificados)".into(),
-        )
+        SystemError::Certificate("no hay certificados locales (genere primero los certificados)".into())
     })?;
     st.certs = Some(c.clone());
     Ok(c)
@@ -622,18 +595,8 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
             w.flush()?;
             Ok(Change::Changed)
         }
-        ActionKind::EnsureCertificates {
-            dir,
-            regenerate,
-            admin,
-        } => {
-            let out = certs::ensure(
-                ctx,
-                dir,
-                *regenerate,
-                admin.as_ref(),
-                &CertProfile::default(),
-            )?;
+        ActionKind::EnsureCertificates { dir, regenerate, admin } => {
+            let out = certs::ensure(ctx, dir, *regenerate, admin.as_ref(), &CertProfile::default())?;
             let ch = if out.generated || out.copied_admin {
                 Change::Changed
             } else {
@@ -647,8 +610,7 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
             // Sin privilegios: si la CA ya está en el almacén del equipo no se toca el del
             // usuario (evita el diálogo de Windows).
             if *scope == TrustScope::User
-                && trust::windows::check(ctx.win_certs.as_ref(), TrustScope::Machine, &c.ca_der)
-                    .ok()
+                && trust::windows::check(ctx.win_certs.as_ref(), TrustScope::Machine, &c.ca_der).ok()
             {
                 return Ok(Change::Unchanged);
             }
@@ -664,9 +626,8 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
         }
         ActionKind::TrustNss { db } => {
             let c = need_certs(ctx, st)?;
-            let b = nss::backend(ctx).ok_or_else(|| {
-                SystemError::Unsupported("no hay certutil ni softokn3 de NSS".into())
-            })?;
+            let b = nss::backend(ctx)
+                .ok_or_else(|| SystemError::Unsupported("no hay certutil ni softokn3 de NSS".into()))?;
             nss::install(ctx, db, &b, &c.ca_der, &c.ca_path())
         }
         ActionKind::FirefoxEnterpriseRoots { profile, enable } => {
@@ -676,16 +637,11 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
                 Change::Unchanged
             })
         }
-        ActionKind::FirefoxEnterpriseRootsPolicy => {
-            browser_policy::install_firefox_enterprise_roots(ctx)
-        }
+        ActionKind::FirefoxEnterpriseRootsPolicy => browser_policy::install_firefox_enterprise_roots(ctx),
         ActionKind::RegisterProtocol { opts } => protocol::register(ctx, opts),
         ActionKind::FirefoxProtocolPrefs => protocol::install_firefox_protocol_prefs(ctx),
         ActionKind::BrowserPolicies { opts } => browser_policy::install(ctx, opts),
-        ActionKind::ImportSystemConfig {
-            path,
-            allow_updates,
-        } => {
+        ActionKind::ImportSystemConfig { path, allow_updates } => {
             prefs::remote::install_system_config(
                 ctx,
                 path,
@@ -699,48 +655,31 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
         ActionKind::UnregisterProtocol { opts } => protocol::unregister(ctx, opts),
         ActionKind::RemoveFirefoxProtocolPrefs => protocol::remove_firefox_protocol_prefs(ctx),
         ActionKind::UntrustNss { db } => {
-            let b = nss::backend(ctx).ok_or_else(|| {
-                SystemError::Unsupported("no hay certutil ni softokn3 de NSS".into())
-            })?;
+            let b = nss::backend(ctx)
+                .ok_or_else(|| SystemError::Unsupported("no hay certutil ni softokn3 de NSS".into()))?;
             nss::remove(ctx, db, &b)
         }
-        ActionKind::RemoveFirefoxEnterpriseRoots { profile } => {
-            Ok(if firefox::remove_enterprise_roots(profile)? {
-                Change::Changed
-            } else {
-                Change::Unchanged
-            })
-        }
-        ActionKind::UntrustWindowsRoot { scope } => {
-            trust::windows::remove(ctx.win_certs.as_ref(), *scope)
-        }
+        ActionKind::RemoveFirefoxEnterpriseRoots { profile } => Ok(if firefox::remove_enterprise_roots(profile)? {
+            Change::Changed
+        } else {
+            Change::Unchanged
+        }),
+        ActionKind::UntrustWindowsRoot { scope } => trust::windows::remove(ctx.win_certs.as_ref(), *scope),
         ActionKind::UntrustMacKeychain { scope } => trust::macos::remove(ctx, *scope),
         ActionKind::UntrustLinuxAnchors => trust::linux::remove(ctx),
         ActionKind::RemoveCertificates { dir } => {
             let mut ch = false;
-            for f in [
-                certs::KS_FILENAME,
-                certs::CA_CERT_FILENAME,
-                certs::SSL_CERT_FILENAME,
-            ] {
+            for f in [certs::KS_FILENAME, certs::CA_CERT_FILENAME, certs::SSL_CERT_FILENAME] {
                 ch |= crate::fsutil::remove_file_if_exists(&dir.join(f))?;
             }
-            Ok(if ch {
-                Change::Changed
-            } else {
-                Change::Unchanged
-            })
+            Ok(if ch { Change::Changed } else { Change::Unchanged })
         }
         ActionKind::AddToPath { scope, dir } => crate::winpath::add(ctx, *scope, dir),
         ActionKind::RemoveFromPath { scope, dir } => crate::winpath::remove(ctx, *scope, dir),
         ActionKind::RemoveSystemPrefs => {
             let mut ch = prefs::system::SystemPrefsWriter::remove_all(ctx)?;
             ch |= crate::fsutil::remove_file_if_exists(&crate::state::state_path(ctx))?;
-            Ok(if ch {
-                Change::Changed
-            } else {
-                Change::Unchanged
-            })
+            Ok(if ch { Change::Changed } else { Change::Unchanged })
         }
     }
 }
@@ -789,9 +728,7 @@ pub fn uninstall(ctx: &Context, opts: &UninstallOptions, dry_run: bool) -> Repor
 
 /// Interpreta los argumentos del configurador Java (§9.1.1, sin distinguir mayúsculas; las
 /// opciones desconocidas como `/passive` se ignoran). Devuelve `(desinstalar, opciones)`.
-pub fn parse_configurator_args<I: IntoIterator<Item = String>>(
-    args: I,
-) -> (bool, InstallOptions, UninstallOptions) {
+pub fn parse_configurator_args<I: IntoIterator<Item = String>>(args: I) -> (bool, InstallOptions, UninstallOptions) {
     let mut io = InstallOptions::default();
     let uo = UninstallOptions::default();
     let mut uninstall = false;

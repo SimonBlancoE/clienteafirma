@@ -8,7 +8,11 @@ use std::process::Command;
 pub fn open(path: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd").args(["/C", "start", ""]).arg(path).spawn().map(|_| ())
+        Command::new("cmd")
+            .args(["/C", "start", ""])
+            .arg(path)
+            .spawn()
+            .map(|_| ())
     }
     #[cfg(target_os = "macos")]
     {
@@ -25,7 +29,10 @@ pub fn open(path: &Path) -> std::io::Result<()> {
 pub fn reveal(path: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("explorer").arg(format!("/select,{}", path.display())).spawn().map(|_| ())
+        Command::new("explorer")
+            .arg(format!("/select,{}", path.display()))
+            .spawn()
+            .map(|_| ())
     }
     #[cfg(target_os = "macos")]
     {
@@ -33,7 +40,11 @@ pub fn reveal(path: &Path) -> std::io::Result<()> {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        let dir = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+        let dir = if path.is_dir() {
+            path
+        } else {
+            path.parent().unwrap_or(path)
+        };
         Command::new("xdg-open").arg(dir).spawn().map(|_| ())
     }
 }
@@ -51,7 +62,9 @@ pub fn file_dialog() -> rfd::FileDialog {
 /// Recuerda la carpeta de un fichero (o la propia carpeta) elegido por el usuario.
 pub fn remember_dir(path: &Path) {
     let dir = if path.is_dir() { Some(path) } else { path.parent() };
-    let Some(dir) = dir.filter(|d| !d.as_os_str().is_empty()) else { return };
+    let Some(dir) = dir.filter(|d| !d.as_os_str().is_empty()) else {
+        return;
+    };
     if let Some(mut prefs) = load_prefs() {
         let _ = prefs.put_aux(afirma_system::prefs::keys::AUX_CURRENT_DIR, &dir.to_string_lossy());
     }

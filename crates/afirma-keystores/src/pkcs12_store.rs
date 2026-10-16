@@ -52,7 +52,9 @@ pub struct Pkcs12Store {
 
 impl std::fmt::Debug for Pkcs12Store {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Pkcs12Store").field("path", &self.path).finish_non_exhaustive()
+        f.debug_struct("Pkcs12Store")
+            .field("path", &self.path)
+            .finish_non_exhaustive()
     }
 }
 
@@ -61,7 +63,9 @@ impl Pkcs12Store {
     pub fn open(path: &Path, callback: &dyn PasswordCallback, options: Pkcs12Options) -> Result<Self, KeyStoreError> {
         let data = std::fs::read(path).map_err(|_| KeyStoreError::FileNotFound(path.to_path_buf()))?;
         let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned());
-        let prompt = KeyStoreKind::Pkcs12.store_password_prompt(file_name.as_deref()).unwrap_or_default();
+        let prompt = KeyStoreKind::Pkcs12
+            .store_password_prompt(file_name.as_deref())
+            .unwrap_or_default();
         let mut retry = None;
         loop {
             let mut req = PasswordRequest::new(PasswordKind::StorePassword, KeyStoreKind::Pkcs12, prompt.clone());
@@ -81,7 +85,9 @@ impl Pkcs12Store {
                         loaded: RwLock::new(loaded),
                     });
                 }
-                Err(KeyStoreError::WrongPassword { .. }) if options.retry_on_wrong_password && callback.is_interactive() => {
+                Err(KeyStoreError::WrongPassword { .. })
+                    if options.retry_on_wrong_password && callback.is_interactive() =>
+                {
                     retry = Some(RetryReason::WrongPassword);
                 }
                 Err(e) => return Err(e),
@@ -93,7 +99,12 @@ impl Pkcs12Store {
     pub fn from_bytes(data: Vec<u8>, password: impl Into<Secret>) -> Result<Self, KeyStoreError> {
         let password = password.into();
         let loaded = load(&data, &password)?;
-        Ok(Pkcs12Store { path: None, data: Some(data), password: Mutex::new(password), loaded: RwLock::new(loaded) })
+        Ok(Pkcs12Store {
+            path: None,
+            data: Some(data),
+            password: Mutex::new(password),
+            loaded: RwLock::new(loaded),
+        })
     }
 
     /// Fichero del almacén, si se abrió desde fichero.
@@ -104,14 +115,25 @@ impl Pkcs12Store {
 
 fn load(data: &[u8], password: &Secret) -> Result<Loaded, KeyStoreError> {
     let keys = crate::pkcs12::open_entries(data, password.as_str()).map_err(|e| match e {
-        Pkcs12Error::WrongPassword => KeyStoreError::WrongPassword { message: WRONG_PASSWORD_MESSAGE.into() },
+        Pkcs12Error::WrongPassword => KeyStoreError::WrongPassword {
+            message: WRONG_PASSWORD_MESSAGE.into(),
+        },
         other => KeyStoreError::load(KeyStoreKind::Pkcs12, format!("{INVALID_MESSAGE}: {other}")),
     })?;
     let entries = keys
         .iter()
         .map(|k| {
-            let caps = EntryCapabilities { has_private_key: true, ..Default::default() };
-            CertEntry::new(k.alias.clone(), k.certificate().to_vec(), k.chain.clone(), caps, KeyStoreKind::Pkcs12.display_name())
+            let caps = EntryCapabilities {
+                has_private_key: true,
+                ..Default::default()
+            };
+            CertEntry::new(
+                k.alias.clone(),
+                k.certificate().to_vec(),
+                k.chain.clone(),
+                caps,
+                KeyStoreKind::Pkcs12.display_name(),
+            )
         })
         .collect();
     Ok(Loaded { entries, keys })
@@ -123,7 +145,10 @@ impl KeyStore for Pkcs12Store {
     }
 
     fn lib_name(&self) -> Option<String> {
-        self.path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned())
+        self.path
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
     }
 
     fn entries(&self) -> Result<Vec<CertEntry>, KeyStoreError> {
@@ -131,8 +156,12 @@ impl KeyStore for Pkcs12Store {
     }
 
     fn signing_key(&self, alias: &str) -> Result<Box<dyn SigningKey>, KeyStoreError> {
-        let loaded = self.loaded.read().map_err(|_| KeyStoreError::AliasNotFound(alias.to_string()))?;
-        let entry = find_entry(&loaded.entries, alias).ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
+        let loaded = self
+            .loaded
+            .read()
+            .map_err(|_| KeyStoreError::AliasNotFound(alias.to_string()))?;
+        let entry =
+            find_entry(&loaded.entries, alias).ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
         let key = loaded
             .keys
             .iter()
@@ -147,14 +176,21 @@ impl KeyStore for Pkcs12Store {
             (None, Some(d)) => d.clone(),
             (None, None) => return Ok(()),
         };
-        let password = self.password.lock().map(|p| p.clone()).unwrap_or_else(|_| Secret::empty());
+        let password = self
+            .password
+            .lock()
+            .map(|p| p.clone())
+            .unwrap_or_else(|_| Secret::empty());
         let result = load(&data, &password);
         if let Ok(mut l) = self.loaded.write() {
             match result {
                 Ok(new) => *l = new,
                 Err(e) => {
                     // Como Java: si falla la recarga, se ocultan sus entradas.
-                    *l = Loaded { entries: Vec::new(), keys: Vec::new() };
+                    *l = Loaded {
+                        entries: Vec::new(),
+                        keys: Vec::new(),
+                    };
                     return Err(e);
                 }
             }
@@ -171,7 +207,9 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn pki(name: &str) -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../testdata/pki")
+            .join(name)
     }
 
     #[test]
@@ -182,7 +220,8 @@ mod tests {
             ("firmante-ec.p12", KeyAlgorithm::Ec),
             ("firmante-ec-legacy.p12", KeyAlgorithm::Ec),
         ] {
-            let store = Pkcs12Store::open(&pki(file), &FixedPassword::new("12341234"), Pkcs12Options::default()).unwrap();
+            let store =
+                Pkcs12Store::open(&pki(file), &FixedPassword::new("12341234"), Pkcs12Options::default()).unwrap();
             assert_eq!(store.lib_name().as_deref(), Some(file));
             let entries = store.entries().unwrap();
             assert_eq!(entries.len(), 1);
@@ -202,8 +241,19 @@ mod tests {
 
     #[test]
     fn wrong_password_and_retry() {
-        let r = Pkcs12Store::open(&pki("firmante-rsa.p12"), &FixedPassword::new("mala"), Pkcs12Options { retry_on_wrong_password: true });
-        assert_eq!(r.unwrap_err(), KeyStoreError::WrongPassword { message: WRONG_PASSWORD_MESSAGE.into() });
+        let r = Pkcs12Store::open(
+            &pki("firmante-rsa.p12"),
+            &FixedPassword::new("mala"),
+            Pkcs12Options {
+                retry_on_wrong_password: true,
+            },
+        );
+        assert_eq!(
+            r.unwrap_err(),
+            KeyStoreError::WrongPassword {
+                message: WRONG_PASSWORD_MESSAGE.into()
+            }
+        );
 
         let calls = AtomicUsize::new(0);
         let cb = FnPasswordCallback(|req: &PasswordRequest| {
@@ -217,7 +267,14 @@ mod tests {
                 PasswordResponse::provided("12341234")
             }
         });
-        let s = Pkcs12Store::open(&pki("firmante-rsa.p12"), &cb, Pkcs12Options { retry_on_wrong_password: true }).unwrap();
+        let s = Pkcs12Store::open(
+            &pki("firmante-rsa.p12"),
+            &cb,
+            Pkcs12Options {
+                retry_on_wrong_password: true,
+            },
+        )
+        .unwrap();
         assert_eq!(s.entries().unwrap().len(), 1);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
 
@@ -231,7 +288,10 @@ mod tests {
         assert_eq!(calls2.load(Ordering::SeqCst), 1);
 
         let cancel = FnPasswordCallback(|_: &PasswordRequest| PasswordResponse::Cancelled);
-        assert_eq!(Pkcs12Store::open(&pki("firmante-rsa.p12"), &cancel, Pkcs12Options::default()).unwrap_err(), KeyStoreError::Cancelled);
+        assert_eq!(
+            Pkcs12Store::open(&pki("firmante-rsa.p12"), &cancel, Pkcs12Options::default()).unwrap_err(),
+            KeyStoreError::Cancelled
+        );
         assert!(matches!(
             Pkcs12Store::open(Path::new("/no/existe.p12"), &cancel, Pkcs12Options::default()),
             Err(KeyStoreError::FileNotFound(_))
@@ -243,9 +303,19 @@ mod tests {
         // friendlyName en minúsculas (comprobado con el oráculo Java:
         // "Mi Certificado RSA" → "mi certificado rsa"; sin nombre → "1").
         let golden = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/keystores");
-        let s = Pkcs12Store::open(&golden.join("alias-mayusculas.p12"), &FixedPassword::new("12341234"), Pkcs12Options::default()).unwrap();
+        let s = Pkcs12Store::open(
+            &golden.join("alias-mayusculas.p12"),
+            &FixedPassword::new("12341234"),
+            Pkcs12Options::default(),
+        )
+        .unwrap();
         assert_eq!(s.aliases().unwrap(), vec!["mi certificado rsa".to_string()]);
-        let s = Pkcs12Store::open(&golden.join("alias-sin-nombre.p12"), &FixedPassword::new("12341234"), Pkcs12Options::default()).unwrap();
+        let s = Pkcs12Store::open(
+            &golden.join("alias-sin-nombre.p12"),
+            &FixedPassword::new("12341234"),
+            Pkcs12Options::default(),
+        )
+        .unwrap();
         assert_eq!(s.aliases().unwrap(), vec!["1".to_string()]);
     }
 }

@@ -61,4 +61,3 @@ impl<P: Send + 'static, R: Send + 'static> Job<P, R> {
         self.finished
     }
 }
-

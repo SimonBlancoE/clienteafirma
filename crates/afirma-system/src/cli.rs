@@ -44,16 +44,11 @@ impl Args {
             let a = &args[i];
             if let Some((k, v)) = a.split_once('=') {
                 flags.push((
-                    k.trim_start_matches('-')
-                        .to_ascii_lowercase()
-                        .replace('_', "-"),
+                    k.trim_start_matches('-').to_ascii_lowercase().replace('_', "-"),
                     Some(v.to_string()),
                 ));
             } else {
-                let k = a
-                    .trim_start_matches('-')
-                    .to_ascii_lowercase()
-                    .replace('_', "-");
+                let k = a.trim_start_matches('-').to_ascii_lowercase().replace('_', "-");
                 // Opciones con valor (formas de Java y largas).
                 let takes = matches!(
                     k.as_str(),
@@ -181,11 +176,7 @@ pub fn install_options(args: &[String]) -> InstallOptions {
 
 fn print<T: serde::Serialize>(out: &mut dyn Write, json: bool, v: &T, text: String) {
     if json {
-        let _ = writeln!(
-            out,
-            "{}",
-            serde_json::to_string_pretty(v).unwrap_or_default()
-        );
+        let _ = writeln!(out, "{}", serde_json::to_string_pretty(v).unwrap_or_default());
     } else {
         let _ = write!(out, "{text}");
     }
@@ -251,11 +242,7 @@ pub fn run(ctx: &Context, args: &[String], out: &mut dyn Write) -> i32 {
                 all_users: !a.has("current-user-only"),
                 ..Default::default()
             };
-            let ports: Vec<u16> = a
-                .vals("port")
-                .iter()
-                .filter_map(|p| p.parse().ok())
-                .collect();
+            let ports: Vec<u16> = a.vals("port").iter().filter_map(|p| p.parse().ok()).collect();
             if !ports.is_empty() {
                 o.ports = ports;
             }
@@ -309,22 +296,14 @@ fn write_templates(ctx: &Context, a: &Args) -> crate::error::Result<Vec<PathBuf>
     let reg = dir.join("autofirma-policies.reg");
     crate::fsutil::write_atomic(
         &reg,
-        &browser_policy::reg_file_bytes(&browser_policy::windows_reg_template(
-            &opts,
-            prefs.as_ref(),
-        )),
+        &browser_policy::reg_file_bytes(&browser_policy::windows_reg_template(&opts, prefs.as_ref())),
         Some(0o644),
     )?;
     written.push(reg);
     let mc = dir.join("autofirma.mobileconfig");
     crate::fsutil::write_atomic(
         &mc,
-        &browser_policy::macos_mobileconfig(
-            &opts,
-            prefs.as_ref(),
-            &ctx.app.macos_bundle_id,
-            ca.as_deref(),
-        ),
+        &browser_policy::macos_mobileconfig(&opts, prefs.as_ref(), &ctx.app.macos_bundle_id, ca.as_deref()),
         Some(0o644),
     )?;
     written.push(mc);
@@ -401,10 +380,7 @@ mod tests {
             ),
             0
         );
-        assert!(
-            dir.join("autofirma-policies.reg").is_file()
-                && dir.join("autofirma.mobileconfig").is_file()
-        );
+        assert!(dir.join("autofirma-policies.reg").is_file() && dir.join("autofirma.mobileconfig").is_file());
         assert!(
             dir.join("linux/etc/opt/chrome/policies/managed/autofirma.json")
                 .is_file()

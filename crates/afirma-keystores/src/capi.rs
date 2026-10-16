@@ -31,30 +31,33 @@ use std::sync::Mutex;
 use afirma_core::algorithms::{DigestAlgorithm, KeyAlgorithm, SignatureAlgorithm};
 use afirma_core::key::{KeyError, SigningKey};
 use windows::Win32::Foundation::{
-    ERROR_CANCELLED, ERROR_FILE_NOT_FOUND, NTE_BUFFER_TOO_SMALL, NTE_NO_KEY, NTE_SILENT_CONTEXT, NTE_USER_CANCELLED, SCARD_E_NO_SMARTCARD,
-    SCARD_W_CANCELLED_BY_USER, SCARD_W_CHV_BLOCKED, SCARD_W_REMOVED_CARD, SCARD_W_WRONG_CHV,
+    ERROR_CANCELLED, ERROR_FILE_NOT_FOUND, NTE_BUFFER_TOO_SMALL, NTE_NO_KEY, NTE_SILENT_CONTEXT, NTE_USER_CANCELLED,
+    SCARD_E_NO_SMARTCARD, SCARD_W_CANCELLED_BY_USER, SCARD_W_CHV_BLOCKED, SCARD_W_REMOVED_CARD, SCARD_W_WRONG_CHV,
 };
 use windows::Win32::Security::Cryptography::{
     ALG_ID, AT_KEYEXCHANGE, AT_SIGNATURE, BCRYPT_PKCS1_PADDING_INFO, BCRYPT_SHA1_ALGORITHM, BCRYPT_SHA256_ALGORITHM,
     BCRYPT_SHA384_ALGORITHM, BCRYPT_SHA512_ALGORITHM, CALG_SHA_256, CALG_SHA_384, CALG_SHA_512, CALG_SHA1,
-    CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL, CERT_CHAIN_CONTEXT, CERT_CHAIN_DISABLE_AUTH_ROOT_AUTO_UPDATE, CERT_CHAIN_PARA, CERT_CONTEXT,
-    CERT_KEY_PROV_INFO_PROP_ID, CERT_KEY_SPEC, CERT_NAME_FRIENDLY_DISPLAY_TYPE, CERT_NCRYPT_KEY_SPEC, CERT_OPEN_STORE_FLAGS,
-    CERT_QUERY_ENCODING_TYPE, CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_W, CERT_STORE_READONLY_FLAG,
-    CERT_SYSTEM_STORE_CURRENT_USER, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG, CRYPT_ACQUIRE_FLAGS, CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG,
-    CRYPT_ACQUIRE_SILENT_FLAG, CRYPT_IMPL_HARDWARE, CRYPT_IMPL_REMOVABLE, CRYPT_KEY_PROV_INFO, CertCloseStore,
-    CertDuplicateCertificateContext, CertEnumCertificatesInStore, CertFreeCertificateChain, CertFreeCertificateContext,
-    CertGetCertificateChain, CertGetCertificateContextProperty, CertGetNameStringW, CertOpenStore, CryptAcquireCertificatePrivateKey,
-    CryptAcquireContextA, CryptCreateHash, CryptDestroyHash, CryptGetProvParam, CryptReleaseContext, CryptSetHashParam, CryptSignHashW,
-    HCERTSTORE, HCRYPTPROV_OR_NCRYPT_KEY_HANDLE, HP_HASHVAL, NCRYPT_FLAGS, NCRYPT_HANDLE, NCRYPT_IMPL_HARDWARE_FLAG,
-    NCRYPT_IMPL_REMOVABLE_FLAG, NCRYPT_IMPL_TYPE_PROPERTY, NCRYPT_KEY_HANDLE, NCRYPT_PAD_PKCS1_FLAG, NCryptFreeObject, NCryptGetProperty,
-    NCryptSignHash, PP_CONTAINER, PP_IMPTYPE, PROV_RSA_AES,
+    CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL, CERT_CHAIN_CONTEXT, CERT_CHAIN_DISABLE_AUTH_ROOT_AUTO_UPDATE, CERT_CHAIN_PARA,
+    CERT_CONTEXT, CERT_KEY_PROV_INFO_PROP_ID, CERT_KEY_SPEC, CERT_NAME_FRIENDLY_DISPLAY_TYPE, CERT_NCRYPT_KEY_SPEC,
+    CERT_OPEN_STORE_FLAGS, CERT_QUERY_ENCODING_TYPE, CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_W,
+    CERT_STORE_READONLY_FLAG, CERT_SYSTEM_STORE_CURRENT_USER, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG, CRYPT_ACQUIRE_FLAGS,
+    CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG, CRYPT_ACQUIRE_SILENT_FLAG, CRYPT_IMPL_HARDWARE, CRYPT_IMPL_REMOVABLE,
+    CRYPT_KEY_PROV_INFO, CertCloseStore, CertDuplicateCertificateContext, CertEnumCertificatesInStore,
+    CertFreeCertificateChain, CertFreeCertificateContext, CertGetCertificateChain, CertGetCertificateContextProperty,
+    CertGetNameStringW, CertOpenStore, CryptAcquireCertificatePrivateKey, CryptAcquireContextA, CryptCreateHash,
+    CryptDestroyHash, CryptGetProvParam, CryptReleaseContext, CryptSetHashParam, CryptSignHashW, HCERTSTORE,
+    HCRYPTPROV_OR_NCRYPT_KEY_HANDLE, HP_HASHVAL, NCRYPT_FLAGS, NCRYPT_HANDLE, NCRYPT_IMPL_HARDWARE_FLAG,
+    NCRYPT_IMPL_REMOVABLE_FLAG, NCRYPT_IMPL_TYPE_PROPERTY, NCRYPT_KEY_HANDLE, NCRYPT_PAD_PKCS1_FLAG, NCryptFreeObject,
+    NCryptGetProperty, NCryptSignHash, PP_CONTAINER, PP_IMPTYPE, PROV_RSA_AES,
 };
 use windows::core::{BOOL, HRESULT, PCSTR, PCWSTR, w};
 
 use crate::error::KeyStoreError;
 use crate::kind::KeyStoreKind;
 use crate::store::{AliasSet, CertEntry, EntryCapabilities, KeyStore, find_entry};
-use crate::verify::{EcCurve, certificate_curve, certificate_key_algorithm, certificate_key_bits, ecdsa_raw_to_der, ecdsa_truncate_hash};
+use crate::verify::{
+    EcCurve, certificate_curve, certificate_key_algorithm, certificate_key_bits, ecdsa_raw_to_der, ecdsa_truncate_hash,
+};
 
 /// Almacén de sistema de Windows del usuario actual.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -136,7 +139,9 @@ unsafe impl Sync for CertStore {}
 impl CertStore {
     /// Abre un almacén de sistema del usuario actual en modo lectura.
     fn open_system(store: SystemStore) -> windows::core::Result<CertStore> {
-        let flags = CERT_OPEN_STORE_FLAGS(CERT_SYSTEM_STORE_CURRENT_USER) | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG;
+        let flags = CERT_OPEN_STORE_FLAGS(CERT_SYSTEM_STORE_CURRENT_USER)
+            | CERT_STORE_OPEN_EXISTING_FLAG
+            | CERT_STORE_READONLY_FLAG;
         // SAFETY: `wide_name` es una cadena UTF-16 estática terminada en nulo,
         // que es el `pvPara` que espera `CERT_STORE_PROV_SYSTEM_W`; no se pasa
         // proveedor (`hCryptProv` = 0).
@@ -162,7 +167,9 @@ impl CertStore {
             // contexto devuelto por la llamada anterior, que
             // `CertEnumCertificatesInStore` libera. Al llegar al final (nulo)
             // la función ya ha liberado el último contexto.
-            let cur = unsafe { CertEnumCertificatesInStore(self.0, (!prev.is_null()).then_some(prev as *const CERT_CONTEXT)) };
+            let cur = unsafe {
+                CertEnumCertificatesInStore(self.0, (!prev.is_null()).then_some(prev as *const CERT_CONTEXT))
+            };
             if cur.is_null() {
                 break;
             }
@@ -223,7 +230,8 @@ impl CertContext {
         unsafe { CertGetCertificateContextProperty(self.0, id, None, &mut len) }.ok()?;
         let mut buf = vec![0u64; (len as usize).div_ceil(8).max(1)];
         // SAFETY: `buf` tiene al menos `len` bytes.
-        unsafe { CertGetCertificateContextProperty(self.0, id, Some(buf.as_mut_ptr() as *mut c_void), &mut len) }.ok()?;
+        unsafe { CertGetCertificateContextProperty(self.0, id, Some(buf.as_mut_ptr() as *mut c_void), &mut len) }
+            .ok()?;
         Some((buf, len as usize))
     }
 
@@ -255,7 +263,8 @@ impl CertContext {
         }
         let mut buf = vec![0u16; len as usize];
         // SAFETY: `buf` tiene la longitud indicada por la llamada anterior.
-        let written = unsafe { CertGetNameStringW(self.0, CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, None, Some(&mut buf)) } as usize;
+        let written =
+            unsafe { CertGetNameStringW(self.0, CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, None, Some(&mut buf)) } as usize;
         let end = buf[..written.min(buf.len())]
             .iter()
             .position(|&c| c == 0)
@@ -326,7 +335,9 @@ impl CertContext {
         let mut spec = CERT_KEY_SPEC(0);
         let mut free = BOOL(0);
         // SAFETY: parámetros de salida válidos; el contexto es válido.
-        unsafe { CryptAcquireCertificatePrivateKey(self.0, flags, None, &mut handle, Some(&mut spec), Some(&mut free)) }?;
+        unsafe {
+            CryptAcquireCertificatePrivateKey(self.0, flags, None, &mut handle, Some(&mut spec), Some(&mut free))
+        }?;
         Ok(if spec == CERT_NCRYPT_KEY_SPEC {
             AcquiredKey::Cng {
                 handle: NCRYPT_KEY_HANDLE(handle.0),
@@ -379,7 +390,11 @@ impl Drop for CertContext {
 /// Proveedores que guardan las claves en hardware (tarjeta, TPM).
 fn is_hardware_provider(name: &str) -> bool {
     let n = name.to_ascii_lowercase();
-    n.contains("smart card") || n.contains("smartcard") || n.contains("platform crypto") || n.contains("dnie") || n.contains("fnmt")
+    n.contains("smart card")
+        || n.contains("smartcard")
+        || n.contains("platform crypto")
+        || n.contains("dnie")
+        || n.contains("fnmt")
 }
 
 /// Clave privada adquirida: CNG (`NCRYPT_KEY_HANDLE`) o CryptoAPI
@@ -493,7 +508,10 @@ fn map_hresult(context: &str, code: HRESULT, message: &str) -> KeyError {
         KeyError::WrongPin
     } else if code == SCARD_W_CHV_BLOCKED {
         KeyError::PinLocked
-    } else if code == SCARD_W_CANCELLED_BY_USER || code == NTE_USER_CANCELLED || code == HRESULT::from_win32(ERROR_CANCELLED.0) {
+    } else if code == SCARD_W_CANCELLED_BY_USER
+        || code == NTE_USER_CANCELLED
+        || code == HRESULT::from_win32(ERROR_CANCELLED.0)
+    {
         KeyError::Cancelled
     } else if code == SCARD_W_REMOVED_CARD || code == SCARD_E_NO_SMARTCARD {
         KeyError::DeviceUnavailable
@@ -503,7 +521,12 @@ fn map_hresult(context: &str, code: HRESULT, message: &str) -> KeyError {
 }
 
 /// Firma con CNG.
-fn sign_cng(handle: NCRYPT_KEY_HANDLE, key: &CapiKeyInfo, alg: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>, KeyError> {
+fn sign_cng(
+    handle: NCRYPT_KEY_HANDLE,
+    key: &CapiKeyInfo,
+    alg: SignatureAlgorithm,
+    data: &[u8],
+) -> Result<Vec<u8>, KeyError> {
     let hash = alg.digest.digest(data);
     match key.key_alg {
         KeyAlgorithm::Rsa => {
@@ -580,11 +603,21 @@ fn capi_alg(digest: DigestAlgorithm) -> Option<ALG_ID> {
 }
 
 /// Firma con un contexto de CryptoAPI (`CryptSignHash`).
-fn sign_capi(prov: usize, key_spec: u32, key: &CapiKeyInfo, alg: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>, KeyError> {
+fn sign_capi(
+    prov: usize,
+    key_spec: u32,
+    key: &CapiKeyInfo,
+    alg: SignatureAlgorithm,
+    data: &[u8],
+) -> Result<Vec<u8>, KeyError> {
     if key.key_alg != KeyAlgorithm::Rsa {
-        return Err(KeyError::Unsupported(format!("{} con un proveedor CryptoAPI", alg.java_name())));
+        return Err(KeyError::Unsupported(format!(
+            "{} con un proveedor CryptoAPI",
+            alg.java_name()
+        )));
     }
-    let calg = capi_alg(alg.digest).ok_or_else(|| KeyError::Unsupported(format!("{} con un proveedor CryptoAPI", alg.java_name())))?;
+    let calg = capi_alg(alg.digest)
+        .ok_or_else(|| KeyError::Unsupported(format!("{} con un proveedor CryptoAPI", alg.java_name())))?;
     let hash = alg.digest.digest(data);
     // `dwKeySpec` debería ser AT_KEYEXCHANGE o AT_SIGNATURE; si el
     // proveedor informa otro valor (p. ej. la importación PFX de Wine) se
@@ -621,9 +654,10 @@ fn capi_sign_with(prov: usize, calg: ALG_ID, key_spec: u32, hash: &[u8]) -> Resu
             // El CSP (p. ej. PROV_RSA_FULL) no admite SHA-2: se reabre el
             // mismo contenedor con el proveedor PROV_RSA_AES por defecto,
             // como hace SunMSCAPI.
-            let alt = reacquire_aes(prov).map_err(|_| CapiSignError::Key(key_error("Error al crear la huella con CryptoAPI", &first)))?;
-            let h =
-                CryptHash::create(alt.0, calg).map_err(|e| CapiSignError::Key(key_error("Error al crear la huella con CryptoAPI", &e)))?;
+            let alt = reacquire_aes(prov)
+                .map_err(|_| CapiSignError::Key(key_error("Error al crear la huella con CryptoAPI", &first)))?;
+            let h = CryptHash::create(alt.0, calg)
+                .map_err(|e| CapiSignError::Key(key_error("Error al crear la huella con CryptoAPI", &e)))?;
             alt_prov = Some(alt);
             h
         }
@@ -703,10 +737,18 @@ pub struct CapiKey {
 }
 
 impl CapiKey {
-    fn new(cert: CertContext, chain: Vec<Vec<u8>>, alias: String, preference: KeyPreference) -> Result<CapiKey, KeyStoreError> {
+    fn new(
+        cert: CertContext,
+        chain: Vec<Vec<u8>>,
+        alias: String,
+        preference: KeyPreference,
+    ) -> Result<CapiKey, KeyStoreError> {
         let der = cert.der();
-        let key_alg = certificate_key_algorithm(&der)
-            .ok_or_else(|| KeyStoreError::Key(KeyError::Unsupported("tipo de clave del certificado no soportado".into())))?;
+        let key_alg = certificate_key_algorithm(&der).ok_or_else(|| {
+            KeyStoreError::Key(KeyError::Unsupported(
+                "tipo de clave del certificado no soportado".into(),
+            ))
+        })?;
         let curve = certificate_curve(&der);
         let sig_len = match key_alg {
             KeyAlgorithm::Rsa => certificate_key_bits(&der).map(|b| b.div_ceil(8)),
@@ -719,7 +761,11 @@ impl CapiKey {
             der,
             chain,
             alias,
-            info: CapiKeyInfo { key_alg, curve, sig_len },
+            info: CapiKeyInfo {
+                key_alg,
+                curve,
+                sig_len,
+            },
             preference,
         })
     }
@@ -741,7 +787,10 @@ impl CapiKey {
 
     /// Tipo de manejador adquirido (`"CNG"`/`"CryptoAPI"`), si ya se adquirió.
     pub fn provider_kind(&self) -> Option<&'static str> {
-        self.handle.lock().ok().and_then(|g| g.as_ref().map(AcquiredKey::kind_name))
+        self.handle
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(AcquiredKey::kind_name))
     }
 }
 
@@ -968,7 +1017,10 @@ mod tests {
         assert_eq!(map_hresult("x", SCARD_W_CHV_BLOCKED, ""), KeyError::PinLocked);
         assert_eq!(map_hresult("x", SCARD_W_CANCELLED_BY_USER, ""), KeyError::Cancelled);
         assert_eq!(map_hresult("x", NTE_USER_CANCELLED, ""), KeyError::Cancelled);
-        assert_eq!(map_hresult("x", HRESULT::from_win32(ERROR_CANCELLED.0), ""), KeyError::Cancelled);
+        assert_eq!(
+            map_hresult("x", HRESULT::from_win32(ERROR_CANCELLED.0), ""),
+            KeyError::Cancelled
+        );
         assert_eq!(map_hresult("x", SCARD_W_REMOVED_CARD, ""), KeyError::DeviceUnavailable);
         assert_eq!(map_hresult("x", SCARD_E_NO_SMARTCARD, ""), KeyError::DeviceUnavailable);
         assert!(matches!(map_hresult("x", NTE_BUFFER_TOO_SMALL, "m"), KeyError::Other(m) if m.contains("0x80090028")));
@@ -1006,7 +1058,13 @@ mod tests {
             .or_else(|_| {
                 // Wine solo admite CRYPT_USER_KEYSET/CRYPT_EXPORTABLE.
                 // SAFETY: ídem.
-                unsafe { PFXImportCertStore(&blob, w!("12341234"), windows::Win32::Security::Cryptography::CRYPT_USER_KEYSET) }
+                unsafe {
+                    PFXImportCertStore(
+                        &blob,
+                        w!("12341234"),
+                        windows::Win32::Security::Cryptography::CRYPT_USER_KEYSET,
+                    )
+                }
             })
             .expect("PFXImportCertStore");
         let pfx = CertStore(pfx);
@@ -1060,11 +1118,13 @@ mod tests {
                 // Certificados de la cadena: al almacén CA para que Windows
                 // pueda construir la cadena.
                 // SAFETY: contexto y almacén válidos.
-                unsafe { CertAddCertificateContextToStore(Some(ca.0), c.0, CERT_STORE_ADD_REPLACE_EXISTING, None) }.expect("añadir a CA");
+                unsafe { CertAddCertificateContextToStore(Some(ca.0), c.0, CERT_STORE_ADD_REPLACE_EXISTING, None) }
+                    .expect("añadir a CA");
                 continue;
             }
             // SAFETY: contexto y almacén válidos.
-            unsafe { CertAddCertificateContextToStore(Some(my.0), c.0, CERT_STORE_ADD_REPLACE_EXISTING, None) }.expect("añadir a MY");
+            unsafe { CertAddCertificateContextToStore(Some(my.0), c.0, CERT_STORE_ADD_REPLACE_EXISTING, None) }
+                .expect("añadir a MY");
             thumb = hex::encode_upper(DigestAlgorithm::Sha1.digest(&c.der()));
         }
         assert!(!thumb.is_empty(), "el PFX no tenía certificado con clave");
@@ -1131,7 +1191,8 @@ mod tests {
         ] {
             let mut handle = NCRYPT_KEY_HANDLE(0);
             // SAFETY: `blob` es un búfer válido con el formato indicado.
-            if let Err(e) = unsafe { NCryptImportKey(prov, None, blob_type, None, &mut handle, &blob, NCRYPT_FLAGS(0)) } {
+            if let Err(e) = unsafe { NCryptImportKey(prov, None, blob_type, None, &mut handle, &blob, NCRYPT_FLAGS(0)) }
+            {
                 eprintln!("NCryptImportKey no disponible ({e}); se omite");
                 continue;
             }
@@ -1142,7 +1203,11 @@ mod tests {
                 KeyAlgorithm::Rsa => certificate_key_bits(&cert_der).map(|b| b.div_ceil(8)),
                 _ => curve.map(|c| c.field_len() * 2),
             };
-            let info = CapiKeyInfo { key_alg, curve, sig_len };
+            let info = CapiKeyInfo {
+                key_alg,
+                curve,
+                sig_len,
+            };
             for d in DigestAlgorithm::ALL {
                 let alg = SignatureAlgorithm::new(d, key_alg);
                 match sign_cng(handle, &info, alg, b"datos de prueba") {
@@ -1167,7 +1232,11 @@ mod tests {
             CRYPT_KEY_FLAGS, CRYPT_USER_KEYSET, PKCS12_ALLOW_OVERWRITE_KEY, PKCS12_PREFER_CNG_KSP,
         };
         let cases: [(&str, CRYPT_KEY_FLAGS, &str); 3] = [
-            ("firmante-rsa.p12", CRYPT_USER_KEYSET | PKCS12_ALLOW_OVERWRITE_KEY, "RSA en CSP"),
+            (
+                "firmante-rsa.p12",
+                CRYPT_USER_KEYSET | PKCS12_ALLOW_OVERWRITE_KEY,
+                "RSA en CSP",
+            ),
             (
                 "autenticacion.p12",
                 CRYPT_USER_KEYSET | PKCS12_ALLOW_OVERWRITE_KEY | PKCS12_PREFER_CNG_KSP,
@@ -1198,7 +1267,10 @@ mod tests {
                     .iter()
                     .any(|e| e.friendly_name == "AC Raiz de Pruebas AutoFirma-rs" && !e.capabilities.has_private_key)
             );
-            assert!(matches!(ca.signing_key(&ca_entries[0].alias), Err(KeyStoreError::NoPrivateKey(_))));
+            assert!(matches!(
+                ca.signing_key(&ca_entries[0].alias),
+                Err(KeyStoreError::NoPrivateKey(_))
+            ));
             for pref in [KeyPreference::PreferCng, KeyPreference::PreferLegacy] {
                 let store = CapiStore::open(SystemStore::My).unwrap().with_key_preference(pref);
                 let entry = store.entry(&format!("sha1:{thumb}")).expect("entrada importada");
@@ -1220,7 +1292,10 @@ mod tests {
                     match key.sign(b"datos de prueba", alg) {
                         Ok(sig) => {
                             let v = crate::verify::verify_signature(key.certificate(), alg, b"datos de prueba", &sig);
-                            eprintln!("[{label}/{pref:?}] {alg}: firma {} bytes, verificación {v:?}", sig.len());
+                            eprintln!(
+                                "[{label}/{pref:?}] {alg}: firma {} bytes, verificación {v:?}",
+                                sig.len()
+                            );
                             assert!(v.is_ok(), "{label} {alg}");
                         }
                         Err(e) => eprintln!("[{label}/{pref:?}] {alg}: error {e}"),

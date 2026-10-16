@@ -58,9 +58,7 @@ impl Command {
 }
 
 /// Formatos admitidos por `-format`.
-pub const FORMATS: [&str; 7] = [
-    "xades", "cades", "pades", "facturae", "ooxml", "odf", "auto",
-];
+pub const FORMATS: [&str; 7] = ["xades", "cades", "pades", "facturae", "ooxml", "odf", "auto"];
 /// Formato por defecto.
 pub const FORMAT_AUTO: &str = "auto";
 /// Formatos de `-hformat` (heredado, sin uso en los comandos integrados).
@@ -174,14 +172,7 @@ impl Params {
             }
             i += 1;
         }
-        p.check(
-            format_param,
-            hash_format_param,
-            input_param,
-            output_param,
-            env,
-            m,
-        )?;
+        p.check(format_param, hash_format_param, input_param, output_param, env, m)?;
         Ok(p)
     }
 
@@ -248,11 +239,7 @@ pub fn expand_tilde(path: &str, env: &ParseEnv) -> PathBuf {
         && let (Some(rest), Some(home)) = (path.strip_prefix('~'), env.home.as_ref())
     {
         let rest = rest.trim_start_matches('/');
-        return if rest.is_empty() {
-            home.clone()
-        } else {
-            home.join(rest)
-        };
+        return if rest.is_empty() { home.clone() } else { home.join(rest) };
     }
     PathBuf::from(path)
 }
@@ -391,17 +378,11 @@ mod tests {
         );
         assert_eq!(
             err(&["sign", "-alias", "a", "-filter", "b"]),
-            CliError::command(
-                "Las opciones '-alias' y '-filter' son excluyentes".into(),
-                false
-            )
+            CliError::command("Las opciones '-alias' y '-filter' son excluyentes".into(), false)
         );
         assert_eq!(
             err(&["sign", "-filter", "b", "-alias", "a"]),
-            CliError::command(
-                "Las opciones '-alias' y '-filter' son excluyentes".into(),
-                false
-            )
+            CliError::command("Las opciones '-alias' y '-filter' son excluyentes".into(), false)
         );
         assert_eq!(
             err(&["sign", "-alias", "a", "-alias", "b"]),
@@ -410,23 +391,11 @@ mod tests {
         let missing = [
             ("-i", "No se ha indicado fichero de entrada"),
             ("-o", "No se ha indicado fichero de salida"),
-            (
-                "-store",
-                "No se ha indicado el nombre del almacén de claves",
-            ),
-            (
-                "-operation",
-                "No se ha indicado la operación de firma masiva",
-            ),
+            ("-store", "No se ha indicado el nombre del almacén de claves"),
+            ("-operation", "No se ha indicado la operación de firma masiva"),
             ("-algorithm", "No se ha indicado el algoritmo de firma"),
-            (
-                "-halgorithm",
-                "No se ha indicado el algoritmo de huella digital",
-            ),
-            (
-                "-config",
-                "No se ha indicado la configuración del formato de firma",
-            ),
+            ("-halgorithm", "No se ha indicado el algoritmo de huella digital"),
+            ("-config", "No se ha indicado la configuración del formato de firma"),
             ("-password", "No se ha indicado la contraseña del almacén"),
             ("-alias", "No se ha indicado el alias del certificado"),
             ("-filter", "No se ha indicado el filtro de certificados"),
@@ -436,11 +405,7 @@ mod tests {
             ("-posturl", "No se ha indicado URL de postfirma"),
         ];
         for (opt, msg) in missing {
-            assert_eq!(
-                err(&["sign", opt]),
-                CliError::command(msg.into(), false),
-                "{opt}"
-            );
+            assert_eq!(err(&["sign", opt]), CliError::command(msg.into(), false), "{opt}");
         }
         // `-help` fuera de la primera posición es un parámetro desconocido.
         assert_eq!(
@@ -461,10 +426,7 @@ mod tests {
         );
         assert_eq!(
             err(&["sign", "-hformat", "zz"]),
-            CliError::syntax(
-                "Formato de salida de huella digital no soportado: zz".into(),
-                false
-            )
+            CliError::syntax("Formato de salida de huella digital no soportado: zz".into(), false)
         );
         assert_eq!(
             err(&["batchsign", "-preurl", "foo"]),
@@ -482,10 +444,7 @@ mod tests {
         );
         assert_eq!(
             err(&["sign", "-i", "/no/existe/x"]),
-            CliError::command(
-                "El fichero de entrada no existe: /no/existe/x".into(),
-                false
-            )
+            CliError::command("El fichero de entrada no existe: /no/existe/x".into(), false)
         );
         let dir = tempfile::tempdir().unwrap();
         let f = dir.path().join("a.txt");
@@ -511,10 +470,7 @@ mod tests {
             home: Some(PathBuf::from("/home/u")),
         };
         if cfg!(unix) {
-            assert_eq!(
-                expand_tilde("~/a.pdf", &env),
-                PathBuf::from("/home/u/a.pdf")
-            );
+            assert_eq!(expand_tilde("~/a.pdf", &env), PathBuf::from("/home/u/a.pdf"));
             assert_eq!(expand_tilde("~bob/x", &env), PathBuf::from("/home/u/bob/x"));
             assert_eq!(expand_tilde("~", &env), PathBuf::from("/home/u"));
         }
@@ -525,10 +481,7 @@ mod tests {
     fn urls_java() {
         assert!(check_java_url("http://localhost:8080/x").is_ok());
         assert!(check_java_url("HTTPS://x").is_ok());
-        assert_eq!(
-            check_java_url("http//x"),
-            Err("no protocol: http//x".into())
-        );
+        assert_eq!(check_java_url("http//x"), Err("no protocol: http//x".into()));
         assert_eq!(check_java_url("1abc:x"), Err("no protocol: 1abc:x".into()));
     }
 
@@ -538,14 +491,7 @@ mod tests {
         assert_eq!(Command::parse("COSIGN"), None);
         assert_eq!(
             Command::ALL.map(|c| c.op()),
-            [
-                "listaliases",
-                "sign",
-                "cosign",
-                "countersign",
-                "verify",
-                "batchsign"
-            ]
+            ["listaliases", "sign", "cosign", "countersign", "verify", "batchsign"]
         );
     }
 }

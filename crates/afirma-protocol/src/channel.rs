@@ -146,7 +146,10 @@ impl std::fmt::Debug for TlsSource {
 impl TlsSource {
     /// `autofirma.pfx` en la ruta indicada con la contraseña `654321`.
     pub fn autofirma_pfx(path: impl Into<PathBuf>) -> Self {
-        TlsSource::Pkcs12File { path: path.into(), password: AUTOFIRMA_PFX_PASSWORD.into() }
+        TlsSource::Pkcs12File {
+            path: path.into(),
+            password: AUTOFIRMA_PFX_PASSWORD.into(),
+        }
     }
 
     /// Construye la configuración del servidor TLS (rustls con `ring`,
@@ -171,7 +174,9 @@ pub fn server_config_from_pkcs12(data: &[u8], password: &str) -> Result<Arc<Serv
     let chain = ks
         .entries()
         .find_map(|(alias, e)| match e {
-            p12_keystore::KeyStoreEntry::PrivateKeyChain(c) if alias.eq_ignore_ascii_case(AUTOFIRMA_PFX_ALIAS) => Some(c.clone()),
+            p12_keystore::KeyStoreEntry::PrivateKeyChain(c) if alias.eq_ignore_ascii_case(AUTOFIRMA_PFX_ALIAS) => {
+                Some(c.clone())
+            }
             _ => None,
         })
         .or_else(|| ks.private_key_chain().map(|(_, c)| c.clone()))
@@ -179,7 +184,11 @@ pub fn server_config_from_pkcs12(data: &[u8], password: &str) -> Result<Arc<Serv
     if chain.certs().is_empty() {
         return Err(ChannelError::Tls("la clave del almacen no tiene certificado".into()));
     }
-    let certs: Vec<CertificateDer<'static>> = chain.certs().iter().map(|c| CertificateDer::from(c.as_der().to_vec())).collect();
+    let certs: Vec<CertificateDer<'static>> = chain
+        .certs()
+        .iter()
+        .map(|c| CertificateDer::from(c.as_der().to_vec()))
+        .collect();
     let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(chain.key().as_der().to_vec()));
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let config = ServerConfig::builder_with_provider(provider)
@@ -220,7 +229,8 @@ mod tests {
 
     #[test]
     fn channel_params() {
-        let url = "afirma://websocket?ports=50001,-50002,x,70000&v=4&jvc=4&idsession=Q3k9aZ0bT1cL2mN4pX7r&dlgload=false";
+        let url =
+            "afirma://websocket?ports=50001,-50002,x,70000&v=4&jvc=4&idsession=Q3k9aZ0bT1cL2mN4pX7r&dlgload=false";
         let r = ChannelRequest::from_params(&Params::from_query(url), 4);
         assert_eq!(r.version, ProtocolVersion::V4_1);
         assert!(r.ports_invalid);

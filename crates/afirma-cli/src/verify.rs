@@ -37,8 +37,7 @@ pub fn validate(data: &[u8]) -> Vec<SignValidity> {
         _ => None,
     };
     if let Some(name) = office {
-        let signed =
-            afirma_xml::signer_for(name).is_some_and(|s| s.is_sign(data, &ExtraParams::new()));
+        let signed = afirma_xml::signer_for(name).is_some_and(|s| s.is_sign(data, &ExtraParams::new()));
         if !signed {
             return vec![SignValidity::ko(ValidityError::UnknownSignatureFormat)];
         }

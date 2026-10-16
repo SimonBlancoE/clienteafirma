@@ -79,38 +79,36 @@ impl PdfImage {
     /// Prepara una imagen a partir de sus bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<PdfImage, ImageError> {
         if let Some((w, h, comps, adobe)) = jpeg_info(bytes)
-            && w > 0 && h > 0 {
-                let mut d = Dictionary::new();
-                d.set("Type", Object::Name(b"XObject".to_vec()));
-                d.set("Subtype", Object::Name(b"Image".to_vec()));
-                d.set("Width", Object::Integer(i64::from(w)));
-                d.set("Height", Object::Integer(i64::from(h)));
-                d.set("BitsPerComponent", Object::Integer(8));
-                let cs: &[u8] = match comps {
-                    1 => b"DeviceGray",
-                    4 => b"DeviceCMYK",
-                    _ => b"DeviceRGB",
-                };
-                d.set("ColorSpace", Object::Name(cs.to_vec()));
-                if comps == 4 && adobe {
-                    d.set(
-                        "Decode",
-                        Object::Array(
-                            (0..4)
-                                .flat_map(|_| [Object::Integer(1), Object::Integer(0)])
-                                .collect(),
-                        ),
-                    );
-                }
-                d.set("Filter", Object::Name(b"DCTDecode".to_vec()));
-                return Ok(PdfImage {
-                    width: w,
-                    height: h,
-                    dict: d,
-                    data: bytes.to_vec(),
-                    smask: None,
-                });
+            && w > 0
+            && h > 0
+        {
+            let mut d = Dictionary::new();
+            d.set("Type", Object::Name(b"XObject".to_vec()));
+            d.set("Subtype", Object::Name(b"Image".to_vec()));
+            d.set("Width", Object::Integer(i64::from(w)));
+            d.set("Height", Object::Integer(i64::from(h)));
+            d.set("BitsPerComponent", Object::Integer(8));
+            let cs: &[u8] = match comps {
+                1 => b"DeviceGray",
+                4 => b"DeviceCMYK",
+                _ => b"DeviceRGB",
+            };
+            d.set("ColorSpace", Object::Name(cs.to_vec()));
+            if comps == 4 && adobe {
+                d.set(
+                    "Decode",
+                    Object::Array((0..4).flat_map(|_| [Object::Integer(1), Object::Integer(0)]).collect()),
+                );
             }
+            d.set("Filter", Object::Name(b"DCTDecode".to_vec()));
+            return Ok(PdfImage {
+                width: w,
+                height: h,
+                dict: d,
+                data: bytes.to_vec(),
+                smask: None,
+            });
+        }
         let img = image::load_from_memory(bytes).map_err(|_| ImageError::Unsupported)?;
         let rgba = img.to_rgba8();
         let (w, h) = (rgba.width(), rgba.height());
@@ -162,8 +160,7 @@ impl PdfImage {
     /// `smask_id` es el identificador reservado para la máscara.
     pub fn objects(&self, smask_id: Option<lopdf::ObjectId>) -> (Object, Option<Object>) {
         let mut dict = self.dict.clone();
-        let is_dct = dict.get(b"Filter").ok().and_then(|f| f.as_name().ok())
-            == Some(b"DCTDecode".as_slice());
+        let is_dct = dict.get(b"Filter").ok().and_then(|f| f.as_name().ok()) == Some(b"DCTDecode".as_slice());
         let main = if is_dct {
             let mut d = dict.clone();
             d.set("Length", Object::Integer(self.data.len() as i64));

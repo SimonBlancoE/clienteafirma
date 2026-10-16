@@ -31,23 +31,22 @@ use std::path::{Path, PathBuf};
 
 pub use afirma_core::DigestAlgorithm;
 pub use algorithm::{
-    CHUNK_SIZE, DEFAULT_ALGORITHM, GUI_ALGORITHMS, XML_ALGORITHMS, algorithm_for_digest_len,
-    digest_file, digest_file_cancellable, digest_reader, parse_algorithm,
+    CHUNK_SIZE, DEFAULT_ALGORITHM, GUI_ALGORITHMS, XML_ALGORITHMS, algorithm_for_digest_len, digest_file,
+    digest_file_cancellable, digest_reader, parse_algorithm,
 };
 pub use cli::{
-    CliError, CliOptions, CliOutcome, CommandResponse, GuiRequest, HashCommand, HashParameters,
-    dispatch, run,
+    CliError, CliOptions, CliOutcome, CommandResponse, GuiRequest, HashCommand, HashParameters, dispatch, run,
 };
 pub use dir::{
-    DEFAULT_REPORT_NAME, HashOptions, HashReport, REPORT_EXTENSION, check_directory,
-    check_directory_with_file, default_directory_document_name, default_report_dir, hash_directory,
+    DEFAULT_REPORT_NAME, HashOptions, HashReport, REPORT_EXTENSION, check_directory, check_directory_with_file,
+    default_directory_document_name, default_report_dir, hash_directory,
 };
 pub use document::{DirDocumentFormat, DocumentError, HashDocument};
 pub use prefs::HashPreferences;
 pub use single::{
-    DecodedFileHash, FileHashCheck, FileHashFormat, MAX_HASH_FILE_LEN, check_file_hash,
-    check_file_hash_file, clipboard_text, decode_file_hash, default_file_hash_name,
-    encode_file_hash, hash_file, hex_upper, hex_with_suffix, read_hash_file,
+    DecodedFileHash, FileHashCheck, FileHashFormat, MAX_HASH_FILE_LEN, check_file_hash, check_file_hash_file,
+    clipboard_text, decode_file_hash, default_file_hash_name, encode_file_hash, hash_file, hex_upper, hex_with_suffix,
+    read_hash_file,
 };
 pub use walk::{SKIPPED_FILE_NAMES, is_skipped_file_name};
 
@@ -71,9 +70,7 @@ pub enum HashError {
     Cancelled,
     /// La longitud de la huella de un fichero de huella no corresponde a
     /// ningún algoritmo soportado.
-    #[error(
-        "La huella tiene una longitud ({0} bytes) que no corresponde a ningún algoritmo soportado"
-    )]
+    #[error("La huella tiene una longitud ({0} bytes) que no corresponde a ningún algoritmo soportado")]
     UnknownDigestLength(usize),
     /// Documento de huellas no válido o corrupto.
     #[error(transparent)]

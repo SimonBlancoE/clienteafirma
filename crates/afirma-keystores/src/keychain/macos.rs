@@ -81,13 +81,23 @@ impl KeychainStore {
     /// Abre solo los llaveros indicados (p. ej. un fichero `.keychain-db`
     /// abierto con `SecKeychain::open`); con `include_tokens` también se
     /// añaden las identidades de tokens.
-    pub fn open_with_keychains(options: KeychainOptions, keychains: Vec<SecKeychain>) -> Result<KeychainStore, KeyStoreError> {
+    pub fn open_with_keychains(
+        options: KeychainOptions,
+        keychains: Vec<SecKeychain>,
+    ) -> Result<KeychainStore, KeyStoreError> {
         Self::open_inner(options, Some(keychains))
     }
 
-    fn open_inner(options: KeychainOptions, keychains: Option<Vec<SecKeychain>>) -> Result<KeychainStore, KeyStoreError> {
+    fn open_inner(
+        options: KeychainOptions,
+        keychains: Option<Vec<SecKeychain>>,
+    ) -> Result<KeychainStore, KeyStoreError> {
         let items = load(&options, keychains.as_deref())?;
-        Ok(KeychainStore { options, keychains, items: RwLock::new(items) })
+        Ok(KeychainStore {
+            options,
+            keychains,
+            items: RwLock::new(items),
+        })
     }
 }
 
@@ -97,29 +107,48 @@ impl KeyStore for KeychainStore {
     }
 
     fn entries(&self) -> Result<Vec<CertEntry>, KeyStoreError> {
-        let items = self.items.read().map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
+        let items = self
+            .items
+            .read()
+            .map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
         Ok(items.iter().map(|i| i.entry.clone()).collect())
     }
 
     fn signing_key(&self, alias: &str) -> Result<Box<dyn SigningKey>, KeyStoreError> {
-        let items = self.items.read().map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
+        let items = self
+            .items
+            .read()
+            .map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
         let entries: Vec<CertEntry> = items.iter().map(|i| i.entry.clone()).collect();
         let entry = find_entry(&entries, alias).ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
-        let item = items.iter().find(|i| i.entry.id == entry.id).ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
+        let item = items
+            .iter()
+            .find(|i| i.entry.id == entry.id)
+            .ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
         let key_algorithm = entry
             .capabilities
             .key_algorithm
             .ok_or_else(|| KeyStoreError::Key(KeyError::Unsupported("tipo de clave del certificado".into())))?;
-        let key = item.identity.private_key().map_err(|e| match logic::map_error(logic::OSSTATUS_DOMAIN, i64::from(e.code()), &e.to_string()) {
-            KeyError::Other(_) => KeyStoreError::NoPrivateKey(alias.to_string()),
-            k => KeyStoreError::Key(k),
+        let key = item.identity.private_key().map_err(|e| {
+            match logic::map_error(logic::OSSTATUS_DOMAIN, i64::from(e.code()), &e.to_string()) {
+                KeyError::Other(_) => KeyStoreError::NoPrivateKey(alias.to_string()),
+                k => KeyStoreError::Key(k),
+            }
         })?;
-        Ok(Box::new(KeychainKey { key, chain: entry.chain.clone(), alias: entry.alias.clone(), key_algorithm }))
+        Ok(Box::new(KeychainKey {
+            key,
+            chain: entry.chain.clone(),
+            alias: entry.alias.clone(),
+            key_algorithm,
+        }))
     }
 
     fn refresh(&self) -> Result<(), KeyStoreError> {
         let loaded = load(&self.options, self.keychains.as_deref());
-        let mut items = self.items.write().map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
+        let mut items = self
+            .items
+            .write()
+            .map_err(|_| KeyStoreError::load(KeyStoreKind::Apple, "estado del llavero no disponible"))?;
         match loaded {
             Ok(new_items) => {
                 *items = new_items;
@@ -170,9 +199,17 @@ fn search(options: &ItemSearchOptions) -> Result<Vec<Found>, security_framework:
                 };
                 // SAFETY: constantes CFString de Security.framework.
                 let (label_key, token_key) = unsafe { (kSecAttrLabel, kSecAttrTokenID) };
-                out.push(Found { identity, label: dict_string(&dict, label_key), token_id: dict_string(&dict, token_key) });
+                out.push(Found {
+                    identity,
+                    label: dict_string(&dict, label_key),
+                    token_id: dict_string(&dict, token_key),
+                });
             }
-            SearchResult::Ref(Reference::Identity(identity)) => out.push(Found { identity, label: None, token_id: None }),
+            SearchResult::Ref(Reference::Identity(identity)) => out.push(Found {
+                identity,
+                label: None,
+                token_id: None,
+            }),
             _ => {}
         }
     }
@@ -182,7 +219,10 @@ fn search(options: &ItemSearchOptions) -> Result<Vec<Found>, security_framework:
 /// Opciones de búsqueda de identidades.
 fn identity_query(keychains: Option<&[SecKeychain]>, token: bool) -> ItemSearchOptions {
     let mut q = ItemSearchOptions::new();
-    q.class(ItemClass::identity()).load_refs(true).load_attributes(true).limit(Limit::All);
+    q.class(ItemClass::identity())
+        .load_refs(true)
+        .load_attributes(true)
+        .limit(Limit::All);
     if token {
         q.access_group_token();
     } else if let Some(k) = keychains {
@@ -194,7 +234,10 @@ fn identity_query(keychains: Option<&[SecKeychain]>, token: bool) -> ItemSearchO
 /// Carga las identidades y construye las entradas.
 fn load(options: &KeychainOptions, keychains: Option<&[SecKeychain]>) -> Result<Vec<Item>, KeyStoreError> {
     let mut found = search(&identity_query(keychains, false)).map_err(|e| {
-        KeyStoreError::load(KeyStoreKind::Apple, format!("No se han podido cargar los certificados del almacen Apple.KeychainStore: {e}"))
+        KeyStoreError::load(
+            KeyStoreKind::Apple,
+            format!("No se han podido cargar los certificados del almacen Apple.KeychainStore: {e}"),
+        )
     })?;
     if options.include_tokens {
         match search(&identity_query(keychains, true)) {
@@ -222,8 +265,17 @@ fn load(options: &KeychainOptions, keychains: Option<&[SecKeychain]>) -> Result<
         // Java aborta la carga completa si una identidad no tiene etiqueta;
         // aquí se usa el resumen del titular, que es la etiqueta por defecto
         // del llavero.
-        let label = f.label.clone().filter(|l| !l.is_empty()).unwrap_or_else(|| cert.subject_summary());
-        rows.push(Row { found: f, cert, der, label });
+        let label = f
+            .label
+            .clone()
+            .filter(|l| !l.is_empty())
+            .unwrap_or_else(|| cert.subject_summary());
+        rows.push(Row {
+            found: f,
+            cert,
+            der,
+            label,
+        });
     }
 
     let aliases = logic::java_aliases(&rows.iter().map(|r| r.label.as_str()).collect::<Vec<_>>());
@@ -238,15 +290,25 @@ fn load(options: &KeychainOptions, keychains: Option<&[SecKeychain]>) -> Result<
         // la entrada se marca como de hardware.
         let serial = logic::serial_key(&row.der);
         let hardware = row.found.token_id.is_some()
-            || rows.iter().any(|r| r.found.token_id.is_some() && logic::serial_key(&r.der) == serial);
-        let caps = EntryCapabilities { has_private_key: true, key_algorithm: None, hardware, pin_at_sign: hardware };
+            || rows
+                .iter()
+                .any(|r| r.found.token_id.is_some() && logic::serial_key(&r.der) == serial);
+        let caps = EntryCapabilities {
+            has_private_key: true,
+            key_algorithm: None,
+            hardware,
+            pin_at_sign: hardware,
+        };
         let source = match &row.found.token_id {
             Some(t) => format!("{SOURCE} ({t})"),
             None => SOURCE.to_string(),
         };
         let chain = build_chain(&row.cert, &row.der);
         let entry = CertEntry::new(aliases[i].clone(), row.der.clone(), chain, caps, source);
-        items.push(Item { entry, identity: row.found.identity.clone() });
+        items.push(Item {
+            entry,
+            identity: row.found.identity.clone(),
+        });
     }
     Ok(items)
 }
@@ -268,7 +330,10 @@ fn build_chain(cert: &SecCertificate, leaf: &[u8]) -> Vec<Vec<u8>> {
         tracing::debug!("No se pudo evaluar la cadena del certificado: {e}");
         return fallback();
     }
-    let chain: Vec<Vec<u8>> = (0..trust.certificate_count()).filter_map(|i| trust.certificate_at_index(i)).map(|c| c.to_der()).collect();
+    let chain: Vec<Vec<u8>> = (0..trust.certificate_count())
+        .filter_map(|i| trust.certificate_at_index(i))
+        .map(|c| c.to_der())
+        .collect();
     if chain.first().map(Vec::as_slice) != Some(leaf) {
         return fallback();
     }
@@ -303,14 +368,23 @@ impl SigningKey for KeychainKey {
 
     fn sign(&self, data: &[u8], algorithm: SignatureAlgorithm) -> Result<Vec<u8>, KeyError> {
         if algorithm.key != self.key_algorithm {
-            return Err(KeyError::Unsupported(format!("{} con una clave {}", algorithm.java_name(), self.key_algorithm.java_suffix())));
+            return Err(KeyError::Unsupported(format!(
+                "{} con una clave {}",
+                algorithm.java_name(),
+                self.key_algorithm.java_suffix()
+            )));
         }
         let sec_alg: Algorithm = DigestSignAlgorithm::for_signature(algorithm)?.into();
         // SAFETY: `self.key` es una referencia SecKey válida durante la
         // llamada y el algoritmo es una constante de Security.framework.
-        let supported = unsafe { SecKeyIsAlgorithmSupported(self.key.as_concrete_TypeRef(), kSecKeyOperationTypeSign, sec_alg.into()) };
+        let supported = unsafe {
+            SecKeyIsAlgorithmSupported(self.key.as_concrete_TypeRef(), kSecKeyOperationTypeSign, sec_alg.into())
+        };
         if supported == 0 {
-            return Err(KeyError::Unsupported(format!("{} no está soportado por la clave del llavero", algorithm.java_name())));
+            return Err(KeyError::Unsupported(format!(
+                "{} no está soportado por la clave del llavero",
+                algorithm.java_name()
+            )));
         }
         let hash = algorithm.digest.digest(data);
         self.key.create_signature(sec_alg, &hash).map_err(|e| cf_error(&e))
@@ -334,20 +408,32 @@ mod tests {
     use security_framework::os::macos::keychain::CreateOptions;
 
     fn testdata(name: &str) -> Vec<u8> {
-        std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap()
+        std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../testdata/pki")
+                .join(name),
+        )
+        .unwrap()
     }
 
     #[test]
     #[ignore = "necesita macOS con acceso al llavero"]
     fn keychain_temporary_import_and_sign() {
         let dir = tempfile::tempdir().unwrap();
-        let mut kc = CreateOptions::new().password("prueba").create(dir.path().join("prueba.keychain-db")).unwrap();
+        let mut kc = CreateOptions::new()
+            .password("prueba")
+            .create(dir.path().join("prueba.keychain-db"))
+            .unwrap();
         kc.unlock(Some("prueba")).unwrap();
         for f in ["firmante-rsa.p12", "firmante-ec.p12"] {
-            ImportOptions::new().filename(f).passphrase("12341234").keychain(&kc).import(&testdata(f)).unwrap();
+            ImportOptions::new()
+                .filename(f)
+                .passphrase("12341234")
+                .keychain(&kc)
+                .import(&testdata(f))
+                .unwrap();
         }
-        let store =
-            KeychainStore::open_with_keychains(KeychainOptions { include_tokens: false }, vec![kc]).unwrap();
+        let store = KeychainStore::open_with_keychains(KeychainOptions { include_tokens: false }, vec![kc]).unwrap();
         let entries = store.entries().unwrap();
         assert_eq!(entries.len(), 2, "{entries:?}");
         for e in &entries {

@@ -174,9 +174,7 @@ pub struct UserHome {
 }
 
 fn env_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os(name)
-        .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
+    std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from)
 }
 
 impl Context {
@@ -189,9 +187,7 @@ impl Context {
             .map(|b| b.home_dir().to_path_buf())
             .or_else(|| env_path("HOME"))
             .unwrap_or_else(|| PathBuf::from("."));
-        let user_name = std::env::var("USER")
-            .or_else(|_| std::env::var("USERNAME"))
-            .ok();
+        let user_name = std::env::var("USER").or_else(|_| std::env::var("USERNAME")).ok();
         let config_base = base
             .as_ref()
             .map(|b| b.config_dir().to_path_buf())
@@ -205,9 +201,7 @@ impl Context {
         };
         let (user_config_dir, system_config_dir, alternative_dir, users_dir) = match os {
             Os::Windows => {
-                let pd = program_data
-                    .clone()
-                    .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
+                let pd = program_data.clone().unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
                 let alt = env_path("ALLUSERSPROFILE")
                     .unwrap_or_else(|| pd.clone())
                     .join("Autofirma");
@@ -215,12 +209,7 @@ impl Context {
                     .and_then(|p| p.parent().map(Path::to_path_buf))
                     .or_else(|| home.parent().map(Path::to_path_buf))
                     .or_else(|| env_path("SystemDrive").map(|d| d.join("Users")));
-                (
-                    config_base.join("AutoFirma"),
-                    pd.join("AutoFirma"),
-                    alt,
-                    users,
-                )
+                (config_base.join("AutoFirma"), pd.join("AutoFirma"), alt, users)
             }
             Os::MacOs => (
                 config_base.join("AutoFirma"),
@@ -271,30 +260,29 @@ impl Context {
     /// ejecutor simulado que responde con éxito y sin salida.
     pub fn for_tests(os: Os, root: &Path) -> Self {
         let home = root.join("home/usuario");
-        let (user_config_dir, system_config_dir, alternative_dir, program_data, users_dir) =
-            match os {
-                Os::Windows => (
-                    root.join("Users/usuario/AppData/Roaming/AutoFirma"),
-                    root.join("ProgramData/AutoFirma"),
-                    root.join("ProgramData/Autofirma"),
-                    Some(root.join("ProgramData")),
-                    Some(root.join("Users")),
-                ),
-                Os::MacOs => (
-                    home.join("Library/Application Support/AutoFirma"),
-                    root.join("Library/Application Support/AutoFirma"),
-                    home.join("Library/Application Support/Autofirma"),
-                    None,
-                    Some(root.join("Users")),
-                ),
-                Os::Linux => (
-                    home.join(".config/autofirma"),
-                    root.join("etc/autofirma"),
-                    home.join(".afirma/Autofirma"),
-                    None,
-                    None,
-                ),
-            };
+        let (user_config_dir, system_config_dir, alternative_dir, program_data, users_dir) = match os {
+            Os::Windows => (
+                root.join("Users/usuario/AppData/Roaming/AutoFirma"),
+                root.join("ProgramData/AutoFirma"),
+                root.join("ProgramData/Autofirma"),
+                Some(root.join("ProgramData")),
+                Some(root.join("Users")),
+            ),
+            Os::MacOs => (
+                home.join("Library/Application Support/AutoFirma"),
+                root.join("Library/Application Support/AutoFirma"),
+                home.join("Library/Application Support/Autofirma"),
+                None,
+                Some(root.join("Users")),
+            ),
+            Os::Linux => (
+                home.join(".config/autofirma"),
+                root.join("etc/autofirma"),
+                home.join(".afirma/Autofirma"),
+                None,
+                None,
+            ),
+        };
         let home = if os == Os::Windows {
             root.join("Users/usuario")
         } else {
@@ -358,10 +346,7 @@ impl Context {
             Os::Linux => self.linux_users(),
             Os::MacOs | Os::Windows => self.dir_users(),
         };
-        if !out.iter().any(|u| u.home == current.home)
-            && current.home.is_dir()
-            && current.uid != Some(0)
-        {
+        if !out.iter().any(|u| u.home == current.home) && current.home.is_dir() && current.uid != Some(0) {
             out.push(current);
         }
         out
@@ -382,10 +367,7 @@ impl Context {
             let uid: Option<u32> = f[2].parse().ok();
             let home = f[5];
             let normal = uid.is_some_and(|u| (1000..60000).contains(&u));
-            if !(normal || home.to_ascii_lowercase().contains("home/"))
-                || home.is_empty()
-                || home == "/"
-            {
+            if !(normal || home.to_ascii_lowercase().contains("home/")) || home.is_empty() || home == "/" {
                 continue;
             }
             let h = self.sys(home);
@@ -494,11 +476,7 @@ mod tests {
             "root:x:0:0:root:/root:/bin/bash\nana:x:1000:1000::/home/ana:/bin/bash\nluis:x:1001:1001::/srv/luis:/bin/zsh\nnobody:x:65534:65534::/var/lib/nobody:/bin/false\nfalta:x:1002:1002::/home/falta:/bin/bash\n",
         )
         .unwrap();
-        assert_eq!(
-            ctx.user_homes(true).len(),
-            1,
-            "sin privilegios solo el usuario actual"
-        );
+        assert_eq!(ctx.user_homes(true).len(), 1, "sin privilegios solo el usuario actual");
         ctx.elevated = true;
         let names: Vec<String> = ctx.user_homes(true).into_iter().map(|u| u.name).collect();
         assert!(names.contains(&"ana".to_string()));

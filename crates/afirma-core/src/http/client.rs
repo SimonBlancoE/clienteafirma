@@ -77,7 +77,9 @@ pub fn clear_process_cookies() {
 
 impl std::fmt::Debug for UreqHttpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UreqHttpClient").field("settings", &self.settings()).finish_non_exhaustive()
+        f.debug_struct("UreqHttpClient")
+            .field("settings", &self.settings())
+            .finish_non_exhaustive()
     }
 }
 
@@ -145,13 +147,17 @@ impl UreqHttpClient {
     pub fn cookie_header(&self, url: &str) -> Option<String> {
         let url = url::Url::parse(url).ok()?;
         let store = cookie_jar().lock().ok()?;
-        let v: Vec<String> = store.get_request_values(&url).map(|(n, v)| format!("{n}={v}")).collect();
+        let v: Vec<String> = store
+            .get_request_values(&url)
+            .map(|(n, v)| format!("{n}={v}"))
+            .collect();
         (!v.is_empty()).then(|| v.join("; "))
     }
 
     fn store_cookies<'a>(&self, url: &url::Url, set_cookie: impl Iterator<Item = &'a str>) {
-        let cookies: Vec<cookie_store::RawCookie<'static>> =
-            set_cookie.filter_map(|v| cookie_store::RawCookie::parse(v.to_string()).ok()).collect();
+        let cookies: Vec<cookie_store::RawCookie<'static>> = set_cookie
+            .filter_map(|v| cookie_store::RawCookie::parse(v.to_string()).ok())
+            .collect();
         if cookies.is_empty() {
             return;
         }
@@ -173,9 +179,14 @@ impl UreqHttpClient {
             TlsMode::Platform => TlsConfig::builder().root_certs(RootCerts::PlatformVerifier).build(),
             TlsMode::TrustAll => TlsConfig::builder().disable_verification(true).build(),
             TlsMode::ExtraRoots => {
-                let certs: Vec<Certificate<'static>> =
-                    settings.extra_trusted_certs.iter().map(|d| Certificate::from_der(d).to_owned()).collect();
-                TlsConfig::builder().root_certs(RootCerts::new_with_certs(&certs)).build()
+                let certs: Vec<Certificate<'static>> = settings
+                    .extra_trusted_certs
+                    .iter()
+                    .map(|d| Certificate::from_der(d).to_owned())
+                    .collect();
+                TlsConfig::builder()
+                    .root_certs(RootCerts::new_with_certs(&certs))
+                    .build()
             }
         };
         let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -254,15 +265,19 @@ impl UreqHttpClient {
         let mut current = url::Url::parse(&target)
             .map_err(|e| HttpClientError::InvalidUrl(format!("URL no valida ({e}): {target}")))?;
         if current.scheme() != "http" && current.scheme() != "https" {
-            return Err(HttpClientError::InvalidUrl(format!("Protocolo no soportado: {}", current.scheme())));
+            return Err(HttpClientError::InvalidUrl(format!(
+                "Protocolo no soportado: {}",
+                current.scheme()
+            )));
         }
         let mut method = request.method;
         let mut headers_base: Vec<(String, String)> = Vec::new();
         let has = |name: &str| request.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case(name));
         if let Some(a) = &auth
-            && !has("Authorization") {
-                headers_base.push(("Authorization".into(), format!("Basic {a}")));
-            }
+            && !has("Authorization")
+        {
+            headers_base.push(("Authorization".into(), format!("Basic {a}")));
+        }
         if !has("Accept") {
             headers_base.push(("Accept".into(), "*/*".into()));
         }
@@ -300,9 +315,10 @@ impl UreqHttpClient {
                 headers.push(("Content-Type".into(), "application/x-www-form-urlencoded".into()));
             }
             if !has("Cookie")
-                && let Some(c) = self.cookie_header(current.as_str()) {
-                    headers.push(("Cookie".into(), c));
-                }
+                && let Some(c) = self.cookie_header(current.as_str())
+            {
+                headers.push(("Cookie".into(), c));
+            }
             let send = |m: TlsMode| {
                 self.send_once(
                     m,
@@ -325,22 +341,31 @@ impl UreqHttpClient {
                 result = send(TlsMode::ExtraRoots);
             }
             let mut resp = result.map_err(|e| map_ureq_error(e, &url))?;
-            self.store_cookies(&current, resp.headers().get_all("set-cookie").iter().filter_map(|v| v.to_str().ok()));
+            self.store_cookies(
+                &current,
+                resp.headers()
+                    .get_all("set-cookie")
+                    .iter()
+                    .filter_map(|v| v.to_str().ok()),
+            );
             let status = resp.status().as_u16();
             if is_followed_redirect(status)
-                && let Some(next) =
-                    resp.headers().get("location").and_then(|l| l.to_str().ok()).and_then(|l| current.join(l).ok())
-                {
-                    // Java no sigue redirecciones que cambian de protocolo.
-                    if next.scheme() == current.scheme() {
-                        if matches!(method, HttpMethod::Post | HttpMethod::Put) && status != 307 {
-                            method = HttpMethod::Get;
-                            body = None;
-                        }
-                        current = next;
-                        continue;
+                && let Some(next) = resp
+                    .headers()
+                    .get("location")
+                    .and_then(|l| l.to_str().ok())
+                    .and_then(|l| current.join(l).ok())
+            {
+                // Java no sigue redirecciones que cambian de protocolo.
+                if next.scheme() == current.scheme() {
+                    if matches!(method, HttpMethod::Post | HttpMethod::Put) && status != 307 {
+                        method = HttpMethod::Get;
+                        body = None;
                     }
+                    current = next;
+                    continue;
                 }
+            }
             let data = resp.body_mut().with_config().limit(u64::MAX).read_to_vec();
             let status_str = status.to_string();
             if status_str.starts_with('4') || status_str.starts_with('5') {
@@ -353,7 +378,10 @@ impl UreqHttpClient {
             }
             return data.map_err(|e| map_ureq_error(e, &url));
         }
-        Err(HttpClientError::Io { url, message: format!("Server redirected too many times ({MAX_REDIRECTS})") })
+        Err(HttpClientError::Io {
+            url,
+            message: format!("Server redirected too many times ({MAX_REDIRECTS})"),
+        })
     }
 
     /// `SSLErrorProcessor.processHttpError`.
@@ -370,9 +398,17 @@ impl UreqHttpClient {
             return Err(cause);
         }
         let (url, _) = extract_url_credentials(&request.url)?;
-        let host = url::Url::parse(&url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default();
-        let chain = super::fetch_server_certificates(&url, &settings.proxy, request.connect_timeout)
-            .map_err(|message| HttpClientError::Io { url: url.clone(), message })?;
+        let host = url::Url::parse(&url)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_string))
+            .unwrap_or_default();
+        let chain =
+            super::fetch_server_certificates(&url, &settings.proxy, request.connect_timeout).map_err(|message| {
+                HttpClientError::Io {
+                    url: url.clone(),
+                    message,
+                }
+            })?;
         if !super::certificate_matches_host(&chain[0], &host) {
             return Err(HttpClientError::InvalidDomainCertificate { url, host });
         }
@@ -383,8 +419,12 @@ impl UreqHttpClient {
                 return Err(cause);
             }
             SHOWING_DIALOG.store(true, Ordering::SeqCst);
-            let server =
-                UntrustedServer { url: url.clone(), host, chain: chain.clone(), certs_to_import: to_import.clone() };
+            let server = UntrustedServer {
+                url: url.clone(),
+                host,
+                chain: chain.clone(),
+                certs_to_import: to_import.clone(),
+            };
             let accepted = prompt.confirm_trust(&server);
             SHOWING_DIALOG.store(false, Ordering::SeqCst);
             if !accepted {
@@ -411,7 +451,12 @@ impl UreqHttpClient {
 impl HttpClient for UreqHttpClient {
     fn read_url(&self, request: &HttpRequest) -> Result<Vec<u8>, HttpClientError> {
         match self.execute(request) {
-            Err(e @ HttpClientError::Tls { untrusted_certificate: true, .. }) => match request.ssl_error_handling {
+            Err(
+                e @ HttpClientError::Tls {
+                    untrusted_certificate: true,
+                    ..
+                },
+            ) => match request.ssl_error_handling {
                 SslErrorHandling::Interactive { headless } => self.process_ssl_error(request, e, headless),
                 SslErrorHandling::None => Err(e),
             },
@@ -457,14 +502,30 @@ fn map_ureq_error(e: ureq::Error, url: &str) -> HttpClientError {
         };
     }
     match e {
-        ureq::Error::Timeout(t) => HttpClientError::Timeout { url, message: t.to_string() },
+        ureq::Error::Timeout(t) => HttpClientError::Timeout {
+            url,
+            message: t.to_string(),
+        },
         ureq::Error::Io(io) if matches!(io.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) => {
-            HttpClientError::Timeout { url, message: io.to_string() }
+            HttpClientError::Timeout {
+                url,
+                message: io.to_string(),
+            }
         }
-        ureq::Error::Tls(m) => HttpClientError::Tls { url, message: m.to_string(), untrusted_certificate: false },
+        ureq::Error::Tls(m) => HttpClientError::Tls {
+            url,
+            message: m.to_string(),
+            untrusted_certificate: false,
+        },
         ureq::Error::BadUri(m) => HttpClientError::InvalidUrl(m),
-        ureq::Error::HostNotFound => HttpClientError::Io { url, message: "No se encuentra el servidor".into() },
-        other => HttpClientError::Io { url, message: other.to_string() },
+        ureq::Error::HostNotFound => HttpClientError::Io {
+            url,
+            message: "No se encuentra el servidor".into(),
+        },
+        other => HttpClientError::Io {
+            url,
+            message: other.to_string(),
+        },
     }
 }
 
@@ -484,7 +545,10 @@ mod tests {
 
     impl Received {
         fn header(&self, name: &str) -> Option<&str> {
-            self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+            self.headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.as_str())
         }
     }
 
@@ -533,7 +597,10 @@ mod tests {
     }
 
     fn resp(status: &str, extra: &str, body: &str) -> String {
-        format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n{body}", body.len())
+        format!(
+            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n{body}",
+            body.len()
+        )
     }
 
     #[test]
@@ -542,16 +609,23 @@ mod tests {
             resp("200 OK", "Set-Cookie: JSESSIONID=abc123; Path=/\r\n", "OK NEWID=1"),
             resp("200 OK", "", "segunda"),
         ]);
-        let client =
-            UreqHttpClient::new(HttpSettings { proxy: super::super::ProxyMode::None, ..HttpSettings::default() });
-        let r = client.read_url(&HttpRequest::post(format!("{base}/tri?op=pre&doc=QUJD&x=1?ignorado"))).unwrap();
+        let client = UreqHttpClient::new(HttpSettings {
+            proxy: super::super::ProxyMode::None,
+            ..HttpSettings::default()
+        });
+        let r = client
+            .read_url(&HttpRequest::post(format!("{base}/tri?op=pre&doc=QUJD&x=1?ignorado")))
+            .unwrap();
         assert_eq!(r, b"OK NEWID=1");
         let r = client.read_url(&HttpRequest::get(format!("{base}/otro?a=b"))).unwrap();
         assert_eq!(r, b"segunda");
         let reqs = h.join().unwrap();
         assert_eq!(reqs[0].line, "POST /tri HTTP/1.1");
         assert_eq!(reqs[0].body, "op=pre&doc=QUJD&x=1");
-        assert_eq!(reqs[0].header("Content-Type"), Some("application/x-www-form-urlencoded"));
+        assert_eq!(
+            reqs[0].header("Content-Type"),
+            Some("application/x-www-form-urlencoded")
+        );
         assert_eq!(reqs[0].header("Accept"), Some("*/*"));
         assert_eq!(reqs[1].line, "GET /otro?a=b HTTP/1.1");
         assert_eq!(reqs[1].header("Cookie"), Some("JSESSIONID=abc123"));
@@ -567,15 +641,19 @@ mod tests {
             resp("200 OK", "", "fin"),
             resp("404 Not Found", "", "no existe"),
         ]);
-        let client =
-            UreqHttpClient::new(HttpSettings { proxy: super::super::ProxyMode::None, ..HttpSettings::default() });
+        let client = UreqHttpClient::new(HttpSettings {
+            proxy: super::super::ProxyMode::None,
+            ..HttpSettings::default()
+        });
         let req = HttpRequest::post(format!("{base}/inicio?a=1"))
             .header("Content-Type", "text/plain")
             .header("Host", "ignorado")
             .header("X-Prueba", "1");
         assert_eq!(client.read_url(&req).unwrap(), b"fin");
         let auth_url = base.replace("http://", "http://usuario:clave@");
-        let err = client.read_url(&HttpRequest::get(format!("{auth_url}/falta"))).unwrap_err();
+        let err = client
+            .read_url(&HttpRequest::get(format!("{auth_url}/falta")))
+            .unwrap_err();
         let reqs = h.join().unwrap();
         assert_eq!(reqs[0].line, "POST /inicio HTTP/1.1");
         assert_eq!(reqs[0].header("Content-Type"), Some("text/plain"));
@@ -588,7 +666,9 @@ mod tests {
             reqs[2].header("Authorization"),
             Some(format!("Basic {}", crate::base64::encode(b"usuario:clave")).as_str())
         );
-        let HttpClientError::Http(e) = err else { panic!("{err:?}") };
+        let HttpClientError::Http(e) = err else {
+            panic!("{err:?}")
+        };
         assert_eq!(e.status, 404);
         assert_eq!(e.body, b"no existe");
         assert_eq!(e.reason.as_deref(), Some("Not Found"));
@@ -603,16 +683,27 @@ mod tests {
             let (_s, _) = listener.accept().unwrap();
             std::thread::sleep(Duration::from_millis(800));
         });
-        let client =
-            UreqHttpClient::new(HttpSettings { proxy: super::super::ProxyMode::None, ..HttpSettings::default() });
+        let client = UreqHttpClient::new(HttpSettings {
+            proxy: super::super::ProxyMode::None,
+            ..HttpSettings::default()
+        });
         client.set_read_timeout(Some(Duration::from_millis(200)));
         assert_eq!(client.read_timeout(), Some(Duration::from_millis(200)));
         let err = client.read_url(&HttpRequest::get(addr)).unwrap_err();
         assert!(err.is_timeout(), "{err:?}");
         t.join().unwrap();
-        assert!(matches!(client.read_url(&HttpRequest::get("")), Err(HttpClientError::InvalidUrl(_))));
-        assert!(matches!(client.read_url(&HttpRequest::get("ftp://x/y")), Err(HttpClientError::InvalidUrl(_))));
-        assert!(matches!(client.read_url(&HttpRequest::get("no es una url")), Err(HttpClientError::InvalidUrl(_))));
+        assert!(matches!(
+            client.read_url(&HttpRequest::get("")),
+            Err(HttpClientError::InvalidUrl(_))
+        ));
+        assert!(matches!(
+            client.read_url(&HttpRequest::get("ftp://x/y")),
+            Err(HttpClientError::InvalidUrl(_))
+        ));
+        assert!(matches!(
+            client.read_url(&HttpRequest::get("no es una url")),
+            Err(HttpClientError::InvalidUrl(_))
+        ));
         super::super::apply_connection_config(&client, -1);
         assert_eq!(client.read_timeout(), Some(Duration::from_millis(200)));
         super::super::apply_connection_config(&client, 5000);
@@ -644,7 +735,9 @@ mod tests {
                 let config = config.clone();
                 std::thread::spawn(move || {
                     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-                    let Ok(conn) = rustls::ServerConnection::new(config) else { return };
+                    let Ok(conn) = rustls::ServerConnection::new(config) else {
+                        return;
+                    };
                     let mut tls = rustls::StreamOwned::new(conn, stream);
                     let mut reader = BufReader::new(&mut tls);
                     let mut line = String::new();
@@ -686,23 +779,49 @@ mod tests {
     fn tls_trust_modes_and_prompt() {
         let (port, cert) = tls_server();
         let url = format!("https://localhost:{port}/servicio");
-        let base = HttpSettings { proxy: super::super::ProxyMode::None, ..HttpSettings::default() };
+        let base = HttpSettings {
+            proxy: super::super::ProxyMode::None,
+            ..HttpSettings::default()
+        };
         let client = UreqHttpClient::new(base.clone());
         // Certificado autofirmado: el almacén del sistema no confía en él.
         let err = client.read_url(&HttpRequest::get(url.clone())).unwrap_err();
-        assert!(matches!(err, HttpClientError::Tls { untrusted_certificate: true, .. }), "{err:?}");
+        assert!(
+            matches!(
+                err,
+                HttpClientError::Tls {
+                    untrusted_certificate: true,
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
         // Sin diálogo instalado, el tratamiento interactivo devuelve el error.
         let interactive =
             HttpRequest::get(url.clone()).ssl_error_handling(SslErrorHandling::Interactive { headless: false });
         assert!(client.read_url(&interactive).is_err());
         // Confianza total, dominio seguro y disableSslChecks.
-        assert_eq!(client.read_url(&HttpRequest::get(url.clone()).tls(TlsOverride::TrustAll)).unwrap(), b"segura");
-        let secure = UreqHttpClient::new(HttpSettings { secure_domains: vec!["local*".into()], ..base.clone() });
+        assert_eq!(
+            client
+                .read_url(&HttpRequest::get(url.clone()).tls(TlsOverride::TrustAll))
+                .unwrap(),
+            b"segura"
+        );
+        let secure = UreqHttpClient::new(HttpSettings {
+            secure_domains: vec!["local*".into()],
+            ..base.clone()
+        });
         assert_eq!(secure.read_url(&HttpRequest::get(url.clone())).unwrap(), b"segura");
-        let disabled = UreqHttpClient::new(HttpSettings { disable_ssl_checks: true, ..base.clone() });
+        let disabled = UreqHttpClient::new(HttpSettings {
+            disable_ssl_checks: true,
+            ..base.clone()
+        });
         assert_eq!(disabled.read_url(&HttpRequest::get(url.clone())).unwrap(), b"segura");
         // Certificados de confianza propios (MultiX509TrustManager).
-        let extra = UreqHttpClient::new(HttpSettings { extra_trusted_certs: vec![cert.clone()], ..base.clone() });
+        let extra = UreqHttpClient::new(HttpSettings {
+            extra_trusted_certs: vec![cert.clone()],
+            ..base.clone()
+        });
         assert_eq!(extra.read_url(&HttpRequest::get(url.clone())).unwrap(), b"segura");
         // Cadena del servidor sin verificar.
         let chain = super::super::fetch_server_certificates(&url, &super::super::ProxyMode::None, None).unwrap();
@@ -710,7 +829,11 @@ mod tests {
         assert!(super::super::certificate_matches_host(&cert, "localhost"));
         assert!(!super::super::certificate_matches_host(&cert, "otro.es"));
         // Diálogo de confianza aceptado: se importa el certificado y se reintenta.
-        let prompt = Arc::new(Prompt { accept: true, asked: Mutex::new(Vec::new()), stored: Mutex::new(Vec::new()) });
+        let prompt = Arc::new(Prompt {
+            accept: true,
+            asked: Mutex::new(Vec::new()),
+            stored: Mutex::new(Vec::new()),
+        });
         client.set_trust_prompt(Some(prompt.clone()));
         let headless =
             HttpRequest::get(url.clone()).ssl_error_handling(SslErrorHandling::Interactive { headless: true });
@@ -728,9 +851,16 @@ mod tests {
             .ssl_error_handling(SslErrorHandling::Interactive { headless: false });
         let other = UreqHttpClient::new(base.clone());
         other.set_trust_prompt(Some(prompt.clone()));
-        assert!(matches!(other.read_url(&by_ip), Err(HttpClientError::InvalidDomainCertificate { .. })));
+        assert!(matches!(
+            other.read_url(&by_ip),
+            Err(HttpClientError::InvalidDomainCertificate { .. })
+        ));
         // Rechazo: se recuerda para todo el proceso.
-        let reject = Arc::new(Prompt { accept: false, asked: Mutex::new(Vec::new()), stored: Mutex::new(Vec::new()) });
+        let reject = Arc::new(Prompt {
+            accept: false,
+            asked: Mutex::new(Vec::new()),
+            stored: Mutex::new(Vec::new()),
+        });
         let fresh = UreqHttpClient::new(base);
         fresh.set_trust_prompt(Some(reject.clone()));
         assert!(fresh.read_url(&interactive).is_err());

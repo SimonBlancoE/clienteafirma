@@ -56,7 +56,9 @@ pub(crate) fn dedup_by_serial<C: AsRef<[u8]>>(certs: &[C]) -> Vec<usize> {
                 if seen.insert(serial) {
                     keep.push(i);
                 } else {
-                    tracing::info!("Se retira el certificado del llavero con indice {i} por tener un numero de serie duplicado");
+                    tracing::info!(
+                        "Se retira el certificado del llavero con indice {i} por tener un numero de serie duplicado"
+                    );
                 }
             }
             None => tracing::warn!("No se pudo analizar el certificado de la identidad {i} del llavero"),
@@ -169,7 +171,12 @@ mod tests {
     use super::*;
 
     fn pki(name: &str) -> Vec<u8> {
-        let pem = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap();
+        let pem = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../testdata/pki")
+                .join(name),
+        )
+        .unwrap();
         afirma_core::cert::decode_certificate(&pem).unwrap()
     }
 
@@ -197,12 +204,20 @@ mod tests {
         use DigestAlgorithm::*;
         for d in DigestAlgorithm::ALL {
             let rsa = DigestSignAlgorithm::for_signature(SignatureAlgorithm::new(d, KeyAlgorithm::Rsa)).unwrap();
-            assert!(rsa.apple_name().starts_with("kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA"));
+            assert!(
+                rsa.apple_name()
+                    .starts_with("kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA")
+            );
             let ec = DigestSignAlgorithm::for_signature(SignatureAlgorithm::new(d, KeyAlgorithm::Ec)).unwrap();
-            assert!(ec.apple_name().starts_with("kSecKeyAlgorithmECDSASignatureDigestX962SHA"));
+            assert!(
+                ec.apple_name()
+                    .starts_with("kSecKeyAlgorithmECDSASignatureDigestX962SHA")
+            );
         }
         assert_eq!(
-            DigestSignAlgorithm::for_signature(SignatureAlgorithm::new(Sha256, KeyAlgorithm::Rsa)).unwrap().apple_name(),
+            DigestSignAlgorithm::for_signature(SignatureAlgorithm::new(Sha256, KeyAlgorithm::Rsa))
+                .unwrap()
+                .apple_name(),
             "kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA256"
         );
         assert!(matches!(

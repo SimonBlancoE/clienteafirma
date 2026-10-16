@@ -40,11 +40,7 @@ pub fn format_number(d: f64) -> String {
 fn trim_zeros(s: String) -> String {
     if s.contains('.') {
         let t = s.trim_end_matches('0').trim_end_matches('.');
-        if t.is_empty() {
-            "0".into()
-        } else {
-            t.to_string()
-        }
+        if t.is_empty() { "0".into() } else { t.to_string() }
     } else {
         s
     }
@@ -54,9 +50,10 @@ fn trim_zeros(s: String) -> String {
 pub fn num(d: f64) -> Object {
     let s = format_number(d);
     if !s.contains('.')
-        && let Ok(i) = s.parse::<i64>() {
-            return Object::Integer(i);
-        }
+        && let Ok(i) = s.parse::<i64>()
+    {
+        return Object::Integer(i);
+    }
     Object::Real(s.parse::<f32>().unwrap_or(0.0))
 }
 
@@ -111,11 +108,7 @@ pub fn write_name(out: &mut Vec<u8>, name: &[u8]) {
 fn needs_space(o: &Object) -> bool {
     !matches!(
         o,
-        Object::Array(_)
-            | Object::Dictionary(_)
-            | Object::Name(_)
-            | Object::String(..)
-            | Object::Stream(_)
+        Object::Array(_) | Object::Dictionary(_) | Object::Name(_) | Object::String(..) | Object::Stream(_)
     )
 }
 
@@ -311,9 +304,7 @@ impl Update {
             }
             out.extend_from_slice(b"\nendobj\n");
         }
-        let size = self
-            .next
-            .max(offsets.keys().next_back().map_or(0, |k| k + 1));
+        let size = self.next.max(offsets.keys().next_back().map_or(0, |k| k + 1));
         let id_obj = trailer.id.as_ref().map(|(a, b)| {
             Object::Array(vec![
                 Object::String(a.clone(), StringFormat::Hexadecimal),
@@ -344,8 +335,7 @@ impl Update {
                     if n == 0 {
                         data.extend_from_slice(&[0, 0, 0, 0, 0, 0xff, 0xff]);
                     } else {
-                        let off =
-                            offsets.get(&n).copied().unwrap_or(0).saturating_sub(shift) as u32;
+                        let off = offsets.get(&n).copied().unwrap_or(0).saturating_sub(shift) as u32;
                         data.push(1);
                         data.extend_from_slice(&off.to_be_bytes());
                         data.extend_from_slice(&[0, 0]);
@@ -370,11 +360,7 @@ impl Update {
             }
             d.set(
                 "W",
-                Object::Array(vec![
-                    Object::Integer(1),
-                    Object::Integer(4),
-                    Object::Integer(2),
-                ]),
+                Object::Array(vec![Object::Integer(1), Object::Integer(4), Object::Integer(2)]),
             );
             d.set("Index", Object::Array(index));
             if let Some(p) = prev {
@@ -431,15 +417,8 @@ impl Update {
             write_dict(&mut out, &d);
             out.push(b'\n');
         }
-        let _ = write!(
-            out,
-            "startxref\n{}\n%%EOF\n",
-            xref_pos.saturating_sub(shift)
-        );
-        Written {
-            bytes: out,
-            offsets,
-        }
+        let _ = write!(out, "startxref\n{}\n%%EOF\n", xref_pos.saturating_sub(shift));
+        Written { bytes: out, offsets }
     }
 }
 
@@ -469,10 +448,7 @@ mod tests {
             "Rect",
             Object::Array(vec![num(100.0), num(100.0), num(300.0), num(180.5)]),
         );
-        d.set(
-            "T",
-            Object::String(b"Signature1".to_vec(), StringFormat::Literal),
-        );
+        d.set("T", Object::String(b"Signature1".to_vec(), StringFormat::Literal));
         d.set("P", Object::Reference((9, 0)));
         let mut out = Vec::new();
         write_object(&mut out, &Object::Dictionary(d));

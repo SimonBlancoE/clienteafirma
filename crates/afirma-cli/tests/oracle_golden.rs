@@ -50,8 +50,7 @@ fn expected_from_java(java: &str, locale: Option<&str>) -> String {
         .split_inclusive('\n')
         .map(|l| {
             if l.starts_with("  -gui\t\t\t (") && l.contains(" !CommandLineLauncher.146!") {
-                l.replace(" !CommandLineLauncher.146!", "")
-                    .replace("%0", "-certgui")
+                l.replace(" !CommandLineLauncher.146!", "").replace("%0", "-certgui")
             } else {
                 l.to_string()
             }
@@ -94,8 +93,7 @@ fn ordenes_contra_el_oraculo_java() {
                 .extension()
                 .map(|e| format!(".{}", e.to_string_lossy()))
                 .unwrap_or_default();
-            let rust = std::fs::read(out.path().join(file))
-                .unwrap_or_else(|_| panic!("{}: sin firma", c.name));
+            let rust = std::fs::read(out.path().join(file)).unwrap_or_else(|_| panic!("{}: sin firma", c.name));
             let java = std::fs::read(java_dir().join(format!("{}{ext}", c.name))).unwrap();
             compare_signatures(&c.name, &java, &rust);
             dump(&c.name, &ext, &rust);

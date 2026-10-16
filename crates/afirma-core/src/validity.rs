@@ -59,7 +59,9 @@ impl ValidityError {
     pub fn message(self) -> &'static str {
         match self {
             Self::NoData => "no se puede comprobar la validez por no tener los datos firmados",
-            Self::CorruptedSign => "la información contenida en la firma no es consistente (certificados corruptos, etc.)",
+            Self::CorruptedSign => {
+                "la información contenida en la firma no es consistente (certificados corruptos, etc.)"
+            }
             Self::NoMatchData => "la firma no se corresponde con los datos firmados",
             Self::NoSign => "no se encuentra la firma dentro del documento",
             Self::CertificateProblem => "no se puede extraer un certificado o este no es válido",
@@ -73,7 +75,9 @@ impl ValidityError {
             Self::OoxmlUnknownValidity => "no se puede comprobar la validez de la firma OOXML",
             Self::OdfUnknownValidity => "no se puede comprobar la validez de la firma ODF",
             Self::UnknownError => "no se puede comprobar la validez de la firma",
-            Self::UnknownSignatureFormat => "los datos proporcionados no se corresponden con ningún formato de firma reconocido",
+            Self::UnknownSignatureFormat => {
+                "los datos proporcionados no se corresponden con ningún formato de firma reconocido"
+            }
             Self::ModifiedDocument => "el documento PDF es sospechoso de haberse modificado tras la firma",
             Self::OverlappingSignature => "las firmas del documento se solapan pudiendo ocultar información",
             Self::ModifiedForm => "un formulario del documento fue modificado tras la firma",
@@ -100,7 +104,12 @@ pub struct SignValidity {
 
 impl SignValidity {
     pub fn new(validity: Validity, error: Option<ValidityError>) -> Self {
-        SignValidity { validity, error, error_code: None, detail: None }
+        SignValidity {
+            validity,
+            error,
+            error_code: None,
+            detail: None,
+        }
     }
 
     pub fn ok() -> Self {
@@ -154,8 +163,12 @@ pub fn ko_priority(list: Vec<SignValidity>) -> Vec<SignValidity> {
 /// Si una firma longeva solo falla por certificado caducado, el veredicto
 /// pasa a "validación incompleta" (`checkLongStandingValiditySign`).
 pub fn long_standing_priority(mut list: Vec<SignValidity>) -> Vec<SignValidity> {
-    let expired = list.iter().any(|v| v.validity == Validity::Ko && v.error == Some(ValidityError::CertificateExpired));
-    let other_ko = list.iter().any(|v| v.validity == Validity::Ko && v.error != Some(ValidityError::CertificateExpired));
+    let expired = list
+        .iter()
+        .any(|v| v.validity == Validity::Ko && v.error == Some(ValidityError::CertificateExpired));
+    let other_ko = list
+        .iter()
+        .any(|v| v.validity == Validity::Ko && v.error != Some(ValidityError::CertificateExpired));
     if expired && !other_ko {
         // Como Java: se intercambia la posición 0 con la última entrada
         // "validación incompleta" por atributos longevos.

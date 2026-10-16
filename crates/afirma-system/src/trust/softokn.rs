@@ -73,13 +73,11 @@ fn load(path: &Path) -> Result<&'static libloading::Library> {
     #[cfg(windows)]
     let lib = unsafe {
         // LOAD_WITH_ALTERED_SEARCH_PATH: dependencias (nss3.dll, mozglue.dll...) junto a softokn3.dll.
-        libloading::os::windows::Library::load_with_flags(path, 0x0000_0008)
-            .map(libloading::Library::from)
+        libloading::os::windows::Library::load_with_flags(path, 0x0000_0008).map(libloading::Library::from)
     };
     #[cfg(not(windows))]
     let lib = unsafe { libloading::Library::new(path) };
-    let lib =
-        lib.map_err(|e| SystemError::Other(format!("no se pudo cargar {}: {e}", path.display())))?;
+    let lib = lib.map_err(|e| SystemError::Other(format!("no se pudo cargar {}: {e}", path.display())))?;
     let lib: &'static libloading::Library = Box::leak(Box::new(lib));
     l.push((path.to_path_buf(), lib));
     Ok(lib)
@@ -137,9 +135,7 @@ fn ck(rv: CK_RV, what: &str) -> Result<()> {
     } else if rv == CKR_USER_NOT_LOGGED_IN as CK_RV || rv == CKR_PIN_INCORRECT as CK_RV {
         Err(SystemError::TrustStore {
             store: "NSS".into(),
-            detail: format!(
-                "{what}: la base de datos está protegida con contraseña maestra (0x{rv:X})"
-            ),
+            detail: format!("{what}: la base de datos está protegida con contraseña maestra (0x{rv:X})"),
         })
     } else {
         Err(SystemError::TrustStore {
@@ -172,8 +168,7 @@ struct CertIds {
 }
 
 fn cert_ids(der: &[u8]) -> Result<CertIds> {
-    let (_, c) =
-        X509Certificate::from_der(der).map_err(|e| SystemError::Certificate(e.to_string()))?;
+    let (_, c) = X509Certificate::from_der(der).map_err(|e| SystemError::Certificate(e.to_string()))?;
     Ok(CertIds {
         subject: c.subject().as_raw().to_vec(),
         issuer: c.issuer().as_raw().to_vec(),
@@ -195,20 +190,14 @@ struct Template {
 
 impl Template {
     fn new(vals: Vec<(CK_ATTRIBUTE_TYPE, AttrVal)>) -> Self {
-        let mut t = Self {
-            vals,
-            raw: Vec::new(),
-        };
+        let mut t = Self { vals, raw: Vec::new() };
         t.raw = t
             .vals
             .iter_mut()
             .map(|(ty, v)| {
                 let (ptr, len) = match v {
                     AttrVal::Bytes(b) => (b.as_mut_ptr() as *mut c_void, b.len()),
-                    AttrVal::Ulong(u) => (
-                        u as *mut CK_ULONG as *mut c_void,
-                        std::mem::size_of::<CK_ULONG>(),
-                    ),
+                    AttrVal::Ulong(u) => (u as *mut CK_ULONG as *mut c_void, std::mem::size_of::<CK_ULONG>()),
                     AttrVal::Bool(b) => (b as *mut CK_BBOOL as *mut c_void, 1),
                 };
                 CK_ATTRIBUTE {
@@ -236,9 +225,7 @@ macro_rules! f {
         // SAFETY: `fl` apunta a la tabla estática devuelta por C_GetFunctionList, válida
         // mientras la biblioteca esté cargada (siempre).
         let fl = unsafe { std::ptr::read_unaligned(std::ptr::addr_of!((*$s.fl).$name)) };
-        fl.ok_or_else(|| {
-            SystemError::Other(concat!("función PKCS#11 ausente: ", stringify!($name)).into())
-        })?
+        fl.ok_or_else(|| SystemError::Other(concat!("función PKCS#11 ausente: ", stringify!($name)).into()))?
     }};
 }
 
@@ -263,11 +250,9 @@ impl SoftoknSession {
         ))
         .map_err(|_| SystemError::Other("ruta no válida".into()))?;
         // SAFETY: símbolo estándar PKCS#11 con la firma de cryptoki-sys.
-        let get_fl: libloading::Symbol<
-            '_,
-            unsafe extern "C" fn(*mut CK_FUNCTION_LIST_PTR) -> CK_RV,
-        > = unsafe { lib.get(b"C_GetFunctionList\0") }
-            .map_err(|e| SystemError::Other(format!("C_GetFunctionList: {e}")))?;
+        let get_fl: libloading::Symbol<'_, unsafe extern "C" fn(*mut CK_FUNCTION_LIST_PTR) -> CK_RV> =
+            unsafe { lib.get(b"C_GetFunctionList\0") }
+                .map_err(|e| SystemError::Other(format!("C_GetFunctionList: {e}")))?;
         let mut fl: CK_FUNCTION_LIST_PTR = std::ptr::null_mut();
         // SAFETY: puntero de salida válido.
         ck(unsafe { get_fl(&mut fl) }, "C_GetFunctionList")?;
@@ -326,32 +311,25 @@ impl SoftoknSession {
         let info = f!(self, C_GetTokenInfo);
         let mut n: CK_ULONG = 0;
         // SAFETY: consulta del número de ranuras.
-        ck(
-            unsafe { list(CK_TRUE, std::ptr::null_mut(), &mut n) },
-            "C_GetSlotList",
-        )?;
+        ck(unsafe { list(CK_TRUE, std::ptr::null_mut(), &mut n) }, "C_GetSlotList")?;
         let mut slots = vec![0 as CK_SLOT_ID; n as usize];
         // SAFETY: búfer de `n` elementos.
-        ck(
-            unsafe { list(CK_TRUE, slots.as_mut_ptr(), &mut n) },
-            "C_GetSlotList",
-        )?;
+        ck(unsafe { list(CK_TRUE, slots.as_mut_ptr(), &mut n) }, "C_GetSlotList")?;
         slots.truncate(n as usize);
         for &sl in &slots {
             // SAFETY: estructura POD de salida.
             let mut ti: CK_TOKEN_INFO = unsafe { std::mem::zeroed() };
             if unsafe { info(sl, &mut ti) } == CKR_OK as CK_RV {
                 let label = String::from_utf8_lossy(&ti.label).trim().to_string();
-                if label.starts_with("NSS Certificate DB")
-                    || label.starts_with("NSS FIPS 140-2 Certificate DB")
-                {
+                if label.starts_with("NSS Certificate DB") || label.starts_with("NSS FIPS 140-2 Certificate DB") {
                     return Ok(sl);
                 }
             }
         }
-        slots.into_iter().find(|&s| s == 2).ok_or_else(|| {
-            SystemError::Other("no se encontró el token «NSS Certificate DB»".into())
-        })
+        slots
+            .into_iter()
+            .find(|&s| s == 2)
+            .ok_or_else(|| SystemError::Other("no se encontró el token «NSS Certificate DB»".into()))
     }
 
     fn find(&self, tpl: &mut Template) -> Result<Vec<CK_OBJECT_HANDLE>> {
@@ -360,13 +338,7 @@ impl SoftoknSession {
         let fin = f!(self, C_FindObjectsFinal);
         // SAFETY: plantilla válida durante la llamada.
         ck(
-            unsafe {
-                init(
-                    self.session,
-                    tpl.raw.as_mut_ptr(),
-                    tpl.raw.len() as CK_ULONG,
-                )
-            },
+            unsafe { init(self.session, tpl.raw.as_mut_ptr(), tpl.raw.len() as CK_ULONG) },
             "C_FindObjectsInit",
         )?;
         let mut out = Vec::new();
@@ -393,18 +365,14 @@ impl SoftoknSession {
             ulValueLen: 0,
         };
         // SAFETY: consulta de longitud.
-        if unsafe { get(self.session, obj, &mut a, 1) } != CKR_OK as CK_RV
-            || a.ulValueLen == CK_UNAVAILABLE_INFORMATION
+        if unsafe { get(self.session, obj, &mut a, 1) } != CKR_OK as CK_RV || a.ulValueLen == CK_UNAVAILABLE_INFORMATION
         {
             return Ok(None);
         }
         let mut buf = vec![0u8; a.ulValueLen as usize];
         a.pValue = buf.as_mut_ptr() as *mut c_void;
         // SAFETY: búfer de la longitud indicada.
-        ck(
-            unsafe { get(self.session, obj, &mut a, 1) },
-            "C_GetAttributeValue",
-        )?;
+        ck(unsafe { get(self.session, obj, &mut a, 1) }, "C_GetAttributeValue")?;
         buf.truncate(a.ulValueLen as usize);
         Ok(Some(buf))
     }
@@ -420,24 +388,14 @@ impl SoftoknSession {
         let mut h: CK_OBJECT_HANDLE = 0;
         // SAFETY: plantilla válida durante la llamada.
         ck(
-            unsafe {
-                c(
-                    self.session,
-                    tpl.raw.as_mut_ptr(),
-                    tpl.raw.len() as CK_ULONG,
-                    &mut h,
-                )
-            },
+            unsafe { c(self.session, tpl.raw.as_mut_ptr(), tpl.raw.len() as CK_ULONG, &mut h) },
             "C_CreateObject",
         )
     }
 
     /// Certificados del token: (manejador, etiqueta, DER).
     pub fn certificates(&self) -> Result<Vec<(CK_OBJECT_HANDLE, String, Vec<u8>)>> {
-        let mut tpl = Template::new(vec![(
-            CKA_CLASS,
-            AttrVal::Ulong(CKO_CERTIFICATE as CK_ULONG),
-        )]);
+        let mut tpl = Template::new(vec![(CKA_CLASS, AttrVal::Ulong(CKO_CERTIFICATE as CK_ULONG))]);
         let mut out = Vec::new();
         for h in self.find(&mut tpl)? {
             let label = self
@@ -506,14 +464,8 @@ impl SoftoknSession {
             (CKA_LABEL, AttrVal::Bytes(label.as_bytes().to_vec())),
             (CKA_ISSUER, AttrVal::Bytes(ids.issuer)),
             (CKA_SERIAL_NUMBER, AttrVal::Bytes(ids.serial)),
-            (
-                CKA_CERT_SHA1_HASH,
-                AttrVal::Bytes(sha1::Sha1::digest(der).to_vec()),
-            ),
-            (
-                CKA_CERT_MD5_HASH,
-                AttrVal::Bytes(md5::Md5::digest(der).to_vec()),
-            ),
+            (CKA_CERT_SHA1_HASH, AttrVal::Bytes(sha1::Sha1::digest(der).to_vec())),
+            (CKA_CERT_MD5_HASH, AttrVal::Bytes(md5::Md5::digest(der).to_vec())),
             (CKA_TRUST_SERVER_AUTH, AttrVal::Ulong(ssl)),
             (CKA_TRUST_CLIENT_AUTH, AttrVal::Ulong(client)),
             (CKA_TRUST_EMAIL_PROTECTION, AttrVal::Ulong(email)),

@@ -37,7 +37,11 @@ impl<'a> Attribute<'a> {
         if !set.tag.same_number(tags::SET) || set.tag.class != Class::Universal {
             return Err(invalid("los valores del atributo no son un SET"));
         }
-        Ok(Attribute { raw: tlv, oid, values: set.children()? })
+        Ok(Attribute {
+            raw: tlv,
+            oid,
+            values: set.children()?,
+        })
     }
 
     pub fn is(&self, dotted: &str) -> bool {
@@ -80,7 +84,11 @@ pub struct SignerInfo<'a> {
 }
 
 fn alg_oid(t: &Tlv<'_>) -> Result<Oid> {
-    t.expect(tags::SEQUENCE)?.children()?.first().ok_or(Asn1Error::Truncated)?.as_oid()
+    t.expect(tags::SEQUENCE)?
+        .children()?
+        .first()
+        .ok_or(Asn1Error::Truncated)?
+        .as_oid()
 }
 
 impl<'a> SignerInfo<'a> {
@@ -91,7 +99,10 @@ impl<'a> SignerInfo<'a> {
         let sid = it.next().ok_or(Asn1Error::Truncated)?;
         let digest_algorithm = it.next().ok_or(Asn1Error::Truncated)?;
         let digest_oid = alg_oid(&digest_algorithm)?;
-        let signed_attrs = if it.peek().is_some_and(|t| t.tag.class == Class::Context && t.tag.number == 0) {
+        let signed_attrs = if it
+            .peek()
+            .is_some_and(|t| t.tag.class == Class::Context && t.tag.number == 0)
+        {
             it.next()
         } else {
             None
@@ -102,7 +113,10 @@ impl<'a> SignerInfo<'a> {
         if !signature.tag.same_number(tags::OCTET_STRING) || signature.tag.class != Class::Universal {
             return Err(invalid("el valor de firma no es un OCTET STRING"));
         }
-        let unsigned_attrs = if it.peek().is_some_and(|t| t.tag.class == Class::Context && t.tag.number == 1) {
+        let unsigned_attrs = if it
+            .peek()
+            .is_some_and(|t| t.tag.class == Class::Context && t.tag.number == 1)
+        {
             it.next()
         } else {
             None
@@ -172,7 +186,10 @@ impl<'a> SignerInfo<'a> {
 
     /// Valor del atributo `messageDigest`.
     pub fn message_digest(&self) -> Option<Vec<u8>> {
-        self.signed_attr(oids::MESSAGE_DIGEST)?.first_value()?.octet_string_content().ok()
+        self.signed_attr(oids::MESSAGE_DIGEST)?
+            .first_value()?
+            .octet_string_content()
+            .ok()
     }
 
     /// Valor del atributo `signingTime` (UTCTime o GeneralizedTime).
@@ -308,8 +325,11 @@ impl<'a> SignedData<'a> {
             }
         }
         let signer_infos_set = signer_infos_set.ok_or_else(|| invalid("SignedData sin signerInfos"))?;
-        let signer_infos =
-            signer_infos_set.children()?.into_iter().map(SignerInfo::parse).collect::<Result<Vec<_>>>()?;
+        let signer_infos = signer_infos_set
+            .children()?
+            .into_iter()
+            .map(SignerInfo::parse)
+            .collect::<Result<Vec<_>>>()?;
         Ok(SignedData {
             content_info,
             signed_data: sd,
@@ -333,12 +353,19 @@ impl<'a> SignedData<'a> {
 
     /// Elementos del conjunto `certificates` (cualquier tipo de elección).
     pub fn certificate_choices(&self) -> Vec<Tlv<'a>> {
-        self.certificates.as_ref().and_then(|c| c.children().ok()).unwrap_or_default()
+        self.certificates
+            .as_ref()
+            .and_then(|c| c.children().ok())
+            .unwrap_or_default()
     }
 
     /// Certificados X.509 (DER original) del conjunto `certificates`.
     pub fn certificates_der(&self) -> Vec<&'a [u8]> {
-        self.certificate_choices().into_iter().filter(|t| t.tag == tags::SEQUENCE).map(|t| t.raw).collect()
+        self.certificate_choices()
+            .into_iter()
+            .filter(|t| t.tag == tags::SEQUENCE)
+            .map(|t| t.raw)
+            .collect()
     }
 
     /// Primer certificado cuyo número de serie coincide (sin mirar el
@@ -355,9 +382,13 @@ impl<'a> SignedData<'a> {
             return self.find_certificate_by_serial(serial);
         }
         let ski = si.subject_key_identifier()?;
-        self.certificates_der()
-            .into_iter()
-            .find(|c| CertView::parse(c).ok().and_then(|v| v.subject_key_identifier()).as_deref() == Some(ski))
+        self.certificates_der().into_iter().find(|c| {
+            CertView::parse(c)
+                .ok()
+                .and_then(|v| v.subject_key_identifier())
+                .as_deref()
+                == Some(ski)
+        })
     }
 
     /// Todos los SignerInfo (firmas y contrafirmas) en preorden.
@@ -377,13 +408,20 @@ impl<'a> SignedData<'a> {
 
     /// Indica si hay CRL u otra información de revocación.
     pub fn has_crls(&self) -> bool {
-        self.crls.as_ref().and_then(|c| c.children().ok()).is_some_and(|v| !v.is_empty())
+        self.crls
+            .as_ref()
+            .and_then(|c| c.children().ok())
+            .is_some_and(|v| !v.is_empty())
     }
 }
 
 /// Versión de un `SignerInfo`: 3 si el identificador es una SKI, 1 si no.
 pub fn signer_info_version(sid: &[u8]) -> i64 {
-    if sid.first().is_some_and(|b| b & 0xc0 == 0x80) { 3 } else { 1 }
+    if sid.first().is_some_and(|b| b & 0xc0 == 0x80) {
+        3
+    } else {
+        1
+    }
 }
 
 /// Codifica un `SignerInfo`.
@@ -404,7 +442,14 @@ pub fn encode_signer_info(
         Ok(t) => der::implicit_content(0, true, t.value),
         Err(_) => der::implicit_content(0, true, &[]),
     });
-    encode_signer_info_raw(sid, digest_algorithm, tagged.as_deref(), signature_algorithm, signature, unsigned_attrs)
+    encode_signer_info_raw(
+        sid,
+        digest_algorithm,
+        tagged.as_deref(),
+        signature_algorithm,
+        signature,
+        unsigned_attrs,
+    )
 }
 
 /// Como [`encode_signer_info`] pero con los atributos firmados ya
@@ -418,7 +463,11 @@ pub fn encode_signer_info_raw(
     signature: &[u8],
     unsigned_attrs: Option<&[Vec<u8>]>,
 ) -> Vec<u8> {
-    let mut parts = vec![der::integer_i64(signer_info_version(sid)), sid.to_vec(), digest_algorithm.to_vec()];
+    let mut parts = vec![
+        der::integer_i64(signer_info_version(sid)),
+        sid.to_vec(),
+        digest_algorithm.to_vec(),
+    ];
     if let Some(sa) = signed_attrs_tagged {
         parts.push(sa.to_vec());
     }
@@ -455,7 +504,10 @@ pub fn digest_algorithms_with(existing: &Tlv<'_>, new_alg_id: &[u8]) -> Vec<Vec<
         .and_then(|t| t.children().ok())
         .and_then(|c| c.first().map(|o| o.raw.to_vec()));
     let present = algs.iter().any(|a| {
-        Tlv::parse_single(a).ok().and_then(|t| t.children().ok()).and_then(|c| c.first().map(|o| o.raw.to_vec()))
+        Tlv::parse_single(a)
+            .ok()
+            .and_then(|t| t.children().ok())
+            .and_then(|c| c.first().map(|o| o.raw.to_vec()))
             == new_oid
     });
     if !present {
@@ -532,8 +584,11 @@ impl SignedDataParts {
             &si_versions,
             &econtent_type,
         );
-        let mut parts =
-            vec![der::integer_i64(version), der::set_of(&self.digest_algorithms), self.encap_content_info.clone()];
+        let mut parts = vec![
+            der::integer_i64(version),
+            der::set_of(&self.digest_algorithms),
+            self.encap_content_info.clone(),
+        ];
         if let Some(c) = &self.certificates {
             parts.push(der::implicit_content(0, true, &der::sorted_concat(c)));
         }
@@ -567,15 +622,14 @@ pub fn to_der_preserving(t: &Tlv<'_>) -> Vec<u8> {
     let is_string = t.tag.class == Class::Universal
         && t.tag.constructed
         && matches!(t.tag.number, 3 | 4 | 12 | 18 | 19 | 20 | 22 | 26 | 28 | 30);
-    if is_string
-        && let Ok(content) = t.flatten_content() {
-            if t.tag.number == 3 {
-                // BIT STRING construido: los segmentos llevan su byte de bits
-                // sobrantes; se conserva solo el del último.
-                return der::bit_string(&content);
-            }
-            return der::tlv(t.tag.with_constructed(false), &content);
+    if is_string && let Ok(content) = t.flatten_content() {
+        if t.tag.number == 3 {
+            // BIT STRING construido: los segmentos llevan su byte de bits
+            // sobrantes; se conserva solo el del último.
+            return der::bit_string(&content);
         }
+        return der::tlv(t.tag.with_constructed(false), &content);
+    }
     if !t.tag.constructed {
         return t.raw.to_vec();
     }
@@ -604,7 +658,9 @@ fn contains_indefinite_or_constructed_string(t: &Tlv<'_>) -> bool {
 
 /// Bytes de un SET/`[n] IMPLICIT SET` convertido en una lista de elementos DER.
 pub fn set_elements_der(t: &Tlv<'_>) -> Vec<Vec<u8>> {
-    t.children().map(|c| c.iter().map(to_der_preserving).collect()).unwrap_or_default()
+    t.children()
+        .map(|c| c.iter().map(to_der_preserving).collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -624,7 +680,9 @@ mod tests {
     #[test]
     fn ber_to_der() {
         // SEQUENCE indefinida con un OCTET STRING construido.
-        let ber = [0x30, 0x80, 0x24, 0x80, 0x04, 0x01, 0x61, 0x04, 0x01, 0x62, 0x00, 0x00, 0x00, 0x00];
+        let ber = [
+            0x30, 0x80, 0x24, 0x80, 0x04, 0x01, 0x61, 0x04, 0x01, 0x62, 0x00, 0x00, 0x00, 0x00,
+        ];
         let (t, _) = Tlv::parse(&ber).unwrap();
         assert_eq!(to_der_preserving(&t), vec![0x30, 0x04, 0x04, 0x02, 0x61, 0x62]);
         // Un SET desordenado no se reordena.

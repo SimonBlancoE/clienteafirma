@@ -37,7 +37,10 @@ pub fn sign(key: &dyn SigningKey, algorithm: &str, data: &[u8]) -> Result<Vec<u8
             tracing::warn!("No se ha podido comprobar la firma PKCS#1 generada: {e}");
             Ok(signature)
         }
-        Verification::Error(e) => Err(AfirmaError::new(codes::VERIFING_PKCS1_ERROR, format!("No se pudo verificar la firma generada: {e}"))),
+        Verification::Error(e) => Err(AfirmaError::new(
+            codes::VERIFING_PKCS1_ERROR,
+            format!("No se pudo verificar la firma generada: {e}"),
+        )),
     }
 }
 
@@ -54,8 +57,18 @@ pub fn verify(cert_der: &[u8], alg: SignatureAlgorithm, data: &[u8], signature: 
     match (key_oid.as_str(), alg.key) {
         (OID_RSA, KeyAlgorithm::Rsa) => verify_rsa(&spki.subject_public_key.data, alg.digest, &hash, signature),
         (OID_EC, KeyAlgorithm::Ec) => {
-            let curve = spki.algorithm.parameters.as_ref().and_then(|p| p.as_oid().ok()).map(|o| o.to_id_string());
-            verify_ecdsa(curve.as_deref().unwrap_or(""), &spki.subject_public_key.data, &hash, signature)
+            let curve = spki
+                .algorithm
+                .parameters
+                .as_ref()
+                .and_then(|p| p.as_oid().ok())
+                .map(|o| o.to_id_string());
+            verify_ecdsa(
+                curve.as_deref().unwrap_or(""),
+                &spki.subject_public_key.data,
+                &hash,
+                signature,
+            )
         }
         (OID_RSA, _) | (OID_EC, _) => Verification::Invalid,
         (other, _) => Verification::Error(format!("no soportado: clave {other}")),
@@ -90,8 +103,14 @@ fn verify_ecdsa(curve_oid: &str, point: &[u8], hash: &[u8], signature: &[u8]) ->
             let Ok(vk) = $c::ecdsa::VerifyingKey::from_sec1_bytes(point) else {
                 return Verification::Error("punto EC no válido".into());
             };
-            let Ok(sig) = $c::ecdsa::Signature::from_der(signature) else { return Verification::Invalid };
-            if vk.verify_prehash(hash, &sig).is_ok() { Verification::Valid } else { Verification::Invalid }
+            let Ok(sig) = $c::ecdsa::Signature::from_der(signature) else {
+                return Verification::Invalid;
+            };
+            if vk.verify_prehash(hash, &sig).is_ok() {
+                Verification::Valid
+            } else {
+                Verification::Invalid
+            }
         }};
     }
     match curve_oid {
@@ -101,8 +120,14 @@ fn verify_ecdsa(curve_oid: &str, point: &[u8], hash: &[u8], signature: &[u8]) ->
             let Ok(vk) = p521::ecdsa::VerifyingKey::from_sec1_bytes(point) else {
                 return Verification::Error("punto EC no válido".into());
             };
-            let Ok(sig) = p521::ecdsa::Signature::from_der(signature) else { return Verification::Invalid };
-            if vk.verify_prehash(hash, &sig).is_ok() { Verification::Valid } else { Verification::Invalid }
+            let Ok(sig) = p521::ecdsa::Signature::from_der(signature) else {
+                return Verification::Invalid;
+            };
+            if vk.verify_prehash(hash, &sig).is_ok() {
+                Verification::Valid
+            } else {
+                Verification::Invalid
+            }
         }
         other => Verification::Error(format!("no soportado: curva {other}")),
     }

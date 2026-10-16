@@ -92,11 +92,7 @@ impl DirDocumentFormat {
     /// opcionales) empieza por `<`; texto en otro caso.
     pub fn sniff(content: &[u8]) -> Self {
         let mut data = content;
-        for bom in [
-            &[0xEF, 0xBB, 0xBF][..],
-            &[0xFE, 0xFF][..],
-            &[0xFF, 0xFE][..],
-        ] {
+        for bom in [&[0xEF, 0xBB, 0xBF][..], &[0xFE, 0xFF][..], &[0xFF, 0xFE][..]] {
             if let Some(rest) = data.strip_prefix(bom) {
                 if bom.len() == 2 {
                     // UTF-16 con BOM: solo puede ser XML.
@@ -106,10 +102,7 @@ impl DirDocumentFormat {
                 break;
             }
         }
-        match data
-            .iter()
-            .find(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
-        {
+        match data.iter().find(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n')) {
             Some(b'<') => Self::Xml,
             _ => Self::Txt,
         }
@@ -224,10 +217,7 @@ impl HashDocument {
             out.push_str("\" name=\"");
             push_attr(&mut out, name).map_err(|c| HashError::UnrepresentableName {
                 name: name.clone(),
-                reason: format!(
-                    "contiene el carácter U+{:04X}, no admitido en XML",
-                    u32::from(c)
-                ),
+                reason: format!("contiene el carácter U+{:04X}, no admitido en XML", u32::from(c)),
             })?;
             out.push_str("\"/>\n");
         }
@@ -292,16 +282,12 @@ impl HashDocument {
             .iter()
             .find(|(n, _)| *n == alg_name)
             .map(|(_, a)| *a)
-            .ok_or_else(|| {
-                unsupported(format!("algoritmo no admitido en el documento: {alg_name}"))
-            })?;
+            .ok_or_else(|| unsupported(format!("algoritmo no admitido en el documento: {alg_name}")))?;
         let recursive = match root_el.attr("recursive").map(str::trim) {
             Some("true" | "1") => true,
             Some("false" | "0") => false,
             Some(other) => {
-                return Err(unsupported(format!(
-                    "valor de recursive no válido: {other}"
-                )));
+                return Err(unsupported(format!("valor de recursive no válido: {other}")));
             }
             None => return Err(unsupported("falta el atributo recursive")),
         };
@@ -320,11 +306,7 @@ impl HashDocument {
             }
             let el = element_named(&doc, child, "entry")?;
             check_attributes(el, &["hash", "name", "hexhash"])?;
-            if doc
-                .children(child)
-                .iter()
-                .any(|&c| doc.element(c).is_some())
-            {
+            if doc.children(child).iter().any(|&c| doc.element(c).is_some()) {
                 return Err(unsupported("el elemento entry no puede contener elementos"));
             }
             let name = el
@@ -346,8 +328,7 @@ impl HashDocument {
                         }
                     }
                 }
-                None => from_b64
-                    .ok_or_else(|| unsupported(format!("huella Base64 no válida en {name}")))?,
+                None => from_b64.ok_or_else(|| unsupported(format!("huella Base64 no válida en {name}")))?,
             };
             insert_entry(&mut entries, name, digest, algorithm)?;
         }
@@ -375,9 +356,8 @@ impl HashDocument {
             if in_headers && line.starts_with(';') {
                 lines += 1;
                 if let Some(v) = line.strip_prefix(";hashAlgorithm=") {
-                    algorithm = parse_algorithm(v).map_err(|_| {
-                        unsupported(format!("algoritmo no soportado en el documento: {v}"))
-                    })?;
+                    algorithm = parse_algorithm(v)
+                        .map_err(|_| unsupported(format!("algoritmo no soportado en el documento: {v}")))?;
                 } else if let Some(v) = line.strip_prefix(";recursive=") {
                     // `Boolean.parseBoolean`.
                     recursive = v.eq_ignore_ascii_case("true");
@@ -447,9 +427,7 @@ fn element_named<'d>(
     id: NodeId,
     local: &str,
 ) -> Result<&'d afirma_xml::dom::Element, DocumentError> {
-    let el = doc
-        .element(id)
-        .ok_or_else(|| unsupported("se esperaba un elemento"))?;
+    let el = doc.element(id).ok_or_else(|| unsupported("se esperaba un elemento"))?;
     if el.local != local || el.ns.is_some() {
         return Err(unsupported(format!(
             "elemento inesperado: {} (se esperaba {local})",
@@ -523,11 +501,7 @@ fn split_lines(text: &str) -> impl Iterator<Item = &str> {
         match rest.find(['\r', '\n']) {
             Some(pos) => {
                 let line = &rest[..pos];
-                let skip = if rest[pos..].starts_with("\r\n") {
-                    2
-                } else {
-                    1
-                };
+                let skip = if rest[pos..].starts_with("\r\n") { 2 } else { 1 };
                 rest = &rest[pos + skip..];
                 Some(line)
             }
@@ -548,10 +522,8 @@ mod tests {
         let mut doc = HashDocument::new(DigestAlgorithm::Sha256, true);
         doc.entries
             .insert("vacio.txt".into(), DigestAlgorithm::Sha256.digest(b""));
-        doc.entries.insert(
-            "sub/hola.txt".into(),
-            DigestAlgorithm::Sha256.digest(b"hola\n"),
-        );
+        doc.entries
+            .insert("sub/hola.txt".into(), DigestAlgorithm::Sha256.digest(b"hola\n"));
         doc
     }
 
@@ -594,10 +566,7 @@ vacio.txt;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855\r\n";
         assert_eq!(HashDocument::parse(&txt).unwrap(), doc);
         // Solo cabeceras (Java fallaba con un NullPointerException).
         let empty = HashDocument::new(DigestAlgorithm::Sha512, false);
-        assert_eq!(
-            HashDocument::parse(&empty.to_txt().unwrap()).unwrap(),
-            empty
-        );
+        assert_eq!(HashDocument::parse(&empty.to_txt().unwrap()).unwrap(), empty);
     }
 
     #[test]
@@ -610,28 +579,17 @@ a;b.txt;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855\n";
         let doc = HashDocument::parse(txt.as_bytes()).unwrap();
         assert_eq!(doc.algorithm, DigestAlgorithm::Sha256);
         assert!(doc.recursive);
-        assert_eq!(
-            doc.entries.keys().collect::<Vec<_>>(),
-            ["a;b.txt", "sub\\hola.txt"]
-        );
+        assert_eq!(doc.entries.keys().collect::<Vec<_>>(), ["a;b.txt", "sub\\hola.txt"]);
         // Sin cabeceras: SHA-256 y no recursivo.
-        let doc = HashDocument::parse(
-            b"x;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-        )
-        .unwrap();
-        assert_eq!(
-            (doc.algorithm, doc.recursive),
-            (DigestAlgorithm::Sha256, false)
-        );
+        let doc = HashDocument::parse(b"x;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855").unwrap();
+        assert_eq!((doc.algorithm, doc.recursive), (DigestAlgorithm::Sha256, false));
     }
 
     #[test]
     fn txt_otros_juegos_de_caracteres() {
-        let mut bytes =
-            b";charset=ISO-8859-1\r\n;hashAlgorithm=SHA-256\r\n;recursive=false\r\n".to_vec();
-        bytes.extend_from_slice(
-            b"\xF1and\xFA.txt;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855\r\n",
-        );
+        let mut bytes = b";charset=ISO-8859-1\r\n;hashAlgorithm=SHA-256\r\n;recursive=false\r\n".to_vec();
+        bytes
+            .extend_from_slice(b"\xF1and\xFA.txt;E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855\r\n");
         let doc = HashDocument::parse(&bytes).unwrap();
         assert_eq!(doc.entries.keys().collect::<Vec<_>>(), ["ñandú.txt"]);
     }
@@ -762,10 +720,7 @@ hash=\"Ez7piSk_knNjASgMbxTInVISAMF9zc7MowzSBwUzLUQ=\" hexhash=\"133EE989293F9273
         assert_eq!(HashDocument::parse(xml.as_bytes()).unwrap(), doc);
         // Caracteres de control no admitidos en XML 1.0.
         doc.entries.insert("ctl\u{1}x".into(), d);
-        assert!(matches!(
-            doc.to_xml(),
-            Err(HashError::UnrepresentableName { .. })
-        ));
+        assert!(matches!(doc.to_xml(), Err(HashError::UnrepresentableName { .. })));
     }
 
     #[test]
@@ -796,14 +751,8 @@ hash=\"Ez7piSk_knNjASgMbxTInVISAMF9zc7MowzSBwUzLUQ=\" hexhash=\"133EE989293F9273
             DirDocumentFormat::sniff(b"\xEF\xBB\xBF \n<entries/>"),
             DirDocumentFormat::Xml
         );
-        assert_eq!(
-            DirDocumentFormat::sniff(b"\xFF\xFE<\0"),
-            DirDocumentFormat::Xml
-        );
-        assert_eq!(
-            DirDocumentFormat::sniff(b";charset=UTF-8"),
-            DirDocumentFormat::Txt
-        );
+        assert_eq!(DirDocumentFormat::sniff(b"\xFF\xFE<\0"), DirDocumentFormat::Xml);
+        assert_eq!(DirDocumentFormat::sniff(b";charset=UTF-8"), DirDocumentFormat::Txt);
         assert_eq!(DirDocumentFormat::sniff(b""), DirDocumentFormat::Txt);
         for (name, f) in [
             ("a.txthashfiles", DirDocumentFormat::Txt),
@@ -813,11 +762,7 @@ hash=\"Ez7piSk_knNjASgMbxTInVISAMF9zc7MowzSBwUzLUQ=\" hexhash=\"133EE989293F9273
             ("a", DirDocumentFormat::Xml),
             ("a.txt.xml", DirDocumentFormat::Xml),
         ] {
-            assert_eq!(
-                DirDocumentFormat::from_save_path(Path::new(name)),
-                f,
-                "{name}"
-            );
+            assert_eq!(DirDocumentFormat::from_save_path(Path::new(name)), f, "{name}");
         }
     }
 

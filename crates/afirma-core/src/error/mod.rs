@@ -70,7 +70,11 @@ pub enum ConfirmEffect {
 pub enum UserIntervention {
     /// Confirmación sí/no. `requestor_text` es la clave del mensaje a mostrar
     /// (p. ej. `signingLts`, `agePolicyIncompatibilitySign`).
-    Confirm { requestor_text: String, param: String, effect: ConfirmEffect },
+    Confirm {
+        requestor_text: String,
+        param: String,
+        effect: ConfirmEffect,
+    },
     /// Contraseña (p. ej. de un PDF protegido); se guarda en `extraParams[param]`.
     Password { requestor_text: String, param: String },
 }
@@ -83,7 +87,10 @@ pub enum ErrorKind {
     Cancelled,
     /// Hace falta la intervención del usuario. `denied` indica que ya fue
     /// denegada (p. ej. por el servidor trifásico) y no debe preguntarse.
-    NeedsIntervention { intervention: UserIntervention, denied: bool },
+    NeedsIntervention {
+        intervention: UserIntervention,
+        denied: bool,
+    },
     /// Los datos no son una firma del formato (`AOInvalidSignatureFormatException`).
     InvalidSignatureFormat,
     /// Operación no soportada por el formato (`UnsupportedOperationException`).
@@ -104,7 +111,12 @@ pub struct AfirmaError {
 
 impl AfirmaError {
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
-        AfirmaError { code: Some(code), message: message.into(), kind: ErrorKind::General, cause: None }
+        AfirmaError {
+            code: Some(code),
+            message: message.into(),
+            kind: ErrorKind::General,
+            cause: None,
+        }
     }
 
     /// Error con el mensaje igual a la descripción del código.
@@ -114,7 +126,12 @@ impl AfirmaError {
 
     /// Error sin código (se trata como desconocido).
     pub fn msg(message: impl Into<String>) -> Self {
-        AfirmaError { code: None, message: message.into(), kind: ErrorKind::General, cause: None }
+        AfirmaError {
+            code: None,
+            message: message.into(),
+            kind: ErrorKind::General,
+            cause: None,
+        }
     }
 
     pub fn cancelled() -> Self {
@@ -127,11 +144,21 @@ impl AfirmaError {
     }
 
     pub fn invalid_argument(message: impl Into<String>) -> Self {
-        AfirmaError { code: None, message: message.into(), kind: ErrorKind::InvalidArgument, cause: None }
+        AfirmaError {
+            code: None,
+            message: message.into(),
+            kind: ErrorKind::InvalidArgument,
+            cause: None,
+        }
     }
 
     pub fn unsupported(message: impl Into<String>) -> Self {
-        AfirmaError { code: None, message: message.into(), kind: ErrorKind::Unsupported, cause: None }
+        AfirmaError {
+            code: None,
+            message: message.into(),
+            kind: ErrorKind::Unsupported,
+            cause: None,
+        }
     }
 
     /// Los datos no son una firma compatible (501006 por defecto).
@@ -166,12 +193,20 @@ impl AfirmaError {
         }
     }
 
-    pub fn needs_password(code: ErrorCode, message: impl Into<String>, requestor_text: impl Into<String>, param: impl Into<String>) -> Self {
+    pub fn needs_password(
+        code: ErrorCode,
+        message: impl Into<String>,
+        requestor_text: impl Into<String>,
+        param: impl Into<String>,
+    ) -> Self {
         AfirmaError {
             code: Some(code),
             message: message.into(),
             kind: ErrorKind::NeedsIntervention {
-                intervention: UserIntervention::Password { requestor_text: requestor_text.into(), param: param.into() },
+                intervention: UserIntervention::Password {
+                    requestor_text: requestor_text.into(),
+                    param: param.into(),
+                },
                 denied: false,
             },
             cause: None,
@@ -221,7 +256,9 @@ impl From<crate::key::KeyError> for AfirmaError {
             KeyError::WrongPin => AfirmaError::new(codes::INVALID_SMARTCARD_PIN, e.to_string()),
             KeyError::PinLocked => AfirmaError::new(codes::SMARTCARD_LOCKED, e.to_string()),
             KeyError::Unsupported(_) => AfirmaError::new(codes::INVALID_SIGNING_KEY, e.to_string()),
-            KeyError::DeviceUnavailable | KeyError::Other(_) => AfirmaError::new(codes::SIGNING_PKCS1_ERROR, e.to_string()),
+            KeyError::DeviceUnavailable | KeyError::Other(_) => {
+                AfirmaError::new(codes::SIGNING_PKCS1_ERROR, e.to_string())
+            }
         }
     }
 }
@@ -230,8 +267,13 @@ pub type Result<T> = std::result::Result<T, AfirmaError>;
 
 /// Parámetros que elimina la confirmación de una incompatibilidad con la
 /// política de firma (`SignaturePolicyIncompatibilityException.prepareOperationWithConfirmation`).
-pub const POLICY_PARAMS: [&str; 5] =
-    ["policyIdentifier", "policyIdentifierHash", "policyIdentifierHashAlgorithm", "policyDescription", "policyQualifier"];
+pub const POLICY_PARAMS: [&str; 5] = [
+    "policyIdentifier",
+    "policyIdentifierHash",
+    "policyIdentifierHashAlgorithm",
+    "policyDescription",
+    "policyQualifier",
+];
 
 /// Constructores de las excepciones de AutoFirma con sus códigos por defecto
 /// (§10.2 y §10.4).
@@ -264,7 +306,10 @@ impl AfirmaError {
 
     /// `InvalidOSException` (500003): `Se esperaba el sistema operativo: <os>`.
     pub fn invalid_os(expected_os: &str) -> Self {
-        Self::new(codes::INCOMPATIBLE_OPERATING_SYSTEM, format!("Se esperaba el sistema operativo: {expected_os}"))
+        Self::new(
+            codes::INCOMPATIBLE_OPERATING_SYSTEM,
+            format!("Se esperaba el sistema operativo: {expected_os}"),
+        )
     }
 
     /// `keystores.AuthenticationException` (200108 por defecto).
@@ -275,7 +320,10 @@ impl AfirmaError {
     /// `AOCancelledSMOperationException` (500001): cancelación en el diálogo
     /// de una tarjeta inteligente.
     pub fn cancelled_sm(message: impl Into<String>) -> Self {
-        AfirmaError { message: message.into(), ..Self::cancelled() }
+        AfirmaError {
+            message: message.into(),
+            ..Self::cancelled()
+        }
     }
 
     /// `SignaturePolicyIncompatibilityException` (501008): confirmación con
@@ -305,7 +353,11 @@ impl AfirmaError {
         Self::needs_confirmation(
             codes::SIGNING_LTS,
             message,
-            if possible { crate::constants::REQUESTOR_SIGNING_LTS_POSSIBLE } else { crate::constants::REQUESTOR_SIGNING_LTS },
+            if possible {
+                crate::constants::REQUESTOR_SIGNING_LTS_POSSIBLE
+            } else {
+                crate::constants::REQUESTOR_SIGNING_LTS
+            },
             crate::constants::EXTRA_PARAM_ALLOW_SIGN_LT_SIGNATURE,
             ConfirmEffect::SetParamTrue,
         )
@@ -326,7 +378,10 @@ impl AfirmaError {
     /// confirmación o ya estaba denegada.
     pub fn apply_confirmation(&self, extra_params: &mut crate::ExtraParams) -> bool {
         match &self.kind {
-            ErrorKind::NeedsIntervention { intervention: UserIntervention::Confirm { param, effect, .. }, denied: false } => {
+            ErrorKind::NeedsIntervention {
+                intervention: UserIntervention::Confirm { param, effect, .. },
+                denied: false,
+            } => {
                 match effect {
                     ConfirmEffect::SetParamTrue => {
                         extra_params.set(param.clone(), "true");
@@ -348,7 +403,10 @@ impl AfirmaError {
     /// pide contraseña o ya estaba denegado.
     pub fn apply_password(&self, extra_params: &mut crate::ExtraParams, password: &str) -> bool {
         match &self.kind {
-            ErrorKind::NeedsIntervention { intervention: UserIntervention::Password { param, .. }, denied: false } => {
+            ErrorKind::NeedsIntervention {
+                intervention: UserIntervention::Password { param, .. },
+                denied: false,
+            } => {
                 extra_params.set(param.clone(), password);
                 true
             }
@@ -408,23 +466,33 @@ impl AfirmaError {
 
 /// Código de error de una respuesta `ERR-n` del servidor trifásico (§10.2).
 pub fn triphase_error_code(server_code: &str, presign: bool) -> ErrorCode {
-    let n = server_code.strip_prefix("ERR-").and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=20).contains(n));
+    let n = server_code
+        .strip_prefix("ERR-")
+        .and_then(|n| n.parse::<u32>().ok())
+        .filter(|n| (1..=20).contains(n));
     let code = match (n, presign) {
         (Some(n), true) => 300408 + n,
         (Some(n), false) => 300429 + n,
         (None, true) => codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR.code,
         (None, false) => codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR.code,
     };
-    codes::by_code(code).unwrap_or(if presign { codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR } else { codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR })
+    codes::by_code(code).unwrap_or(if presign {
+        codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR
+    } else {
+        codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR
+    })
 }
 
 /// Valida un código de error de texto (exactamente 6 dígitos ASCII), como el
 /// constructor de `ErrorCode`.
 pub fn parse_error_code(code: &str) -> std::result::Result<u32, AfirmaError> {
     if code.len() == 6 && code.bytes().all(|b| b.is_ascii_digit()) {
-        code.parse().map_err(|_| AfirmaError::invalid_argument("Los codigos de error deben ser un numero de 6 digitos"))
+        code.parse()
+            .map_err(|_| AfirmaError::invalid_argument("Los codigos de error deben ser un numero de 6 digitos"))
     } else {
-        Err(AfirmaError::invalid_argument("Los codigos de error deben ser un numero de 6 digitos"))
+        Err(AfirmaError::invalid_argument(
+            "Los codigos de error deben ser un numero de 6 digitos",
+        ))
     }
 }
 
@@ -436,18 +504,44 @@ mod helper_tests {
     fn triphase_codes() {
         assert_eq!(triphase_error_code("ERR-1", true), codes::TRI_SERVER_PRESIGN_ERROR_1);
         assert_eq!(triphase_error_code("ERR-20", true), codes::TRI_SERVER_PRESIGN_ERROR_20);
-        assert_eq!(triphase_error_code("ERR-21", true), codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR);
+        assert_eq!(
+            triphase_error_code("ERR-21", true),
+            codes::TRI_SERVER_UNKNOWN_PRESIGN_ERROR
+        );
         assert_eq!(triphase_error_code("ERR-7", false), codes::TRI_SERVER_POSTSIGN_ERROR_7);
-        assert_eq!(triphase_error_code("X", false), codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR);
+        assert_eq!(
+            triphase_error_code("X", false),
+            codes::TRI_SERVER_UNKNOWN_POSTSIGN_ERROR
+        );
         let e = AfirmaError::triphase_presign("ERR-9", "fallo", Some("java.lang.Exception"));
         assert_eq!(e.code, Some(codes::TRI_SERVER_PRESIGN_ERROR_9));
         assert_eq!(e.cause.as_deref(), Some("java.lang.Exception"));
-        assert_eq!(AfirmaError::triphase_postsign("ERR-12", "x", None).code.unwrap().code, 300441);
-        let http = crate::http::HttpClientError::Http(crate::http::HttpError { status: 500, reason: None, body: vec![], url: "u".into() });
-        assert_eq!(AfirmaError::triphase_presign_connection(&http).code, Some(codes::PRESIGN_HTTP_ERROR));
-        let t = crate::http::HttpClientError::Timeout { url: "u".into(), message: "m".into() };
-        assert_eq!(AfirmaError::triphase_postsign_connection(&t).code, Some(codes::POSTSIGN_SERVICE_TIMEOUT));
-        let io = crate::http::HttpClientError::Io { url: "u".into(), message: "m".into() };
+        assert_eq!(
+            AfirmaError::triphase_postsign("ERR-12", "x", None).code.unwrap().code,
+            300441
+        );
+        let http = crate::http::HttpClientError::Http(crate::http::HttpError {
+            status: 500,
+            reason: None,
+            body: vec![],
+            url: "u".into(),
+        });
+        assert_eq!(
+            AfirmaError::triphase_presign_connection(&http).code,
+            Some(codes::PRESIGN_HTTP_ERROR)
+        );
+        let t = crate::http::HttpClientError::Timeout {
+            url: "u".into(),
+            message: "m".into(),
+        };
+        assert_eq!(
+            AfirmaError::triphase_postsign_connection(&t).code,
+            Some(codes::POSTSIGN_SERVICE_TIMEOUT)
+        );
+        let io = crate::http::HttpClientError::Io {
+            url: "u".into(),
+            message: "m".into(),
+        };
         assert_eq!(AfirmaError::triphase_presign_connection(&io).code.unwrap().code, 401300);
     }
 
@@ -459,7 +553,13 @@ mod helper_tests {
         }
         p.set("format", "XAdES");
         let e = AfirmaError::signature_policy_incompatibility("incompatible", crate::constants::OP_COSIGN);
-        let ErrorKind::NeedsIntervention { intervention: UserIntervention::Confirm { requestor_text, param, .. }, .. } = &e.kind else {
+        let ErrorKind::NeedsIntervention {
+            intervention: UserIntervention::Confirm {
+                requestor_text, param, ..
+            },
+            ..
+        } = &e.kind
+        else {
             panic!()
         };
         assert_eq!(requestor_text, "agePolicyIncompatibilityCosign");
@@ -471,13 +571,27 @@ mod helper_tests {
         assert!(lts.apply_confirmation(&mut p));
         assert_eq!(p.get("allowSignLTSignature"), Some("true"));
         assert!(!lts.clone().denied().apply_confirmation(&mut p));
-        let pw = AfirmaError::needs_password(codes::SIGNING_PDF_WITHOUT_PASSWORD, "pw", "pdfPasswordProtected", "ownerPassword");
+        let pw = AfirmaError::needs_password(
+            codes::SIGNING_PDF_WITHOUT_PASSWORD,
+            "pw",
+            "pdfPasswordProtected",
+            "ownerPassword",
+        );
         assert!(pw.apply_password(&mut p, "1234"));
         assert_eq!(p.get("ownerPassword"), Some("1234"));
-        assert_eq!(AfirmaError::invalid_os("WINDOWS").message, "Se esperaba el sistema operativo: WINDOWS");
+        assert_eq!(
+            AfirmaError::invalid_os("WINDOWS").message,
+            "Se esperaba el sistema operativo: WINDOWS"
+        );
         assert!(AfirmaError::cancelled_sm("Cancelacion del dialogo de JMulticard").is_cancelled());
-        assert_eq!(AfirmaError::unsupported_sign_format("x").protocol_message(false), "SAF_06: Formato de firma no soportado");
-        assert_eq!(AfirmaError::msg("sin codigo").user_message(&[]), messages::ERROR_GENERIC_TEXT);
+        assert_eq!(
+            AfirmaError::unsupported_sign_format("x").protocol_message(false),
+            "SAF_06: Formato de firma no soportado"
+        );
+        assert_eq!(
+            AfirmaError::msg("sin codigo").user_message(&[]),
+            messages::ERROR_GENERIC_TEXT
+        );
         assert_eq!(parse_error_code("500001").unwrap(), 500001);
         assert!(parse_error_code("50001").is_err());
         assert!(parse_error_code("5000a1").is_err());

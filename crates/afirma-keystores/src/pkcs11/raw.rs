@@ -18,8 +18,8 @@ use std::path::Path;
 use std::ptr;
 
 use cryptoki_sys::{
-    CK_C_INITIALIZE_ARGS, CK_FUNCTION_LIST, CK_MECHANISM, CK_OBJECT_HANDLE, CK_RV, CK_SESSION_HANDLE, CK_ULONG, CKF_OS_LOCKING_OK, CKR_OK,
-    CKU_CONTEXT_SPECIFIC,
+    CK_C_INITIALIZE_ARGS, CK_FUNCTION_LIST, CK_MECHANISM, CK_OBJECT_HANDLE, CK_RV, CK_SESSION_HANDLE, CK_ULONG,
+    CKF_OS_LOCKING_OK, CKR_OK, CKU_CONTEXT_SPECIFIC,
 };
 
 /// Módulo PKCS#11 cargado con su tabla de funciones.
@@ -53,8 +53,9 @@ impl RawModule {
         // SAFETY: el símbolo `C_GetFunctionList` tiene la firma estándar de
         // PKCS#11 (`CK_RV C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR)`).
         let list = unsafe {
-            let get: libloading::Symbol<unsafe extern "C" fn(*mut *mut CK_FUNCTION_LIST) -> CK_RV> =
-                lib.get(b"C_GetFunctionList\0").map_err(|e| format!("la biblioteca no es un módulo PKCS#11: {e}"))?;
+            let get: libloading::Symbol<unsafe extern "C" fn(*mut *mut CK_FUNCTION_LIST) -> CK_RV> = lib
+                .get(b"C_GetFunctionList\0")
+                .map_err(|e| format!("la biblioteca no es un módulo PKCS#11: {e}"))?;
             let mut list: *mut CK_FUNCTION_LIST = ptr::null_mut();
             let rv = get(&mut list);
             if rv != CKR_OK || list.is_null() {
@@ -73,7 +74,10 @@ impl RawModule {
     /// `C_Initialize` con `CKF_OS_LOCKING_OK` y, opcionalmente, `pReserved`
     /// (cadena de inicialización de NSS).
     pub(crate) fn initialize(&self, reserved: Option<&CStr>) -> RawResult<()> {
-        let f = self.functions().C_Initialize.ok_or(cryptoki_sys::CKR_FUNCTION_NOT_SUPPORTED)?;
+        let f = self
+            .functions()
+            .C_Initialize
+            .ok_or(cryptoki_sys::CKR_FUNCTION_NOT_SUPPORTED)?;
         let mut args = CK_C_INITIALIZE_ARGS {
             CreateMutex: None,
             DestroyMutex: None,
@@ -110,14 +114,29 @@ impl RawModule {
         unsafe {
             check(sign_init(session, &mut mech, key))?;
             let (pin_ptr, pin_len) = match pin {
-                Some(p) => (p.as_ptr() as *mut u8, CK_ULONG::try_from(p.len()).map_err(|_| cryptoki_sys::CKR_PIN_LEN_RANGE)?),
+                Some(p) => (
+                    p.as_ptr() as *mut u8,
+                    CK_ULONG::try_from(p.len()).map_err(|_| cryptoki_sys::CKR_PIN_LEN_RANGE)?,
+                ),
                 None => (ptr::null_mut(), 0),
             };
             check(login(session, CKU_CONTEXT_SPECIFIC, pin_ptr, pin_len))?;
             let mut sig_len: CK_ULONG = 0;
-            check(sign(session, data.as_ptr() as *mut u8, data_len, ptr::null_mut(), &mut sig_len))?;
+            check(sign(
+                session,
+                data.as_ptr() as *mut u8,
+                data_len,
+                ptr::null_mut(),
+                &mut sig_len,
+            ))?;
             let mut sig = vec![0u8; usize::try_from(sig_len).map_err(|_| cryptoki_sys::CKR_GENERAL_ERROR)?];
-            check(sign(session, data.as_ptr() as *mut u8, data_len, sig.as_mut_ptr(), &mut sig_len))?;
+            check(sign(
+                session,
+                data.as_ptr() as *mut u8,
+                data_len,
+                sig.as_mut_ptr(),
+                &mut sig_len,
+            ))?;
             sig.truncate(usize::try_from(sig_len).map_err(|_| cryptoki_sys::CKR_GENERAL_ERROR)?);
             Ok(sig)
         }
@@ -129,7 +148,10 @@ impl RawModule {
     /// `C_CloseAllSessions` (solo pruebas: simula la extracción de la
     /// tarjeta, que invalida las sesiones y el inicio de sesión).
     pub(crate) fn close_all_sessions(&self, slot: cryptoki_sys::CK_SLOT_ID) -> RawResult<()> {
-        let f = self.functions().C_CloseAllSessions.ok_or(cryptoki_sys::CKR_FUNCTION_NOT_SUPPORTED)?;
+        let f = self
+            .functions()
+            .C_CloseAllSessions
+            .ok_or(cryptoki_sys::CKR_FUNCTION_NOT_SUPPORTED)?;
         // SAFETY: llamada PKCS#11 estándar con un identificador de ranura.
         check(unsafe { f(slot) })
     }

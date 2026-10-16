@@ -68,11 +68,9 @@ fn any_string(v: &Any<'_>) -> Option<String> {
                 .collect(),
         ),
         Tag::T61String | Tag::GeneralString => Some(data.iter().map(|&b| char::from(b)).collect()),
-        Tag::Utf8String
-        | Tag::PrintableString
-        | Tag::Ia5String
-        | Tag::VisibleString
-        | Tag::NumericString => Some(String::from_utf8_lossy(data).into_owned()),
+        Tag::Utf8String | Tag::PrintableString | Tag::Ia5String | Tag::VisibleString | Tag::NumericString => {
+            Some(String::from_utf8_lossy(data).into_owned())
+        }
         _ => None,
     }
 }
@@ -104,10 +102,7 @@ fn any_der(v: &Any<'_>) -> Vec<u8> {
         out.push(len as u8);
     } else {
         let bytes = len.to_be_bytes();
-        let first = bytes
-            .iter()
-            .position(|&b| b != 0)
-            .unwrap_or(bytes.len() - 1);
+        let first = bytes.iter().position(|&b| b != 0).unwrap_or(bytes.len() - 1);
         out.push(0x80 | (bytes.len() - first) as u8);
         out.extend_from_slice(&bytes[first..]);
     }
@@ -304,10 +299,7 @@ pub fn rdn_value(rdn: &str, principal: &str) -> Option<String> {
                 None => Some(pc[o1..].iter().collect()),
             };
         }
-        let end = pc[o1..]
-            .iter()
-            .position(|&c| c == ',')
-            .map_or(pc.len(), |p| o1 + p);
+        let end = pc[o1..].iter().position(|&c| c == ',').map_or(pc.len(), |p| o1 + p);
         return Some(pc[o1..end].iter().collect::<String>().trim().to_string());
     }
     None
@@ -623,18 +615,9 @@ pub fn layer_text(txt: &str, d: &LayerTextData<'_>) -> Result<String, UnclosedDa
             principal = obfuscate_ids(&principal, m);
         }
         ret = ret.replace("$$SUBJECTDN$$", &principal);
-        ret = ret.replace(
-            "$$GIVENNAME$$",
-            &rdn_value("GIVENNAME", &principal).unwrap_or_default(),
-        );
-        ret = ret.replace(
-            "$$SURNAME$$",
-            &rdn_value("SURNAME", &principal).unwrap_or_default(),
-        );
-        ret = ret.replace(
-            "$$ORGANIZATION$$",
-            &rdn_value("o", &principal).unwrap_or_default(),
-        );
+        ret = ret.replace("$$GIVENNAME$$", &rdn_value("GIVENNAME", &principal).unwrap_or_default());
+        ret = ret.replace("$$SURNAME$$", &rdn_value("SURNAME", &principal).unwrap_or_default());
+        ret = ret.replace("$$ORGANIZATION$$", &rdn_value("o", &principal).unwrap_or_default());
     }
     ret = ret.replace("$$REASON$$", d.reason.unwrap_or(""));
     ret = ret.replace("$$LOCATION$$", d.location.unwrap_or(""));
@@ -647,12 +630,7 @@ pub fn layer_text(txt: &str, d: &LayerTextData<'_>) -> Result<String, UnclosedDa
         if guard > 1000 {
             break;
         }
-        let end = ret[idx + PREFIX.len()..]
-            .find("$$")
-            .ok_or(UnclosedDateTag)?
-            + idx
-            + PREFIX.len()
-            + 2;
+        let end = ret[idx + PREFIX.len()..].find("$$").ok_or(UnclosedDateTag)? + idx + PREFIX.len() + 2;
         let tag = ret[idx..end].to_string();
         let t = d.sign_time.unwrap_or_else(crate::pdf::date::now);
         let date = if tag.contains('=') {
@@ -690,16 +668,10 @@ mod tests {
             c.issuer_rfc2253,
             "CN=GARCÍA LÓPEZ MARÍA - 12345678Z\\ \\ ,2.5.4.4=#0c0f47415243c38d4120204cc39350455a,2.5.4.42=#0c064d4152c38d41,2.5.4.5=#130f49444345532d31323334353637385a,1.2.840.113549.1.9.1=#16066140622e6573,2.5.4.65=#0c0b534555444f4e494d4f2031,2.5.4.12=#0c084469726563746f72,2.5.4.97=#0c0f56415445532d423132333435363738,OU=Unidad B,OU=Unidad A,O=Empresa\\, S.A.,C=ES"
         );
-        assert_eq!(
-            c.serial_decimal,
-            "184161141018536017143214356788755272174554114566"
-        );
+        assert_eq!(c.serial_decimal, "184161141018536017143214356788755272174554114566");
         assert!(c.pseudonym_cert);
         assert_eq!(c.subject_cn(), "GARCÍA LÓPEZ MARÍA - 12345678Z  ");
-        assert_eq!(
-            rdn_value("OID.2.5.4.65", &c.subject).unwrap(),
-            "SEUDONIMO 1"
-        );
+        assert_eq!(rdn_value("OID.2.5.4.65", &c.subject).unwrap(), "SEUDONIMO 1");
         assert_eq!(ous_of_principal(&c.subject), vec!["Unidad B", "Unidad A"]);
     }
 
@@ -738,10 +710,7 @@ mod tests {
             }
         );
         // La última posición visible es la 0: máscara por defecto.
-        assert_eq!(
-            TextMask::parse("#;2;true,false;false").unwrap(),
-            TextMask::default()
-        );
+        assert_eq!(TextMask::parse("#;2;true,false;false").unwrap(), TextMask::default());
         assert!(TextMask::parse("#;2;true").is_err());
         assert!(TextMask::parse("##;2;true,true;false").is_err());
     }
@@ -749,10 +718,7 @@ mod tests {
     #[test]
     fn rdn_lookup() {
         let p = "CN=ESPAÑOL ESPAÑOL JUAN - 00000000T, SURNAME=ESPAÑOL ESPAÑOL, GIVENNAME=JUAN, SERIALNUMBER=IDCES-00000000T, C=ES";
-        assert_eq!(
-            rdn_value("cn", p).unwrap(),
-            "ESPAÑOL ESPAÑOL JUAN - 00000000T"
-        );
+        assert_eq!(rdn_value("cn", p).unwrap(), "ESPAÑOL ESPAÑOL JUAN - 00000000T");
         assert_eq!(rdn_value("GIVENNAME", p).unwrap(), "JUAN");
         assert_eq!(rdn_value("surname", p).unwrap(), "ESPAÑOL ESPAÑOL");
         assert!(rdn_value("o", p).is_none());

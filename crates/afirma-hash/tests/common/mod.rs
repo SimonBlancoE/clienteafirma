@@ -51,8 +51,7 @@ pub fn normalize(doc: &[u8]) -> String {
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let mut out: Vec<String> = Vec::new();
     if text.starts_with(';') {
-        let (headers, data): (Vec<&str>, Vec<&str>) =
-            lines.iter().partition(|l| l.starts_with(';'));
+        let (headers, data): (Vec<&str>, Vec<&str>) = lines.iter().partition(|l| l.starts_with(';'));
         let mut data = data;
         data.sort_unstable();
         return headers.concat() + &data.concat();

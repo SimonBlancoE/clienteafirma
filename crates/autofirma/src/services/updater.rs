@@ -62,7 +62,9 @@ pub fn check_daily() -> Option<UpdateInfo> {
 /// `tag_name` y `html_url` de la respuesta de la API de versiones.
 fn parse_release(body: &[u8]) -> Option<UpdateInfo> {
     let v: serde_json::Value = serde_json::from_slice(body).ok()?;
-    if v.get("draft").and_then(|d| d.as_bool()) == Some(true) || v.get("prerelease").and_then(|d| d.as_bool()) == Some(true) {
+    if v.get("draft").and_then(|d| d.as_bool()) == Some(true)
+        || v.get("prerelease").and_then(|d| d.as_bool()) == Some(true)
+    {
         return None;
     }
     let tag = v.get("tag_name")?.as_str()?;
@@ -70,7 +72,10 @@ fn parse_release(body: &[u8]) -> Option<UpdateInfo> {
     if !url.starts_with("https://") {
         return None;
     }
-    Some(UpdateInfo { version: tag.trim_start_matches(['v', 'V']).to_string(), url: url.to_string() })
+    Some(UpdateInfo {
+        version: tag.trim_start_matches(['v', 'V']).to_string(),
+        url: url.to_string(),
+    })
 }
 
 /// Compara versiones semánticas (`2.1.0` > `2.0.0` > `2.0.0-alpha.1`).
@@ -81,9 +86,18 @@ fn is_newer(candidate: &str, current: &str) -> bool {
             None => (v, None),
         };
         let mut n = core.split('.').map(|x| x.parse::<u64>().ok());
-        Some(((n.next()??, n.next().flatten().unwrap_or(0), n.next().flatten().unwrap_or(0)), pre))
+        Some((
+            (
+                n.next()??,
+                n.next().flatten().unwrap_or(0),
+                n.next().flatten().unwrap_or(0),
+            ),
+            pre,
+        ))
     }
-    let (Some((a, pa)), Some((b, pb))) = (parse(candidate), parse(current)) else { return false };
+    let (Some((a, pa)), Some((b, pb))) = (parse(candidate), parse(current)) else {
+        return false;
+    };
     match a.cmp(&b) {
         std::cmp::Ordering::Greater => true,
         std::cmp::Ordering::Less => false,
@@ -109,7 +123,10 @@ mod tests {
 
     #[test]
     fn respuesta_de_la_api() {
-        let r = parse_release(br#"{"tag_name":"v2.1.0","html_url":"https://example.org/r/2.1.0","draft":false,"prerelease":false}"#).unwrap();
+        let r = parse_release(
+            br#"{"tag_name":"v2.1.0","html_url":"https://example.org/r/2.1.0","draft":false,"prerelease":false}"#,
+        )
+        .unwrap();
         assert_eq!(r.version, "2.1.0");
         assert!(parse_release(br#"{"tag_name":"v2.1.0","html_url":"https://x","prerelease":true}"#).is_none());
         assert!(parse_release(br#"{"tag_name":"v2.1.0","html_url":"http://x"}"#).is_none());

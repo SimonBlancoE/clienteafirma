@@ -64,7 +64,13 @@ impl CertEntry {
     /// Crea una entrada a partir de su alias nativo y su cadena (el primer
     /// elemento es el certificado de la entrada). Si `chain` está vacía se
     /// usa `[certificate]`.
-    pub fn new(alias: impl Into<String>, certificate: Vec<u8>, chain: Vec<Vec<u8>>, capabilities: EntryCapabilities, source: impl Into<String>) -> Self {
+    pub fn new(
+        alias: impl Into<String>,
+        certificate: Vec<u8>,
+        chain: Vec<Vec<u8>>,
+        capabilities: EntryCapabilities,
+        source: impl Into<String>,
+    ) -> Self {
         let alias = alias.into();
         let chain = if chain.is_empty() || chain[0] != certificate {
             let mut c = vec![certificate.clone()];
@@ -80,7 +86,17 @@ impl CertEntry {
         if capabilities.key_algorithm.is_none() {
             capabilities.key_algorithm = crate::verify::certificate_key_algorithm(&certificate);
         }
-        CertEntry { id: alias.clone(), alias, certificate, chain, info, friendly_name, capabilities, source: source.into(), sha1_upper }
+        CertEntry {
+            id: alias.clone(),
+            alias,
+            certificate,
+            chain,
+            info,
+            friendly_name,
+            capabilities,
+            source: source.into(),
+            sha1_upper,
+        }
     }
 
     /// Huella SHA-256 en hexadecimal (minúsculas).
@@ -113,7 +129,10 @@ impl CertEntry {
 }
 
 fn normalize_hex(h: &str) -> String {
-    h.chars().filter(|c| c.is_ascii_hexdigit()).collect::<String>().to_ascii_lowercase()
+    h.chars()
+        .filter(|c| c.is_ascii_hexdigit())
+        .collect::<String>()
+        .to_ascii_lowercase()
 }
 
 /// Busca una entrada por referencia: primero por identificador exacto,
@@ -168,13 +187,20 @@ pub trait KeyStore: Send + Sync {
 
     /// Alias nativos de las entradas con clave privada (`listaliases`).
     fn aliases(&self) -> Result<Vec<String>, KeyStoreError> {
-        Ok(self.entries()?.into_iter().filter(|e| e.capabilities.has_private_key).map(|e| e.alias).collect())
+        Ok(self
+            .entries()?
+            .into_iter()
+            .filter(|e| e.capabilities.has_private_key)
+            .map(|e| e.alias)
+            .collect())
     }
 
     /// Entrada indicada por referencia (ver [`find_entry`]).
     fn entry(&self, alias: &str) -> Result<CertEntry, KeyStoreError> {
         let entries = self.entries()?;
-        find_entry(&entries, alias).cloned().ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))
+        find_entry(&entries, alias)
+            .cloned()
+            .ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))
     }
 }
 
@@ -261,7 +287,13 @@ pub struct AggregateStore {
 
 impl AggregateStore {
     pub fn new(kind: KeyStoreKind) -> Self {
-        AggregateStore { kind, name: None, lib_name: None, backends: RwLock::new(Vec::new()), dedup_all: false }
+        AggregateStore {
+            kind,
+            name: None,
+            lib_name: None,
+            backends: RwLock::new(Vec::new()),
+            dedup_all: false,
+        }
     }
 
     /// Nombre para el título (por defecto, el del tipo).
@@ -367,7 +399,9 @@ impl KeyStore for AggregateStore {
     }
 
     fn name(&self) -> String {
-        self.name.clone().unwrap_or_else(|| self.kind.display_name().to_string())
+        self.name
+            .clone()
+            .unwrap_or_else(|| self.kind.display_name().to_string())
     }
 
     fn lib_name(&self) -> Option<String> {
@@ -384,10 +418,18 @@ impl KeyStore for AggregateStore {
         let found = find_entry(&entries, alias).ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
         let idx = entries.iter().position(|e| std::ptr::eq(e, found)).unwrap_or(0);
         let (backend_idx, entry) = &all[idx];
-        let backend = self.backends().get(*backend_idx).cloned().ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
+        let backend = self
+            .backends()
+            .get(*backend_idx)
+            .cloned()
+            .ok_or_else(|| KeyStoreError::AliasNotFound(alias.to_string()))?;
         // Identificador sin el prefijo del agregado.
         let inner_id = if self.len() > 1 {
-            entry.id.split_once(':').map(|(_, r)| r.to_string()).unwrap_or_else(|| entry.id.clone())
+            entry
+                .id
+                .split_once(':')
+                .map(|(_, r)| r.to_string())
+                .unwrap_or_else(|| entry.id.clone())
         } else {
             entry.id.clone()
         };
@@ -419,7 +461,12 @@ pub struct MemoryStore {
 
 impl MemoryStore {
     pub fn new(kind: KeyStoreKind) -> Self {
-        MemoryStore { kind, entries: Vec::new(), keys: Vec::new(), preferred: false }
+        MemoryStore {
+            kind,
+            entries: Vec::new(),
+            keys: Vec::new(),
+            preferred: false,
+        }
     }
 
     pub fn preferred(mut self, p: bool) -> Self {
@@ -429,14 +476,30 @@ impl MemoryStore {
 
     /// Añade una entrada con clave.
     pub fn add_key(&mut self, alias: &str, key: Arc<dyn SigningKey>) {
-        let caps = EntryCapabilities { has_private_key: true, key_algorithm: Some(key.key_algorithm()), ..Default::default() };
-        self.entries.push(CertEntry::new(alias, key.certificate().to_vec(), key.certificate_chain(), caps, self.kind.display_name()));
+        let caps = EntryCapabilities {
+            has_private_key: true,
+            key_algorithm: Some(key.key_algorithm()),
+            ..Default::default()
+        };
+        self.entries.push(CertEntry::new(
+            alias,
+            key.certificate().to_vec(),
+            key.certificate_chain(),
+            caps,
+            self.kind.display_name(),
+        ));
         self.keys.push((alias.to_string(), key));
     }
 
     /// Añade un certificado sin clave.
     pub fn add_certificate(&mut self, alias: &str, cert: Vec<u8>) {
-        self.entries.push(CertEntry::new(alias, cert.clone(), vec![cert], EntryCapabilities::default(), self.kind.display_name()));
+        self.entries.push(CertEntry::new(
+            alias,
+            cert.clone(),
+            vec![cert],
+            EntryCapabilities::default(),
+            self.kind.display_name(),
+        ));
     }
 }
 
@@ -472,7 +535,12 @@ mod tests {
     use super::*;
 
     fn p12(name: &str) -> Arc<dyn SigningKey> {
-        let data = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki").join(name)).unwrap();
+        let data = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../testdata/pki")
+                .join(name),
+        )
+        .unwrap();
         let e = crate::pkcs12::open(&data, "12341234").unwrap().remove(0);
         Arc::new(e.signing_key().unwrap())
     }

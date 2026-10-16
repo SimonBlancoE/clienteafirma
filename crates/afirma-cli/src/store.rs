@@ -6,8 +6,8 @@ use std::sync::Arc;
 use afirma_core::ExtraParams;
 use afirma_keystores::selection::{CliStoreError, parse_cli_store};
 use afirma_keystores::{
-    CandidateOptions, CertEntry, CertFilterManager, FixedPassword, KeyStore, KeyStoreError,
-    KeyStoreKind, OpenOptions, Os, PasswordCallback, candidates_with_manager, open_store,
+    CandidateOptions, CertEntry, CertFilterManager, FixedPassword, KeyStore, KeyStoreError, KeyStoreKind, OpenOptions,
+    Os, PasswordCallback, candidates_with_manager, open_store,
 };
 
 use crate::CliEnv;
@@ -62,8 +62,7 @@ pub trait CertificateChooser: Send + Sync {
 /// Mensaje de Java cuando no se elige certificado (`AOKeyStoreDialog`).
 pub const NO_CERTIFICATE_SELECTED: &str = "No se ha seleccionado certificado";
 /// Mensaje cuando no hay selector gráfico (nuevo).
-pub const NO_CHOOSER: &str =
-    "No se puede mostrar el dialogo de seleccion de certificado (-certgui) en este entorno";
+pub const NO_CHOOSER: &str = "No se puede mostrar el dialogo de seleccion de certificado (-certgui) en este entorno";
 
 /// Abre el almacén de `-store` (`getKsm`): con `-password`, contraseña fija;
 /// si no, el proveedor de contraseñas de la aplicación.
@@ -92,9 +91,9 @@ pub fn open(
 pub fn keystore_error(e: &KeyStoreError, m: &Messages) -> CliError {
     match e {
         KeyStoreError::Cancelled => CliError::Unexpected(e.to_string()),
-        KeyStoreError::Unsupported { .. }
-        | KeyStoreError::UndefinedDefault
-        | KeyStoreError::Firefox(_) => CliError::plain(m.fmt(49, &[&e.to_string()])),
+        KeyStoreError::Unsupported { .. } | KeyStoreError::UndefinedDefault | KeyStoreError::Firefox(_) => {
+            CliError::plain(m.fmt(49, &[&e.to_string()]))
+        }
         KeyStoreError::Load { kind, .. } if *kind != KeyStoreKind::Pkcs12 => {
             CliError::plain(m.fmt(49, &[&e.to_string()]))
         }
@@ -108,11 +107,8 @@ pub fn keystore_error(e: &KeyStoreError, m: &Messages) -> CliError {
 /// `filterCertificates`: el filtro de `-filter` debe aceptar exactamente un
 /// certificado de todos los del almacén.
 pub fn filter_alias(store: &dyn KeyStore, filter: &str, m: &Messages) -> Result<String, CliError> {
-    let manager = CertFilterManager::from_cli_filter(filter)
-        .map_err(|e| CliError::Unexpected(e.to_string()))?;
-    let entries = store
-        .entries()
-        .map_err(|e| CliError::plain(e.to_string()))?;
+    let manager = CertFilterManager::from_cli_filter(filter).map_err(|e| CliError::Unexpected(e.to_string()))?;
+    let entries = store.entries().map_err(|e| CliError::plain(e.to_string()))?;
     let matches = manager.apply(&entries, chrono::Utc::now());
     match matches.as_slice() {
         [] => Err(CliError::plain(m.get(52))),
@@ -132,20 +128,13 @@ pub fn choose_with_gui(
     if let Some(f) = filter.filter(|f| !f.is_empty()) {
         props.set("filters", f);
     }
-    let filters = CertFilterManager::from_extra_params(&props)
-        .map_err(|e| CliError::Unexpected(e.to_string()))?;
+    let filters = CertFilterManager::from_extra_params(&props).map_err(|e| CliError::Unexpected(e.to_string()))?;
     let Some(chooser) = env.certificate_chooser.as_ref() else {
         return Err(CliError::plain(NO_CHOOSER));
     };
-    let entries = store
-        .entries()
-        .map_err(|e| CliError::plain(e.to_string()))?;
-    let candidates = candidates_with_manager(
-        &entries,
-        &filters,
-        &CandidateOptions::protocol(chrono::Utc::now()),
-    )
-    .candidates;
+    let entries = store.entries().map_err(|e| CliError::plain(e.to_string()))?;
+    let candidates =
+        candidates_with_manager(&entries, &filters, &CandidateOptions::protocol(chrono::Utc::now())).candidates;
     let request = CertificateRequest {
         allow_external_stores: filters.allow_external_stores(),
         store,

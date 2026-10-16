@@ -78,7 +78,11 @@ impl SignerKind {
     /// Así `Pdf` → `Adobe PDF` (no `PAdES`), `Xades` → `XAdES`, `Odf` →
     /// `ODF (Open Document Format)`.
     pub fn sign_format(self) -> &'static str {
-        SIGNER_FORMATS.iter().find(|f| f.kind == self).map(|f| f.name).unwrap_or(SIGN_FORMAT_CADES)
+        SIGNER_FORMATS
+            .iter()
+            .find(|f| f.kind == self)
+            .map(|f| f.name)
+            .unwrap_or(SIGN_FORMAT_CADES)
     }
 
     /// Nombre de la clase Java equivalente.
@@ -138,7 +142,11 @@ pub struct SignerFormat {
 }
 
 const fn row(name: &'static str, kind: SignerKind, used_for_detection: bool) -> SignerFormat {
-    SignerFormat { name, kind, used_for_detection }
+    SignerFormat {
+        name,
+        kind,
+        used_for_detection,
+    }
 }
 
 /// Tabla de registro de `AOSignerFactory`, en su orden exacto (que también
@@ -257,8 +265,14 @@ impl DataFileType {
     pub fn default_format_preference(self) -> Option<(&'static str, &'static str)> {
         match self {
             Self::Pdf => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_PDF, DEFAULT_SIGNATURE_FORMAT_PDF)),
-            Self::FacturaE => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_FACTURAE, DEFAULT_SIGNATURE_FORMAT_FACTURAE)),
-            Self::Ooxml => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_OOXML, DEFAULT_SIGNATURE_FORMAT_OOXML)),
+            Self::FacturaE => Some((
+                PREFERENCE_DEFAULT_SIGNATURE_FORMAT_FACTURAE,
+                DEFAULT_SIGNATURE_FORMAT_FACTURAE,
+            )),
+            Self::Ooxml => Some((
+                PREFERENCE_DEFAULT_SIGNATURE_FORMAT_OOXML,
+                DEFAULT_SIGNATURE_FORMAT_OOXML,
+            )),
             Self::Odf => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_ODF, DEFAULT_SIGNATURE_FORMAT_ODF)),
             Self::Xml => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_XML, DEFAULT_SIGNATURE_FORMAT_XML)),
             Self::Binary => Some((PREFERENCE_DEFAULT_SIGNATURE_FORMAT_BIN, DEFAULT_SIGNATURE_FORMAT_BIN)),
@@ -302,9 +316,15 @@ mod tests {
         assert_eq!(canonical_format_name("pades"), Some("PAdES"));
         assert_eq!(canonical_format_name("padestri"), Some("PAdEStri"));
         assert_eq!(canonical_format_name("factura-e"), Some("Factura-e"));
-        for unregistered in
-            ["auto", "PKCS1", "PKCS#1", "XAdES Externally Detached", "XMLDSig Externally Detached", "SOAP", ""]
-        {
+        for unregistered in [
+            "auto",
+            "PKCS1",
+            "PKCS#1",
+            "XAdES Externally Detached",
+            "XMLDSig Externally Detached",
+            "SOAP",
+            "",
+        ] {
             assert!(find_format(unregistered).is_none(), "{unregistered}");
         }
         assert!(is_auto_format("AUTO"));
@@ -354,7 +374,10 @@ mod tests {
         assert_eq!(protocol_auto_sign_format(false, true, true), "FacturaE");
         assert_eq!(protocol_auto_sign_format(false, false, true), "XAdES");
         assert_eq!(protocol_auto_sign_format(false, false, false), "CAdES");
-        assert_eq!(DataFileType::Ooxml.default_format_preference(), Some(("defaultSignatureFormatOoxml", "CAdES")));
+        assert_eq!(
+            DataFileType::Ooxml.default_format_preference(),
+            Some(("defaultSignatureFormatOoxml", "CAdES"))
+        );
         assert_eq!(DataFileType::SignCades.default_format_preference(), None);
         assert!(!equals_ignore_case("Straße", "STRASSE"));
         assert!(equals_ignore_case("ñandú", "ÑANDÚ"));

@@ -67,11 +67,17 @@ pub fn run(args: &[String]) -> i32 {
         }
         Some(GuiRequest::Verify { file }) => {
             print(&outcome.output);
-            crate::run_gui(GuiStart { verify_file: Some(file), ..Default::default() })
+            crate::run_gui(GuiStart {
+                verify_file: Some(file),
+                ..Default::default()
+            })
         }
         Some(GuiRequest::Hash(req)) => {
             print(&outcome.output);
-            crate::run_gui(GuiStart { hash: Some(req), ..Default::default() })
+            crate::run_gui(GuiStart {
+                hash: Some(req),
+                ..Default::default()
+            })
         }
     }
 }
@@ -80,7 +86,11 @@ pub fn run(args: &[String]) -> i32 {
 fn preferences() -> Arc<HashMap<String, String>> {
     let store = crate::services::prefs::load();
     let mut map = HashMap::new();
-    for key in crate::ui::pages::settings::ALL_KEYS.iter().copied().chain(["default.locale"]) {
+    for key in crate::ui::pages::settings::ALL_KEYS
+        .iter()
+        .copied()
+        .chain(["default.locale"])
+    {
         if let Some(v) = store.get(key) {
             map.insert(key.to_string(), v);
         }
@@ -112,10 +122,20 @@ impl PasswordCallback for TerminalPassword {
             eprintln!("{}", retry.message());
         }
         if let Some(n) = request.retries_left {
-            eprintln!("Intentos restantes: {n}{}", if request.final_try { " (el siguiente fallo bloqueará la tarjeta)" } else { "" });
+            eprintln!(
+                "Intentos restantes: {n}{}",
+                if request.final_try {
+                    " (el siguiente fallo bloqueará la tarjeta)"
+                } else {
+                    ""
+                }
+            );
         }
         match rpassword::prompt_password(format!("{} ", request.prompt.trim_end())) {
-            Ok(s) if !s.is_empty() => PasswordResponse::Provided { secret: Secret::new(s), remember: false },
+            Ok(s) if !s.is_empty() => PasswordResponse::Provided {
+                secret: Secret::new(s),
+                remember: false,
+            },
             Ok(_) => PasswordResponse::NoPassword,
             Err(_) => PasswordResponse::Cancelled,
         }
@@ -139,7 +159,10 @@ impl CertificateChooser for GuiChooser {
             .collect();
         let result: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
         let out = result.clone();
-        let mut picker = crate::ui::cert_picker::CertPicker { accept_label: crate::i18n::tr("Seleccionar").into(), ..Default::default() };
+        let mut picker = crate::ui::cert_picker::CertPicker {
+            accept_label: crate::i18n::tr("Seleccionar").into(),
+            ..Default::default()
+        };
         picker.open_with(crate::i18n::tr("Almacén indicado en -store"), items);
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
@@ -154,12 +177,19 @@ impl CertificateChooser for GuiChooser {
             options,
             Box::new(move |cc| {
                 crate::ui::theme::install_fonts(&cc.egui_ctx);
-                Ok(Box::new(ChooserApp { picker, out, applied: None }))
+                Ok(Box::new(ChooserApp {
+                    picker,
+                    out,
+                    applied: None,
+                }))
             }),
         )
         .map_err(|e| format!("No se puede mostrar el dialogo de seleccion de certificado: {e}"))?;
         let alias = result.lock().ok().and_then(|g| g.clone());
-        Ok(alias.map(|alias| CertificateChoice { store: request.store.clone(), alias }))
+        Ok(alias.map(|alias| CertificateChoice {
+            store: request.store.clone(),
+            alias,
+        }))
     }
 }
 
@@ -171,8 +201,8 @@ struct ChooserApp {
 
 impl eframe::App for ChooserApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        use crate::ui::cert_picker::PickerEvent;
         use crate::i18n::tr;
+        use crate::ui::cert_picker::PickerEvent;
         use crate::ui::widgets::{self, ButtonKind};
         let ctx = ui.ctx().clone();
         let p = crate::ui::theme::ThemeChoice::System.palette(ctx.system_theme() == Some(egui::Theme::Dark));
@@ -184,7 +214,10 @@ impl eframe::App for ChooserApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg).inner_margin(egui::Margin::same(18)))
             .show(ui, |ui| {
-                ui.label(egui::RichText::new(tr("Elige el certificado de firma")).font(egui::FontId::new(18.0, crate::ui::theme::semibold())));
+                ui.label(
+                    egui::RichText::new(tr("Elige el certificado de firma"))
+                        .font(egui::FontId::new(18.0, crate::ui::theme::semibold())),
+                );
                 ui.add_space(10.0);
                 let h = ui.available_height() - 56.0;
                 match self.picker.show_embedded(ui, &p, h) {
@@ -201,7 +234,10 @@ impl eframe::App for ChooserApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let can = self.picker.selected.is_some();
                     if widgets::button(ui, &p, ButtonKind::Primary, None, tr("Seleccionar"), can).clicked() {
-                        if let (Some(c), Ok(mut out)) = (self.picker.selected.and_then(|i| self.picker.certs.get(i)), self.out.lock()) {
+                        if let (Some(c), Ok(mut out)) = (
+                            self.picker.selected.and_then(|i| self.picker.certs.get(i)),
+                            self.out.lock(),
+                        ) {
                             *out = Some(c.alias.clone());
                         }
                         close = true;

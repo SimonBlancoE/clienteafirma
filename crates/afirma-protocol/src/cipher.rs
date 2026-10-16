@@ -29,8 +29,14 @@ pub enum CipherError {
 /// Cifrador acordado con la página.
 #[derive(Clone, PartialEq, Eq)]
 pub enum ServerCipher {
-    Des { key: Vec<u8> },
-    Aes { key: Vec<u8>, iv: Vec<u8>, legacy_des: Vec<u8> },
+    Des {
+        key: Vec<u8>,
+    },
+    Aes {
+        key: Vec<u8>,
+        iv: Vec<u8>,
+        legacy_des: Vec<u8>,
+    },
 }
 
 impl std::fmt::Debug for ServerCipher {
@@ -67,19 +73,24 @@ impl ServerCipher {
         let get_string = |k: &str| -> Result<String, CipherError> {
             match obj.get(k) {
                 Some(JsonValue::Str(s)) => Ok(s.clone()),
-                Some(_) => Err(CipherError::InvalidConfig(format!("JSONObject[\"{k}\"] is not a string"))),
+                Some(_) => Err(CipherError::InvalidConfig(format!(
+                    "JSONObject[\"{k}\"] is not a string"
+                ))),
                 None => Err(CipherError::InvalidConfig(format!("JSONObject[\"{k}\"] not found"))),
             }
         };
         let algo = get_string("algo")?;
         match algo.as_str() {
             "AES" => {
-                let key = jbase64::decode(&get_string("key")?).map_err(|e| CipherError::InvalidConfig(e.to_string()))?;
+                let key =
+                    jbase64::decode(&get_string("key")?).map_err(|e| CipherError::InvalidConfig(e.to_string()))?;
                 let iv = jbase64::decode(&get_string("iv")?).map_err(|e| CipherError::InvalidConfig(e.to_string()))?;
                 let legacy_des = get_string("legacydes")?.into_bytes();
                 Ok(Some(ServerCipher::Aes { key, iv, legacy_des }))
             }
-            "DES" => Ok(Some(ServerCipher::Des { key: get_string("key")?.into_bytes() })),
+            "DES" => Ok(Some(ServerCipher::Des {
+                key: get_string("key")?.into_bytes(),
+            })),
             _ => Ok(None),
         }
     }
@@ -138,7 +149,9 @@ fn des_decipher(key: &[u8], text: &str) -> Result<Vec<u8>, CipherError> {
     let crypto = |e: String| CipherError::Crypto(e);
     let chars: Vec<char> = text.chars().collect();
     let (padding, b64) = if chars.len() > 2 && chars[1] == '.' {
-        let d = chars[0].to_digit(10).ok_or_else(|| crypto(format!("relleno no válido: {}", chars[0])))? as usize;
+        let d = chars[0]
+            .to_digit(10)
+            .ok_or_else(|| crypto(format!("relleno no válido: {}", chars[0])))? as usize;
         (d, chars[2..].iter().collect::<String>())
     } else {
         (0, text.to_string())
@@ -223,7 +236,9 @@ pub fn aes_cbc_decrypt(key: &[u8], iv: &[u8], data: &[u8]) -> Result<Vec<u8>, Ci
     let aes = AesKey::new(key)?;
     check_iv(iv)?;
     if data.is_empty() || !data.len().is_multiple_of(16) {
-        return Err(CipherError::Crypto("Input length must be multiple of 16 when decrypting with padded cipher".into()));
+        return Err(CipherError::Crypto(
+            "Input length must be multiple of 16 when decrypting with padded cipher".into(),
+        ));
     }
     let mut buf = data.to_vec();
     let mut prev = [0u8; 16];
@@ -281,12 +296,19 @@ mod tests {
         // Respaldo DES con la clave heredada.
         assert_eq!(c.decipher("5.KNugLrX23UdgQtrr-lloeg==").unwrap(), b"hello world");
         // Sin legacydes AES no se puede instanciar.
-        assert!(matches!(ServerCipher::from_config(&json), Err(CipherError::InvalidConfig(_))));
+        assert!(matches!(
+            ServerCipher::from_config(&json),
+            Err(CipherError::InvalidConfig(_))
+        ));
     }
 
     #[test]
     fn factory_rules() {
-        assert!(ServerCipher::from_config(b"{algo:\"RC4\", key:\"x\"}").unwrap().is_none());
+        assert!(
+            ServerCipher::from_config(b"{algo:\"RC4\", key:\"x\"}")
+                .unwrap()
+                .is_none()
+        );
         assert!(ServerCipher::from_config(b"{key:\"x\"}").is_err());
         assert!(ServerCipher::from_config(b"no json").is_err());
         assert!(ServerCipher::from_config(b"{algo:DES}").is_err()); // falta key

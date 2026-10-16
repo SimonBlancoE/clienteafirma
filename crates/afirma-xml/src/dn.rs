@@ -112,12 +112,7 @@ fn value_der(v: &Any<'_>) -> Vec<u8> {
     if len < 0x80 {
         out.push(len as u8);
     } else {
-        let lb: Vec<u8> = len
-            .to_be_bytes()
-            .iter()
-            .copied()
-            .skip_while(|&b| b == 0)
-            .collect();
+        let lb: Vec<u8> = len.to_be_bytes().iter().copied().skip_while(|&b| b == 0).collect();
         out.push(0x80 | lb.len() as u8);
         out.extend(lb);
     }
@@ -162,9 +157,7 @@ fn keyword_value(kw: &str, v: &Any<'_>) -> String {
                     continue;
                 }
                 if is_printable_string_char(c) || ESCAPEES.contains(c) {
-                    if !quote_needed
-                        && ((i == 0 && (c == ' ' || c == '\n')) || ESCAPEES.contains(c))
-                    {
+                    if !quote_needed && ((i == 0 && (c == ' ' || c == '\n')) || ESCAPEES.contains(c)) {
                         quote_needed = true;
                     }
                     if !(c == ' ' || c == '\n') {
@@ -206,12 +199,7 @@ fn rfc2253_value(kw: &str, v: &Any<'_>) -> String {
     out.push('=');
     let is_der_string = matches!(
         v.tag(),
-        Tag::PrintableString
-            | Tag::T61String
-            | Tag::Ia5String
-            | Tag::GeneralString
-            | Tag::BmpString
-            | Tag::Utf8String
+        Tag::PrintableString | Tag::T61String | Tag::Ia5String | Tag::GeneralString | Tag::BmpString | Tag::Utf8String
     );
     if kw.starts_with(|c: char| c.is_ascii_digit()) || !is_der_string {
         out.push('#');
@@ -233,10 +221,7 @@ fn rfc2253_value(kw: &str, v: &Any<'_>) -> String {
             sb.push(c);
         }
     }
-    let lead = sb
-        .iter()
-        .position(|&c| c != ' ' && c != '\r')
-        .unwrap_or(sb.len());
+    let lead = sb.iter().position(|&c| c != ' ' && c != '\r').unwrap_or(sb.len());
     let trail = sb
         .iter()
         .rposition(|&c| c != ' ' && c != '\r')
@@ -300,11 +285,7 @@ fn rdn_escape_value(val: &str) -> String {
     let chars: Vec<char> = val.chars().collect();
     let is_ws = |c: char| c == ' ' || c == '\r';
     let lead = chars.iter().position(|&c| !is_ws(c)).unwrap_or(chars.len());
-    let trail = chars
-        .iter()
-        .rposition(|&c| !is_ws(c))
-        .map(|t| t as isize)
-        .unwrap_or(-1);
+    let trail = chars.iter().rposition(|&c| !is_ws(c)).map(|t| t as isize).unwrap_or(-1);
     let mut out = String::new();
     for (i, &c) in chars.iter().enumerate() {
         if i < lead || (i as isize) > trail || ESCAPEES.contains(c) {
@@ -427,16 +408,11 @@ mod tests {
         let der = afirma_core::cert::decode_certificate(&pem).unwrap();
         let n = CertNames::from_der(&der).unwrap();
         assert!(
-            n.issuer_java
-                .starts_with("CN=AC Raiz de Pruebas AutoFirma-rs"),
+            n.issuer_java.starts_with("CN=AC Raiz de Pruebas AutoFirma-rs"),
             "{}",
             n.issuer_java
         );
-        assert!(
-            n.subject_ldap.contains("ESPA\\C3\\91OL"),
-            "{}",
-            n.subject_ldap
-        );
+        assert!(n.subject_ldap.contains("ESPA\\C3\\91OL"), "{}", n.subject_ldap);
         assert!(!n.serial_decimal.is_empty());
     }
 }

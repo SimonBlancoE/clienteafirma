@@ -58,11 +58,7 @@ impl Oid {
 
     /// Representación con puntos (`1.2.840.113549.1.7.2`).
     pub fn to_dotted(&self) -> String {
-        self.arcs()
-            .iter()
-            .map(u64::to_string)
-            .collect::<Vec<_>>()
-            .join(".")
+        self.arcs().iter().map(u64::to_string).collect::<Vec<_>>().join(".")
     }
 
     /// Compara con una representación con puntos.

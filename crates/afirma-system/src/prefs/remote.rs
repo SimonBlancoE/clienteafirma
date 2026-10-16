@@ -84,10 +84,7 @@ fn is_https(p: &str) -> bool {
 }
 
 /// Lee el fichero de configuración de una ruta local o URL `https://`.
-pub fn read_config_source(
-    path: &str,
-    fetcher: &dyn Fetcher,
-) -> std::result::Result<Vec<u8>, ConfigError> {
+pub fn read_config_source(path: &str, fetcher: &dyn Fetcher) -> std::result::Result<Vec<u8>, ConfigError> {
     let p = normalize_config_path(path);
     if is_https(&p) {
         return fetcher
@@ -98,15 +95,12 @@ pub fn read_config_source(
         return Err(ConfigError::new(codes::CANT_READ_PREFERENCES_FILE)
             .with_detail("las URL http:// no están permitidas; use https://"));
     }
-    let meta = std::fs::metadata(&p).map_err(|e| {
-        ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e.to_string())
-    })?;
+    let meta = std::fs::metadata(&p)
+        .map_err(|e| ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e.to_string()))?;
     if meta.len() > afconfig::MAX_AFCONFIG_SIZE as u64 {
-        return Err(ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE)
-            .with_detail("fichero demasiado grande"));
+        return Err(ConfigError::new(codes::INVALID_FORMAT_PREFERENCES_FILE).with_detail("fichero demasiado grande"));
     }
-    std::fs::read(&p)
-        .map_err(|e| ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e.to_string()))
+    std::fs::read(&p).map_err(|e| ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e.to_string()))
 }
 
 /// Huella SHA-256 en hexadecimal en mayúsculas (`ConfigDataInfo`).
@@ -263,9 +257,9 @@ pub fn run_update_check(
     }
     let url = prefs.get(keys::CONFIG_FILE_URL.name()).unwrap_or_default();
     // Error de descarga: se registra y no se actualiza la fecha (como Java).
-    let data = fetcher.fetch(&url).map_err(|e| {
-        SystemError::Config(ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e))
-    })?;
+    let data = fetcher
+        .fetch(&url)
+        .map_err(|e| SystemError::Config(ConfigError::new(codes::CANT_READ_PREFERENCES_FILE).with_detail(e)))?;
     let hash = config_hash(&data);
     if prefs.get(keys::CONFIG_FILE_SHA256.name()).as_deref() == Some(hash.as_str()) {
         let mut w = SystemPrefsWriter::open(ctx)?;
@@ -292,8 +286,7 @@ mod tests {
     }
 
     const CFG1: &str = "<plist><dict><key>signatureHashAlgorithm</key><string>SHA512</string><key>preferencesBlocked</key><true/></dict></plist>";
-    const CFG2: &str =
-        "<plist><dict><key>signatureHashAlgorithm</key><string>SHA384</string></dict></plist>";
+    const CFG2: &str = "<plist><dict><key>signatureHashAlgorithm</key><string>SHA384</string></dict></plist>";
 
     #[test]
     fn normaliza_rutas_msi() {
@@ -301,10 +294,7 @@ mod tests {
             normalize_config_path(r"https:\\intranet.example\autofirma.afconfig"),
             "https://intranet.example/autofirma.afconfig"
         );
-        assert_eq!(
-            normalize_config_path(r"C:\cfg\a.afconfig"),
-            r"C:\cfg\a.afconfig"
-        );
+        assert_eq!(normalize_config_path(r"C:\cfg\a.afconfig"), r"C:\cfg\a.afconfig");
         let f = MapFetcher(Default::default());
         assert!(read_config_source("http://x/y", &f).is_err());
     }
@@ -317,8 +307,7 @@ mod tests {
         let mut m = std::collections::BTreeMap::new();
         m.insert(url.to_string(), CFG1.as_bytes().to_vec());
         let f = MapFetcher(m);
-        let rep = install_system_config(&ctx, r"https:\\intra.example\af.afconfig", true, &f, None)
-            .unwrap();
+        let rep = install_system_config(&ctx, r"https:\\intra.example\af.afconfig", true, &f, None).unwrap();
         assert!(rep.updates_enabled);
         assert_eq!(rep.sha256, config_hash(CFG1.as_bytes()));
         let p = Preferences::load(&ctx, ResolutionMode::Strict).unwrap();
@@ -344,10 +333,7 @@ mod tests {
         );
         let p = Preferences::load(&ctx, ResolutionMode::Strict).unwrap();
         assert_eq!(
-            p.system_layer()
-                .main
-                .get("signatureHashAlgorithm")
-                .map(String::as_str),
+            p.system_layer().main.get("signatureHashAlgorithm").map(String::as_str),
             Some("SHA384")
         );
         assert!(!p.is_blocked());
@@ -357,21 +343,10 @@ mod tests {
     #[test]
     fn fecha_heredada_del_futuro_se_considera_caducada() {
         let mut layer = crate::prefs::SystemLayer::default();
-        layer
-            .internal
-            .insert("allowUpdateConfig".into(), "true".into());
-        layer
-            .internal
-            .insert("configFileUrl".into(), "https://x/y".into());
-        layer
-            .internal
-            .insert("configDate".into(), "20271231".into());
-        let p = Preferences::from_layers(
-            ResolutionMode::Strict,
-            Default::default(),
-            layer,
-            Default::default(),
-        );
+        layer.internal.insert("allowUpdateConfig".into(), "true".into());
+        layer.internal.insert("configFileUrl".into(), "https://x/y".into());
+        layer.internal.insert("configDate".into(), "20271231".into());
+        let p = Preferences::from_layers(ResolutionMode::Strict, Default::default(), layer, Default::default());
         let d = chrono::NaiveDate::from_ymd_opt(2026, 12, 30).unwrap();
         assert!(needs_update_check(&p, d));
     }

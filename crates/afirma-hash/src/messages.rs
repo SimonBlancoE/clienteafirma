@@ -7,10 +7,7 @@
 /// Obtiene un texto por su clave (cadena vacía si no existe; Java mostraría
 /// `!clave!`, que se obtiene con [`get_or_key`]).
 pub fn get(key: &str) -> &'static str {
-    MESSAGES
-        .iter()
-        .find(|(k, _)| *k == key)
-        .map_or("", |(_, v)| v)
+    MESSAGES.iter().find(|(k, _)| *k == key).map_or("", |(_, v)| v)
 }
 
 /// Obtiene un texto por su clave o `!clave!` si no existe.
@@ -43,24 +40,15 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "No ha sido posible comprobar las huellas digitales",
     ),
     ("CheckHashDialog.7", "Error"),
-    (
-        "CheckHashDialog.8",
-        "Fichero que contiene la huella digital",
-    ),
+    ("CheckHashDialog.8", "Fichero que contiene la huella digital"),
     ("CheckHashDialog.9", "Examinar"),
     ("CheckHashDialog.10", "Seleccionar huella digital"),
     ("CheckHashDialog.11", "Fichero de datos"),
     ("CheckHashDialog.12", "Examinar"),
     ("CheckHashDialog.13", "Seleccionar fichero de datos"),
-    (
-        "CheckHashDialog.14",
-        "Huellas digitales (*.hash, *.hashb64, *.hexhash)",
-    ),
+    ("CheckHashDialog.14", "Huellas digitales (*.hash, *.hashb64, *.hexhash)"),
     ("CheckHashDialog.15", "Cancelar"),
-    (
-        "CheckHashDialog.16",
-        "Pulse este botón para cerrar el diálogo actual",
-    ),
+    ("CheckHashDialog.16", "Pulse este botón para cerrar el diálogo actual"),
     (
         "CheckHashDialog.17",
         "El fichero de huellas seleccionado no esta soportado.",
@@ -105,10 +93,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
     ("CheckHashFiles.19", "Fichero de huella digitales"),
     ("CheckHashFiles.21", "Comprobando huellas digitales"),
     ("CheckHashFiles.22", "Comprobando"),
-    (
-        "CheckHashFiles.23",
-        "No se tienen permisos para leer el fichero",
-    ),
+    ("CheckHashFiles.23", "No se tienen permisos para leer el fichero"),
     (
         "CheckHashFiles.24",
         "Seleccione el directorio de ficheros de los que comprobar la huella",
@@ -122,32 +107,17 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.3",
         "No hay permisos de escritura en el directorio especificado para el fichero de salida: %0",
     ),
-    (
-        "CommandLine.5",
-        "No se ha especificado un fichero de entrada",
-    ),
-    (
-        "CommandLine.6",
-        "No se ha especificado un fichero de huellas",
-    ),
+    ("CommandLine.5", "No se ha especificado un fichero de entrada"),
+    ("CommandLine.6", "No se ha especificado un fichero de huellas"),
     ("CommandLine.7", "Sintaxis"),
-    (
-        "CommandLine.21",
-        "No se ha podido escribir en el fichero de salida: %0",
-    ),
+    ("CommandLine.21", "No se ha podido escribir en el fichero de salida: %0"),
     ("CommandLine.22", "La operacion ha terminado correctamente "),
     ("CommandLine.25", "No se reconoce el parametro %0"),
     ("CommandLine.26", "Parametro duplicado: %0"),
-    (
-        "CommandLine.67",
-        "Ruta del fichero de entrada con la huella digital",
-    ),
+    ("CommandLine.67", "Ruta del fichero de entrada con la huella digital"),
     ("CommandLine.74", "No se ha indicado fichero de entrada"),
     ("CommandLine.75", "No se ha indicado fichero de salida"),
-    (
-        "CommandLine.77",
-        "Algoritmo de huella digital. Por defecto: SHA-256",
-    ),
+    ("CommandLine.77", "Algoritmo de huella digital. Por defecto: SHA-256"),
     (
         "CommandLine.78",
         "Formato de salida cuando se indica por parametro el fichero",
@@ -169,10 +139,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.88",
         "No se tienen permisos de lectura sobre el fichero o el directorio de entrada: %0",
     ),
-    (
-        "CommandLine.89",
-        "Formato de salida de huella digital no soportado: %0",
-    ),
+    ("CommandLine.89", "Formato de salida de huella digital no soportado: %0"),
     (
         "CommandLine.90",
         "No se ha indicado un formato de salida de huella digital de directorios valido: %0",
@@ -181,31 +148,16 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.91",
         "No se ha indicado un formato de salida de huella digital de fichero valido: %0",
     ),
-    (
-        "CommandLine.92",
-        "Procesar los ficheros de los subdirectorios",
-    ),
-    (
-        "CommandLine.93",
-        "Error al generar el documento de huella digital",
-    ),
-    (
-        "CommandLine.94",
-        "Error durante el calculo de huellas digitales",
-    ),
+    ("CommandLine.92", "Procesar los ficheros de los subdirectorios"),
+    ("CommandLine.93", "Error al generar el documento de huella digital"),
+    ("CommandLine.94", "Error durante el calculo de huellas digitales"),
     ("CommandLine.95", "Realiza la operacion con entorno grafico"),
-    (
-        "CommandLine.96",
-        "Ruta del fichero de salida con las huellas digitales",
-    ),
+    ("CommandLine.96", "Ruta del fichero de salida con las huellas digitales"),
     (
         "CommandLine.97",
         "Ruta del fichero de salida con el informe de validacion",
     ),
-    (
-        "CommandLine.98",
-        "No se encuentra el fichero de huellas: %0",
-    ),
+    ("CommandLine.98", "No se encuentra el fichero de huellas: %0"),
     (
         "CommandLine.99",
         "No se tienen permisos de lectura sobre el fichero de huellas: %0",
@@ -214,14 +166,8 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.100",
         "Realiza la operacion con entorno grafico. Obligatorio si no se indica fichero/directorio",
     ),
-    (
-        "CommandLine.101",
-        "Error en la lectura del documento de huellas",
-    ),
-    (
-        "CommandLine.102",
-        "No se ha podido cargar el documento de huellas",
-    ),
+    ("CommandLine.101", "Error en la lectura del documento de huellas"),
+    ("CommandLine.102", "No se ha podido cargar el documento de huellas"),
     ("CommandLine.103", "El documento de huellas no es valido"),
     (
         "CommandLine.104",
@@ -239,10 +185,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.107",
         "Ruta del directorio del que comprobar las huellas digitales",
     ),
-    (
-        "CommandLine.108",
-        "Comprueba la huella digital de un fichero",
-    ),
+    ("CommandLine.108", "Comprueba la huella digital de un fichero"),
     (
         "CommandLine.109",
         "Comprueba las huellas digitales de los ficheros de un directorio",
@@ -252,10 +195,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CommandLine.111",
         "Calcula la huella digital de los ficheros de un directorio",
     ),
-    (
-        "CommandLine.112",
-        "Ruta del fichero del que calcular la huella digital",
-    ),
+    ("CommandLine.112", "Ruta del fichero del que calcular la huella digital"),
     (
         "CommandLine.113",
         "Ruta del directorio del que calcular las huellas digitales",
@@ -263,22 +203,13 @@ pub const MESSAGES: &[(&str, &str)] = &[
     ("CommandLine.114", "Parametros"),
     ("CommandLine.116", "Opciones de fichero"),
     ("CommandLine.117", "Opciones de directorio"),
-    (
-        "CommandLine.118",
-        "Ruta del fichero de salida con la huella digital",
-    ),
+    ("CommandLine.118", "Ruta del fichero de salida con la huella digital"),
     (
         "CommandLine.119",
         "La generacion de la huella en binario requiere que se indique fichero de salida",
     ),
-    (
-        "CommandLine.120",
-        "No se ha indicado ningun fichero o directorio",
-    ),
-    (
-        "CommandLine.121",
-        "El fichero o directorio indicado no existe: %0",
-    ),
+    ("CommandLine.120", "No se ha indicado ningun fichero o directorio"),
+    ("CommandLine.121", "El fichero o directorio indicado no existe: %0"),
     (
         "CommandLine.122",
         "No hay permisos de lectura sobre el fichero o directorio indicado: %0",
@@ -292,15 +223,9 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "Las huellas indicadas no se corresponden con las del archivo de entrada",
     ),
     ("CreateHashDialog.0", "Formato de la huella digital"),
-    (
-        "CreateHashDialog.1",
-        "Diálogo para la creación de huellas digitales",
-    ),
+    ("CreateHashDialog.1", "Diálogo para la creación de huellas digitales"),
     ("CreateHashDialog.2", "Algoritmo de huella digital"),
-    (
-        "CreateHashDialog.3",
-        "Fichero sobre el que calcular la huella digital",
-    ),
+    ("CreateHashDialog.3", "Fichero sobre el que calcular la huella digital"),
     ("CreateHashDialog.4", "Generar"),
     ("CreateHashDialog.5", "Examinar"),
     (
@@ -318,25 +243,16 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CreateHashDialog.12",
         "Pulse este botón para seleccionar el fichero sobre el que calcular la huella digital",
     ),
-    (
-        "CreateHashDialog.13",
-        "No ha podido generarse la huella digital.",
-    ),
+    ("CreateHashDialog.13", "No ha podido generarse la huella digital."),
     ("CreateHashDialog.14", "Error"),
     ("CreateHashDialog.15", "Creación de huella digital"),
     ("CreateHashDialog.16", "Cancelar"),
-    (
-        "CreateHashDialog.17",
-        "Pulse este botón para cerrar el di&aacute;logo",
-    ),
+    ("CreateHashDialog.17", "Pulse este botón para cerrar el di&aacute;logo"),
     (
         "CreateHashDialog.18",
         "El fichero es demasiado grande, no se puede generar la huella digital.",
     ),
-    (
-        "CreateHashDialog.19",
-        "Copiar huella digital al portapapeles",
-    ),
+    ("CreateHashDialog.19", "Copiar huella digital al portapapeles"),
     ("CreateHashDialog.21", "Hexadecimal en ASCII (Base16)"),
     ("CreateHashDialog.22", "Base64"),
     ("CreateHashDialog.23", "Binario"),
@@ -347,10 +263,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "CreateHashDialog.27",
         "No se ha podido guardar la huella digital del fichero.",
     ),
-    (
-        "CreateHashFiles.0",
-        "Creación de huella digital de directorios",
-    ),
+    ("CreateHashFiles.0", "Creación de huella digital de directorios"),
     (
         "CreateHashFiles.1",
         "Diálogo para la creación de huellas digitales de directorios",
@@ -369,39 +282,24 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "Directorio sobre el que calcular las huellas digitales",
     ),
     ("CreateHashFiles.16", "Recursivo"),
-    (
-        "CreateHashFiles.18",
-        "<html>Generando huellas digitales</html>",
-    ),
+    ("CreateHashFiles.18", "<html>Generando huellas digitales</html>"),
     ("CreateHashFiles.19", "Guardar huellas digitales"),
     ("CreateHashFiles.20", "Generando"),
-    (
-        "CreateHashFiles.21",
-        "<html>Comprobando huellas digitales</html>",
-    ),
+    ("CreateHashFiles.21", "<html>Comprobando huellas digitales</html>"),
     ("CreateHashFiles.22", "Comporbando"),
     (
         "HashHelper.0",
         "No se ha indicado ningún fichero o directorio para el cálculo de huellas",
     ),
     ("HashHelper.1", "Error"),
-    (
-        "HashHelper.2",
-        "No se puede encontrar el fichero o directorio indicado",
-    ),
+    ("HashHelper.2", "No se puede encontrar el fichero o directorio indicado"),
     (
         "HashHelper.3",
         "No se tienen permisos de lectura sobre el fichero o directorio indicado",
     ),
-    (
-        "HashHelper.4",
-        "No se ha indicado el fichero o directorio de entrada",
-    ),
+    ("HashHelper.4", "No se ha indicado el fichero o directorio de entrada"),
     ("HashHelper.5", "El fichero o directorio indicado no existe"),
-    (
-        "HashHelper.6",
-        "No se ha podido leer el fichero de entrada indicado",
-    ),
+    ("HashHelper.6", "No se ha podido leer el fichero de entrada indicado"),
     ("HashHelper.7", "Seleccione el fichero de huella digital"),
     (
         "HashHelper.8",
@@ -411,10 +309,7 @@ pub const MESSAGES: &[(&str, &str)] = &[
         "HashHelper.9",
         "<html>Error comprobando las huellas digitales.<br>Aseg&uacute;rese de que el fichero seleccionado es realmente un informe de huellas digitales.</html>",
     ),
-    (
-        "HashHelper.10",
-        "Seleccione el fichero de huellas digitales",
-    ),
+    ("HashHelper.10", "Seleccione el fichero de huellas digitales"),
     ("HashHelper.11", "Las huellas digitales coinciden"),
     ("HashHelper.12", "Huellas coincidentes"),
     ("HashHelper.13", "Las huellas digitales no coinciden"),
@@ -435,10 +330,7 @@ mod tests {
 
     #[test]
     fn textos() {
-        assert_eq!(
-            get("CommandLine.22"),
-            "La operacion ha terminado correctamente "
-        );
+        assert_eq!(get("CommandLine.22"), "La operacion ha terminado correctamente ");
         assert_eq!(get("CheckHashDialog.0"), "Comprobar huella digital");
         assert_eq!(get("CreateHashDialog.15"), "Creación de huella digital");
         assert_eq!(format("CommandLine.26", &["-o"]), "Parametro duplicado: -o");

@@ -38,12 +38,19 @@ fn hex_val(b: u8) -> Option<u8> {
 /// Valor de `Integer.parseInt(s, i+1, i+3, 16)` sobre dos caracteres
 /// (admite signo, como Java).
 fn parse_escape(a: u8, b: u8) -> Result<u8, MalformedEscape> {
-    let illegal = || MalformedEscape(format!("Illegal hex characters in escape (%) pattern - {}{}", a as char, b as char));
+    let illegal = || {
+        MalformedEscape(format!(
+            "Illegal hex characters in escape (%) pattern - {}{}",
+            a as char, b as char
+        ))
+    };
     match a {
         b'+' => hex_val(b).ok_or_else(illegal),
         b'-' => match hex_val(b) {
             Some(0) => Ok(0),
-            Some(_) => Err(MalformedEscape("Illegal hex characters in escape (%) pattern - negative value".into())),
+            Some(_) => Err(MalformedEscape(
+                "Illegal hex characters in escape (%) pattern - negative value".into(),
+            )),
             None => Err(illegal()),
         },
         _ => match (hex_val(a), hex_val(b)) {
@@ -135,7 +142,9 @@ impl Params {
     /// Construye los parámetros a partir de pares clave/valor sin decodificar
     /// (sobres XML/JSON del servidor intermedio).
     pub fn from_raw_pairs<I: IntoIterator<Item = (String, String)>>(pairs: I) -> Params {
-        Params { raw: pairs.into_iter().collect() }
+        Params {
+            raw: pairs.into_iter().collect(),
+        }
     }
 
     pub fn contains(&self, key: &str) -> bool {
@@ -269,7 +278,10 @@ mod tests {
     #[test]
     fn storage_payload_encoding() {
         assert_eq!(encode_storage_payload("MIIB-_|0.ab=="), "MIIB-_|0.ab==");
-        assert_eq!(encode_storage_payload("err-00:=AF1 - a+b&c%ñ"), "err-00:=AF1 - a%2Bb%26c%25%C3%B1");
+        assert_eq!(
+            encode_storage_payload("err-00:=AF1 - a+b&c%ñ"),
+            "err-00:=AF1 - a%2Bb%26c%25%C3%B1"
+        );
         assert_eq!(url_decode(&encode_storage_payload("x+y ñ%")).unwrap(), "x+y ñ%");
     }
 }

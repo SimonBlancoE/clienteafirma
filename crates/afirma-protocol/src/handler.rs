@@ -313,13 +313,24 @@ pub trait LocalSigner: Send + Sync {
     /// Validación previa de las firmas existentes (`checkSignatures=true`).
     /// Debe devolver error (con su código o 500002) si no son válidas; en
     /// `sign`, la ausencia de firmas no es un error.
-    fn check_signatures(&self, _operation: CryptoOperation, _format: &str, _data: &[u8], _extra: &ExtraParams) -> Result<(), AfirmaError> {
+    fn check_signatures(
+        &self,
+        _operation: CryptoOperation,
+        _format: &str,
+        _data: &[u8],
+        _extra: &ExtraParams,
+    ) -> Result<(), AfirmaError> {
         Ok(())
     }
 
     /// `ExtraParamsProcessor.expandProperties` (políticas `expPolicy`);
     /// error 501008 si son incompatibles.
-    fn expand_extra_params(&self, extra: &ExtraParams, _data: Option<&[u8]>, _format: &str) -> Result<ExtraParams, AfirmaError> {
+    fn expand_extra_params(
+        &self,
+        extra: &ExtraParams,
+        _data: Option<&[u8]>,
+        _format: &str,
+    ) -> Result<ExtraParams, AfirmaError> {
         Ok(extra.clone())
     }
 

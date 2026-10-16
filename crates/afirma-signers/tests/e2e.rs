@@ -49,21 +49,39 @@ fn sign_cosign_countersign_all_formats() {
         let signer = afirma_signers::signer_for_format(format).unwrap_or_else(|| panic!("sin firmador {format}"));
         for (kname, k) in [("rsa", &rsa), ("ec", &ec)] {
             let label = format!("{format}/{kname}");
-            let signed = signer.sign(data, "SHA256withRSA", k.as_ref(), &empty).unwrap_or_else(|e| panic!("{label}: {e}"));
+            let signed = signer
+                .sign(data, "SHA256withRSA", k.as_ref(), &empty)
+                .unwrap_or_else(|e| panic!("{label}: {e}"));
             check(&label, &signed);
-            let tree = signer.signers_structure(&signed, &empty).unwrap_or_else(|e| panic!("{label}: {e}"));
+            let tree = signer
+                .signers_structure(&signed, &empty)
+                .unwrap_or_else(|e| panic!("{label}: {e}"));
             assert_eq!(tree.signers.len(), 1, "{label}");
             let multi_ok = !matches!(format, "PAdES" | "Adobe PDF" | "ODF" | "OOXML") && !format.contains("ASiC");
             if multi_ok {
-                let co = signer.cosign(Some(data), &signed, "SHA512withRSA", ec.as_ref(), &empty).unwrap_or_else(|e| panic!("{label} cofirma: {e}"));
-                assert_eq!(signer.signers_structure(&co, &empty).unwrap().signers.len(), 2, "{label} cofirma");
-                let cs = signer.countersign(&co, "SHA256", &CounterSignTarget::Leafs, rsa.as_ref(), &empty).unwrap_or_else(|e| panic!("{label} contrafirma: {e}"));
+                let co = signer
+                    .cosign(Some(data), &signed, "SHA512withRSA", ec.as_ref(), &empty)
+                    .unwrap_or_else(|e| panic!("{label} cofirma: {e}"));
+                assert_eq!(
+                    signer.signers_structure(&co, &empty).unwrap().signers.len(),
+                    2,
+                    "{label} cofirma"
+                );
+                let cs = signer
+                    .countersign(&co, "SHA256", &CounterSignTarget::Leafs, rsa.as_ref(), &empty)
+                    .unwrap_or_else(|e| panic!("{label} contrafirma: {e}"));
                 let t = signer.signers_structure(&cs, &empty).unwrap();
                 assert_eq!(t.preorder().len(), 4, "{label} contrafirma");
             }
             if matches!(format, "PAdES" | "ODF" | "OOXML") {
-                let co = signer.cosign(None, &signed, "SHA256", ec.as_ref(), &empty).unwrap_or_else(|e| panic!("{label} cofirma: {e}"));
-                assert_eq!(signer.signers_structure(&co, &empty).unwrap().signers.len(), 2, "{label} cofirma");
+                let co = signer
+                    .cosign(None, &signed, "SHA256", ec.as_ref(), &empty)
+                    .unwrap_or_else(|e| panic!("{label} cofirma: {e}"));
+                assert_eq!(
+                    signer.signers_structure(&co, &empty).unwrap().signers.len(),
+                    2,
+                    "{label} cofirma"
+                );
                 check(&format!("{label} cofirma"), &co);
             }
         }

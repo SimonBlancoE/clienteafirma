@@ -66,9 +66,7 @@ pub mod mock {
                 der::integer_i64(1),
                 der::oid_str(DEFAULT_TSA_POLICY),
                 imprint,
-                der::integer_i64(
-                    chrono::Utc::now().timestamp_nanos_opt().unwrap_or(1) & 0x7fff_ffff,
-                ),
+                der::integer_i64(chrono::Utc::now().timestamp_nanos_opt().unwrap_or(1) & 0x7fff_ffff),
                 der::generalized_time(&self.time, false),
             ];
             if let Some(n) = nonce {
@@ -118,10 +116,7 @@ pub mod mock {
                 der::implicit_content(0, true, &self.cert),
                 der::set_of([si]),
             ]);
-            let token = der::sequence([
-                der::oid_str(crate::cms::OID_SIGNED_DATA),
-                der::explicit(0, &sd),
-            ]);
+            let token = der::sequence([der::oid_str(crate::cms::OID_SIGNED_DATA), der::explicit(0, &sd)]);
             Ok(der::sequence([der::sequence([der::integer_i64(0)]), token]))
         }
     }

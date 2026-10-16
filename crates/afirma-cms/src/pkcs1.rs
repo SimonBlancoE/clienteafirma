@@ -18,17 +18,16 @@ pub fn sign(
 ) -> afirma_core::Result<Vec<u8>> {
     let signature = key.sign(data, alg).map_err(AfirmaError::from)?;
     match signer_cert {
-        Some(cert) => {
-            match verify_with_certificate(cert, alg, data, &signature) {
-                Ok(true) => Ok(signature),
-                Ok(false) => Err(AfirmaError::new(
-                    codes::INVALID_PKCS1_VALUE,
-                    "El PKCS#1 de firma obtenido no se genero con el certificado indicado",
-                )),
-                Err(e) => Err(AfirmaError::new(codes::VERIFING_PKCS1_ERROR, "No se pudo verificar la firma generada")
-                    .with_cause(e)),
-            }
-        }
+        Some(cert) => match verify_with_certificate(cert, alg, data, &signature) {
+            Ok(true) => Ok(signature),
+            Ok(false) => Err(AfirmaError::new(
+                codes::INVALID_PKCS1_VALUE,
+                "El PKCS#1 de firma obtenido no se genero con el certificado indicado",
+            )),
+            Err(e) => Err(
+                AfirmaError::new(codes::VERIFING_PKCS1_ERROR, "No se pudo verificar la firma generada").with_cause(e),
+            ),
+        },
         None => {
             tracing::warn!("No se ha proporcionado el certificado de firma, no se verificara el PKCS#1 generado");
             Ok(signature)

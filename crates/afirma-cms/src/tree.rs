@@ -29,9 +29,13 @@ fn bad(msg: impl Into<String>) -> AfirmaError {
 
 /// Información de un firmante para el árbol.
 pub fn simple_sign_info(sd: &SignedData<'_>, si: &SignerInfo<'_>) -> afirma_core::Result<SimpleSignInfo> {
-    let (_, serial) =
-        si.issuer_and_serial().ok_or_else(|| bad("El identificador del firmante no es IssuerAndSerialNumber"))?;
-    let certs = sd.find_certificate_by_serial(serial).map(|c| vec![c.to_vec()]).unwrap_or_default();
+    let (_, serial) = si
+        .issuer_and_serial()
+        .ok_or_else(|| bad("El identificador del firmante no es IssuerAndSerialNumber"))?;
+    let certs = sd
+        .find_certificate_by_serial(serial)
+        .map(|c| vec![c.to_vec()])
+        .unwrap_or_default();
     Ok(SimpleSignInfo {
         certs,
         signing_time: si.signing_time(),
@@ -66,9 +70,13 @@ fn node(sd: &SignedData<'_>, si: &SignerInfo<'_>) -> afirma_core::Result<SignerN
 /// firma aparecen sin certificados (nombre vacío).
 pub fn read_signers_tree(sign: &[u8]) -> afirma_core::Result<SignersTree> {
     let (_, content, ci) = parse_content_info(sign).map_err(|e| bad(e.to_string()))?;
-    let Some(content) = content else { return Ok(SignersTree::default()) };
+    let Some(content) = content else {
+        return Ok(SignersTree::default());
+    };
     // Si el SignedData no se puede leer, AutoFirma devuelve un árbol vacío.
-    let Ok(sd) = SignedData::parse_signed_data(ci, content) else { return Ok(SignersTree::default()) };
+    let Ok(sd) = SignedData::parse_signed_data(ci, content) else {
+        return Ok(SignersTree::default());
+    };
     let mut signers = Vec::new();
     for si in &sd.signer_infos {
         signers.push(node(&sd, si)?);

@@ -23,16 +23,26 @@ pub struct StoreSpec {
 
 impl StoreSpec {
     pub fn new(kind: KeyStoreKind) -> Self {
-        StoreSpec { kind, lib: None, card_name: None }
+        StoreSpec {
+            kind,
+            lib: None,
+            card_name: None,
+        }
     }
 
     pub fn with_lib(kind: KeyStoreKind, lib: impl Into<String>) -> Self {
-        StoreSpec { kind, lib: Some(lib.into()), card_name: None }
+        StoreSpec {
+            kind,
+            lib: Some(lib.into()),
+            card_name: None,
+        }
     }
 
     /// Nombre visible del almacén (el de la tarjeta si es una registrada).
     pub fn display_name(&self) -> String {
-        self.card_name.clone().unwrap_or_else(|| self.kind.display_name().to_string())
+        self.card_name
+            .clone()
+            .unwrap_or_else(|| self.kind.display_name().to_string())
     }
 }
 
@@ -42,9 +52,19 @@ impl StoreSpec {
 /// 2. tarjeta registrada (nombre exacto) → `PKCS11` con su biblioteca;
 /// 3. identificador exacto (`AOKeyStore.valueOf`, sin recortar);
 /// 4. si no, `None` ("Almacen de claves no reconocido").
-pub fn resolve_store_name(name: Option<&str>, invoked_from_browser: bool, cards: &RegisteredCards) -> Option<StoreSpec> {
+pub fn resolve_store_name(
+    name: Option<&str>,
+    invoked_from_browser: bool,
+    cards: &RegisteredCards,
+) -> Option<StoreSpec> {
     let name = name?;
-    let browser = |k: KeyStoreKind| if k == KeyStoreKind::MozUni && invoked_from_browser { KeyStoreKind::MozUniWithOs } else { k };
+    let browser = |k: KeyStoreKind| {
+        if k == KeyStoreKind::MozUni && invoked_from_browser {
+            KeyStoreKind::MozUniWithOs
+        } else {
+            k
+        }
+    };
     if let Some(k) = KeyStoreKind::from_display_name(name) {
         return Some(StoreSpec::new(browser(k)));
     }
@@ -108,12 +128,19 @@ pub fn canonical_path(p: &Path) -> PathBuf {
         // En Windows `canonicalize` devuelve rutas `\\?\C:\...`.
         let s = c.to_string_lossy();
         if let Some(rest) = s.strip_prefix(r"\\?\")
-            && !rest.starts_with("UNC\\") {
-                return PathBuf::from(rest);
-            }
+            && !rest.starts_with("UNC\\")
+        {
+            return PathBuf::from(rest);
+        }
         return c;
     }
-    let abs = if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().map(|d| d.join(p)).unwrap_or_else(|_| p.to_path_buf()) };
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map(|d| d.join(p))
+            .unwrap_or_else(|_| p.to_path_buf())
+    };
     let mut out = PathBuf::new();
     for c in abs.components() {
         match c {
@@ -152,7 +179,11 @@ pub struct StorePreferences {
 
 impl Default for StorePreferences {
     fn default() -> Self {
-        StorePreferences { default_keystore: "default".into(), default_local_keystore_path: String::new(), use_default_store_in_browser_calls: false }
+        StorePreferences {
+            default_keystore: "default".into(),
+            default_local_keystore_path: String::new(),
+            use_default_store_in_browser_calls: false,
+        }
     }
 }
 
@@ -170,7 +201,10 @@ pub fn validate_preference_store(kind: KeyStoreKind, os: Os, firefox_available: 
 }
 
 fn with_pref_lib(mut spec: StoreSpec, prefs: &StorePreferences) -> StoreSpec {
-    if matches!(spec.kind, KeyStoreKind::Pkcs12 | KeyStoreKind::Pkcs11) && spec.lib.is_none() && !prefs.default_local_keystore_path.is_empty() {
+    if matches!(spec.kind, KeyStoreKind::Pkcs12 | KeyStoreKind::Pkcs11)
+        && spec.lib.is_none()
+        && !prefs.default_local_keystore_path.is_empty()
+    {
         spec.lib = Some(prefs.default_local_keystore_path.clone());
     }
     spec
@@ -198,19 +232,33 @@ pub fn protocol_store_choice(
     let url_lib = url_store.and_then(|s| s.lib.clone());
     if let Some(last) = last_selected {
         let kind = validate_preference_store(last.kind, os, firefox_available)?;
-        let kind = if kind == KeyStoreKind::MozUni { KeyStoreKind::MozUniWithOs } else { kind };
-        let mut spec = StoreSpec { kind, lib: url_lib, card_name: last.card_name.clone() };
+        let kind = if kind == KeyStoreKind::MozUni {
+            KeyStoreKind::MozUniWithOs
+        } else {
+            kind
+        };
+        let mut spec = StoreSpec {
+            kind,
+            lib: url_lib,
+            card_name: last.card_name.clone(),
+        };
         if prefs.use_default_store_in_browser_calls {
             spec = with_pref_lib(spec, prefs);
         }
         return Some(spec);
     }
-    if prefs.use_default_store_in_browser_calls && !prefs.default_keystore.eq_ignore_ascii_case("default")
-        && let Some(spec) = resolve_store_name(Some(&prefs.default_keystore), true, cards) {
-            let kind = validate_preference_store(spec.kind, os, firefox_available)?;
-            let kind = if kind == KeyStoreKind::MozUni { KeyStoreKind::MozUniWithOs } else { kind };
-            return Some(with_pref_lib(StoreSpec { kind, ..spec }, prefs));
-        }
+    if prefs.use_default_store_in_browser_calls
+        && !prefs.default_keystore.eq_ignore_ascii_case("default")
+        && let Some(spec) = resolve_store_name(Some(&prefs.default_keystore), true, cards)
+    {
+        let kind = validate_preference_store(spec.kind, os, firefox_available)?;
+        let kind = if kind == KeyStoreKind::MozUni {
+            KeyStoreKind::MozUniWithOs
+        } else {
+            kind
+        };
+        return Some(with_pref_lib(StoreSpec { kind, ..spec }, prefs));
+    }
     if let Some(u) = url_store {
         return Some(u.clone());
     }
@@ -232,7 +280,8 @@ pub fn preload_store_choice(
     let chosen = if let Some(last) = last_selected {
         validate_preference_store(last.kind, os, firefox_available)
     } else if prefs.use_default_store_in_browser_calls && !prefs.default_keystore.eq_ignore_ascii_case("default") {
-        resolve_store_name(Some(&prefs.default_keystore), true, cards).and_then(|s| validate_preference_store(s.kind, os, firefox_available))
+        resolve_store_name(Some(&prefs.default_keystore), true, cards)
+            .and_then(|s| validate_preference_store(s.kind, os, firefox_available))
     } else {
         None
     };
@@ -246,7 +295,12 @@ pub fn preload_store_choice(
 /// Almacén por defecto de la aplicación local (§9.3): preferencia
 /// `defaultKeystore` (`"default"` → el del sistema), validada, con
 /// `defaultLocalKeystorePath` para PKCS#12/PKCS#11.
-pub fn local_default_store(prefs: &StorePreferences, cards: &RegisteredCards, os: Os, firefox_available: bool) -> Option<StoreSpec> {
+pub fn local_default_store(
+    prefs: &StorePreferences,
+    cards: &RegisteredCards,
+    os: Os,
+    firefox_available: bool,
+) -> Option<StoreSpec> {
     if prefs.default_keystore.is_empty() || prefs.default_keystore.eq_ignore_ascii_case("default") {
         return KeyStoreKind::default_for(os).map(StoreSpec::new);
     }
@@ -305,7 +359,9 @@ pub fn parse_cli_store(value: Option<&str>, os: Os) -> Result<StoreSpec, CliStor
         }
         // Java: `replace("pkcs12:", "")` quita todas las apariciones.
         let raw = v.replace(prefix, "");
-        let cleaned = cleanup_path(&raw).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(&raw));
+        let cleaned = cleanup_path(&raw)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(&raw));
         type ErrorCtor = fn(String) -> CliStoreError;
         let (nf, nr): (ErrorCtor, ErrorCtor) = if kind == KeyStoreKind::Pkcs12 {
             (CliStoreError::Pkcs12NotFound, CliStoreError::Pkcs12NotReadable)
@@ -329,8 +385,14 @@ pub fn parse_cli_store(value: Option<&str>, os: Os) -> Result<StoreSpec, CliStor
 /// existen, el nombre del perfil (último componente de `USERPROFILE`)
 /// difiere del usuario y es `TEMP` o empieza por `TEMP.`.
 pub fn is_temporary_profile(user_name: Option<&str>, user_profile: Option<&str>) -> bool {
-    let (Some(user), Some(profile)) = (user_name, user_profile) else { return false };
-    let name = profile.trim_end_matches(['\\', '/']).rsplit(['\\', '/']).next().unwrap_or(profile);
+    let (Some(user), Some(profile)) = (user_name, user_profile) else {
+        return false;
+    };
+    let name = profile
+        .trim_end_matches(['\\', '/'])
+        .rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(profile);
     user != name && (name == "TEMP" || name.starts_with("TEMP."))
 }
 
@@ -385,12 +447,18 @@ impl SwitcherItem {
     pub fn store(&self, os: Os, invoked_from_browser: bool) -> Option<StoreSpec> {
         Some(match self {
             SwitcherItem::System => StoreSpec::new(KeyStoreKind::default_for(os)?),
-            SwitcherItem::Firefox => StoreSpec::new(if invoked_from_browser { KeyStoreKind::MozUniWithOs } else { KeyStoreKind::MozUni }),
+            SwitcherItem::Firefox => StoreSpec::new(if invoked_from_browser {
+                KeyStoreKind::MozUniWithOs
+            } else {
+                KeyStoreKind::MozUni
+            }),
             SwitcherItem::Pkcs12File => StoreSpec::new(KeyStoreKind::Pkcs12),
             SwitcherItem::Dnie => StoreSpec::new(KeyStoreKind::DnieJava),
-            SwitcherItem::Card { name, library } => {
-                StoreSpec { kind: KeyStoreKind::Pkcs11, lib: Some(library.to_string_lossy().into_owned()), card_name: Some(name.clone()) }
-            }
+            SwitcherItem::Card { name, library } => StoreSpec {
+                kind: KeyStoreKind::Pkcs11,
+                lib: Some(library.to_string_lossy().into_owned()),
+                card_name: Some(name.clone()),
+            },
         })
     }
 }
@@ -405,11 +473,21 @@ impl SwitcherItem {
 /// recién abierto (fallo 3.6.10); aquí se usa el tipo real.
 pub fn switcher_items(os: Os, current: KeyStoreKind, cards: &RegisteredCards) -> Vec<SwitcherItem> {
     let mut v = match os {
-        Os::Windows | Os::MacOs => vec![SwitcherItem::System, SwitcherItem::Firefox, SwitcherItem::Pkcs12File, SwitcherItem::Dnie],
-        _ if current == KeyStoreKind::SharedNss => vec![SwitcherItem::System, SwitcherItem::Pkcs12File, SwitcherItem::Dnie],
+        Os::Windows | Os::MacOs => vec![
+            SwitcherItem::System,
+            SwitcherItem::Firefox,
+            SwitcherItem::Pkcs12File,
+            SwitcherItem::Dnie,
+        ],
+        _ if current == KeyStoreKind::SharedNss => {
+            vec![SwitcherItem::System, SwitcherItem::Pkcs12File, SwitcherItem::Dnie]
+        }
         _ => vec![SwitcherItem::Firefox, SwitcherItem::Pkcs12File, SwitcherItem::Dnie],
     };
-    v.extend(cards.all().map(|c| SwitcherItem::Card { name: c.name.clone(), library: c.library.clone() }));
+    v.extend(cards.all().map(|c| SwitcherItem::Card {
+        name: c.name.clone(),
+        library: c.library.clone(),
+    }));
     v
 }
 
@@ -420,7 +498,12 @@ mod tests {
 
     fn cards() -> RegisteredCards {
         RegisteredCards {
-            user: vec![RegisteredCard { name: "Mi tarjeta".into(), library: "/usr/lib/libmi.so".into(), node: "1".into(), scope: CardScope::User }],
+            user: vec![RegisteredCard {
+                name: "Mi tarjeta".into(),
+                library: "/usr/lib/libmi.so".into(),
+                node: "1".into(),
+                scope: CardScope::User,
+            }],
             system: vec![],
         }
     }
@@ -428,14 +511,40 @@ mod tests {
     #[test]
     fn name_resolution() {
         let c = cards();
-        assert_eq!(resolve_store_name(Some(" windows "), false, &c).unwrap().kind, KeyStoreKind::Windows);
-        assert_eq!(resolve_store_name(Some("Mozilla / Firefox (unificado)"), true, &c).unwrap().kind, KeyStoreKind::MozUniWithOs);
-        assert_eq!(resolve_store_name(Some("MOZ_UNI"), true, &c).unwrap().kind, KeyStoreKind::MozUniWithOs);
-        assert_eq!(resolve_store_name(Some("MOZ_UNI"), false, &c).unwrap().kind, KeyStoreKind::MozUni);
-        assert_eq!(resolve_store_name(Some("PKCS12"), true, &c).unwrap().kind, KeyStoreKind::Pkcs12);
-        assert_eq!(resolve_store_name(Some("DNIEJAVA"), true, &c).unwrap().kind, KeyStoreKind::DnieJava);
-        assert!(resolve_store_name(Some("pkcs12"), true, &c).is_none(), "valueOf es sensible a mayúsculas");
-        assert!(resolve_store_name(Some(" PKCS12"), true, &c).is_none(), "valueOf no recorta");
+        assert_eq!(
+            resolve_store_name(Some(" windows "), false, &c).unwrap().kind,
+            KeyStoreKind::Windows
+        );
+        assert_eq!(
+            resolve_store_name(Some("Mozilla / Firefox (unificado)"), true, &c)
+                .unwrap()
+                .kind,
+            KeyStoreKind::MozUniWithOs
+        );
+        assert_eq!(
+            resolve_store_name(Some("MOZ_UNI"), true, &c).unwrap().kind,
+            KeyStoreKind::MozUniWithOs
+        );
+        assert_eq!(
+            resolve_store_name(Some("MOZ_UNI"), false, &c).unwrap().kind,
+            KeyStoreKind::MozUni
+        );
+        assert_eq!(
+            resolve_store_name(Some("PKCS12"), true, &c).unwrap().kind,
+            KeyStoreKind::Pkcs12
+        );
+        assert_eq!(
+            resolve_store_name(Some("DNIEJAVA"), true, &c).unwrap().kind,
+            KeyStoreKind::DnieJava
+        );
+        assert!(
+            resolve_store_name(Some("pkcs12"), true, &c).is_none(),
+            "valueOf es sensible a mayúsculas"
+        );
+        assert!(
+            resolve_store_name(Some(" PKCS12"), true, &c).is_none(),
+            "valueOf no recorta"
+        );
         let card = resolve_store_name(Some("Mi tarjeta"), true, &c).unwrap();
         assert_eq!(card.kind, KeyStoreKind::Pkcs11);
         assert_eq!(card.lib.as_deref(), Some("/usr/lib/libmi.so"));
@@ -467,9 +576,15 @@ mod tests {
             assert_eq!(s.kind, KeyStoreKind::Pkcs12);
             assert_eq!(s.lib.as_deref(), cleanup_path("/tmp/~~~.p12").as_deref());
         }
-        assert_eq!(protocol_store(Some("WINDOWS"), Some(&std_b64), &c).unwrap().kind, KeyStoreKind::Windows);
+        assert_eq!(
+            protocol_store(Some("WINDOWS"), Some(&std_b64), &c).unwrap().kind,
+            KeyStoreKind::Windows
+        );
         assert!(protocol_store(None, Some("%%%"), &c).is_none());
-        assert_eq!(protocol_store(Some("MOZ_UNI"), None, &c).unwrap().kind, KeyStoreKind::MozUniWithOs);
+        assert_eq!(
+            protocol_store(Some("MOZ_UNI"), None, &c).unwrap().kind,
+            KeyStoreKind::MozUniWithOs
+        );
     }
 
     #[test]
@@ -478,56 +593,123 @@ mod tests {
         let url = StoreSpec::with_lib(KeyStoreKind::Pkcs12, "/tmp/u.p12");
         let prefs = StorePreferences::default();
         // URL.
-        assert_eq!(protocol_store_choice(None, &prefs, Some(&url), &c, Os::Linux, false).unwrap(), url);
+        assert_eq!(
+            protocol_store_choice(None, &prefs, Some(&url), &c, Os::Linux, false).unwrap(),
+            url
+        );
         // Sin URL: el del sistema.
-        assert_eq!(protocol_store_choice(None, &prefs, None, &c, Os::Linux, false).unwrap().kind, KeyStoreKind::SharedNss);
+        assert_eq!(
+            protocol_store_choice(None, &prefs, None, &c, Os::Linux, false)
+                .unwrap()
+                .kind,
+            KeyStoreKind::SharedNss
+        );
         // Preferencia en llamadas del navegador.
-        let p2 = StorePreferences { default_keystore: "Mi tarjeta".into(), use_default_store_in_browser_calls: true, ..Default::default() };
+        let p2 = StorePreferences {
+            default_keystore: "Mi tarjeta".into(),
+            use_default_store_in_browser_calls: true,
+            ..Default::default()
+        };
         let s = protocol_store_choice(None, &p2, Some(&url), &c, Os::Linux, false).unwrap();
-        assert_eq!((s.kind, s.lib.as_deref()), (KeyStoreKind::Pkcs11, Some("/usr/lib/libmi.so")));
+        assert_eq!(
+            (s.kind, s.lib.as_deref()),
+            (KeyStoreKind::Pkcs11, Some("/usr/lib/libmi.so"))
+        );
         // Último elegido en el diálogo, con la biblioteca de la URL.
         let last = StoreSpec::new(KeyStoreKind::MozUni);
         let s = protocol_store_choice(Some(&last), &p2, Some(&url), &c, Os::Windows, true).unwrap();
-        assert_eq!((s.kind, s.lib.as_deref()), (KeyStoreKind::MozUniWithOs, Some("/tmp/u.p12")));
+        assert_eq!(
+            (s.kind, s.lib.as_deref()),
+            (KeyStoreKind::MozUniWithOs, Some("/tmp/u.p12"))
+        );
         // Firefox no disponible → el del sistema.
         let s = protocol_store_choice(Some(&last), &prefs, None, &c, Os::Windows, false).unwrap();
         assert_eq!(s.kind, KeyStoreKind::Windows);
         // Precarga: MOZ_UNI_WITH_OS no está en la lista → sistema.
-        assert_eq!(preload_store_choice(Some(&last), &prefs, &c, Os::Linux, true).unwrap().kind, KeyStoreKind::MozUni);
-        let p3 = StorePreferences { default_keystore: "PKCS#12 / PFX".into(), use_default_store_in_browser_calls: true, ..Default::default() };
-        assert_eq!(preload_store_choice(None, &p3, &c, Os::MacOs, false).unwrap().kind, KeyStoreKind::Apple);
+        assert_eq!(
+            preload_store_choice(Some(&last), &prefs, &c, Os::Linux, true)
+                .unwrap()
+                .kind,
+            KeyStoreKind::MozUni
+        );
+        let p3 = StorePreferences {
+            default_keystore: "PKCS#12 / PFX".into(),
+            use_default_store_in_browser_calls: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            preload_store_choice(None, &p3, &c, Os::MacOs, false).unwrap().kind,
+            KeyStoreKind::Apple
+        );
     }
 
     #[test]
     fn local_default() {
         let c = cards();
-        assert_eq!(local_default_store(&StorePreferences::default(), &c, Os::MacOs, false).unwrap().kind, KeyStoreKind::Apple);
-        let p = StorePreferences { default_keystore: "PKCS#12 / PFX".into(), default_local_keystore_path: "/tmp/x.p12".into(), ..Default::default() };
+        assert_eq!(
+            local_default_store(&StorePreferences::default(), &c, Os::MacOs, false)
+                .unwrap()
+                .kind,
+            KeyStoreKind::Apple
+        );
+        let p = StorePreferences {
+            default_keystore: "PKCS#12 / PFX".into(),
+            default_local_keystore_path: "/tmp/x.p12".into(),
+            ..Default::default()
+        };
         let s = local_default_store(&p, &c, Os::Linux, false).unwrap();
         assert_eq!((s.kind, s.lib.as_deref()), (KeyStoreKind::Pkcs12, Some("/tmp/x.p12")));
-        let p = StorePreferences { default_keystore: "Windows".into(), ..Default::default() };
-        assert_eq!(local_default_store(&p, &c, Os::Linux, false).unwrap().kind, KeyStoreKind::SharedNss);
+        let p = StorePreferences {
+            default_keystore: "Windows".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            local_default_store(&p, &c, Os::Linux, false).unwrap().kind,
+            KeyStoreKind::SharedNss
+        );
     }
 
     #[test]
     fn cli_store() {
         assert_eq!(parse_cli_store(None, Os::Linux).unwrap().kind, KeyStoreKind::SharedNss);
-        assert_eq!(parse_cli_store(Some("auto"), Os::Solaris).unwrap().kind, KeyStoreKind::SharedNss);
-        assert_eq!(parse_cli_store(Some("auto"), Os::MacOs).unwrap().kind, KeyStoreKind::Apple);
-        assert_eq!(parse_cli_store(Some("windows"), Os::Linux).unwrap().kind, KeyStoreKind::Windows);
-        assert_eq!(parse_cli_store(Some("mozilla"), Os::Linux).unwrap().kind, KeyStoreKind::MozUni);
-        assert_eq!(parse_cli_store(Some("dnie"), Os::Linux).unwrap().kind, KeyStoreKind::DnieJava);
-        assert_eq!(parse_cli_store(Some("Windows"), Os::Linux).unwrap_err().to_string(), "Tipo de almacen desconocido: Windows");
+        assert_eq!(
+            parse_cli_store(Some("auto"), Os::Solaris).unwrap().kind,
+            KeyStoreKind::SharedNss
+        );
+        assert_eq!(
+            parse_cli_store(Some("auto"), Os::MacOs).unwrap().kind,
+            KeyStoreKind::Apple
+        );
+        assert_eq!(
+            parse_cli_store(Some("windows"), Os::Linux).unwrap().kind,
+            KeyStoreKind::Windows
+        );
+        assert_eq!(
+            parse_cli_store(Some("mozilla"), Os::Linux).unwrap().kind,
+            KeyStoreKind::MozUni
+        );
+        assert_eq!(
+            parse_cli_store(Some("dnie"), Os::Linux).unwrap().kind,
+            KeyStoreKind::DnieJava
+        );
+        assert_eq!(
+            parse_cli_store(Some("Windows"), Os::Linux).unwrap_err().to_string(),
+            "Tipo de almacen desconocido: Windows"
+        );
         let p12 = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki/firmante-rsa.p12");
         let s = parse_cli_store(Some(&format!("pkcs12:\"{}\"", p12.display())), Os::Linux).unwrap();
         assert_eq!(s.kind, KeyStoreKind::Pkcs12);
         assert_eq!(PathBuf::from(s.lib.unwrap()), canonical_path(&p12));
         assert_eq!(
-            parse_cli_store(Some("pkcs12:/no/existe.p12"), Os::Linux).unwrap_err().to_string(),
+            parse_cli_store(Some("pkcs12:/no/existe.p12"), Os::Linux)
+                .unwrap_err()
+                .to_string(),
             "El fichero PKCS#12 indicado no existe: /no/existe.p12"
         );
         assert_eq!(
-            parse_cli_store(Some("pkcs11:/no/existe.so"), Os::Linux).unwrap_err().to_string(),
+            parse_cli_store(Some("pkcs11:/no/existe.so"), Os::Linux)
+                .unwrap_err()
+                .to_string(),
             "La biblioteca PKCS#11 indicada no existe: /no/existe.so"
         );
     }
@@ -545,11 +727,29 @@ mod tests {
     fn switcher() {
         let c = cards();
         let ids = |v: Vec<SwitcherItem>| v.iter().map(SwitcherItem::id).collect::<Vec<_>>();
-        assert_eq!(ids(switcher_items(Os::Windows, KeyStoreKind::Windows, &c)), vec![1, 2, 3, 4, 5]);
-        assert_eq!(ids(switcher_items(Os::Linux, KeyStoreKind::SharedNss, &c)), vec![1, 3, 4, 5]);
-        assert_eq!(ids(switcher_items(Os::Linux, KeyStoreKind::MozUni, &c)), vec![2, 3, 4, 5]);
-        assert_eq!(SwitcherItem::Firefox.store(Os::Linux, true).unwrap().kind, KeyStoreKind::MozUniWithOs);
-        assert_eq!(SwitcherItem::System.store(Os::Linux, true).unwrap().kind, KeyStoreKind::SharedNss);
-        assert_eq!(switcher_items(Os::Linux, KeyStoreKind::MozUni, &c)[3].label(), "Mi tarjeta");
+        assert_eq!(
+            ids(switcher_items(Os::Windows, KeyStoreKind::Windows, &c)),
+            vec![1, 2, 3, 4, 5]
+        );
+        assert_eq!(
+            ids(switcher_items(Os::Linux, KeyStoreKind::SharedNss, &c)),
+            vec![1, 3, 4, 5]
+        );
+        assert_eq!(
+            ids(switcher_items(Os::Linux, KeyStoreKind::MozUni, &c)),
+            vec![2, 3, 4, 5]
+        );
+        assert_eq!(
+            SwitcherItem::Firefox.store(Os::Linux, true).unwrap().kind,
+            KeyStoreKind::MozUniWithOs
+        );
+        assert_eq!(
+            SwitcherItem::System.store(Os::Linux, true).unwrap().kind,
+            KeyStoreKind::SharedNss
+        );
+        assert_eq!(
+            switcher_items(Os::Linux, KeyStoreKind::MozUni, &c)[3].label(),
+            "Mi tarjeta"
+        );
     }
 }

@@ -12,7 +12,7 @@ use std::net::TcpListener;
 use std::sync::Arc;
 
 use afirma_cms::tsp::mock::MockTsa;
-use afirma_cms::tsp::{TsaParams, Timestamper};
+use afirma_cms::tsp::{Timestamper, TsaParams};
 use afirma_core::ExtraParams;
 use afirma_core::algorithms::DigestAlgorithm;
 use afirma_core::error::codes;
@@ -29,19 +29,28 @@ fn pki(host: &str) -> Pki {
     let ca_key = rcgen::KeyPair::generate().unwrap();
     let mut ca_params = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
     ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    ca_params.distinguished_name.push(rcgen::DnType::CommonName, "CA TLS de pruebas");
+    ca_params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "CA TLS de pruebas");
     let ca = rcgen::CertifiedIssuer::self_signed(ca_params, ca_key).unwrap();
     let key = rcgen::KeyPair::generate().unwrap();
     let mut params = rcgen::CertificateParams::new(vec![host.to_string()]).unwrap();
     params.distinguished_name.push(rcgen::DnType::CommonName, host);
     let cert = params.signed_by(&key, &ca).unwrap();
-    Pki { ca_der: ca.der().to_vec(), server_der: cert.der().to_vec(), server_key: key.serialize_der() }
+    Pki {
+        ca_der: ca.der().to_vec(),
+        server_der: cert.der().to_vec(),
+        server_key: key.serialize_der(),
+    }
 }
 
 /// Almacén PKCS#12 solo con certificados (almacén de confianza).
 fn truststore(cert: &[u8]) -> String {
     let mut ks = p12_keystore::KeyStore::new();
-    ks.add_entry("ca", p12_keystore::KeyStoreEntry::Certificate(p12_keystore::Certificate::from_der(cert).unwrap()));
+    ks.add_entry(
+        "ca",
+        p12_keystore::KeyStoreEntry::Certificate(p12_keystore::Certificate::from_der(cert).unwrap()),
+    );
     afirma_core::base64_encode(&ks.writer("clave").write().unwrap())
 }
 
@@ -49,13 +58,16 @@ fn truststore(cert: &[u8]) -> String {
 /// certificado cliente emitido por esa CA.
 fn serve(p: &Pki, client_ca: Option<Vec<u8>>, requests: usize) -> (u16, std::thread::JoinHandle<()>) {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let builder = rustls::ServerConfig::builder_with_provider(provider.clone()).with_safe_default_protocol_versions().unwrap();
+    let builder = rustls::ServerConfig::builder_with_provider(provider.clone())
+        .with_safe_default_protocol_versions()
+        .unwrap();
     let builder = match client_ca {
         Some(ca) => {
             let mut roots = rustls::RootCertStore::empty();
             roots.add(CertificateDer::from(ca)).unwrap();
-            let verifier =
-                rustls::server::WebPkiClientVerifier::builder_with_provider(Arc::new(roots), provider).build().unwrap();
+            let verifier = rustls::server::WebPkiClientVerifier::builder_with_provider(Arc::new(roots), provider)
+                .build()
+                .unwrap();
             builder.with_client_cert_verifier(verifier)
         }
         None => builder.with_no_client_auth(),
@@ -74,7 +86,9 @@ fn serve(p: &Pki, client_ca: Option<Vec<u8>>, requests: usize) -> (u16, std::thr
     let h = std::thread::spawn(move || {
         for stream in listener.incoming().take(requests) {
             let Ok(stream) = stream else { continue };
-            let Ok(conn) = rustls::ServerConnection::new(config.clone()) else { continue };
+            let Ok(conn) = rustls::ServerConnection::new(config.clone()) else {
+                continue;
+            };
             let mut tls = rustls::StreamOwned::new(conn, stream);
             let mut reader = BufReader::new(&mut tls);
             let mut len = 0usize;
@@ -94,9 +108,10 @@ fn serve(p: &Pki, client_ca: Option<Vec<u8>>, requests: usize) -> (u16, std::thr
                     break;
                 }
                 if let Some((k, v)) = l.split_once(':')
-                    && k.eq_ignore_ascii_case("content-length") {
-                        len = v.trim().parse().unwrap_or(0);
-                    }
+                    && k.eq_ignore_ascii_case("content-length")
+                {
+                    len = v.trim().parse().unwrap_or(0);
+                }
             }
             if !ok {
                 continue;
@@ -106,7 +121,10 @@ fn serve(p: &Pki, client_ca: Option<Vec<u8>>, requests: usize) -> (u16, std::thr
                 continue;
             }
             let resp = tsa.respond(&body);
-            let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", resp.len());
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                resp.len()
+            );
             let _ = tls.write_all(head.as_bytes());
             let _ = tls.write_all(&resp);
             let _ = tls.flush();
@@ -153,7 +171,10 @@ fn https_client_certificate() {
     extra.set("tsaSslTrustStore", truststore(&p.ca_der));
     extra.set("tsaSslTrustStorePassword", "clave");
     assert_eq!(request(&extra).unwrap_err().code, Some(codes::TSA_CONNECTION_ERROR));
-    extra.set("tsaSslKeyStore", afirma_core::base64_encode(&read("pki/autenticacion.p12")));
+    extra.set(
+        "tsaSslKeyStore",
+        afirma_core::base64_encode(&read("pki/autenticacion.p12")),
+    );
     extra.set("tsaSslKeyStorePassword", "12341234");
     assert!(request(&extra).is_ok(), "{:?}", request(&extra).err());
     h.join().unwrap();

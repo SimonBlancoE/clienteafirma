@@ -28,13 +28,10 @@ fn norm(e: &str) -> String {
 
 fn read(ctx: &Context, scope: TrustScope) -> Result<(Option<RegValue>, String)> {
     let (h, k) = loc(scope);
-    let v = ctx
-        .registry
-        .read(h, k, "Path")
-        .map_err(|e| SystemError::Registry {
-            key: k.into(),
-            detail: e.to_string(),
-        })?;
+    let v = ctx.registry.read(h, k, "Path").map_err(|e| SystemError::Registry {
+        key: k.into(),
+        detail: e.to_string(),
+    })?;
     let s = v.as_ref().and_then(RegValue::as_string).unwrap_or_default();
     Ok((v, s))
 }
@@ -126,26 +123,16 @@ mod tests {
         let d = Path::new(r"C:\Program Files\Autofirma\");
         assert_eq!(add(&ctx, TrustScope::Machine, d).unwrap(), Change::Changed);
         assert_eq!(
-            add(
-                &ctx,
-                TrustScope::Machine,
-                Path::new(r"c:\program files\autofirma")
-            )
-            .unwrap(),
+            add(&ctx, TrustScope::Machine, Path::new(r"c:\program files\autofirma")).unwrap(),
             Change::Unchanged
         );
         assert_eq!(
-            ctx.registry
-                .read(Hive::LocalMachine, MACHINE_ENV_KEY, "Path")
-                .unwrap(),
+            ctx.registry.read(Hive::LocalMachine, MACHINE_ENV_KEY, "Path").unwrap(),
             Some(RegValue::ExpandSz(
                 r"%SystemRoot%\system32;C:\Otro;C:\Program Files\Autofirma".into()
             ))
         );
-        assert_eq!(
-            remove(&ctx, TrustScope::Machine, d).unwrap(),
-            Change::Changed
-        );
+        assert_eq!(remove(&ctx, TrustScope::Machine, d).unwrap(), Change::Changed);
         assert_eq!(
             ctx.registry
                 .read_string(Hive::LocalMachine, MACHINE_ENV_KEY, "Path")

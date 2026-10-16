@@ -27,13 +27,37 @@ pub struct LoadedStore {
 pub fn store_options() -> Vec<StoreOption> {
     let mut out = Vec::new();
     match Os::current() {
-        Os::Windows => out.push(StoreOption { id: "WINDOWS".into(), label: tr("Almacén de Windows").into(), icon: icons::VAULT }),
-        Os::MacOs => out.push(StoreOption { id: "APPLE".into(), label: tr("Llavero de macOS").into(), icon: icons::VAULT }),
-        _ => out.push(StoreOption { id: "SHARED_NSS".into(), label: tr("Almacén del sistema (NSS)").into(), icon: icons::VAULT }),
+        Os::Windows => out.push(StoreOption {
+            id: "WINDOWS".into(),
+            label: tr("Almacén de Windows").into(),
+            icon: icons::VAULT,
+        }),
+        Os::MacOs => out.push(StoreOption {
+            id: "APPLE".into(),
+            label: tr("Llavero de macOS").into(),
+            icon: icons::VAULT,
+        }),
+        _ => out.push(StoreOption {
+            id: "SHARED_NSS".into(),
+            label: tr("Almacén del sistema (NSS)").into(),
+            icon: icons::VAULT,
+        }),
     }
-    out.push(StoreOption { id: "MOZ_UNI".into(), label: "Firefox".into(), icon: icons::BROWSER });
-    out.push(StoreOption { id: "DNIEJAVA".into(), label: tr("DNIe y tarjetas").into(), icon: icons::IDENTIFICATION_BADGE });
-    out.push(StoreOption { id: "PKCS12".into(), label: tr("Fichero .p12 / .pfx…").into(), icon: icons::FILE_LOCK });
+    out.push(StoreOption {
+        id: "MOZ_UNI".into(),
+        label: "Firefox".into(),
+        icon: icons::BROWSER,
+    });
+    out.push(StoreOption {
+        id: "DNIEJAVA".into(),
+        label: tr("DNIe y tarjetas").into(),
+        icon: icons::IDENTIFICATION_BADGE,
+    });
+    out.push(StoreOption {
+        id: "PKCS12".into(),
+        label: tr("Fichero .p12 / .pfx…").into(),
+        icon: icons::FILE_LOCK,
+    });
     out
 }
 
@@ -51,27 +75,50 @@ pub fn spec_from_prefs(pref: &dyn Fn(&str) -> Option<String>) -> StoreSpec {
         use_default_store_in_browser_calls: pref("useDefaultStoreInBrowserCalls").is_some_and(|v| v == "true"),
     };
     let firefox = afirma_keystores::nss::is_firefox_available(&afirma_keystores::nss::profiles::MozEnv::current());
-    afirma_keystores::selection::local_default_store(&prefs, &afirma_keystores::RegisteredCards::new(), Os::current(), firefox)
-        .unwrap_or_else(default_spec)
+    afirma_keystores::selection::local_default_store(
+        &prefs,
+        &afirma_keystores::RegisteredCards::new(),
+        Os::current(),
+        firefox,
+    )
+    .unwrap_or_else(default_spec)
 }
 
 /// Especificación a partir del identificador del selector (y, para
 /// PKCS#12/PKCS#11, de la ruta).
 pub fn spec_for(id: &str, lib: Option<String>) -> Option<StoreSpec> {
     let kind = KeyStoreKind::from_id(id)?;
-    Some(StoreSpec { kind, lib, card_name: None })
+    Some(StoreSpec {
+        kind,
+        lib,
+        card_name: None,
+    })
 }
 
 /// Abre un almacén y obtiene sus certificados candidatos para firmar.
-pub fn load(spec: &StoreSpec, callback: Arc<dyn PasswordCallback>, filters: &LocalFilterPrefs, force_reset: bool) -> Result<LoadedStore, String> {
-    let opts = OpenOptions { force_reset, load_all_external_modules: true, dedup_all: true, ..OpenOptions::new(callback) };
+pub fn load(
+    spec: &StoreSpec,
+    callback: Arc<dyn PasswordCallback>,
+    filters: &LocalFilterPrefs,
+    force_reset: bool,
+) -> Result<LoadedStore, String> {
+    let opts = OpenOptions {
+        force_reset,
+        load_all_external_modules: true,
+        dedup_all: true,
+        ..OpenOptions::new(callback)
+    };
     let store = afirma_keystores::open_store(spec, &opts).map_err(|e| e.to_string())?;
     if force_reset {
         let _ = store.refresh();
     }
     let all = store.entries().map_err(|e| e.to_string())?;
     let manager = CertFilterManager::from_local_prefs(filters);
-    let options = CandidateOptions { check_private_keys: true, show_expired: filters.show_expired_certs, now: chrono::Utc::now() };
+    let options = CandidateOptions {
+        check_private_keys: true,
+        show_expired: filters.show_expired_certs,
+        now: chrono::Utc::now(),
+    };
     let list = select_candidates(&all, manager.filters(), &options);
     let mut items = Vec::new();
     let mut entries = Vec::new();
@@ -81,7 +128,13 @@ pub fn load(spec: &StoreSpec, callback: Arc<dyn PasswordCallback>, filters: &Loc
             entries.push(e);
         }
     }
-    Ok(LoadedStore { label: spec.display_name(), store, entries, items, hidden_expired: list.hidden_expired })
+    Ok(LoadedStore {
+        label: spec.display_name(),
+        store,
+        entries,
+        items,
+        hidden_expired: list.hidden_expired,
+    })
 }
 
 /// Preferencias de filtrado de la aplicación de escritorio.

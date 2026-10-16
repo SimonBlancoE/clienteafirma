@@ -36,7 +36,9 @@ pub fn java_url(s: &str) -> Option<String> {
 /// `AdESPolicy.buildAdESPolicy(extraParams)` (sobre `afirma_core::policy`,
 /// que descarga el documento de la política si no se indica su huella).
 pub fn build_ades_policy(params: &ExtraParams) -> afirma_core::Result<Option<AdesPolicy>> {
-    let Some(p) = afirma_core::policy::AdESPolicy::from_extra_params(params)? else { return Ok(None) };
+    let Some(p) = afirma_core::policy::AdESPolicy::from_extra_params(params)? else {
+        return Ok(None);
+    };
     let qualifier =
         match p.qualifier() {
             Some(q) => Some(java_url(q).ok_or_else(|| {
@@ -62,11 +64,20 @@ mod tests {
         assert_eq!(build_ades_policy(&p).unwrap(), None);
         p.set("policyIdentifier", "urn:oid:2.16.724.1.3.1.1.2.1.9");
         p.set("policyIdentifierHash", "G7roucf600+f03r/o0bAOQ6WAs0=");
-        p.set("policyIdentifierHashAlgorithm", "http://www.w3.org/2000/09/xmldsig#sha1");
-        p.set("policyQualifier", "HTTPS://sede.administracion.gob.es/politica_de_firma_anexo_1.pdf");
+        p.set(
+            "policyIdentifierHashAlgorithm",
+            "http://www.w3.org/2000/09/xmldsig#sha1",
+        );
+        p.set(
+            "policyQualifier",
+            "HTTPS://sede.administracion.gob.es/politica_de_firma_anexo_1.pdf",
+        );
         let pol = build_ades_policy(&p).unwrap().unwrap();
         assert_eq!(pol.hash_algorithm, "SHA1");
-        assert_eq!(pol.qualifier.as_deref(), Some("https://sede.administracion.gob.es/politica_de_firma_anexo_1.pdf"));
+        assert_eq!(
+            pol.qualifier.as_deref(),
+            Some("https://sede.administracion.gob.es/politica_de_firma_anexo_1.pdf")
+        );
         p.set("policyIdentifierHash", "0");
         assert!(build_ades_policy(&p).is_err());
         p.set("policyIdentifierHash", "no*base64");

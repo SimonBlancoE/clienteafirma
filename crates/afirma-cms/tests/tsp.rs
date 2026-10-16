@@ -27,7 +27,9 @@ fn token_over_http_is_valid_and_verifiable() {
     let mut p = TsaParams::new(url);
     p.hash_algorithm = DigestAlgorithm::Sha256;
     let imprint = DigestAlgorithm::Sha256.digest(b"hola");
-    let info = Timestamper::new(p).request_token(&imprint, DigestAlgorithm::Sha256).unwrap();
+    let info = Timestamper::new(p)
+        .request_token(&imprint, DigestAlgorithm::Sha256)
+        .unwrap();
     h.join().unwrap();
     assert_eq!(info.imprint, imprint);
     assert_eq!(info.imprint_algorithm, DigestAlgorithm::Sha256.oid());
@@ -48,10 +50,15 @@ fn socket_transport_and_params() {
     assert_eq!(p.hash_algorithm, DigestAlgorithm::Sha384);
     assert!(!p.require_cert);
     let imprint = DigestAlgorithm::Sha384.digest(b"x");
-    let info = Timestamper::new(p).request_token(&imprint, DigestAlgorithm::Sha384).unwrap();
+    let info = Timestamper::new(p)
+        .request_token(&imprint, DigestAlgorithm::Sha384)
+        .unwrap();
     h.join().unwrap();
     assert_eq!(info.policy, "1.2.3.4.5");
-    assert!(info.tsa_certificate.is_none(), "sin certReq no se incluye el certificado");
+    assert!(
+        info.tsa_certificate.is_none(),
+        "sin certReq no se incluye el certificado"
+    );
 }
 
 #[test]
@@ -73,10 +80,16 @@ fn basic_auth() {
 
 #[test]
 fn invalid_responses_are_rejected() {
-    for m in [Misbehavior::WrongNonce, Misbehavior::WrongImprint, Misbehavior::Reject, Misbehavior::BadSignature] {
+    for m in [
+        Misbehavior::WrongNonce,
+        Misbehavior::WrongImprint,
+        Misbehavior::Reject,
+        Misbehavior::BadSignature,
+    ] {
         let (url, h) = mock(m).serve_http(1, None);
-        let e =
-            Timestamper::new(TsaParams::new(url)).get_timestamp_token(&[1u8; 64], DigestAlgorithm::Sha512).unwrap_err();
+        let e = Timestamper::new(TsaParams::new(url))
+            .get_timestamp_token(&[1u8; 64], DigestAlgorithm::Sha512)
+            .unwrap_err();
         h.join().unwrap();
         assert_eq!(e.code, Some(codes::GENERATING_TIMESTAMP_ERROR), "{m:?}: {e}");
     }
@@ -91,21 +104,41 @@ fn invalid_responses_are_rejected() {
 
 #[test]
 fn request_encoding() {
-    let ext = tsp::TsaRequestExtension { oid: "1.2.3".into(), critical: true, value: vec![0x05, 0x00] };
-    let req =
-        tsp::build_request(&[0xaa; 32], DigestAlgorithm::Sha256, Some("0.4.0.2023.1.1"), true, Some(&ext), 0x1234)
-            .unwrap();
+    let ext = tsp::TsaRequestExtension {
+        oid: "1.2.3".into(),
+        critical: true,
+        value: vec![0x05, 0x00],
+    };
+    let req = tsp::build_request(
+        &[0xaa; 32],
+        DigestAlgorithm::Sha256,
+        Some("0.4.0.2023.1.1"),
+        true,
+        Some(&ext),
+        0x1234,
+    )
+    .unwrap();
     // Estructura: versión 1, imprint con NULL, política, nonce, certReq y extensión [0].
     let t = afirma_cms::asn1::Tlv::parse_single(&req.der).unwrap();
     let f = t.children().unwrap();
     assert_eq!(f[0].as_i64().unwrap(), 1);
-    assert_eq!(hex::encode(f[1].children().unwrap()[0].raw), "300d06096086480165030402010500");
+    assert_eq!(
+        hex::encode(f[1].children().unwrap()[0].raw),
+        "300d06096086480165030402010500"
+    );
     assert_eq!(f[2].as_oid().unwrap().to_dotted(), "0.4.0.2023.1.1");
     assert_eq!(f[3].value, &[0x12, 0x34]);
     assert!(f[4].as_bool().unwrap());
     assert_eq!(hex::encode(f[5].raw), "a00f300d300b06022a030101ff04020500");
     let req = tsp::build_request(&[0xaa; 32], DigestAlgorithm::Sha256, None, false, None, 1).unwrap();
-    assert_eq!(afirma_cms::asn1::Tlv::parse_single(&req.der).unwrap().children().unwrap().len(), 3);
+    assert_eq!(
+        afirma_cms::asn1::Tlv::parse_single(&req.der)
+            .unwrap()
+            .children()
+            .unwrap()
+            .len(),
+        3
+    );
 }
 
 #[test]
@@ -149,7 +182,9 @@ fn cades_t_signature() {
     extra.set("mode", "implicit");
     extra.set("tsaURL", &url);
     extra.set("tsaHashAlgorithm", "SHA-256");
-    let sign = CadesSigner.sign(b"Hola mundo", "SHA256withRSA", &key("firmante-rsa"), &extra).unwrap();
+    let sign = CadesSigner
+        .sign(b"Hola mundo", "SHA256withRSA", &key("firmante-rsa"), &extra)
+        .unwrap();
     h.join().unwrap();
     let sd = SignedData::parse(&sign).unwrap();
     let si = &sd.signer_infos[0];
@@ -163,7 +198,10 @@ fn cades_t_signature() {
     assert_eq!(details[0].timestamps.len(), 1);
     let v = validation::validate(&sign, None, true);
     assert_eq!(v.len(), 1);
-    assert_eq!((v[0].validity, v[0].error), (Validity::Unknown, Some(ValidityError::SignProfileNotChecked)));
+    assert_eq!(
+        (v[0].validity, v[0].error),
+        (Validity::Unknown, Some(ValidityError::SignProfileNotChecked))
+    );
     if let Some((ok, msg)) = openssl_verify("cades_t", &sign, None) {
         assert!(ok, "{msg}");
     }
@@ -175,8 +213,14 @@ fn cades_t_signature() {
 
 #[test]
 fn no_tsa_url_no_timestamp() {
-    let sign = CadesSigner.sign(b"x", "SHA256withRSA", &key("firmante-rsa"), &ExtraParams::new()).unwrap();
-    assert!(SignedData::parse(&sign).unwrap().signer_infos[0].unsigned_attrs.is_none());
+    let sign = CadesSigner
+        .sign(b"x", "SHA256withRSA", &key("firmante-rsa"), &ExtraParams::new())
+        .unwrap();
+    assert!(
+        SignedData::parse(&sign).unwrap().signer_infos[0]
+            .unsigned_attrs
+            .is_none()
+    );
 }
 
 /// Respuesta con `Content-Encoding: base64` (se decodifica como en Java).
@@ -199,9 +243,10 @@ fn base64_content_encoding() {
                 break;
             }
             if let Some((k, v)) = l.split_once(':')
-                && k.eq_ignore_ascii_case("content-length") {
-                    len = v.trim().parse().unwrap();
-                }
+                && k.eq_ignore_ascii_case("content-length")
+            {
+                len = v.trim().parse().unwrap();
+            }
         }
         let mut body = vec![0u8; len];
         reader.read_exact(&mut body).unwrap();

@@ -25,13 +25,8 @@ fn registro_real() {
         &RegValue::Sz("x".into()),
     )
     .unwrap();
-    r.write(
-        Hive::CurrentUser,
-        &format!(r"{base}\a"),
-        "",
-        &RegValue::Dword(7),
-    )
-    .unwrap();
+    r.write(Hive::CurrentUser, &format!(r"{base}\a"), "", &RegValue::Dword(7))
+        .unwrap();
     r.write(
         Hive::CurrentUser,
         &format!(r"{base}\a"),
@@ -46,30 +41,21 @@ fn registro_real() {
         Some("x")
     );
     assert_eq!(
-        r.read(Hive::CurrentUser, &format!(r"{base}\a"), "")
-            .unwrap(),
+        r.read(Hive::CurrentUser, &format!(r"{base}\a"), "").unwrap(),
         Some(RegValue::Dword(7))
     );
     assert_eq!(
-        r.read(Hive::CurrentUser, &format!(r"{base}\a"), "m")
-            .unwrap(),
+        r.read(Hive::CurrentUser, &format!(r"{base}\a"), "m").unwrap(),
         Some(RegValue::MultiSz(vec!["uno".into(), "dos".into()]))
     );
     assert_eq!(
         r.subkeys(Hive::CurrentUser, &format!(r"{base}\a")).unwrap(),
         Some(vec!["b".to_string()])
     );
-    assert!(
-        r.delete_value(Hive::CurrentUser, &format!(r"{base}\a"), "m")
-            .unwrap()
-    );
-    assert!(
-        !r.delete_value(Hive::CurrentUser, &format!(r"{base}\a"), "m")
-            .unwrap()
-    );
+    assert!(r.delete_value(Hive::CurrentUser, &format!(r"{base}\a"), "m").unwrap());
+    assert!(!r.delete_value(Hive::CurrentUser, &format!(r"{base}\a"), "m").unwrap());
     assert_eq!(
-        r.read(Hive::CurrentUser, &format!(r"{base}\noexiste"), "x")
-            .unwrap(),
+        r.read(Hive::CurrentUser, &format!(r"{base}\noexiste"), "x").unwrap(),
         None
     );
     // Preferencias Java escapadas.
@@ -108,10 +94,7 @@ fn almacen_root_del_usuario_y_protocolo_reales() {
         wtrust::install(ts, TrustScope::User, &pack.ca_der).unwrap(),
         Change::Changed
     );
-    assert_eq!(
-        wtrust::check(ts, TrustScope::User, &pack.ca_der),
-        TrustCheck::Trusted
-    );
+    assert_eq!(wtrust::check(ts, TrustScope::User, &pack.ca_der), TrustCheck::Trusted);
     assert_eq!(
         wtrust::install(ts, TrustScope::User, &pack.ca_der).unwrap(),
         Change::Unchanged
@@ -125,14 +108,8 @@ fn almacen_root_del_usuario_y_protocolo_reales() {
         wtrust::check(ts, TrustScope::User, &pack.ca_der),
         TrustCheck::Mismatch("hay una CA de AutoFirma distinta (antigua)".into())
     );
-    assert_eq!(
-        wtrust::remove(ts, TrustScope::User).unwrap(),
-        Change::Changed
-    );
-    assert_eq!(
-        wtrust::check(ts, TrustScope::User, &newer.ca_der),
-        TrustCheck::Missing
-    );
+    assert_eq!(wtrust::remove(ts, TrustScope::User).unwrap(), Change::Changed);
+    assert_eq!(wtrust::check(ts, TrustScope::User, &newer.ca_der), TrustCheck::Missing);
     let store = ctx.win_certs.as_ref();
     match wtrust::install(store, TrustScope::User, &pack.ca_der) {
         Ok(Change::Changed) => {
@@ -162,18 +139,8 @@ fn borrado_cryptoapi_persistente() {
     let s = named_cert_store("AutoFirmaRsDiag");
     let st = s.as_ref();
     st.add(TrustScope::User, &pack.ca_der, "x").unwrap();
-    assert!(
-        st.list(TrustScope::User)
-            .unwrap()
-            .iter()
-            .any(|c| c.der == pack.ca_der)
-    );
+    assert!(st.list(TrustScope::User).unwrap().iter().any(|c| c.der == pack.ca_der));
     assert!(st.delete(TrustScope::User, &pack.ca_der).unwrap());
-    assert!(
-        !st.list(TrustScope::User)
-            .unwrap()
-            .iter()
-            .any(|c| c.der == pack.ca_der)
-    );
+    assert!(!st.list(TrustScope::User).unwrap().iter().any(|c| c.der == pack.ca_der));
     assert!(!st.delete(TrustScope::User, &pack.ca_der).unwrap());
 }

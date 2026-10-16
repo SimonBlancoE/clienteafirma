@@ -34,16 +34,26 @@ pub const AFIRMA_NSS_HOME_ENV: &str = "AFIRMA_NSS_HOME_ENV";
 impl MozEnv {
     /// Entorno del proceso actual.
     pub fn current() -> MozEnv {
-        let home = directories::BaseDirs::new().map(|d| d.home_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+        let home = directories::BaseDirs::new()
+            .map(|d| d.home_dir().to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
         let user_name = std::env::var("USER").ok().or_else(|| std::env::var("USERNAME").ok());
-        MozEnv { os: Os::current(), home, user_name, vars: std::env::vars().collect() }
+        MozEnv {
+            os: Os::current(),
+            home,
+            user_name,
+            vars: std::env::vars().collect(),
+        }
     }
 
     pub fn var(&self, name: &str) -> Option<&str> {
         self.vars.get(name).map(String::as_str).or_else(|| {
             // Windows no distingue mayúsculas en los nombres de variables.
             if self.os == Os::Windows {
-                self.vars.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+                self.vars
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                    .map(|(_, v)| v.as_str())
             } else {
                 None
             }
@@ -87,7 +97,11 @@ impl MozEnv {
 /// (`~/.mozilla/firefox`) se devuelve aunque no exista.
 pub fn profiles_ini_candidates(env: &MozEnv) -> Vec<PathBuf> {
     match env.os {
-        Os::Windows => env.windows_app_data().map(|a| a.join("Mozilla").join("Firefox").join("profiles.ini")).into_iter().collect(),
+        Os::Windows => env
+            .windows_app_data()
+            .map(|a| a.join("Mozilla").join("Firefox").join("profiles.ini"))
+            .into_iter()
+            .collect(),
         Os::MacOs => vec![env.home.join("Library/Application Support/Firefox/profiles.ini")],
         _ => {
             let h = &env.home;
@@ -110,18 +124,22 @@ pub fn profiles_ini_candidates(env: &MozEnv) -> Vec<PathBuf> {
 /// Ruta de `profiles.ini` (`MozillaKeyStoreUtilities.getProfilesIniPath`).
 pub fn profiles_ini_path(env: &MozEnv) -> Option<PathBuf> {
     if env.use_env_vars()
-        && let Some(p) = env.var(AFIRMA_NSS_PROFILES_INI) {
-            let mut p = p.to_string();
-            if let Some(idx) = p.to_uppercase().find("%APPDATA%")
-                && let Some(app) = env.windows_app_data() {
-                    p.replace_range(idx..idx + "%APPDATA%".len(), &app.to_string_lossy());
-                }
-            let path = PathBuf::from(&p);
-            if path.is_file() && std::fs::File::open(&path).is_ok() {
-                return Some(path);
-            }
-            tracing::warn!("La variable de entorno '{AFIRMA_NSS_PROFILES_INI}' apunta a un fichero que no existe o sobre el que no se tienen permisos de lectura, se ignorara");
+        && let Some(p) = env.var(AFIRMA_NSS_PROFILES_INI)
+    {
+        let mut p = p.to_string();
+        if let Some(idx) = p.to_uppercase().find("%APPDATA%")
+            && let Some(app) = env.windows_app_data()
+        {
+            p.replace_range(idx..idx + "%APPDATA%".len(), &app.to_string_lossy());
         }
+        let path = PathBuf::from(&p);
+        if path.is_file() && std::fs::File::open(&path).is_ok() {
+            return Some(path);
+        }
+        tracing::warn!(
+            "La variable de entorno '{AFIRMA_NSS_PROFILES_INI}' apunta a un fichero que no existe o sobre el que no se tienen permisos de lectura, se ignorara"
+        );
+    }
     let candidates = profiles_ini_candidates(env);
     match env.os {
         Os::Windows | Os::MacOs => candidates.into_iter().next(),
@@ -155,7 +173,10 @@ pub struct GeneralInfo {
 
 impl Default for GeneralInfo {
     fn default() -> Self {
-        GeneralInfo { version: 1, start_with_last_profile: false }
+        GeneralInfo {
+            version: 1,
+            start_with_last_profile: false,
+        }
     }
 }
 
@@ -177,13 +198,16 @@ pub struct ProfilesIni {
 }
 
 fn starts_with_ci(line: &str, prefix: &str) -> bool {
-    line.len() >= prefix.len() && line.is_char_boundary(prefix.len()) && line[..prefix.len()].eq_ignore_ascii_case(prefix)
+    line.len() >= prefix.len()
+        && line.is_char_boundary(prefix.len())
+        && line[..prefix.len()].eq_ignore_ascii_case(prefix)
 }
 
 impl ProfilesIni {
     /// Lee e interpreta un `profiles.ini`.
     pub fn load(path: &Path) -> Result<ProfilesIni, KeyStoreError> {
-        let bytes = std::fs::read(path).map_err(|e| KeyStoreError::Firefox(format!("No se pudo cargar el fichero de perfiles de Firefox: {e}")))?;
+        let bytes = std::fs::read(path)
+            .map_err(|e| KeyStoreError::Firefox(format!("No se pudo cargar el fichero de perfiles de Firefox: {e}")))?;
         let base = path.parent().unwrap_or(Path::new("."));
         Ok(Self::parse(&String::from_utf8_lossy(&bytes), base))
     }
@@ -232,15 +256,18 @@ impl ProfilesIni {
             } else if line.eq_ignore_ascii_case("[General]") {
                 match parse_general(&body) {
                     Some(g) => out.general = g,
-                    None => tracing::warn!("No se ha podido leer la seccion general del fichero de perfiles de Firefox"),
-                }
-            } else if starts_with_ci(line, "[install")
-                && let Some(s) = parse_state(&body) {
-                    // Con varias secciones prevalece la que declara Locked=.
-                    if out.state.as_ref().is_none_or(|st| !st.locked_declared) {
-                        out.state = Some(s);
+                    None => {
+                        tracing::warn!("No se ha podido leer la seccion general del fichero de perfiles de Firefox")
                     }
                 }
+            } else if starts_with_ci(line, "[install")
+                && let Some(s) = parse_state(&body)
+            {
+                // Con varias secciones prevalece la que declara Locked=.
+                if out.state.as_ref().is_none_or(|st| !st.locked_declared) {
+                    out.state = Some(s);
+                }
+            }
         }
         out
     }
@@ -263,10 +290,22 @@ fn parse_profile(body: &[String], base_dir: &Path) -> Option<FirefoxProfile> {
         }
     }
     let (name, path) = (name?, path?);
-    let absolute_path = if relative { base_dir.join(&path) } else { PathBuf::from(&path) };
+    let absolute_path = if relative {
+        base_dir.join(&path)
+    } else {
+        PathBuf::from(&path)
+    };
     let lock = absolute_path.join("lock");
-    let locked = lock.exists() || std::fs::symlink_metadata(&lock).is_ok() || absolute_path.join("parent.lock").exists();
-    Some(FirefoxProfile { name, relative, path, absolute_path, default, locked })
+    let locked =
+        lock.exists() || std::fs::symlink_metadata(&lock).is_ok() || absolute_path.join("parent.lock").exists();
+    Some(FirefoxProfile {
+        name,
+        relative,
+        path,
+        absolute_path,
+        default,
+        locked,
+    })
 }
 
 fn parse_general(body: &[String]) -> Option<GeneralInfo> {
@@ -294,7 +333,11 @@ fn parse_state(body: &[String]) -> Option<StateInfo> {
             locked_declared = true;
         }
     }
-    Some(StateInfo { default_profile_path: path?, locked, locked_declared })
+    Some(StateInfo {
+        default_profile_path: path?,
+        locked,
+        locked_declared,
+    })
 }
 
 /// Número mínimo de ficheros de un perfil válido.
@@ -321,20 +364,31 @@ pub fn is_dummy_profile(dir: &Path) -> bool {
 /// 4. primer perfil (aunque no sea válido).
 pub fn select_profile(ini: &ProfilesIni) -> Option<PathBuf> {
     let active = if ini.general.version == 1 {
-        ini.profiles.iter().find(|p| !is_dummy_profile(&p.absolute_path) && p.locked)
+        ini.profiles
+            .iter()
+            .find(|p| !is_dummy_profile(&p.absolute_path) && p.locked)
     } else {
-        ini.state.as_ref().and_then(|s| ini.profiles.iter().find(|p| p.path == s.default_profile_path))
+        ini.state
+            .as_ref()
+            .and_then(|s| ini.profiles.iter().find(|p| p.path == s.default_profile_path))
     };
     if let Some(p) = active
-        && !is_dummy_profile(&p.absolute_path) {
-            return Some(p.absolute_path.clone());
-        }
-    if let Some(p) = ini.profiles.iter().find(|p| !is_dummy_profile(&p.absolute_path) && p.default) {
+        && !is_dummy_profile(&p.absolute_path)
+    {
+        return Some(p.absolute_path.clone());
+    }
+    if let Some(p) = ini
+        .profiles
+        .iter()
+        .find(|p| !is_dummy_profile(&p.absolute_path) && p.default)
+    {
         return Some(p.absolute_path.clone());
     }
     let mut best: Option<(std::time::SystemTime, &FirefoxProfile)> = None;
     for p in ini.profiles.iter().filter(|p| !is_dummy_profile(&p.absolute_path)) {
-        let Ok(m) = std::fs::metadata(&p.absolute_path).and_then(|m| m.modified()) else { continue };
+        let Ok(m) = std::fs::metadata(&p.absolute_path).and_then(|m| m.modified()) else {
+            continue;
+        };
         if best.is_none_or(|(b, _)| m > b) {
             best = Some((m, p));
         }
@@ -355,7 +409,10 @@ pub fn profile_dir_for_ini(ini_path: &Path) -> Result<Option<PathBuf>, KeyStoreE
         return Ok(v);
     }
     if !ini_path.is_file() {
-        return Err(KeyStoreError::Firefox(format!("No se ha encontrado el fichero con los perfiles de Firefox en: {}", ini_path.display())));
+        return Err(KeyStoreError::Firefox(format!(
+            "No se ha encontrado el fichero con los perfiles de Firefox en: {}",
+            ini_path.display()
+        )));
     }
     let ini = ProfilesIni::load(ini_path)?;
     let dir = select_profile(&ini);
@@ -381,7 +438,9 @@ pub fn firefox_profile_dir(env: &MozEnv) -> Result<PathBuf, KeyStoreError> {
         (Os::Windows, Ok(None)) | (Os::Windows, Err(_)) => Err(not_found()),
         (_, Ok(None)) => Err(not_found()),
         (_, Err(e)) => {
-            tracing::warn!("No ha podido determinarse el perfil de usuario de Mozilla, se intentara usar el global: {e}");
+            tracing::warn!(
+                "No ha podido determinarse el perfil de usuario de Mozilla, se intentara usar el global: {e}"
+            );
             shared_nss_dir(env)
         }
     }
@@ -389,7 +448,11 @@ pub fn firefox_profile_dir(env: &MozEnv) -> Result<PathBuf, KeyStoreError> {
 
 /// Directorios candidatos de la base de datos NSS compartida.
 pub fn shared_nss_candidates(env: &MozEnv) -> Vec<PathBuf> {
-    vec![env.home.join(".pki/nssdb"), env.home.join("snap/chromium/current/.pki/nssdb"), PathBuf::from("/etc/pki/nssdb")]
+    vec![
+        env.home.join(".pki/nssdb"),
+        env.home.join("snap/chromium/current/.pki/nssdb"),
+        PathBuf::from("/etc/pki/nssdb"),
+    ]
 }
 
 /// Indica si el directorio contiene al menos un fichero `key*.db`.
@@ -425,7 +488,12 @@ mod tests {
     }
 
     fn env(home: &Path, os: Os) -> MozEnv {
-        MozEnv { os, home: home.to_path_buf(), user_name: Some("u".into()), vars: BTreeMap::new() }
+        MozEnv {
+            os,
+            home: home.to_path_buf(),
+            user_name: Some("u".into()),
+            vars: BTreeMap::new(),
+        }
     }
 
     #[test]
@@ -441,12 +509,23 @@ mod tests {
         assert_eq!(ini.general.version, 2);
         assert!(ini.general.start_with_last_profile);
         // La primera sección Install declara Locked= y prevalece.
-        assert_eq!(ini.state.as_ref().unwrap().default_profile_path, "Profiles/abc.default-release");
+        assert_eq!(
+            ini.state.as_ref().unwrap().default_profile_path,
+            "Profiles/abc.default-release"
+        );
         assert!(ini.state.as_ref().unwrap().locked);
         // Sin [General] la versión es 1.
-        assert_eq!(ProfilesIni::parse("[Profile0]\nName=a\nPath=b\n", Path::new("/")).general.version, 1);
+        assert_eq!(
+            ProfilesIni::parse("[Profile0]\nName=a\nPath=b\n", Path::new("/"))
+                .general
+                .version,
+            1
+        );
         // Versión no numérica: se ignora la sección general.
-        assert_eq!(ProfilesIni::parse("[General]\nVersion=x\n", Path::new("/")).general, GeneralInfo::default());
+        assert_eq!(
+            ProfilesIni::parse("[General]\nVersion=x\n", Path::new("/")).general,
+            GeneralInfo::default()
+        );
     }
 
     #[test]
@@ -474,14 +553,23 @@ mod tests {
         std::os::unix::fs::symlink("127.0.0.1:+1234", base.join("Profiles/b/lock")).unwrap();
         #[cfg(not(unix))]
         std::fs::write(base.join("Profiles/b/parent.lock"), b"").unwrap();
-        let ini = ProfilesIni::parse("[Profile0]\nName=a\nPath=Profiles/a\nDefault=1\n\n[Profile1]\nName=b\nPath=Profiles/b\n", base);
+        let ini = ProfilesIni::parse(
+            "[Profile0]\nName=a\nPath=Profiles/a\nDefault=1\n\n[Profile1]\nName=b\nPath=Profiles/b\n",
+            base,
+        );
         assert!(ini.profiles[1].locked);
         assert_eq!(select_profile(&ini).unwrap(), base.join("Profiles/b"));
         // Ninguno activo ni por defecto válido → el más reciente válido.
-        let ini = ProfilesIni::parse("[Profile0]\nName=n\nPath=Profiles/nokey\n\n[Profile1]\nName=a\nPath=Profiles/a\n\n[General]\nVersion=2\n", base);
+        let ini = ProfilesIni::parse(
+            "[Profile0]\nName=n\nPath=Profiles/nokey\n\n[Profile1]\nName=a\nPath=Profiles/a\n\n[General]\nVersion=2\n",
+            base,
+        );
         assert_eq!(select_profile(&ini).unwrap(), base.join("Profiles/a"));
         // Todos ficticios → el primero.
-        let ini = ProfilesIni::parse("[Profile0]\nName=n\nPath=Profiles/nokey\n\n[Profile1]\nName=d\nPath=Profiles/dummy\n", base);
+        let ini = ProfilesIni::parse(
+            "[Profile0]\nName=n\nPath=Profiles/nokey\n\n[Profile1]\nName=d\nPath=Profiles/dummy\n",
+            base,
+        );
         assert_eq!(select_profile(&ini).unwrap(), base.join("Profiles/nokey"));
         assert!(select_profile(&ProfilesIni::default()).is_none());
     }
@@ -492,7 +580,10 @@ mod tests {
         let home = tmp.path();
         let e = env(home, Os::Linux);
         // Ninguno existe → el clásico.
-        assert_eq!(profiles_ini_path(&e).unwrap(), home.join(".mozilla/firefox/profiles.ini"));
+        assert_eq!(
+            profiles_ini_path(&e).unwrap(),
+            home.join(".mozilla/firefox/profiles.ini")
+        );
         // Flatpak (mejora sobre Java).
         let flat = home.join(".var/app/org.mozilla.firefox/.mozilla/firefox");
         std::fs::create_dir_all(&flat).unwrap();
@@ -507,15 +598,25 @@ mod tests {
         let explicit = home.join("mi.ini");
         std::fs::write(&explicit, b"").unwrap();
         let mut e2 = e.clone();
-        e2.vars.insert(AFIRMA_NSS_PROFILES_INI.into(), explicit.to_string_lossy().into());
+        e2.vars
+            .insert(AFIRMA_NSS_PROFILES_INI.into(), explicit.to_string_lossy().into());
         assert_eq!(profiles_ini_path(&e2).unwrap(), snap.join("profiles.ini"));
         e2.vars.insert(USE_ENV_VARS.into(), "TRUE".into());
         assert_eq!(profiles_ini_path(&e2).unwrap(), explicit);
         // macOS y Windows.
-        assert_eq!(profiles_ini_path(&env(home, Os::MacOs)).unwrap(), home.join("Library/Application Support/Firefox/profiles.ini"));
+        assert_eq!(
+            profiles_ini_path(&env(home, Os::MacOs)).unwrap(),
+            home.join("Library/Application Support/Firefox/profiles.ini")
+        );
         let mut w = env(home, Os::Windows);
         w.vars.insert("APPDATA".into(), "C:\\Users\\u\\AppData\\Roaming".into());
-        assert_eq!(profiles_ini_path(&w).unwrap(), PathBuf::from("C:\\Users\\u\\AppData\\Roaming").join("Mozilla").join("Firefox").join("profiles.ini"));
+        assert_eq!(
+            profiles_ini_path(&w).unwrap(),
+            PathBuf::from("C:\\Users\\u\\AppData\\Roaming")
+                .join("Mozilla")
+                .join("Firefox")
+                .join("profiles.ini")
+        );
     }
 
     #[test]

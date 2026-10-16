@@ -68,13 +68,18 @@ impl SignedDataBuilder {
         now: DateTime<Utc>,
     ) -> afirma_core::Result<Self> {
         if cert_chain.is_empty() {
-            return Err(AfirmaError::invalid_argument("La cadena de certificados debe contener al menos un elemento"));
+            return Err(AfirmaError::invalid_argument(
+                "La cadena de certificados debe contener al menos un elemento",
+            ));
         }
         let mut params = CadesParameters::load(None, None, &algorithm.java_name(), extra, now)?;
         params.data_digest = Some(content_digest.to_vec());
         params.content_data = None;
-        let certificates =
-            if params.included_only_signing_certificate { vec![cert_chain[0].clone()] } else { cert_chain.clone() };
+        let certificates = if params.included_only_signing_certificate {
+            vec![cert_chain[0].clone()]
+        } else {
+            cert_chain.clone()
+        };
         Ok(SignedDataBuilder {
             params,
             algorithm,
@@ -108,10 +113,9 @@ impl SignedDataBuilder {
     }
 
     fn signer_cert(&self) -> afirma_core::Result<&[u8]> {
-        self.cert_chain
-            .first()
-            .map(Vec::as_slice)
-            .ok_or_else(|| AfirmaError::invalid_argument("La cadena de certificados debe contener al menos un elemento"))
+        self.cert_chain.first().map(Vec::as_slice).ok_or_else(|| {
+            AfirmaError::invalid_argument("La cadena de certificados debe contener al menos un elemento")
+        })
     }
 
     /// Atributos firmados como `SET OF` DER: los datos que hay que firmar.

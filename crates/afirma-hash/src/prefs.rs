@@ -62,13 +62,10 @@ impl HashPreferences {
                 .and_then(|v| GUI_ALGORITHMS.into_iter().find(|a| a.name() == v))
                 .unwrap_or(DEFAULT_ALGORITHM)
         };
-        let boolean =
-            |key, default: bool| get(key).map_or(default, |v| v.eq_ignore_ascii_case("true"));
+        let boolean = |key, default: bool| get(key).map_or(default, |v| v.eq_ignore_ascii_case("true"));
         Self {
             create_hash_algorithm: alg(KEY_CREATE_HASH_ALGORITHM),
-            create_hash_format: FileHashFormat::from_preference(
-                get(KEY_CREATE_HASH_FORMAT).as_deref(),
-            ),
+            create_hash_format: FileHashFormat::from_preference(get(KEY_CREATE_HASH_FORMAT).as_deref()),
             create_hash_copy_to_clipboard: boolean(KEY_CREATE_HASH_COPY_TO_CLIPBOARD, true),
             create_hash_directory_algorithm: alg(KEY_CREATE_HASH_DIRECTORY_ALGORITHM),
             create_hash_directory_recursive: boolean(KEY_CREATE_HASH_DIRECTORY_RECURSIVE, false),
@@ -79,10 +76,7 @@ impl HashPreferences {
     /// formato como texto del desplegable, los booleanos como `true`/`false`).
     pub fn to_entries(&self) -> [(&'static str, String); 5] {
         [
-            (
-                KEY_CREATE_HASH_ALGORITHM,
-                self.create_hash_algorithm.name().to_string(),
-            ),
+            (KEY_CREATE_HASH_ALGORITHM, self.create_hash_algorithm.name().to_string()),
             (
                 KEY_CREATE_HASH_FORMAT,
                 self.create_hash_format.display_name().to_string(),

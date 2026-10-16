@@ -92,9 +92,7 @@ impl KeyInfo {
             Kind::Int => value.trim().parse::<i64>().is_ok(),
             // Las claves de enumeración aceptan también la cadena vacía si su valor por
             // defecto es vacío (p. ej. algoritmo de huella de política no configurada).
-            Kind::Enum(vals) => {
-                vals.contains(&value) || (value.is_empty() && self.default == Some(""))
-            }
+            Kind::Enum(vals) => vals.contains(&value) || (value.is_empty() && self.default == Some("")),
         }
     }
 }
@@ -122,10 +120,7 @@ impl<T> std::fmt::Debug for Key<T> {
 impl<T> Key<T> {
     /// Crea la clave.
     pub const fn new(info: &'static KeyInfo) -> Self {
-        Self {
-            info,
-            _t: PhantomData,
-        }
+        Self { info, _t: PhantomData }
     }
 
     /// Nombre de la clave.
@@ -295,7 +290,8 @@ const XML_FORMATS: &[&str] = &["XAdES", "CAdES"];
 const BIN_FORMATS: &[&str] = &["CAdES", "XAdES"];
 
 /// Texto por defecto de la firma visible PDF.
-pub const DEFAULT_LAYER2_TEXT: &str = "Firmado por $$SUBJECTCN$$ el día $$SIGNDATE=dd/MM/yyyy$$ con un certificado emitido por $$ISSUERCN$$";
+pub const DEFAULT_LAYER2_TEXT: &str =
+    "Firmado por $$SUBJECTCN$$ el día $$SIGNDATE=dd/MM/yyyy$$ con un certificado emitido por $$ISSUERCN$$";
 
 /// Valor de `defaultKeystore` para «almacén por defecto del sistema».
 pub const VALUE_KEYSTORE_DEFAULT: &str = "default";
@@ -678,10 +674,7 @@ mod tests {
         assert_eq!(default_value("defaultSignatureFormatOoxml"), Some("CAdES"));
         assert_eq!(default_value("defaultSignatureFormatOdf"), Some("CAdES"));
         assert_eq!(default_value("signatureHashAlgorithm"), Some("SHA256"));
-        assert!(
-            info("requireSignedPrerefences").is_some(),
-            "se conserva la errata"
-        );
+        assert!(info("requireSignedPrerefences").is_some(), "se conserva la errata");
     }
 
     #[test]
@@ -732,10 +725,7 @@ mod tests {
             SignatureFormat::parse_pref("OOXML (Office Open XML)"),
             Some(SignatureFormat::Ooxml)
         );
-        assert_eq!(
-            MultisignOp::from_pref_lenient("loquesea"),
-            MultisignOp::CountersignTree
-        );
+        assert_eq!(MultisignOp::from_pref_lenient("loquesea"), MultisignOp::CountersignTree);
         assert_eq!(bool::parse_pref("TRUE"), Some(true));
         assert_eq!(bool::parse_pref("1"), None);
         assert_eq!(HashAlgorithm::Sha256.to_pref(), "SHA256");

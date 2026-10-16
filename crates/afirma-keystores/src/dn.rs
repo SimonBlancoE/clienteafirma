@@ -128,7 +128,12 @@ impl DistinguishedName {
                     return None;
                 }
                 let (vtag, vcontent, vfull, _) = read_tlv(vrest)?;
-                avas.push(Ava { oid: oid_to_string(oid)?, tag: vtag, value_der: vfull.to_vec(), content: vcontent.to_vec() });
+                avas.push(Ava {
+                    oid: oid_to_string(oid)?,
+                    tag: vtag,
+                    value_der: vfull.to_vec(),
+                    content: vcontent.to_vec(),
+                });
             }
             rdns.push(avas);
         }
@@ -171,7 +176,9 @@ impl DistinguishedName {
             entries.sort_by(|(t1, v1), (t2, v2)| {
                 java_compare_ignore_case(t1, t2).then_with(|| v1.sort_key().cmp(&v2.sort_key()))
             });
-            let Some((ty, val)) = entries.into_iter().next() else { continue };
+            let Some((ty, val)) = entries.into_iter().next() else {
+                continue;
+            };
             if let Some(pos) = out.iter().position(|(t, _)| t.eq_ignore_ascii_case(&ty)) {
                 out[pos].1 = val;
             } else {
@@ -188,7 +195,11 @@ impl DistinguishedName {
 
     /// Primer valor (en orden DER) de un atributo dado por OID.
     pub fn first_value(&self, oid: &str) -> Option<String> {
-        self.rdns.iter().flatten().find(|a| a.oid == oid).and_then(Ava::java_string_value)
+        self.rdns
+            .iter()
+            .flatten()
+            .find(|a| a.oid == oid)
+            .and_then(Ava::java_string_value)
     }
 }
 
@@ -224,7 +235,11 @@ fn ldap_value(a: &Ava) -> LdapValue {
             //   pierden el último (`Rdn.unescapeValue`).
             let is_ws = |c: char| c == ' ' || c == '\r';
             let quoted = already_quoted || java_quote_value(&v).starts_with('"');
-            let mut inner: Vec<char> = if already_quoted { chars[1..chars.len() - 1].to_vec() } else { chars };
+            let mut inner: Vec<char> = if already_quoted {
+                chars[1..chars.len() - 1].to_vec()
+            } else {
+                chars
+            };
             if quoted {
                 if inner.last().is_some_and(|&c| is_ws(c)) {
                     inner.pop();
@@ -346,13 +361,20 @@ fn keyword_rfc2253(oid: &str) -> Option<&'static str> {
 /// `universal` es `true`) o como `toRFC2253String` (que no trata
 /// UniversalString como cadena).
 fn decode_java_string(tag: u8, data: &[u8], universal: bool) -> Option<String> {
-    let ascii = |d: &[u8]| d.iter().map(|&b| if b < 0x80 { b as char } else { '\u{FFFD}' }).collect::<String>();
+    let ascii = |d: &[u8]| {
+        d.iter()
+            .map(|&b| if b < 0x80 { b as char } else { '\u{FFFD}' })
+            .collect::<String>()
+    };
     match tag {
         0x0c => Some(String::from_utf8_lossy(data).into_owned()),
         0x13 | 0x16 | 0x1b => Some(ascii(data)),
         0x14 => Some(data.iter().map(|&b| b as char).collect()),
         0x1e => {
-            let units: Vec<u16> = data.chunks(2).map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)])).collect();
+            let units: Vec<u16> = data
+                .chunks(2)
+                .map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+                .collect();
             Some(String::from_utf16_lossy(&units))
         }
         0x1c if universal => Some(
@@ -372,7 +394,11 @@ fn decode_java_string(tag: u8, data: &[u8], universal: bool) -> Option<String> {
 
 /// `DerValue.isPrintableStringChar`.
 fn is_printable_string_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || matches!(c, ' ' | '\'' | '(' | ')' | '+' | ',' | '-' | '.' | '/' | ':' | '=' | '?')
+    c.is_ascii_alphanumeric()
+        || matches!(
+            c,
+            ' ' | '\'' | '(' | ')' | '+' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
+        )
 }
 
 /// Entrecomillado y escapado de `AVA.toKeywordValueString`.
@@ -411,10 +437,15 @@ fn java_quote_value(val: &str) -> String {
         }
     }
     if let Some(last) = sb.chars().last()
-        && (last == ' ' || last == '\n') {
-            quote_needed = true;
-        }
-    if !already_quoted && quote_needed { format!("\"{sb}\"") } else { sb }
+        && (last == ' ' || last == '\n')
+    {
+        quote_needed = true;
+    }
+    if !already_quoted && quote_needed {
+        format!("\"{sb}\"")
+    } else {
+        sb
+    }
 }
 
 /// Escapado de `AVA.toRFC2253String`.
@@ -687,7 +718,11 @@ mod tests {
             .filter(|l| !l.is_empty())
             .map(|l| {
                 let mut p = l.splitn(3, '\t');
-                (p.next().unwrap().to_string(), p.next().unwrap().to_string(), unesc(p.next().unwrap_or("")))
+                (
+                    p.next().unwrap().to_string(),
+                    p.next().unwrap().to_string(),
+                    unesc(p.next().unwrap_or("")),
+                )
             })
             .collect()
     }
@@ -709,7 +744,10 @@ mod tests {
     /// Escapado de `FiltersDnOracle.esc` (los valores LDAP del oráculo van
     /// escapados dos veces).
     fn esc(s: &str) -> String {
-        s.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t")
+        s.replace('\\', "\\\\")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t")
     }
 
     fn ldap_line(attrs: &[(String, LdapValue)]) -> String {
@@ -738,7 +776,11 @@ mod tests {
                 "getCN" => certificate_cn(der),
                 "getCN.issuer.rfc2253" => rfc2253_issuer_string(der).map(|s| get_cn(&s)),
                 "getCN.issuer.toString" => java_issuer_string(der).map(|s| get_cn(&s)),
-                "subjectSN" => Some(rfc2253_subject_string(der).and_then(|p| get_rdn_value("2.5.4.5", &p)).unwrap_or("<null>".into())),
+                "subjectSN" => Some(
+                    rfc2253_subject_string(der)
+                        .and_then(|p| get_rdn_value("2.5.4.5", &p))
+                        .unwrap_or("<null>".into()),
+                ),
                 "pseudonym" => Some(is_pseudonym_certificate(der).to_string()),
                 "ldap.subject" => {
                     // En Java los RDN salen de derecha a izquierda (orden DER) y
@@ -754,8 +796,11 @@ mod tests {
                             java_map.push((t.to_string(), v.to_string()));
                         }
                     }
-                    let expected_line =
-                        java_map.iter().map(|(t, v)| format!("{t}={v}")).collect::<Vec<_>>().join(" | ");
+                    let expected_line = java_map
+                        .iter()
+                        .map(|(t, v)| format!("{t}={v}"))
+                        .collect::<Vec<_>>()
+                        .join(" | ");
                     assert_eq!(ldap_line(&mine), expected_line, "{file} {key}");
                     checked += 1;
                     continue;

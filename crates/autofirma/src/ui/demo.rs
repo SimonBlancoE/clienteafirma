@@ -1,6 +1,5 @@
 //! Datos de demostración para revisar la interfaz sin almacenes reales.
 
-use eframe::egui;
 use super::app::{AutoFirmaApp, Page};
 use super::cert_picker::StoreOption;
 use super::icons;
@@ -11,6 +10,7 @@ use super::pages::tools::{CheckRow, Tool};
 use super::pages::verify::{PolicyInfo, SignatureDetail, SignatureReport};
 use super::theme::ThemeChoice;
 use crate::i18n::{tr, trf};
+use eframe::egui;
 
 fn test_certs() -> Vec<CertItem> {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki");
@@ -18,9 +18,10 @@ fn test_certs() -> Vec<CertItem> {
     for name in ["firmante-rsa", "firmante-ec", "autenticacion", "caducado"] {
         if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt")))
             && let Some(der) = afirma_core::cert::decode_certificate(&pem)
-                && let Some(c) = CertItem::from_der(name, der) {
-                    certs.push(c);
-                }
+            && let Some(c) = CertItem::from_der(name, der)
+        {
+            certs.push(c);
+        }
     }
     certs
 }
@@ -48,11 +49,35 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
     };
     if demo.contains("ready") || demo.contains("finished") || demo.contains("picker") {
         app.sign.files = vec![
-            item("Solicitud de subvención 2026.pdf", FileKind::Pdf, "PAdES", &["PAdES", "CAdES", "XAdES"], 284_312),
-            item("factura-0042.xsig", FileKind::FacturaE, "FacturaE", &["FacturaE", "XAdES", "CAdES"], 18_204),
-            item("Contrato de servicios.docx", FileKind::Ooxml, "CAdES", &["CAdES", "OOXML", "XAdES"], 61_877),
+            item(
+                "Solicitud de subvención 2026.pdf",
+                FileKind::Pdf,
+                "PAdES",
+                &["PAdES", "CAdES", "XAdES"],
+                284_312,
+            ),
+            item(
+                "factura-0042.xsig",
+                FileKind::FacturaE,
+                "FacturaE",
+                &["FacturaE", "XAdES", "CAdES"],
+                18_204,
+            ),
+            item(
+                "Contrato de servicios.docx",
+                FileKind::Ooxml,
+                "CAdES",
+                &["CAdES", "OOXML", "XAdES"],
+                61_877,
+            ),
         ];
-        let mut signed = item("informe-tecnico.pdf.csig", FileKind::Signature("CAdES".into()), "CAdES", &["CAdES"], 9_102);
+        let mut signed = item(
+            "informe-tecnico.pdf.csig",
+            FileKind::Signature("CAdES".into()),
+            "CAdES",
+            &["CAdES"],
+            9_102,
+        );
         signed.operation = Operation::Cosign;
         signed.existing_signatures = Some(trf("1 firma de {0}", &[&"PRUEBA MARIA"]));
         app.sign.files.push(signed);
@@ -75,7 +100,11 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
     if demo.contains("verify") {
         use afirma_core::validity::{SignValidity, Validity, ValidityError};
         app.page = Page::Verify;
-        let t = |s: &str| chrono::DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&chrono::Utc);
+        let t = |s: &str| {
+            chrono::DateTime::parse_from_rfc3339(s)
+                .unwrap()
+                .with_timezone(&chrono::Utc)
+        };
         let ok = || vec![SignValidity::ok()];
         let mut report = SignatureReport {
             file_name: "Resolución 2026-0117.pdf".into(),
@@ -97,8 +126,15 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
                 algorithm: Some("SHA256withRSA".into()),
                 signing_time: Some(t("2026-10-14T09:31:00Z")),
                 validity: ok(),
-                policy: Some(PolicyInfo { name: Some("AGE v1.9".into()), identifier: "2.16.724.1.3.1.1.2.1.9".into(), ..Default::default() }),
-                metadata: vec![("Razón".into(), "Conformidad con la resolución".into()), ("Lugar".into(), "Madrid".into())],
+                policy: Some(PolicyInfo {
+                    name: Some("AGE v1.9".into()),
+                    identifier: "2.16.724.1.3.1.1.2.1.9".into(),
+                    ..Default::default()
+                }),
+                metadata: vec![
+                    ("Razón".into(), "Conformidad con la resolución".into()),
+                    ("Lugar".into(), "Madrid".into()),
+                ],
                 ..Default::default()
             },
             SignatureDetail {
@@ -135,15 +171,32 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
         for name in ["firmante-rsa", "firmante-ec", "autenticacion", "caducado"] {
             if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt")))
                 && let Some(der) = afirma_core::cert::decode_certificate(&pem)
-                    && let Some(c) = CertItem::from_der(name, der) {
-                        certs.push(c);
-                    }
+                && let Some(c) = CertItem::from_der(name, der)
+            {
+                certs.push(c);
+            }
         }
         app.picker.stores = vec![
-            StoreOption { id: "system".into(), label: tr("Almacén del sistema").into(), icon: icons::VAULT },
-            StoreOption { id: "mozilla".into(), label: "Firefox".into(), icon: icons::BROWSER },
-            StoreOption { id: "dnie".into(), label: tr("DNI electrónico").into(), icon: icons::IDENTIFICATION_BADGE },
-            StoreOption { id: "pkcs12".into(), label: tr("Fichero PKCS#12 (.p12, .pfx)…").into(), icon: icons::FILE_LOCK },
+            StoreOption {
+                id: "system".into(),
+                label: tr("Almacén del sistema").into(),
+                icon: icons::VAULT,
+            },
+            StoreOption {
+                id: "mozilla".into(),
+                label: "Firefox".into(),
+                icon: icons::BROWSER,
+            },
+            StoreOption {
+                id: "dnie".into(),
+                label: tr("DNI electrónico").into(),
+                icon: icons::IDENTIFICATION_BADGE,
+            },
+            StoreOption {
+                id: "pkcs12".into(),
+                label: tr("Fichero PKCS#12 (.p12, .pfx)…").into(),
+                icon: icons::FILE_LOCK,
+            },
         ];
         app.picker.allow_change_store = true;
         app.picker.show_remember = demo.contains("web");
@@ -157,22 +210,53 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
     }
     if demo.contains("certs") {
         app.page = Page::Certificates;
-        let mk = |id: &str, label: &str, desc: &str, icon: &'static str, certs: Option<Vec<CertItem>>, removable: bool| StoreEntry {
-            id: id.into(),
-            label: label.into(),
-            description: desc.into(),
-            icon,
-            available: true,
-            certs,
-            error: None,
-            loading: false,
-            removable,
-        };
+        let mk =
+            |id: &str, label: &str, desc: &str, icon: &'static str, certs: Option<Vec<CertItem>>, removable: bool| {
+                StoreEntry {
+                    id: id.into(),
+                    label: label.into(),
+                    description: desc.into(),
+                    icon,
+                    available: true,
+                    certs,
+                    error: None,
+                    loading: false,
+                    removable,
+                }
+            };
         app.certificates.stores = vec![
-            mk("system", tr("Sistema"), tr("Almacén de certificados del sistema operativo"), icons::VAULT, Some(test_certs()), false),
-            mk("mozilla", "Firefox", tr("Perfil predeterminado de Mozilla Firefox"), icons::BROWSER, None, false),
-            mk("dnie", tr("DNIe y tarjetas"), tr("DNI electrónico y tarjetas criptográficas"), icons::IDENTIFICATION_BADGE, Some(vec![]), false),
-            mk("p12:/home/usuario/certificado.p12", "certificado.p12", "/home/usuario/certificado.p12", icons::FILE_LOCK, None, true),
+            mk(
+                "system",
+                tr("Sistema"),
+                tr("Almacén de certificados del sistema operativo"),
+                icons::VAULT,
+                Some(test_certs()),
+                false,
+            ),
+            mk(
+                "mozilla",
+                "Firefox",
+                tr("Perfil predeterminado de Mozilla Firefox"),
+                icons::BROWSER,
+                None,
+                false,
+            ),
+            mk(
+                "dnie",
+                tr("DNIe y tarjetas"),
+                tr("DNI electrónico y tarjetas criptográficas"),
+                icons::IDENTIFICATION_BADGE,
+                Some(vec![]),
+                false,
+            ),
+            mk(
+                "p12:/home/usuario/certificado.p12",
+                "certificado.p12",
+                "/home/usuario/certificado.p12",
+                icons::FILE_LOCK,
+                None,
+                true,
+            ),
         ];
         app.certificates.default_store = Some("system".into());
         app.certificates.expanded = Some(1);
@@ -181,13 +265,37 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
         app.page = Page::Tools;
         if demo.contains("doctor") {
             app.tools.open = Some(Tool::Doctor);
-            let row = |ok: Option<bool>, t: &str, d: &str| CheckRow { ok, title: t.into(), detail: d.into() };
+            let row = |ok: Option<bool>, t: &str, d: &str| CheckRow {
+                ok,
+                title: t.into(),
+                detail: d.into(),
+            };
             app.tools.doctor = vec![
-                row(Some(true), "Protocolo afirma:// registrado", "Los navegadores abrirán AutoFirma al firmar en una sede electrónica."),
-                row(Some(true), "Certificado local de confianza instalado", "Almacén del sistema y perfiles de Firefox (2 de 2)."),
-                row(Some(false), "Chrome pide confirmación al abrir AutoFirma", "Aplica la directiva AutoLaunchProtocolsFromOrigins para evitar el aviso."),
-                row(Some(true), "Puertos locales disponibles", "63117, 63118 y 63119 libres."),
-                row(None, "Lector de tarjetas", "No se ha detectado ningún lector conectado."),
+                row(
+                    Some(true),
+                    "Protocolo afirma:// registrado",
+                    "Los navegadores abrirán AutoFirma al firmar en una sede electrónica.",
+                ),
+                row(
+                    Some(true),
+                    "Certificado local de confianza instalado",
+                    "Almacén del sistema y perfiles de Firefox (2 de 2).",
+                ),
+                row(
+                    Some(false),
+                    "Chrome pide confirmación al abrir AutoFirma",
+                    "Aplica la directiva AutoLaunchProtocolsFromOrigins para evitar el aviso.",
+                ),
+                row(
+                    Some(true),
+                    "Puertos locales disponibles",
+                    "63117, 63118 y 63119 libres.",
+                ),
+                row(
+                    None,
+                    "Lector de tarjetas",
+                    "No se ha detectado ningún lector conectado.",
+                ),
             ];
         }
         if demo.contains("hash") {
@@ -197,7 +305,10 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
     }
     if demo.contains("visible") {
         app.visible_sig.stamp_enabled = demo.contains("stamp");
-        app.visible_sig.open_with("Solicitud de subvención 2026.pdf", std::sync::Arc::new(super::visible_sig::DemoPages));
+        app.visible_sig.open_with(
+            "Solicitud de subvención 2026.pdf",
+            std::sync::Arc::new(super::visible_sig::DemoPages),
+        );
         app.visible_sig.set_rect_pdf(0, 330.0, 60.0, 545.0, 140.0);
         if demo.contains("stamp") {
             let logo = include_bytes!("../../../../packaging/icons/autofirma-128.png").to_vec();
@@ -213,13 +324,19 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
         } else {
             super::pages::settings::Section::Signature
         };
-        app.settings.pending.insert("confirmToSign".into(), Some("false".into()));
+        app.settings
+            .pending
+            .insert("confirmToSign".into(), Some("false".into()));
     }
     if demo.contains("web") {
         use super::request_view::{RequestInfo, RequestOp, RequestStage, RequestView};
         let mut r = RequestView::new(RequestInfo {
             origin: Some("sede.ejemplo.gob.es".into()),
-            op: if demo.contains("batch") { RequestOp::Batch } else { RequestOp::Sign },
+            op: if demo.contains("batch") {
+                RequestOp::Batch
+            } else {
+                RequestOp::Sign
+            },
             format: Some("PAdES".into()),
             file_name: Some("Solicitud de subvención 2026.pdf".into()),
             data_len: Some(284_312),
@@ -227,7 +344,10 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
             batch_count: demo.contains("batch").then_some(12),
         });
         r.picker.stores = app.picker.stores.clone();
-        r.picker.open_with(tr("Almacén del sistema"), test_certs().into_iter().filter(|c| c.alias != "caducado").collect());
+        r.picker.open_with(
+            tr("Almacén del sistema"),
+            test_certs().into_iter().filter(|c| c.alias != "caducado").collect(),
+        );
         if demo.contains("done") {
             r.stage = RequestStage::Done(tr("Documento firmado").into());
         }

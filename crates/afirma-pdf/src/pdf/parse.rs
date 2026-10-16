@@ -15,10 +15,7 @@ pub(crate) fn is_ws(b: u8) -> bool {
 
 /// Delimitadores de PDF.
 pub(crate) fn is_delim(b: u8) -> bool {
-    matches!(
-        b,
-        b'(' | b')' | b'<' | b'>' | b'[' | b']' | b'{' | b'}' | b'/' | b'%'
-    )
+    matches!(b, b'(' | b')' | b'<' | b'>' | b'[' | b']' | b'{' | b'}' | b'/' | b'%')
 }
 
 /// Lector de objetos sobre un búfer.
@@ -30,11 +27,7 @@ pub(crate) struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub fn new(data: &'a [u8], pos: usize) -> Self {
-        Parser {
-            data,
-            pos,
-            depth: 0,
-        }
+        Parser { data, pos, depth: 0 }
     }
 
     fn peek(&self) -> Option<u8> {
@@ -158,9 +151,10 @@ impl<'a> Parser<'a> {
                     if let Some(g) = parse_uint(g) {
                         let r = self.token();
                         if r == b"R"
-                            && let (Ok(n), Ok(g)) = (u32::try_from(n), u16::try_from(g)) {
-                                return Some(Object::Reference((n, g)));
-                            }
+                            && let (Ok(n), Ok(g)) = (u32::try_from(n), u16::try_from(g))
+                        {
+                            return Some(Object::Reference((n, g)));
+                        }
                     }
                     self.pos = after;
                     return Some(Object::Integer(n));
@@ -181,11 +175,11 @@ impl<'a> Parser<'a> {
                     .data
                     .get(self.pos + 1..self.pos + 3)
                     .and_then(|h| u8::from_str_radix(std::str::from_utf8(h).ok()?, 16).ok())
-                {
-                    out.push(h);
-                    self.pos += 3;
-                    continue;
-                }
+            {
+                out.push(h);
+                self.pos += 3;
+                continue;
+            }
             out.push(b);
             self.pos += 1;
         }
@@ -313,11 +307,7 @@ pub(crate) fn parse_int(t: &[u8]) -> Option<i64> {
 
 pub(crate) fn parse_real(t: &[u8]) -> Option<f32> {
     let s = std::str::from_utf8(t).ok()?;
-    if s.is_empty()
-        || !s
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
-    {
+    if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+')) {
         return None;
     }
     let s = if s.starts_with('.') || s.starts_with("-.") || s.starts_with("+.") {
@@ -440,11 +430,7 @@ pub(crate) enum EntryState {
     Free,
 }
 
-fn xref_stream_entries(
-    data: &[u8],
-    offset: usize,
-    dict: &lopdf::Dictionary,
-) -> Option<Vec<(u32, EntryState)>> {
+fn xref_stream_entries(data: &[u8], offset: usize, dict: &lopdf::Dictionary) -> Option<Vec<(u32, EntryState)>> {
     // Datos del flujo: tras `stream` + EOL, con /Length directo.
     let len = usize::try_from(dict.get(b"Length").ok()?.as_i64().ok()?).ok()?;
     let kw = find(data, b"stream", offset)?;
@@ -491,11 +477,7 @@ fn xref_stream_entries(
             let r = content.get(pos..pos + rec)?;
             pos += rec;
             let t = if w[0] == 0 { 1 } else { read(&r[..w[0]]) };
-            let state = if t == 0 {
-                EntryState::Free
-            } else {
-                EntryState::InUse
-            };
+            let state = if t == 0 { EntryState::Free } else { EntryState::InUse };
             out.push((u32::try_from(first + k).ok()?, state));
         }
     }
@@ -506,11 +488,7 @@ fn xref_stream_entries(
 /// a la más antigua) y devuelve los objetos cuya entrada vigente es libre.
 /// `lopdf` ignora las entradas libres al combinar secciones, por lo que un
 /// objeto liberado en una actualización seguiría visible.
-pub(crate) fn effectively_free_objects(
-    data: &[u8],
-    base: usize,
-    startxref: usize,
-) -> std::collections::BTreeSet<u32> {
+pub(crate) fn effectively_free_objects(data: &[u8], base: usize, startxref: usize) -> std::collections::BTreeSet<u32> {
     use std::collections::{BTreeMap, BTreeSet};
     let mut state: BTreeMap<u32, EntryState> = BTreeMap::new();
     let mut seen = BTreeSet::new();
@@ -530,8 +508,7 @@ pub(crate) fn effectively_free_objects(
                     p.token();
                     break;
                 }
-                let (Some(first), Some(count)) = (parse_uint(p.token()), parse_uint(p.token()))
-                else {
+                let (Some(first), Some(count)) = (parse_uint(p.token()), parse_uint(p.token())) else {
                     break;
                 };
                 for k in 0..count {
@@ -557,9 +534,10 @@ pub(crate) fn effectively_free_objects(
                 let mut q = Parser::new(data, so);
                 if q.object_header().is_some()
                     && let Some(Object::Dictionary(d)) = q.object()
-                        && let Some(e) = xref_stream_entries(data, q.pos, &d) {
-                            entries.extend(e);
-                        }
+                    && let Some(e) = xref_stream_entries(data, q.pos, &d)
+                {
+                    entries.extend(e);
+                }
             }
         } else {
             if p.object_header().is_none() {

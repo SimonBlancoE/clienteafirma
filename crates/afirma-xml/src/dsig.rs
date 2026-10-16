@@ -30,8 +30,7 @@ pub const BASE64: &str = "http://www.w3.org/2000/09/xmldsig#base64";
 pub const ENVELOPED: &str = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 pub const XPATH: &str = "http://www.w3.org/TR/1999/REC-xpath-19991116";
 pub const XPATH2: &str = "http://www.w3.org/2002/06/xmldsig-filter2";
-pub const RELATIONSHIP_TRANSFORM: &str =
-    "http://schemas.openxmlformats.org/package/2006/RelationshipTransform";
+pub const RELATIONSHIP_TRANSFORM: &str = "http://schemas.openxmlformats.org/package/2006/RelationshipTransform";
 pub const MDSSI_NS: &str = "http://schemas.openxmlformats.org/package/2006/digital-signature";
 pub const OPC_RELS_NS: &str = "http://schemas.openxmlformats.org/package/2006/relationships";
 const EXC_C14N_NS: &str = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -214,35 +213,19 @@ impl<'a> RefContext<'a> {
             };
         };
         if uri.is_empty() {
-            return Ok(Data::Nodes(
-                DocRef::Borrowed(doc),
-                NodeSet::whole(doc, false),
-            ));
+            return Ok(Data::Nodes(DocRef::Borrowed(doc), NodeSet::whole(doc, false)));
         }
         if let Some(frag) = uri.strip_prefix('#') {
             if frag == "xpointer(/)" {
-                return Ok(Data::Nodes(
-                    DocRef::Borrowed(doc),
-                    NodeSet::whole(doc, true),
-                ));
+                return Ok(Data::Nodes(DocRef::Borrowed(doc), NodeSet::whole(doc, true)));
             }
-            if let Some(inner) = frag
-                .strip_prefix("xpointer(id(")
-                .and_then(|s| s.strip_suffix("))"))
-            {
+            if let Some(inner) = frag.strip_prefix("xpointer(id(").and_then(|s| s.strip_suffix("))")) {
                 let id = inner.trim_matches(['\'', '"']);
-                let el = find_by_id_ci(doc, id)
-                    .ok_or_else(|| DsigError::Dereference(uri.to_string()))?;
-                return Ok(Data::Nodes(
-                    DocRef::Borrowed(doc),
-                    NodeSet::subtree(doc, el, true),
-                ));
+                let el = find_by_id_ci(doc, id).ok_or_else(|| DsigError::Dereference(uri.to_string()))?;
+                return Ok(Data::Nodes(DocRef::Borrowed(doc), NodeSet::subtree(doc, el, true)));
             }
             if let Some(el) = find_by_id_ci(doc, frag) {
-                return Ok(Data::Nodes(
-                    DocRef::Borrowed(doc),
-                    NodeSet::subtree(doc, el, false),
-                ));
+                return Ok(Data::Nodes(DocRef::Borrowed(doc), NodeSet::subtree(doc, el, false)));
             }
         }
         match self.resolver.resolve(uri) {
@@ -271,18 +254,13 @@ impl<'a> RefContext<'a> {
             .to_string();
         if let Some(mut method) = C14n::from_uri(&alg) {
             if method.kind == Kind::Exclusive
-                && let Some(inc) = sdoc.find_child(transform, EXC_C14N_NS, "InclusiveNamespaces") {
-                    let list = sdoc
-                        .element(inc)
-                        .and_then(|e| e.attr("PrefixList"))
-                        .unwrap_or("");
-                    method =
-                        method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
-                }
+                && let Some(inc) = sdoc.find_child(transform, EXC_C14N_NS, "InclusiveNamespaces")
+            {
+                let list = sdoc.element(inc).and_then(|e| e.attr("PrefixList")).unwrap_or("");
+                method = method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
+            }
             let data = to_nodes(data)?;
-            let Data::Nodes(d, set) = data else {
-                unreachable!()
-            };
+            let Data::Nodes(d, set) = data else { unreachable!() };
             return Ok(Data::Octets(method.canonicalize_set(d.get(), &set)));
         }
         match alg.as_str() {
@@ -304,9 +282,7 @@ impl<'a> RefContext<'a> {
                 let expr = sdoc.text_content(xp_el);
                 let ns = xpath_namespaces(sdoc, xp_el);
                 let data = to_nodes(data)?;
-                let Data::Nodes(d, set) = data else {
-                    unreachable!()
-                };
+                let Data::Nodes(d, set) = data else { unreachable!() };
                 let doc = d.get();
                 let new_set = if is_signature_exclusion(&expr, &ns) {
                     let mut s = set.clone();
@@ -315,17 +291,14 @@ impl<'a> RefContext<'a> {
                     }
                     s
                 } else {
-                    let compiled = XPath::compile(&expr, &ns)
-                        .map_err(|e| DsigError::Processing(e.to_string()))?;
+                    let compiled = XPath::compile(&expr, &ns).map_err(|e| DsigError::Processing(e.to_string()))?;
                     let here = std::ptr::eq(doc, sdoc).then_some(XNode::Node(xp_el));
                     let mut failure = None;
-                    let s = NodeSet::filter(doc, &set, |n| {
-                        match compiled.evaluate_bool(doc, n, here) {
-                            Ok(b) => b,
-                            Err(e) => {
-                                failure.get_or_insert(e);
-                                false
-                            }
+                    let s = NodeSet::filter(doc, &set, |n| match compiled.evaluate_bool(doc, n, here) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            failure.get_or_insert(e);
+                            false
                         }
                     });
                     if let Some(e) = failure {
@@ -344,9 +317,7 @@ impl<'a> RefContext<'a> {
                     return Err(DsigError::Malformed("Transform XPath2 sin XPath".into()));
                 }
                 let data = to_nodes(data)?;
-                let Data::Nodes(d, set) = data else {
-                    unreachable!()
-                };
+                let Data::Nodes(d, set) = data else { unreachable!() };
                 let doc = d.get();
                 let whole = NodeSet::whole(doc, true);
                 let mut f = whole.clone();
@@ -355,15 +326,13 @@ impl<'a> RefContext<'a> {
                     let op = el.attr("Filter").unwrap_or("").to_string();
                     let expr = sdoc.text_content(fl);
                     let ns = xpath_namespaces(sdoc, fl);
-                    let compiled = XPath::compile(&expr, &ns)
-                        .map_err(|e| DsigError::Processing(e.to_string()))?;
+                    let compiled = XPath::compile(&expr, &ns).map_err(|e| DsigError::Processing(e.to_string()))?;
                     let here = std::ptr::eq(doc, sdoc).then_some(XNode::Node(fl));
                     let result = compiled
                         .select(doc, XNode::Node(doc.root()), here)
                         .map_err(|e| DsigError::Processing(e.to_string()))?;
                     let mut covered = vec![false; doc.len()];
-                    let mut extra: std::collections::HashSet<XNode> =
-                        std::collections::HashSet::new();
+                    let mut extra: std::collections::HashSet<XNode> = std::collections::HashSet::new();
                     for r in &result {
                         match r {
                             XNode::Node(id) => {
@@ -382,19 +351,11 @@ impl<'a> RefContext<'a> {
                     };
                     let prev = f.clone();
                     f = match op.as_str() {
-                        "intersect" => {
-                            NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) && in_s(n))
-                        }
-                        "subtract" => {
-                            NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) && !in_s(n))
-                        }
-                        "union" => {
-                            NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) || in_s(n))
-                        }
+                        "intersect" => NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) && in_s(n)),
+                        "subtract" => NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) && !in_s(n)),
+                        "union" => NodeSet::filter(doc, &whole, |n| prev.contains(doc, n) || in_s(n)),
                         other => {
-                            return Err(DsigError::Malformed(format!(
-                                "filtro XPath2 desconocido: {other}"
-                            )));
+                            return Err(DsigError::Malformed(format!("filtro XPath2 desconocido: {other}")));
                         }
                     };
                 }
@@ -410,9 +371,10 @@ impl<'a> RefContext<'a> {
                         for i in 0..doc.len() {
                             let id = NodeId(i);
                             if set.contains_node(id)
-                                && let NodeKind::Text { text, .. } = doc.kind(id) {
-                                    t.push_str(text);
-                                }
+                                && let NodeKind::Text { text, .. } = doc.kind(id)
+                            {
+                                t.push_str(text);
+                            }
                         }
                         t
                     }
@@ -431,9 +393,10 @@ impl<'a> RefContext<'a> {
                             ids.push(v.to_string());
                         }
                     } else if e.is(MDSSI_NS, "RelationshipsGroupReference")
-                        && let Some(v) = e.attr("SourceType") {
-                            types.push(v.to_string());
-                        }
+                        && let Some(v) = e.attr("SourceType")
+                    {
+                        types.push(v.to_string());
+                    }
                 }
                 let octets = to_octets(data);
                 Ok(Data::Octets(relationship_transform(&octets, &ids, &types)?))
@@ -445,10 +408,7 @@ impl<'a> RefContext<'a> {
     /// Octetos sobre los que se calcula la huella de una referencia.
     pub fn reference_octets(&self, reference: NodeId) -> DResult<Vec<u8>> {
         let doc = self.doc;
-        let uri = doc
-            .element(reference)
-            .and_then(|e| e.attr("URI"))
-            .map(str::to_string);
+        let uri = doc.element(reference).and_then(|e| e.attr("URI")).map(str::to_string);
         let mut data = self.dereference(uri.as_deref())?;
         if let Some(ts) = ds_child(doc, reference, "Transforms") {
             for t in ds_children(doc, ts, "Transform") {
@@ -463,10 +423,7 @@ impl<'a> RefContext<'a> {
         let doc = self.doc;
         let dm = ds_child(doc, reference, "DigestMethod")
             .ok_or_else(|| DsigError::Malformed("Reference sin DigestMethod".into()))?;
-        let uri = doc
-            .element(dm)
-            .and_then(|e| e.attr("Algorithm"))
-            .unwrap_or("");
+        let uri = doc.element(dm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
         match digest_from_uri(uri) {
             Some(d) => Ok(d),
             // Santuario conoce el algoritmo pero no hay implementación: error
@@ -565,20 +522,14 @@ pub fn relationship_transform(input: &[u8], ids: &[String], types: &[String]) ->
 pub fn canonicalize_signed_info(doc: &Document, signed_info: NodeId) -> DResult<Vec<u8>> {
     let cm = ds_child(doc, signed_info, "CanonicalizationMethod")
         .ok_or_else(|| DsigError::Malformed("SignedInfo sin CanonicalizationMethod".into()))?;
-    let uri = doc
-        .element(cm)
-        .and_then(|e| e.attr("Algorithm"))
-        .unwrap_or("");
-    let mut method = C14n::from_uri(uri)
-        .ok_or_else(|| DsigError::Unsupported(format!("canonicalización {uri}")))?;
+    let uri = doc.element(cm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
+    let mut method = C14n::from_uri(uri).ok_or_else(|| DsigError::Unsupported(format!("canonicalización {uri}")))?;
     if method.kind == Kind::Exclusive
-        && let Some(inc) = doc.find_child(cm, EXC_C14N_NS, "InclusiveNamespaces") {
-            let list = doc
-                .element(inc)
-                .and_then(|e| e.attr("PrefixList"))
-                .unwrap_or("");
-            method = method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
-        }
+        && let Some(inc) = doc.find_child(cm, EXC_C14N_NS, "InclusiveNamespaces")
+    {
+        let list = doc.element(inc).and_then(|e| e.attr("PrefixList")).unwrap_or("");
+        method = method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
+    }
     let set = NodeSet::subtree(doc, signed_info, method.with_comments);
     Ok(method.canonicalize_set(doc, &set))
 }
@@ -722,7 +673,9 @@ pub fn render_reference(n: &DsNames, r: &ReferenceSpec, ph: &mut Placeholders) -
         s.push_str(&format!("<{}>", n.q("Transforms")));
         for t in &r.transforms {
             match t {
-                TransformSpec::Plain(alg) => s.push_str(&format!("<{} Algorithm=\"{}\"/>", n.q("Transform"), esc_attr(alg))),
+                TransformSpec::Plain(alg) => {
+                    s.push_str(&format!("<{} Algorithm=\"{}\"/>", n.q("Transform"), esc_attr(alg)))
+                }
                 TransformSpec::XPath(expr) => s.push_str(&format!(
                     "<{t} Algorithm=\"{XPATH}\"><{x}{ns}>{e}</{x}></{t}>",
                     t = n.q("Transform"),
@@ -791,11 +744,7 @@ pub fn render_signed_info(
 pub fn render_x509_data(n: &DsNames, certs: &[Vec<u8>]) -> String {
     let mut s = format!("<{}>", n.q("X509Data"));
     for c in certs {
-        s.push_str(&format!(
-            "<{x}>{}</{x}>",
-            b64(c),
-            x = n.q("X509Certificate")
-        ));
+        s.push_str(&format!("<{x}>{}</{x}>", b64(c), x = n.q("X509Certificate")));
     }
     s.push_str(&format!("</{}>", n.q("X509Data")));
     s
@@ -841,24 +790,18 @@ pub struct Completion<'a> {
 }
 
 fn reparse(text: &str, code: ErrorCode) -> afirma_core::Result<Document> {
-    Document::parse(text)
-        .map_err(|e| AfirmaError::new(code, format!("Error interno al generar la firma XML: {e}")))
+    Document::parse(text).map_err(|e| AfirmaError::new(code, format!("Error interno al generar la firma XML: {e}")))
 }
 
 /// Calcula las huellas pendientes (primero las de los `Manifest`, después las
 /// de `SignedInfo`) y el `SignatureValue` de la firma con el `Id` indicado.
-pub fn complete(
-    mut text: String,
-    ph: &Placeholders,
-    c: &Completion<'_>,
-) -> afirma_core::Result<String> {
+pub fn complete(mut text: String, ph: &Placeholders, c: &Completion<'_>) -> afirma_core::Result<String> {
     let err = |m: String| AfirmaError::new(c.error_code, m);
     for pass in 0..2 {
         let doc = reparse(&text, c.error_code)?;
-        let sig = find_signature(&doc, c.signature_id)
-            .ok_or_else(|| err("No se encuentra la firma generada".into()))?;
-        let si =
-            ds_child(&doc, sig, "SignedInfo").ok_or_else(|| err("Firma sin SignedInfo".into()))?;
+        let sig =
+            find_signature(&doc, c.signature_id).ok_or_else(|| err("No se encuentra la firma generada".into()))?;
+        let si = ds_child(&doc, sig, "SignedInfo").ok_or_else(|| err("Firma sin SignedInfo".into()))?;
         let ctx = RefContext {
             doc: &doc,
             signature: sig,
@@ -877,11 +820,9 @@ pub fn complete(
             if !ph.is_placeholder(&current) {
                 continue;
             }
-            let digest = ctx.reference_digest(r).map_err(|e| {
-                err(format!(
-                    "Error al calcular la huella de una referencia: {e}"
-                ))
-            })?;
+            let digest = ctx
+                .reference_digest(r)
+                .map_err(|e| err(format!("Error al calcular la huella de una referencia: {e}")))?;
             subs.push((current, b64(&digest)));
         }
         for (k, v) in subs {
@@ -889,14 +830,13 @@ pub fn complete(
         }
     }
     let doc = reparse(&text, c.error_code)?;
-    let sig = find_signature(&doc, c.signature_id)
-        .ok_or_else(|| err("No se encuentra la firma generada".into()))?;
+    let sig = find_signature(&doc, c.signature_id).ok_or_else(|| err("No se encuentra la firma generada".into()))?;
     let si = ds_child(&doc, sig, "SignedInfo").ok_or_else(|| err("Firma sin SignedInfo".into()))?;
     let canon = canonicalize_signed_info(&doc, si).map_err(|e| err(e.to_string()))?;
     let value = crypto::sign_xml(c.key, c.algorithm, &canon)?;
     if c.verify {
-        let ok = PublicKey::from_cert(c.key.certificate())
-            .is_some_and(|k| k.verify(c.algorithm.digest, &canon, &value));
+        let ok =
+            PublicKey::from_cert(c.key.certificate()).is_some_and(|k| k.verify(c.algorithm.digest, &canon, &value));
         if !ok {
             return Err(AfirmaError::new(
                 codes::UNKWNON_XML_SIGNING_ERROR,
@@ -938,10 +878,11 @@ pub fn select_key(doc: &Document, sig: NodeId) -> Option<PublicKey> {
             }
         } else if e.is(DSIG_NS, "X509Data")
             && let Some(cert) = ds_child(doc, c, "X509Certificate")
-                && let Some(der) = crate::util::b64_decode(&doc.text_content(cert))
-                    && let Some(k) = PublicKey::from_cert(&der) {
-                        return Some(k);
-                    }
+            && let Some(der) = crate::util::b64_decode(&doc.text_content(cert))
+            && let Some(k) = PublicKey::from_cert(&der)
+        {
+            return Some(k);
+        }
     }
     None
 }
@@ -998,45 +939,28 @@ const SANTUARIO_TRANSFORMS: &[&str] = &[
 /// de firma, y algoritmos de huella y transformadas de las referencias
 /// reconocidos. Un fallo aquí es una `MarshalException` en Java.
 pub fn unmarshal_check(doc: &Document, sig: NodeId) -> DResult<()> {
-    let si = ds_child(doc, sig, "SignedInfo")
-        .ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
+    let si = ds_child(doc, sig, "SignedInfo").ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
     let cm = ds_child(doc, si, "CanonicalizationMethod")
         .ok_or_else(|| DsigError::Malformed("SignedInfo sin CanonicalizationMethod".into()))?;
-    let cm_uri = doc
-        .element(cm)
-        .and_then(|e| e.attr("Algorithm"))
-        .unwrap_or("");
-    C14n::from_uri(cm_uri)
-        .ok_or_else(|| DsigError::Unsupported(format!("canonicalización {cm_uri}")))?;
+    let cm_uri = doc.element(cm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
+    C14n::from_uri(cm_uri).ok_or_else(|| DsigError::Unsupported(format!("canonicalización {cm_uri}")))?;
     let sm = ds_child(doc, si, "SignatureMethod")
         .ok_or_else(|| DsigError::Malformed("SignedInfo sin SignatureMethod".into()))?;
-    let sm_uri = doc
-        .element(sm)
-        .and_then(|e| e.attr("Algorithm"))
-        .unwrap_or("");
+    let sm_uri = doc.element(sm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
     signature_from_uri(sm_uri).ok_or_else(|| DsigError::Unsupported(format!("firma {sm_uri}")))?;
-    ds_child(doc, sig, "SignatureValue")
-        .ok_or_else(|| DsigError::Malformed("Signature sin SignatureValue".into()))?;
+    ds_child(doc, sig, "SignatureValue").ok_or_else(|| DsigError::Malformed("Signature sin SignatureValue".into()))?;
     for r in ds_children(doc, si, "Reference") {
         let dm = ds_child(doc, r, "DigestMethod")
             .ok_or_else(|| DsigError::Malformed("Reference sin DigestMethod".into()))?;
-        let uri = doc
-            .element(dm)
-            .and_then(|e| e.attr("Algorithm"))
-            .unwrap_or("");
-        let known = DigestAlgorithm::ALL.iter().any(|d| d.xml_uri() == uri)
-            || SANTUARIO_DIGESTS.contains(&uri);
+        let uri = doc.element(dm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
+        let known = DigestAlgorithm::ALL.iter().any(|d| d.xml_uri() == uri) || SANTUARIO_DIGESTS.contains(&uri);
         if !known {
             return Err(DsigError::Unsupported(format!("huella {uri}")));
         }
-        ds_child(doc, r, "DigestValue")
-            .ok_or_else(|| DsigError::Malformed("Reference sin DigestValue".into()))?;
+        ds_child(doc, r, "DigestValue").ok_or_else(|| DsigError::Malformed("Reference sin DigestValue".into()))?;
         if let Some(ts) = ds_child(doc, r, "Transforms") {
             for t in ds_children(doc, ts, "Transform") {
-                let a = doc
-                    .element(t)
-                    .and_then(|e| e.attr("Algorithm"))
-                    .unwrap_or("");
+                let a = doc.element(t).and_then(|e| e.attr("Algorithm")).unwrap_or("");
                 if !SANTUARIO_TRANSFORMS.contains(&a) {
                     return Err(DsigError::Unsupported(format!("transformada {a}")));
                 }
@@ -1048,28 +972,17 @@ pub fn unmarshal_check(doc: &Document, sig: NodeId) -> DResult<()> {
 
 /// Comprueba el valor de firma de `SignedInfo` con la clave dada (o la
 /// seleccionada de su `KeyInfo`).
-pub fn verify_signature_value(
-    doc: &Document,
-    sig: NodeId,
-    key: Option<PublicKey>,
-) -> DResult<bool> {
-    let si = ds_child(doc, sig, "SignedInfo")
-        .ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
+pub fn verify_signature_value(doc: &Document, sig: NodeId, key: Option<PublicKey>) -> DResult<bool> {
+    let si = ds_child(doc, sig, "SignedInfo").ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
     let sm = ds_child(doc, si, "SignatureMethod")
         .ok_or_else(|| DsigError::Malformed("SignedInfo sin SignatureMethod".into()))?;
-    let sm_uri = doc
-        .element(sm)
-        .and_then(|e| e.attr("Algorithm"))
-        .unwrap_or("");
-    let alg = signature_from_uri(sm_uri)
-        .ok_or_else(|| DsigError::Unsupported(format!("firma {sm_uri}")))?;
+    let sm_uri = doc.element(sm).and_then(|e| e.attr("Algorithm")).unwrap_or("");
+    let alg = signature_from_uri(sm_uri).ok_or_else(|| DsigError::Unsupported(format!("firma {sm_uri}")))?;
     let sv = ds_child(doc, sig, "SignatureValue")
         .ok_or_else(|| DsigError::Malformed("Signature sin SignatureValue".into()))?;
     let value = crate::util::b64_decode(&doc.text_content(sv))
         .ok_or_else(|| DsigError::Malformed("SignatureValue no válido".into()))?;
-    let key = key
-        .or_else(|| select_key(doc, sig))
-        .ok_or(DsigError::KeyNotFound)?;
+    let key = key.or_else(|| select_key(doc, sig)).ok_or(DsigError::KeyNotFound)?;
     let canon = canonicalize_signed_info(doc, si)?;
     Ok(key.key_algorithm() == alg.key && key.verify(alg.digest, &canon, &value))
 }
@@ -1082,8 +995,7 @@ pub fn validate_core(
     resolver: &dyn Resolver,
     key: Option<PublicKey>,
 ) -> DResult<CoreValidation> {
-    let si = ds_child(doc, sig, "SignedInfo")
-        .ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
+    let si = ds_child(doc, sig, "SignedInfo").ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
     let signature_value = verify_signature_value(doc, sig, key)?;
     let ctx = RefContext {
         doc,
@@ -1092,11 +1004,7 @@ pub fn validate_core(
     };
     let mut references = Vec::new();
     for r in ds_children(doc, si, "Reference") {
-        let uri = doc
-            .element(r)
-            .and_then(|e| e.attr("URI"))
-            .unwrap_or("")
-            .to_string();
+        let uri = doc.element(r).and_then(|e| e.attr("URI")).unwrap_or("").to_string();
         let ok = ctx.check_reference(r)?;
         references.push((uri, ok));
     }
@@ -1113,9 +1021,7 @@ mod tests {
     #[test]
     fn relationship_transform_sorts_and_filters() {
         let rels = b"<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId2\" Type=\"t2\" Target=\"b\"/><Relationship Id=\"rId1\" Type=\"t1\" Target=\"a\"/><Relationship Id=\"rId10\" Type=\"t\" Target=\"c\" TargetMode=\"External\"/></Relationships>";
-        let out =
-            relationship_transform(rels, &["rId2".into(), "rId10".into(), "rId1".into()], &[])
-                .unwrap();
+        let out = relationship_transform(rels, &["rId2".into(), "rId10".into(), "rId1".into()], &[]).unwrap();
         let d = Document::parse(std::str::from_utf8(&out).unwrap()).unwrap();
         let c = C14n::new(Kind::Inclusive10, false).canonicalize(&d, d.root(), &[]);
         assert_eq!(
@@ -1138,10 +1044,7 @@ mod tests {
             signature: sig,
             resolver: &NoResolver,
         };
-        assert_eq!(
-            b64(&ctx.reference_digest(r).unwrap()),
-            "qTTy37gklsHItf7qbmMqqWzqRR8="
-        );
+        assert_eq!(b64(&ctx.reference_digest(r).unwrap()), "qTTy37gklsHItf7qbmMqqWzqRR8=");
     }
 
     #[test]
@@ -1157,9 +1060,6 @@ mod tests {
             signature: sig,
             resolver: &NoResolver,
         };
-        assert_eq!(
-            b64(&ctx.reference_digest(r).unwrap()),
-            "7RVdV2qdgFdEC2G7Jt6VY5s6z0c="
-        );
+        assert_eq!(b64(&ctx.reference_digest(r).unwrap()), "7RVdV2qdgFdEC2G7Jt6VY5s6z0c=");
     }
 }

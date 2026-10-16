@@ -52,10 +52,7 @@ fn default_signature_structure() {
     let s = &sigs[0];
     assert_eq!(s.name, "Signature1");
     assert_eq!(s.sub_filter().unwrap(), b"ETSI.CAdES.detached");
-    assert_eq!(
-        s.dict.get(b"Filter").unwrap().as_name().unwrap(),
-        b"Adobe.PPKLite"
-    );
+    assert_eq!(s.dict.get(b"Filter").unwrap().as_name().unwrap(), b"Adobe.PPKLite");
     assert_eq!(
         s.dict.get(b"Name").unwrap().as_str().unwrap(),
         "ESPAÑOL ESPAÑOL JUAN - 00000000T"
@@ -109,26 +106,13 @@ fn cosign_and_signers_tree() {
     let names: Vec<String> = tree.signers.iter().map(|n| n.info.signer_name()).collect();
     assert_eq!(
         names,
-        vec![
-            "PRUEBA MARIA - 99999999R",
-            "ESPAÑOL ESPAÑOL JUAN - 00000000T"
-        ]
+        vec!["PRUEBA MARIA - 99999999R", "ESPAÑOL ESPAÑOL JUAN - 00000000T"]
     );
-    assert_eq!(
-        tree.signers[0].info.sign_algorithm.as_deref(),
-        Some("SHA512withECDSA")
-    );
-    assert_eq!(
-        validity(&twice, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(tree.signers[0].info.sign_algorithm.as_deref(), Some("SHA512withECDSA"));
+    assert_eq!(validity(&twice, &ExtraParams::new()), vec![(Validity::Ok, None)]);
     let doc = PdfDoc::open(&twice, None).unwrap();
     assert_eq!(
-        doc.signatures()
-            .0
-            .iter()
-            .map(|s| s.name.clone())
-            .collect::<Vec<_>>(),
+        doc.signatures().0.iter().map(|s| s.name.clone()).collect::<Vec<_>>(),
         vec!["Signature2", "Signature1"]
     );
 }
@@ -159,14 +143,8 @@ fn signer_api() {
     assert!(s.get_data(&pdf, &ExtraParams::new()).is_err());
     let signed = sign(&pdf, &ExtraParams::new());
     assert!(s.is_sign(&signed, &ExtraParams::new()));
-    assert_eq!(
-        s.get_data(&signed, &ExtraParams::new()).unwrap().unwrap(),
-        signed
-    );
-    assert_eq!(
-        s.sign_info(&signed, &ExtraParams::new()).unwrap().format,
-        "Adobe PDF"
-    );
+    assert_eq!(s.get_data(&signed, &ExtraParams::new()).unwrap().unwrap(), signed);
+    assert_eq!(s.sign_info(&signed, &ExtraParams::new()).unwrap().format, "Adobe PDF");
     let e = s
         .countersign(
             &signed,
@@ -179,12 +157,7 @@ fn signer_api() {
     assert_eq!(e.kind, ErrorKind::Unsupported);
     assert!(!s.is_valid_data_file(b"%PDF-1.4 corto"));
     let e = s
-        .sign(
-            b"no es un pdf",
-            "SHA256withRSA",
-            &TestKey::rsa(),
-            &ExtraParams::new(),
-        )
+        .sign(b"no es un pdf", "SHA256withRSA", &TestKey::rsa(), &ExtraParams::new())
         .unwrap_err();
     assert_eq!(e.code, Some(codes::PDF_DOCUMENT_NEEDED));
     let e = s
@@ -196,32 +169,15 @@ fn signer_api() {
 fn intervention(e: &afirma_core::AfirmaError) -> (u32, String, String, bool) {
     match &e.kind {
         ErrorKind::NeedsIntervention {
-            intervention:
-                UserIntervention::Confirm {
-                    requestor_text,
-                    param,
-                    ..
-                },
+            intervention: UserIntervention::Confirm {
+                requestor_text, param, ..
+            },
             denied,
-        } => (
-            e.code.unwrap().code,
-            requestor_text.clone(),
-            param.clone(),
-            *denied,
-        ),
+        } => (e.code.unwrap().code, requestor_text.clone(), param.clone(), *denied),
         ErrorKind::NeedsIntervention {
-            intervention:
-                UserIntervention::Password {
-                    requestor_text,
-                    param,
-                },
+            intervention: UserIntervention::Password { requestor_text, param },
             denied,
-        } => (
-            e.code.unwrap().code,
-            requestor_text.clone(),
-            param.clone(),
-            *denied,
-        ),
+        } => (e.code.unwrap().code, requestor_text.clone(), param.clone(), *denied),
         k => panic!("se esperaba intervención: {k:?} {e}"),
     }
 }
@@ -267,10 +223,7 @@ fn certified_documents() {
     );
 
     // Certificación propia (DocMDP).
-    let own = sign(
-        &java_resource("TEST_PDF.pdf"),
-        &params(&[("certificationLevel", "2")]),
-    );
+    let own = sign(&java_resource("TEST_PDF.pdf"), &params(&[("certificationLevel", "2")]));
     let doc = PdfDoc::open(&own, None).unwrap();
     assert_eq!(doc.certification_level(), 2);
     let (sigs, _) = doc.signatures();
@@ -287,10 +240,7 @@ fn certified_documents() {
     );
     // Nivel 2: se puede añadir otra firma sin avisos.
     let again = sign(&own, &ExtraParams::new());
-    assert_eq!(
-        validity(&again, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&again, &ExtraParams::new()), vec![(Validity::Ok, None)]);
 }
 
 #[test]
@@ -319,10 +269,7 @@ fn unregistered_signatures() {
         .unwrap();
     let tree = s.signers_structure(&out, &ExtraParams::new()).unwrap();
     assert_eq!(tree.signers.len(), 2);
-    assert_eq!(
-        tree.signers[1].info.sign_algorithm.as_deref(),
-        Some("SHA1withRSA")
-    );
+    assert_eq!(tree.signers[1].info.sign_algorithm.as_deref(), Some("SHA1withRSA"));
 }
 
 #[test]
@@ -336,17 +283,10 @@ fn encrypted_documents() {
         "encrypted_aes256.pdf",
     ] {
         let pdf = std::fs::read(testdata(f)).unwrap();
-        let e = s
-            .sign(&pdf, "SHA256withRSA", &key, &ExtraParams::new())
-            .unwrap_err();
+        let e = s.sign(&pdf, "SHA256withRSA", &key, &ExtraParams::new()).unwrap_err();
         assert_eq!(intervention(&e).0, 212005, "{f}");
         let out = s
-            .sign(
-                &pdf,
-                "SHA256withRSA",
-                &key,
-                &visible(&[("ownerPassword", "owner")]),
-            )
+            .sign(&pdf, "SHA256withRSA", &key, &visible(&[("ownerPassword", "owner")]))
             .unwrap();
         assert_eq!(&out[..pdf.len()], &pdf[..]);
         assert_eq!(
@@ -358,42 +298,24 @@ fn encrypted_documents() {
         let doc = PdfDoc::open(&out, Some("owner")).unwrap();
         let (sigs, _) = doc.signatures();
         assert!(
-            String::from_utf8_lossy(sigs[0].dict.get(b"M").unwrap().as_str().unwrap())
-                .starts_with("D:"),
+            String::from_utf8_lossy(sigs[0].dict.get(b"M").unwrap().as_str().unwrap()).starts_with("D:"),
             "{f}"
         );
         assert!(cms::parse_signed_data(&sigs[0].contents()).is_ok(), "{f}");
     }
     let pdf = std::fs::read(testdata("encrypted_aes128_user.pdf")).unwrap();
     let e = s
-        .sign(
-            &pdf,
-            "SHA256withRSA",
-            &key,
-            &params(&[("userPassword", "user")]),
-        )
+        .sign(&pdf, "SHA256withRSA", &key, &params(&[("userPassword", "user")]))
         .unwrap_err();
     assert_eq!(
         intervention(&e),
-        (
-            212004,
-            "pdfbadpassword".into(),
-            "ownerPassword".into(),
-            false
-        )
+        (212004, "pdfbadpassword".into(), "ownerPassword".into(), false)
     );
-    let e = s
-        .sign(&pdf, "SHA256withRSA", &key, &ExtraParams::new())
-        .unwrap_err();
+    let e = s.sign(&pdf, "SHA256withRSA", &key, &ExtraParams::new()).unwrap_err();
     assert_eq!(intervention(&e).1, "pdfpasswordprotected");
     assert!(
-        s.sign(
-            &pdf,
-            "SHA256withRSA",
-            &key,
-            &params(&[("ownerPassword", "owner")])
-        )
-        .is_ok()
+        s.sign(&pdf, "SHA256withRSA", &key, &params(&[("ownerPassword", "owner")]))
+            .is_ok()
     );
 }
 
@@ -402,31 +324,21 @@ fn xref_variants_and_broken_files() {
     for f in ["xref_stream.pdf", "rotated_pages.pdf"] {
         let pdf = std::fs::read(testdata(f)).unwrap();
         let out = sign(&pdf, &visible(&[("signaturePages", "all")]));
-        assert_eq!(
-            validity(&out, &ExtraParams::new()),
-            vec![(Validity::Ok, None)],
-            "{f}"
-        );
+        assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)], "{f}");
         // La sección añadida es del mismo tipo que la anterior.
         let tail = String::from_utf8_lossy(&out[pdf.len()..]).into_owned();
         assert_eq!(tail.contains("/Type/XRef"), f == "xref_stream.pdf", "{f}");
     }
     // Basura tras %%EOF y varias revisiones sin firmar.
     let out = sign(&java_resource("TEST_PDF_Trailed.pdf"), &ExtraParams::new());
-    assert_eq!(
-        validity(&out, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)]);
     // Tabla de referencias dañada en un PDF sin firmas: se reconstruye.
     let mut broken = java_resource("multipage.pdf");
     let p = broken.windows(9).rposition(|w| w == b"startxref").unwrap();
     broken.truncate(p);
     broken.extend_from_slice(b"startxref\n12345\n%%EOF\n");
     let out = sign(&broken, &ExtraParams::new());
-    assert_eq!(
-        validity(&out, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)]);
 }
 
 #[test]
@@ -464,10 +376,7 @@ fn visible_signature_appearance() {
     if iana_like_madrid() {
         assert!(found, "no se encuentra la capa n2 esperada");
     }
-    assert_eq!(
-        validity(&out, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)]);
 }
 
 fn iana_like_madrid() -> bool {
@@ -487,10 +396,7 @@ fn existing_field_and_stamp() {
     let doc = PdfDoc::open(&out, None).unwrap();
     let (sigs, _) = doc.signatures();
     assert_eq!(sigs[0].name, "EmptySignatureField");
-    assert_eq!(
-        sigs[0].field.widget.get(b"F").unwrap().as_i64().unwrap() & 128,
-        128
-    );
+    assert_eq!(sigs[0].field.widget.get(b"F").unwrap().as_i64().unwrap() & 128, 128);
     assert!(
         afirma_pdf::info::PdfInfo::open(&out, None)
             .unwrap()
@@ -524,10 +430,7 @@ fn existing_field_and_stamp() {
             ("imagePositionOnPageUpperRightY", "60"),
         ]),
     );
-    assert_eq!(
-        validity(&out, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)]);
 }
 
 #[test]
@@ -565,10 +468,7 @@ fn timestamps_with_mock_tsa() {
             .map_or(0, |a| a.values.len());
         assert_eq!(n_ts, sigts, "tsType={ts_type}");
         let v = validity(&out, &ExtraParams::new());
-        assert!(
-            v.iter().all(|(v, _)| *v != Validity::Ko),
-            "tsType={ts_type}: {v:?}"
-        );
+        assert!(v.iter().all(|(v, _)| *v != Validity::Ko), "tsType={ts_type}: {v:?}");
     }
 }
 
@@ -579,41 +479,21 @@ fn triphase_flow() {
     let chain = afirma_core::SigningKey::certificate_chain(&key);
     let t = afirma_pdf::pdf::date::parse_sign_time("2026:10:16:13:36:29").unwrap();
     let xp = visible(&[]);
-    let (pre1, s1) = afirma_pdf::triphase::presign(
-        &pdf,
-        "SHA256withRSA",
-        afirma_core::KeyAlgorithm::Rsa,
-        &chain,
-        t,
-        &xp,
-    )
-    .unwrap();
-    let (pre2, s2) = afirma_pdf::triphase::presign(
-        &pdf,
-        "SHA256withRSA",
-        afirma_core::KeyAlgorithm::Rsa,
-        &chain,
-        t,
-        &xp,
-    )
-    .unwrap();
+    let (pre1, s1) =
+        afirma_pdf::triphase::presign(&pdf, "SHA256withRSA", afirma_core::KeyAlgorithm::Rsa, &chain, t, &xp).unwrap();
+    let (pre2, s2) =
+        afirma_pdf::triphase::presign(&pdf, "SHA256withRSA", afirma_core::KeyAlgorithm::Rsa, &chain, t, &xp).unwrap();
     assert_eq!(
         pre1.prepared.bytes, pre2.prepared.bytes,
         "la prefirma debe ser determinista"
     );
     assert_eq!(s1, s2);
     let params_list = s1.to_params();
-    assert!(
-        params_list
-            .iter()
-            .any(|(k, v)| k == "NEED_PRE" && v == "true")
-    );
-    let mut session = afirma_pdf::triphase::PadesSession::from_params(
-        params_list.iter().map(|(k, v)| (k.as_str(), v.as_str())),
-    )
-    .unwrap();
-    session.pk1 =
-        Some(afirma_pdf::triphase::sign_pre(&session.pre, "SHA256withRSA", &key).unwrap());
+    assert!(params_list.iter().any(|(k, v)| k == "NEED_PRE" && v == "true"));
+    let mut session =
+        afirma_pdf::triphase::PadesSession::from_params(params_list.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+            .unwrap();
+    session.pk1 = Some(afirma_pdf::triphase::sign_pre(&session.pre, "SHA256withRSA", &key).unwrap());
     let out = afirma_pdf::triphase::postsign(
         &pdf,
         "SHA256withRSA",
@@ -623,10 +503,7 @@ fn triphase_flow() {
         &xp,
     )
     .unwrap();
-    assert_eq!(
-        validity(&out, &ExtraParams::new()),
-        vec![(Validity::Ok, None)]
-    );
+    assert_eq!(validity(&out, &ExtraParams::new()), vec![(Validity::Ok, None)]);
 }
 
 #[test]
@@ -640,10 +517,7 @@ fn signature_reserved_size() {
         )
         .unwrap_err();
     assert_eq!(e.code, Some(codes::INTERNAL_PADES_SIGNING_ERROR));
-    let out = sign(
-        &java_resource("TEST_PDF.pdf"),
-        &params(&[("signReservedSize", "8000")]),
-    );
+    let out = sign(&java_resource("TEST_PDF.pdf"), &params(&[("signReservedSize", "8000")]));
     let doc = PdfDoc::open(&out, None).unwrap();
     let br = doc.signatures().0[0].byte_range();
     assert_eq!(br[2] - br[1], 16002);
