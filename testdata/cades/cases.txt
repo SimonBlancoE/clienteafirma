@@ -1,0 +1,69 @@
+# Casos diferenciales Java/Rust de afirma-cms.
+# Los parámetros se separan como en la shell (comillas dobles para valores con espacios).
+# nombre | operación | formato | algoritmo | almacén | firma de entrada (@caso) | datos | objetivo | objetivos | parámetros (k=v separados por espacios; \n = salto de línea)
+# La salida Java de cada caso se guarda en testdata/cades/<nombre>.java.<ext> y las pruebas
+# de Rust comparan su resumen estructural (inspect::structure_summary) con el de la firma Rust.
+cades_impl_sha256 | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | mode=implicit
+cades_expl_sha256 | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - |
+cades_impl_sha1 | sign | CAdES | SHA1withRSA | firmante-rsa | - | hola.txt | - | - | mode=implicit
+cades_impl_sha512 | sign | CAdES | SHA512withRSA | firmante-rsa | - | binario.bin | - | - | mode=implicit
+cades_impl_sha384 | sign | CAdES | SHA384withRSA | firmante-rsa | - | documento.xml | - | - | mode=implicit
+cades_pdf | sign | CAdES | SHA256withRSA | firmante-rsa | - | documento.pdf | - | - |
+cades_ec_sha256 | sign | CAdES | SHA256withECDSA | firmante-ec | - | hola.txt | - | - | mode=implicit
+cades_epes_age | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | mode=implicit policyIdentifier=urn:oid:2.16.724.1.3.1.1.2.1.9 policyIdentifierHash=G7roucf600+f03r/o0bAOQ6WAs0= policyIdentifierHashAlgorithm=http://www.w3.org/2000/09/xmldsig#sha1 policyQualifier=https://sede.administracion.gob.es/politica_de_firma_anexo_1.pdf
+cades_epes_sha512hash | sign | CAdES | SHA512withRSA | firmante-rsa | - | hola.txt | - | - | policyIdentifier=2.16.724.1.3.1.1.2.1.8 policyIdentifierHash=7SxX3erFuH31TvAw9LZ70N7p1vA= policyIdentifierHashAlgorithm=SHA-512
+cades_commitments | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | commitmentTypeIndications=2 commitmentTypeIndication0Identifier=1 commitmentTypeIndication1Identifier=5 commitmentTypeIndication1CommitmentTypeQualifiers=1.2.3.4|1.2.3.5 commitmentTypeIndication2Identifier=6 commitmentTypeIndication3Identifier=2
+cades_location | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | signatureProductionCity=Logroño signatureProductionCountry=España "signatureProductionPostalCode=Calle Mayor 1\n26001\n\n"
+cades_location_city | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | signatureProductionCity=Madrid signatureProductionProvince=Madrid
+cades_roles | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | signerClaimedRoles=Firmante|Revisor||Aprobador
+cades_roles_baseline | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | signerClaimedRoles=Firmante profile=baseline
+cades_only_cert | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | includeOnlySignningCertificate=true
+cades_no_policy_cert | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | doNotIncludePolicyOnSigningCertificate=true
+cades_no_time | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | includeSigningTimeAttribute=false
+cades_no_hints | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | includeContentHintAttribute=FALSE
+cades_hints_param | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | contentTypeOid=1.2.840.10003.5.109.1 "contentDescription=Mi documento"
+cades_mime | sign | CAdES | SHA256withRSA | firmante-rsa | - | documento.pdf | - | - | includeMimeTypeAttribute=true
+cades_mime_param | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | includeMimeTypeAttribute=true mimeType=text/plain contentTypeOid=1.2.840.10003.5.109.4
+cades_precalc | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.sha256 | - | - | precalculatedHashAlgorithm=SHA-256 mode=implicit
+cades_precalc_mismatch | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.sha512 | - | - | precalculatedHashAlgorithm=SHA512
+cades_sha1_v2 | sign | CAdES | SHA1withRSA | firmante-rsa | - | hola.txt | - | - | signingCertificateV2=true
+cades_sha256_v1 | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | signingCertificateV2=false
+cades_md5 | sign | CAdES | MD5withRSA | firmante-rsa | - | hola.txt | - | - |
+cades_bad_policy | sign | CAdES | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | policyIdentifier=urn:oid:2.16.724.1.3.1.1.2.1.9 policyIdentifierHash=G7roucf600+f03r/o0bAOQ6WAs0=
+cades_cosign_impl | cosign | CAdES | SHA256withRSA | firmante-rsa | @cades_impl_sha256 | - | - | - |
+cades_cosign_impl_ec | cosign | CAdES | SHA256withECDSA | firmante-ec | @cades_impl_sha256 | - | - | - |
+cades_cosign_expl_data | cosign | CAdES | SHA512withRSA | firmante-rsa | @cades_expl_sha256 | hola.txt | - | - |
+cades_cosign_expl_nodata | cosign | CAdES | SHA256withRSA | firmante-rsa | @cades_expl_sha256 | - | - | - |
+cades_cosign_expl_nodata_alg | cosign | CAdES | SHA512withRSA | firmante-rsa | @cades_expl_sha256 | - | - | - |
+cades_cosign_to_impl | cosign | CAdES | SHA256withRSA | firmante-rsa | @cades_expl_sha256 | hola.txt | - | - | mode=implicit
+cades_cosign_sha1 | cosign | CAdES | SHA1withRSA | firmante-rsa | @cades_impl_sha1 | - | - | - | includeOnlySignningCertificate=true
+cades_cosign_hints | cosign | CAdES | SHA256withRSA | firmante-rsa | @cades_hints_param | - | - | - | includeMimeTypeAttribute=true
+cades_cosign_epes | cosign | CAdES | SHA256withRSA | firmante-rsa | @cades_epes_age | - | - | - |
+cades_counter_tree | countersign | CAdES | SHA256withRSA | firmante-rsa | @cades_cosign_impl | - | tree | - |
+cades_counter_leafs | countersign | CAdES | SHA256withRSA | firmante-rsa | @cades_counter_tree | - | leafs | - |
+cades_counter_tree2 | countersign | CAdES | SHA512withRSA | firmante-rsa | @cades_counter_tree | - | tree | - | profile=baseline signerClaimedRoles=Contrafirmante
+cades_counter_ec | countersign | CAdES | SHA256withECDSA | firmante-ec | @cades_impl_sha256 | - | leafs | - | includeContentHintAttribute=false includeMimeTypeAttribute=true
+cades_counter_nodes | countersign | CAdES | SHA256withRSA | firmante-rsa | @cades_impl_sha256 | - | nodes | 0 |
+cms_expl | sign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | - | hola.txt | - | - |
+cms_impl | sign | CMS/PKCS#7 | SHA512withRSA | firmante-rsa | - | hola.txt | - | - | mode=implicit
+cms_impl_case | sign | CMS/PKCS#7 | SHA1withRSA | firmante-rsa | - | hola.txt | - | - | mode=Explicit
+cms_nodate | sign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | applySystemDate=false mode=implicit
+cms_precalc | sign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | - | hola.sha256 | - | - | precalculatedHashAlgorithm=whatever
+cms_ec | sign | CMS/PKCS#7 | SHA256withECDSA | firmante-ec | - | hola.txt | - | - | mode=implicit
+cms_cosign_data | cosign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_impl | hola.txt | - | - |
+cms_cosign_data_impl | cosign | CMS/PKCS#7 | SHA512withRSA | firmante-rsa | @cms_expl | hola.txt | - | - | mode=implicit
+cms_cosign_hash | cosign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_expl | hola.sha256 | - | - | precalculatedHashAlgorithm=SHA-256
+cms_cosign_nodata | cosign | CMS/PKCS#7 | SHA512withRSA | firmante-rsa | @cms_impl | - | - | - |
+cms_cosign_nodata_expl | cosign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_expl | - | - | - |
+cms_cosign_cades | cosign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cades_impl_sha256 | - | - | - |
+cms_cosign_nodata_fail | cosign | CMS/PKCS#7 | SHA1withRSA | firmante-rsa | @cms_expl | - | - | - |
+cms_counter_tree | countersign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_cosign_nodata | - | tree | - |
+cms_counter_leafs | countersign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_counter_tree | - | leafs | - |
+cms_counter_tree2 | countersign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_counter_tree | - | tree | - |
+cms_counter_nodes | countersign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cms_counter_tree | - | nodes | 3,1,3 |
+cms_counter_signers | countersign | CMS/PKCS#7 | SHA256withECDSA | firmante-ec | @cms_counter_tree | - | signers | ESPAÑOL ESPAÑOL JUAN - 00000000T |
+cms_counter_cades | countersign | CMS/PKCS#7 | SHA256withRSA | firmante-rsa | @cades_cosign_impl | - | leafs | - |
+asics_sign | sign | CAdES-ASiC-S | SHA256withRSA | firmante-rsa | - | documento.pdf | - | - |
+asics_sign_name | sign | CAdES-ASiC-S | SHA256withRSA | firmante-rsa | - | hola.txt | - | - | asicsFilename=hola.txt mode=implicit
+cades_caducado | sign | CAdES | SHA256withRSA | caducado | - | hola.txt | - | - | mode=implicit
+cades_caducado_expl | sign | CAdES | SHA256withRSA | caducado | - | hola.txt | - | - |
