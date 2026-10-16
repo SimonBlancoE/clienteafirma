@@ -157,7 +157,10 @@ impl RequestView {
             RequestStage::ChooseCertificate => {
                 ui.label(RichText::new(tr("Elige tu certificado")).font(FontId::new(15.5, semibold())));
                 ui.add_space(6.0);
-                let max_h = (ui.available_height() - 96.0).max(150.0);
+                // La lista se desplaza; quedan siempre visibles la barra del
+                // selector (almacén, búsqueda, vistas: ~90 px), el aviso de
+                // caducados y el pie con los botones (~70 px).
+                let max_h = (ui.available_height() - 160.0).max(120.0);
                 let pe = self.picker.show_embedded(ui, p, max_h);
                 if let PickerEvent::Accepted(i) = pe {
                     ev = RequestEvent::Accept(i);
