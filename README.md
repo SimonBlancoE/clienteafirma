@@ -114,4 +114,7 @@ El README original de clienteafirma está en [docs/README-original-java.md](docs
 ## Licencia
 
 Como el original, software libre con doble licencia **GPL 2.0 o posterior** y **EUPL 1.1**
-(véase [license/](license/)). Tipografía Inter (SIL OFL 1.1) e iconos Phosphor (MIT).
+(véase [license/](license/)). Tipografía Inter (SIL OFL 1.1) e iconos Phosphor (MIT) en la
+interfaz; fuentes Liberation 2.1.5 (SIL OFL 1.1) para las firmas visibles en PDF/A y perfiles ICC
+compactos de saucecontrol (CC0 1.0), con sus licencias en `crates/afirma-pdf/fonts/` y
+`crates/afirma-pdf/icc/`.

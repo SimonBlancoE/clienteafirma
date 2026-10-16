@@ -13,6 +13,7 @@ use md5::{Digest, Md5};
 
 use super::errors;
 use super::params::*;
+use crate::appearance::embedded::EmbeddedFace;
 use crate::appearance::{
     self, AppearanceSpec, BuiltAppearance, VisibleContent,
     image::PdfImage,
@@ -334,6 +335,7 @@ fn appearance_params(
     contact: Option<&str>,
     rubric: Option<PdfImage>,
     rotation: i32,
+    pdfa: bool,
 ) -> Result<AppearanceParams, AfirmaError> {
     let cert = chain.first().and_then(|c| tokens::CertText::from_der(c));
     let obfuscate = match xp.get(OBFUSCATE_CERT_TEXT) {
@@ -385,13 +387,17 @@ fn appearance_params(
         Some(-1) | None => 0,
         Some(s) => s,
     };
-    let style = TextStyle {
+    let mut style = TextStyle {
         family,
         size,
         color: color_by_name(xp.get(LAYER2_FONT_COLOR)),
         ..TextStyle::default()
     }
     .with_style_bits(style_bits);
+    if pdfa {
+        // PDF/A: todas las fuentes deben ir incrustadas.
+        style.embedded = Some(EmbeddedFace::new(family, style.bold, style.italic));
+    }
     Ok(AppearanceParams {
         text,
         style,
@@ -482,6 +488,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         0
     };
     let is_pdfa = doc.is_pdfa();
+    let is_pdfa1 = is_pdfa && doc.is_pdfa1();
 
     // 8. Comprobaciones de firmas existentes.
     check_certification(&doc, xp)?;
@@ -511,16 +518,29 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
             reason.as_deref(),
             city.as_deref(),
             contact.as_deref(),
-            rubric,
+            rubric.map(|mut r| {
+                if is_pdfa1 {
+                    // PDF/A-1 no admite transparencias.
+                    r.flatten_alpha();
+                }
+                r
+            }),
             rotation,
+            is_pdfa,
         )?)
     } else {
         None
     };
 
+    // PDF/A sin perfil de salida RGB: el texto y las imágenes que se añaden
+    // usan DeviceRGB/DeviceGray, así que se declaran espacios por defecto ICC.
+    let draws = visible || (input.kind == SigKind::Signature && xp.contains(IMAGE));
+    let color_spaces =
+        (is_pdfa && draws && !doc.output_intent_components().contains(&3)).then(|| pdfa_color_spaces(&mut ed));
+
     // Marca visible (imagen sobre el contenido de las páginas).
     if input.kind == SigKind::Signature {
-        add_stamp_image(&mut ed, xp, input.secure_mode, &pages)?;
+        add_stamp_image(&mut ed, xp, input.secure_mode, &pages, is_pdfa1, color_spaces.as_ref())?;
         add_attachment(&mut ed, xp, root_id)?;
     }
 
@@ -561,6 +581,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
             rubric: a.rubric.clone(),
             rotation: 0,
             legacy_layers: a.legacy,
+            color_spaces: color_spaces.clone(),
         });
         let built = appearance::build(
             &AppearanceSpec {
@@ -649,6 +670,7 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
                     rubric: a.rubric.clone(),
                     rotation: a.rotation,
                     legacy_layers: a.legacy,
+                    color_spaces: color_spaces.clone(),
                 }),
             },
             _ => AppearanceSpec {
@@ -899,6 +921,31 @@ fn signature_dictionary(i: SigDictInput<'_>) -> (Vec<u8>, usize, usize) {
     (out, br_rel, contents_rel)
 }
 
+/// Perfiles ICC (CC0, «Compact ICC Profiles») para los espacios de color por
+/// defecto de los PDF/A sin perfil de salida RGB.
+static SRGB_ICC: &[u8] = include_bytes!("../../icc/sRGB-v2-micro.icc");
+static SGREY_ICC: &[u8] = include_bytes!("../../icc/sGrey-v2-micro.icc");
+
+/// Crea los perfiles y devuelve el diccionario `/ColorSpace` con
+/// `/DefaultRGB` y `/DefaultGray` (ICC v2, válidos también en PDF/A-1).
+fn pdfa_color_spaces(ed: &mut Edit<'_>) -> Dictionary {
+    let mut cs = Dictionary::new();
+    for (key, data, n, alt) in [
+        ("DefaultRGB", SRGB_ICC, 3, "DeviceRGB"),
+        ("DefaultGray", SGREY_ICC, 1, "DeviceGray"),
+    ] {
+        let mut d = Dictionary::new();
+        d.set("N", Object::Integer(n));
+        d.set("Alternate", Object::Name(alt.as_bytes().to_vec()));
+        let id = ed.new_obj(Object::Stream(flate_stream(d, data)));
+        cs.set(
+            key,
+            Object::Array(vec![Object::Name(b"ICCBased".to_vec()), Object::Reference(id)]),
+        );
+    }
+    cs
+}
+
 /// Elimina `/Perms /UR` y `/UR3` (`removeUsageRights`).
 fn remove_usage_rights(ed: &mut Edit<'_>, root: ObjectId) {
     let Some(cat) = ed.doc.dict_id(root) else {
@@ -1139,6 +1186,8 @@ fn add_stamp_image(
     xp: &ExtraParams,
     secure_mode: bool,
     pages: &[ObjectId],
+    no_transparency: bool,
+    color_spaces: Option<&Dictionary>,
 ) -> Result<(), AfirmaError> {
     let Some(value) = xp.get(IMAGE) else {
         return Ok(());
@@ -1153,8 +1202,11 @@ fn add_stamp_image(
         tracing::warn!("Se ha indicado una imagen sin posicion; no se agrega");
         return Ok(());
     };
-    let img = load_image_param(value, secure_mode, "marca")
+    let mut img = load_image_param(value, secure_mode, "marca")
         .map_err(|_| AfirmaError::msg("No se pudo cargar la imagen para agregarla al PDF"))?;
+    if no_transparency {
+        img.flatten_alpha();
+    }
     let targets: Vec<ObjectId> = match page {
         0 => pages.to_vec(),
         -1 => pages.last().copied().into_iter().collect(),
@@ -1194,6 +1246,18 @@ fn add_stamp_image(
         };
         xobjs.set(name.as_bytes().to_vec(), Object::Reference(img_id));
         res.set("XObject", Object::Dictionary(xobjs));
+        if let Some(cs) = color_spaces {
+            let mut current = match res.get(b"ColorSpace").ok().map(|o| ed.resolve(o)) {
+                Some(Object::Dictionary(d)) => d,
+                _ => Dictionary::new(),
+            };
+            for (k, v) in cs.iter() {
+                if !current.has(k) {
+                    current.set(k.clone(), v.clone());
+                }
+            }
+            res.set("ColorSpace", Object::Dictionary(current));
+        }
         // Igual que el contenido "over" de iText: se cierra el `q` inicial y,
         // si la página está girada, se gira el sistema de coordenadas para
         // trabajar sobre la página tal y como se muestra.

@@ -774,10 +774,39 @@ impl PdfDoc {
         })
     }
 
+    /// Parte PDF/A declarada en el XMP (`pdfaid:part`), si la hay.
+    pub fn pdfa_part(&self) -> Option<u8> {
+        let (_, x) = self.xmp()?;
+        let text = String::from_utf8_lossy(&x);
+        let pos = text.find("pdfaid:part")?;
+        let rest = &text[pos + "pdfaid:part".len()..];
+        let digits: String = rest
+            .chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(char::is_ascii_digit)
+            .collect();
+        digits.parse().ok()
+    }
+
     /// Indica si el XMP declara alguna parte PDF/A.
     pub fn is_pdfa(&self) -> bool {
         self.xmp()
             .is_some_and(|(_, x)| parse::find(&x, b"pdfaid:part", 0).is_some())
+    }
+
+    /// Número de componentes de los perfiles de destino de los
+    /// `/OutputIntents` del catálogo (3 = RGB, 4 = CMYK, 1 = gris).
+    pub fn output_intent_components(&self) -> Vec<i64> {
+        let Some(cat) = self.catalog() else { return Vec::new() };
+        let Some(Object::Array(intents)) = self.dict_get(cat, b"OutputIntents") else {
+            return Vec::new();
+        };
+        intents
+            .iter()
+            .filter_map(|i| self.dict(i))
+            .filter_map(|i| self.dict_get_dict(i, b"DestOutputProfile"))
+            .filter_map(|p| self.dict_get(p, b"N").and_then(|n| n.as_i64().ok()))
+            .collect()
     }
 
     /// Mapa de objetos de las páginas (id → índice 1..N).

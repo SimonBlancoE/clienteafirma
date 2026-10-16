@@ -3,6 +3,7 @@
 //! `MARGIN = 2`).
 
 pub mod afm;
+pub mod embedded;
 pub mod image;
 pub mod text;
 pub mod tokens;
@@ -33,6 +34,9 @@ pub struct VisibleContent {
     pub rotation: i32,
     /// Capas heredadas n0..n4 (`includeQuestionMark=true`).
     pub legacy_layers: bool,
+    /// Espacios de color por defecto (`/DefaultRGB`, `/DefaultGray`) para los
+    /// PDF/A sin perfil de salida RGB.
+    pub color_spaces: Option<Dictionary>,
 }
 
 /// Apariencia a construir.
@@ -127,6 +131,26 @@ fn image_fit_ops(img: &PdfImage, w: f64, h: f64, name: &str) -> String {
     format!("q {} 0 0 {} {} {} cm /{name} Do Q\n", f(iw), f(ih), f(x), f(y))
 }
 
+/// Crea la fuente del texto: estándar sin incrustar (como Java) o, en PDF/A,
+/// un subconjunto incrustado de la Liberation equivalente.
+fn add_text_font(
+    update: &mut Update,
+    style: &TextStyle,
+    layout: &text::ColumnLayout,
+) -> (ObjectId, embedded::TextEncoder) {
+    match style.embedded {
+        None => {
+            let id = update.alloc();
+            update.put(id, std_font_dict(style.family.base_font()));
+            (id, embedded::TextEncoder::WinAnsi)
+        }
+        Some(face) => {
+            let used: String = layout.lines.iter().map(|(l, _, _)| l.text.as_str()).collect();
+            embedded::add_font(update, face, &used)
+        }
+    }
+}
+
 /// Construye la apariencia y la añade a la actualización.
 pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
     let (w, h) = (spec.width, spec.height);
@@ -164,22 +188,24 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
             content.push_str(&image_fit_ops(img, cw, ch, "img0"));
         }
         if let Some(t) = vis.text.as_ref().filter(|t| !t.is_empty()) {
-            let font_id = update.alloc();
-            update.put(font_id, std_font_dict(style.family.base_font()));
-            let mut fonts = Dictionary::new();
-            fonts.set("F1", Object::Reference(font_id));
-            res.set("Font", Object::Dictionary(fonts));
             let _ = writeln!(content, "/F1 {} Tf", f(style.size));
             let rect = (MARGIN, MARGIN, cw - MARGIN, ch - MARGIN);
             let max = if style.size > 0.0 { style.size } else { 12.0 };
             style.size = fit_text(t, rect, max, &style);
             let layout = layout_column(t, rect, style.size, &style);
-            column_content(&layout, &style, "F1", &mut content);
+            let (font_id, enc) = add_text_font(update, &style, &layout);
+            let mut fonts = Dictionary::new();
+            fonts.set("F1", Object::Reference(font_id));
+            res.set("Font", Object::Dictionary(fonts));
+            column_content(&layout, &style, "F1", &enc, &mut content);
         }
         if !xobjs.is_empty() {
             for (k, v) in xobject_res(&xobjs).iter() {
                 res.set(k.clone(), v.clone());
             }
+        }
+        if let Some(cs) = &vis.color_spaces {
+            res.set("ColorSpace", Object::Dictionary(cs.clone()));
         }
         let xf1 = update.alloc();
         update.put(xf1, form_xobject([0.0, 0.0, cw, ch], res, &latin1_bytes(&content)));
@@ -222,17 +248,19 @@ pub fn build(spec: &AppearanceSpec, update: &mut Update) -> BuiltAppearance {
             content.push_str(&image_fit_ops(img, w, h, "img0"));
         }
         if let (true, Some(t)) = (font_needed, vis.text.as_ref()) {
-            let font_id = update.alloc();
-            update.put(font_id, std_font_dict(style.family.base_font()));
-            let mut fonts = Dictionary::new();
-            fonts.set("F1", Object::Reference(font_id));
-            res.set("Font", Object::Dictionary(fonts));
             let rect = (MARGIN, MARGIN, w - MARGIN, h - MARGIN);
             if style.size <= 0.0 {
                 style.size = fit_text(t, rect, 12.0, &style);
             }
             let layout = layout_column(t, rect, style.size, &style);
-            column_content(&layout, &style, "F1", &mut content);
+            let (font_id, enc) = add_text_font(update, &style, &layout);
+            let mut fonts = Dictionary::new();
+            fonts.set("F1", Object::Reference(font_id));
+            res.set("Font", Object::Dictionary(fonts));
+            column_content(&layout, &style, "F1", &enc, &mut content);
+        }
+        if let Some(cs) = &vis.color_spaces {
+            res.set("ColorSpace", Object::Dictionary(cs.clone()));
         }
         form_xobject([0.0, 0.0, w, h], res, &latin1_bytes(&content))
     };

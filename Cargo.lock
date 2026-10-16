@@ -307,8 +307,10 @@ dependencies = [
  "rsa",
  "sha1 0.10.7",
  "sha2 0.10.9",
+ "subsetter",
  "thiserror 2.0.21",
  "tracing",
+ "ttf-parser",
  "x509-parser",
 ]
 
@@ -5144,6 +5146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "subsetter"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38803281d1c23166c5ebcb455439a5d2afe711cc909cf88af72448c297756ad6"
+dependencies = [
+ "rustc-hash 2.1.3",
+]
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5475,6 +5486,12 @@ dependencies = [
  "nom 8.0.0",
  "petgraph",
 ]
+
+[[package]]
+name = "ttf-parser"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 
 [[package]]
 name = "tungstenite"

@@ -184,3 +184,34 @@ fn appearance_preview_for_the_gui() {
     // Sin certificado (como la vista previa de Java) se muestran las etiquetas.
     assert!(afirma_pdf::render::preview_appearance(200, 80, &params(&[]), &[], None, 1.0).is_ok());
 }
+
+#[test]
+fn pdfa_preview_uses_embedded_fonts() {
+    let img = afirma_pdf::render::preview_appearance_for(
+        200,
+        80,
+        &params(&[("layer2Text", "Подпись ÁÉ")]),
+        &[],
+        None,
+        2.0,
+        true,
+    )
+    .unwrap();
+    let dark = img.to_gray().iter().filter(|g| **g < 128).count();
+    assert!(
+        dark > 100,
+        "el texto cirílico se dibuja con la fuente incrustada: {dark}"
+    );
+    // Sin PDF/A el cirílico no está en WinAnsi y no se dibuja.
+    let img = afirma_pdf::render::preview_appearance_for(
+        200,
+        80,
+        &params(&[("layer2Text", "Подпись")]),
+        &[],
+        None,
+        2.0,
+        false,
+    )
+    .unwrap();
+    assert_eq!(img.to_gray().iter().filter(|g| **g < 128).count(), 0);
+}

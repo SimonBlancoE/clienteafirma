@@ -100,23 +100,44 @@ impl RenderDocument {
 
 /// PDF mínimo de una página en blanco de `w`×`h` puntos.
 pub fn blank_pdf(w: i64, h: i64) -> Vec<u8> {
+    blank_pdf_with(w, h, None)
+}
+
+/// PDF mínimo de una página en blanco que, si se indica, declara una parte
+/// PDF/A en su XMP (para previsualizar la apariencia con fuentes
+/// incrustadas).
+pub fn blank_pdf_with(w: i64, h: i64, pdfa_part: Option<u8>) -> Vec<u8> {
     let mut out = b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n".to_vec();
-    let objs = [
-        "<</Type/Catalog/Pages 2 0 R>>".to_string(),
+    let mut objs = vec![
+        if pdfa_part.is_some() {
+            "<</Type/Catalog/Pages 2 0 R/Metadata 4 0 R>>".to_string()
+        } else {
+            "<</Type/Catalog/Pages 2 0 R>>".to_string()
+        },
         "<</Type/Pages/Kids[3 0 R]/Count 1>>".to_string(),
         format!("<</Type/Page/Parent 2 0 R/MediaBox[0 0 {w} {h}]/Resources<<>>>>"),
     ];
+    if let Some(part) = pdfa_part {
+        let xmp = format!(
+            "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\"><pdfaid:part>{part}</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance></rdf:Description></rdf:RDF></x:xmpmeta>"
+        );
+        objs.push(format!(
+            "<</Type/Metadata/Subtype/XML/Length {}>>\nstream\n{xmp}\nendstream",
+            xmp.len()
+        ));
+    }
     let mut offsets = Vec::new();
     for (i, o) in objs.iter().enumerate() {
         offsets.push(out.len());
         out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
     }
     let xref = out.len();
-    out.extend_from_slice(b"xref\n0 4\n0000000000 65535 f \n");
+    let size = objs.len() + 1;
+    out.extend_from_slice(format!("xref\n0 {size}\n0000000000 65535 f \n").as_bytes());
     for off in offsets {
         out.extend_from_slice(format!("{off:010} 00000 n \n").as_bytes());
     }
-    out.extend_from_slice(format!("trailer\n<</Size 4/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n").as_bytes());
+    out.extend_from_slice(format!("trailer\n<</Size {size}/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n").as_bytes());
     out
 }
 
@@ -134,7 +155,21 @@ pub fn preview_appearance(
     sign_time: Option<crate::pdf::date::SignTime>,
     scale: f32,
 ) -> Result<RgbaImage, AfirmaError> {
-    let pdf = blank_pdf(width.max(1), height.max(1));
+    preview_appearance_for(width, height, params, chain, sign_time, scale, false)
+}
+
+/// Como [`preview_appearance`], indicando si el documento de destino es
+/// PDF/A (en ese caso la apariencia usa las fuentes Liberation incrustadas).
+pub fn preview_appearance_for(
+    width: i64,
+    height: i64,
+    params: &afirma_core::ExtraParams,
+    chain: &[Vec<u8>],
+    sign_time: Option<crate::pdf::date::SignTime>,
+    scale: f32,
+    pdfa: bool,
+) -> Result<RgbaImage, AfirmaError> {
+    let pdf = blank_pdf_with(width.max(1), height.max(1), pdfa.then_some(2));
     let mut xp = params.clone();
     for (k, v) in [
         ("LowerLeftX", 0),

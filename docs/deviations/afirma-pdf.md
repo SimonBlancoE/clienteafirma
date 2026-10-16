@@ -109,10 +109,40 @@ repositorio salvo donde se indica.
   JVM) y la zona horaria del sistema. Los nombres cortos de zona (`z`) se resuelven con
   una tabla para las zonas españolas y europeas más habituales (`CET`/`CEST`,
   `WET`/`WEST`…); para otras zonas se usa `GMT±hh:mm`.
-* **PDF/A-1**: Java incrusta las fuentes GNU FreeFont (TrueType, `Identity-H`) en los
-  PDF/A-1. Rust usa las fuentes estándar Type 1 sin incrustar también en PDF/A-1
-  (mismo aspecto, pero un validador PDF/A estricto lo señalará). Pendiente: incrustar
-  fuentes (requiere decidir qué fuentes y licencia distribuir).
+* **PDF/A: fuentes incrustadas** (§8.5, §9.5). Java incrusta GNU FreeFont completa
+  (TrueType, `Identity-H`) solo en los PDF/A-1 y usa fuentes estándar sin incrustar en
+  PDF/A-2/3 (resultado no conforme: `6.2.11.4.1`). Rust, en **cualquier** PDF/A
+  (parte detectada en `pdfaid:part` del XMP), dibuja el texto de la firma visible con
+  las fuentes **Liberation 2.1.5** (SIL OFL 1.1, `crates/afirma-pdf/fonts/`), que son
+  métricamente compatibles con las estándar: Liberation Sans ↔ Helvetica, Liberation
+  Serif ↔ Times, Liberation Mono ↔ Courier. FreeFont no se puede distribuir (GPLv3).
+  * Se incrusta un **subconjunto** con los glifos usados (etiqueta `XXXXXX+` determinista)
+    como fuente compuesta `Type0`/`CIDFontType2`, `Identity-H`, `CIDToGIDMap /Identity`,
+    `/W` con los anchos de la fuente, `CIDSet` completo y `ToUnicode` (unos 10 KB por
+    firma; Java incrustaba la fuente entera, unos 300 KB).
+  * Negrita y cursiva usan la variante real de la fuente (`-Bold`, `-Italic`,
+    `-BoldItalic`) en lugar de simularse (Java simula sobre FreeFont normal). Subrayado
+    y tachado se dibujan igual.
+  * Maquetación: los anchos de las Liberation coinciden con los AFM en todo WinAnsi salvo
+    `¯ ± µ · ÷` en Sans y Serif; por eso, con fuente incrustada se maqueta con los
+    anchos de la propia fuente (los mismos de `/W`), de modo que el texto nunca se sale.
+  * Con fuente incrustada se pueden escribir caracteres fuera de WinAnsi que tenga la
+    fuente (p. ej. cirílico o griego), como hacía Java con FreeFont; en los documentos
+    no PDF/A siguen descartándose.
+  * Fuera de PDF/A la salida no cambia (fuentes Type 1 estándar sin incrustar, como
+    Java); comprobado byte a byte.
+* **PDF/A: transparencias y color**. En PDF/A-1 las imágenes (rúbrica y marca) se
+  componen sobre blanco sin `/SMask` (como Java, PDF/A-1 no admite transparencias); en
+  PDF/A-2/3 se conserva el canal alfa. Si el PDF/A no tiene un perfil de salida RGB
+  (`/OutputIntents` sin `DestOutputProfile` de 3 componentes), los recursos de la
+  apariencia (y de la página, para la marca) declaran `/DefaultRGB` y `/DefaultGray`
+  como `ICCBased` con los perfiles sRGB/gris v2 de «Compact ICC Profiles» (CC0,
+  `crates/afirma-pdf/icc/`); Java usaba DeviceRGB/DeviceGray sin más (no conforme:
+  `6.2.4.3`).
+* Comprobado con veraPDF 1.30.3: las firmas visibles sobre los PDF/A de prueba (1a, 1b,
+  2b, 3b; texto por defecto, estilos, cirílico, giro, rúbrica con transparencia, marca,
+  varias páginas, cofirma) pasan; antes fallaban por la fuente sin incrustar (y, sin
+  perfil de salida RGB, por el color).
 
 ## 7. XMP (§5.10, Q15)
 
@@ -194,7 +224,8 @@ repositorio salvo donde se indica.
   la página en blanco añadida (Java envía `N,append`, que el firmante ignora porque
   `append` solo cuenta como primer elemento, de modo que la firma acababa en la última
   página sin añadir ninguna).
-* `render::preview_appearance` genera una vista previa **exacta** de la apariencia
+* `render::preview_appearance_for(.., pdfa)` (y `preview_appearance`, sin PDF/A)
+  genera una vista previa **exacta** de la apariencia
   (la misma que se escribirá en el PDF); la vista previa de Java es aproximada (AWT,
   sin sustituir etiquetas y con los colores gris claro/gris intercambiados).
 

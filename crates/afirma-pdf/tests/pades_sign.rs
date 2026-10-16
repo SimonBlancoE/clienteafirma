@@ -522,3 +522,80 @@ fn signature_reserved_size() {
     let br = doc.signatures().0[0].byte_range();
     assert_eq!(br[2] - br[1], 16002);
 }
+
+/// PDF/A: la apariencia usa un subconjunto incrustado de las fuentes
+/// Liberation (Type0/CIDFontType2, Identity-H, CIDSet y ToUnicode); en
+/// PDF/A-1 las imágenes no llevan transparencia; sin perfil de salida RGB se
+/// declaran espacios de color por defecto ICC.
+#[test]
+fn pdfa_embedded_fonts() {
+    use lopdf::Object;
+    let mut png = std::io::Cursor::new(Vec::new());
+    let mut rgba = image::RgbaImage::new(30, 10);
+    for (x, _, p) in rgba.enumerate_pixels_mut() {
+        *p = image::Rgba([0, 0, 255, if x < 15 { 0 } else { 255 }]);
+    }
+    rgba.write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let rubric = afirma_core::base64_encode(&png.into_inner());
+    for (file, part) in [("PDF-A1B.pdf", 1u8), ("PDF-A2B-PdfTools.pdf", 2)] {
+        let input = java_resource(file);
+        let out = sign(
+            &input,
+            &visible(&[
+                ("layer2Text", "Firmado por $$SUBJECTCN$$ — Подпись"),
+                ("layer2FontFamily", "1"),
+                ("layer2FontStyle", "1"),
+                ("signatureRubricImage", &rubric),
+            ]),
+        );
+        let doc = PdfDoc::open(&out, None).unwrap();
+        assert_eq!(doc.pdfa_part(), Some(part));
+        let first_new = PdfDoc::open(&input, None).unwrap().size;
+        let new_objs: Vec<&Object> = doc
+            .doc
+            .objects
+            .iter()
+            .filter(|(id, _)| id.0 >= first_new)
+            .map(|(_, o)| o)
+            .collect();
+        let fonts: Vec<&lopdf::Dictionary> = new_objs
+            .iter()
+            .filter_map(|o| o.as_dict().ok())
+            .filter(|d| d.get(b"Subtype").and_then(Object::as_name).ok() == Some(b"Type0".as_slice()))
+            .collect();
+        assert_eq!(fonts.len(), 1, "{file}");
+        let base = String::from_utf8(fonts[0].get(b"BaseFont").unwrap().as_name().unwrap().to_vec()).unwrap();
+        assert!(
+            base.ends_with("+LiberationSans-Bold") && base.len() == 7 + "LiberationSans-Bold".len(),
+            "{base}"
+        );
+        assert_eq!(fonts[0].get(b"Encoding").unwrap().as_name().unwrap(), b"Identity-H");
+        assert!(fonts[0].has(b"ToUnicode"));
+        let fd = new_objs
+            .iter()
+            .filter_map(|o| o.as_dict().ok())
+            .find(|d| {
+                d.get(b"Type").and_then(Object::as_name).ok() == Some(b"FontDescriptor".as_slice())
+                    && d.has(b"FontFile2")
+            })
+            .expect("descriptor");
+        assert!(fd.has(b"CIDSet"));
+        // La apariencia no usa fuentes estándar sin incrustar (las del /DR de
+        // un /AcroForm nuevo no se usan para dibujar, como en Java).
+        let tail = &out[input.len()..];
+        assert!(!tail.windows(17).any(|w| w == b"/BaseFont/Courier"));
+        let has_smask = tail.windows(6).any(|w| w == b"/SMask");
+        assert_eq!(has_smask, part != 1, "transparencia en {file}");
+        let has_default_rgb = tail.windows(11).any(|w| w == b"/DefaultRGB");
+        assert_eq!(has_default_rgb, file.contains("PdfTools"), "{file}");
+        assert_eq!(
+            validity(&out, &ExtraParams::new()),
+            vec![(Validity::Ok, None)],
+            "{file}"
+        );
+    }
+    // Sin PDF/A: Helvetica estándar sin incrustar, como Java.
+    let out = sign(&java_resource("TEST_PDF.pdf"), &visible(&[("layer2FontFamily", "1")]));
+    let tail = String::from_utf8_lossy(&out[out.len() - 70000..]).into_owned();
+    assert!(tail.contains("/BaseFont/Helvetica/Encoding/WinAnsiEncoding") && !tail.contains("Type0"));
+}

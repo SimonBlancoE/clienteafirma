@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 
 use super::afm::{COURIER_WIDTHS, HELVETICA_WIDTHS, TIMES_ROMAN_WIDTHS};
 use crate::pdf::text::winansi_byte;
-use crate::pdf::write::{format_number as f, write_literal_string};
+use crate::pdf::write::format_number as f;
 
 /// Familia de fuente (`layer2FontFamily`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -79,6 +79,9 @@ pub struct TextStyle {
     pub underline: bool,
     pub strike: bool,
     pub color: (u8, u8, u8),
+    /// Fuente TrueType incrustada (documentos PDF/A). `None`: fuente estándar
+    /// sin incrustar con métricas AFM y estilos simulados (como iText).
+    pub embedded: Option<super::embedded::EmbeddedFace>,
 }
 
 impl Default for TextStyle {
@@ -91,6 +94,7 @@ impl Default for TextStyle {
             underline: false,
             strike: false,
             color: (0, 0, 0),
+            embedded: None,
         }
     }
 }
@@ -111,7 +115,11 @@ impl TextStyle {
         if no_print(c) {
             return 0.0;
         }
-        f64::from(self.family.char_width(c)) * self.size / 1000.0
+        let w = match &self.embedded {
+            Some(face) => face.char_width(c),
+            None => self.family.char_width(c),
+        };
+        f64::from(w) * self.size / 1000.0
     }
 
     pub fn text_width(&self, s: &str) -> f64 {
@@ -358,8 +366,16 @@ fn rgb(c: (u8, u8, u8)) -> String {
 
 /// Genera los operadores de un bloque de texto maquetado (subrayados y
 /// tachados primero, como el lienzo gráfico de `ColumnText`, y después el
-/// texto). `font_name` es el nombre del recurso de fuente (`F1`).
-pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str, out: &mut String) {
+/// texto). `font_name` es el nombre del recurso de fuente (`F1`) y `enc`
+/// codifica las cadenas para esa fuente. Con una fuente incrustada la
+/// negrita y la cursiva son las de la propia fuente y no se simulan.
+pub fn column_content(
+    layout: &ColumnLayout,
+    style: &TextStyle,
+    font_name: &str,
+    enc: &super::embedded::TextEncoder,
+    out: &mut String,
+) {
     if layout.lines.is_empty() {
         return;
     }
@@ -380,6 +396,8 @@ pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str,
             out.push_str("S\n0 G\n1 w\n");
         }
     }
+    let simulate_bold = style.bold && style.embedded.is_none();
+    let simulate_italic = style.italic && style.embedded.is_none();
     out.push_str("BT\n");
     let mut font_set = false;
     for (line, x, y) in &layout.lines {
@@ -387,7 +405,7 @@ pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str,
         if line.text.is_empty() {
             continue;
         }
-        if style.italic {
+        if simulate_italic {
             let _ = writeln!(out, "1 0 0.21256 1 {} {} Tm", f(*x), f(*y));
         }
         if !font_set {
@@ -395,7 +413,7 @@ pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str,
             font_set = true;
         }
         let stroke_width = size / 30.0;
-        if style.bold {
+        if simulate_bold {
             out.push_str("2 Tr\n");
             if (stroke_width - 1.0).abs() > f64::EPSILON {
                 let _ = writeln!(out, "{} w", f(stroke_width));
@@ -403,19 +421,18 @@ pub fn column_content(layout: &ColumnLayout, style: &TextStyle, font_name: &str,
             let _ = writeln!(out, "{} RG", rgb(style.color));
         }
         let _ = writeln!(out, "{} rg", rgb(style.color));
-        let mut bytes = Vec::new();
-        write_literal_string(&mut bytes, &crate::pdf::text::winansi_encode(&line.text));
+        let bytes = enc.operand(&line.text);
         // Las cadenas PDF pueden contener bytes no UTF-8: se guardan como
         // caracteres Latin-1 y se recodifican al escribir el flujo.
         out.extend(bytes.iter().map(|&b| char::from(b)));
         out.push_str("Tj\n0 g\n");
-        if style.bold {
+        if simulate_bold {
             out.push_str("0 Tr\n0 G\n");
             if (stroke_width - 1.0).abs() > f64::EPSILON {
                 out.push_str("1 w\n");
             }
         }
-        if style.italic {
+        if simulate_italic {
             // iText restablece la matriz tras un fragmento inclinado.
             let _ = writeln!(out, "1 0 0 1 {} {} Tm", f(x + line.width), f(*y));
             let _ = writeln!(out, "{} 0 Td", f(-line.width));

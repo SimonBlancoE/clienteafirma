@@ -29,6 +29,9 @@ x509-parser.workspace = true
 iana-time-zone = "0.1"
 image = { version = "0.25", default-features = false, features = ["png", "gif", "bmp", "jpeg"] }
 hayro = { version = "0.8", optional = true }
+# Fuentes TrueType incrustadas en la firma visible de los PDF/A.
+ttf-parser = "0.25"
+subsetter = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 sha1.workspace = true

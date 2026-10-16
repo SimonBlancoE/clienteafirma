@@ -25,7 +25,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Resúmenes SHA-3 al validar firmas XML | ✅ | |
 | Transformada XSLT al validar firmas XML | ⚠️ | Solo afecta a firmas XML de terceros que la usen |
 | Claves DSA en firmas XML | ❌ | Sin uso real en certificados actuales |
-| Incrustación de fuentes en PDF/A-1 | ⚠️ | La firma se ve igual; usa fuentes estándar no incrustadas |
+| Firma visible en PDF/A con fuentes incrustadas | ➕ | PDF/A-1, 2 y 3 siguen siendo conformes (veraPDF); Java solo lo hacía en PDF/A-1 |
 
 ## Firma desde la web (`afirma://`)
 

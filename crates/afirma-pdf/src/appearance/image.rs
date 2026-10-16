@@ -187,6 +187,21 @@ impl PdfImage {
         (main, mask)
     }
 
+    /// Compone la imagen sobre fondo blanco y elimina la transparencia
+    /// (como AutoFirma Java; necesario en PDF/A-1, que no admite `/SMask`).
+    pub fn flatten_alpha(&mut self) {
+        let Some(alpha) = self.smask.take() else { return };
+        let comps = if self.data.len() == alpha.len() { 1 } else { 3 };
+        for (i, a) in alpha.iter().enumerate() {
+            let a = u32::from(*a);
+            for k in 0..comps {
+                if let Some(c) = self.data.get_mut(i * comps + k) {
+                    *c = ((u32::from(*c) * a + 255 * (255 - a) + 127) / 255) as u8;
+                }
+            }
+        }
+    }
+
     pub fn needs_smask(&self) -> bool {
         self.smask.is_some()
     }

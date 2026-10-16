@@ -53,6 +53,9 @@ pub struct PdfInfo {
     pub certification_level: i64,
     /// Versión de la cabecera.
     pub version: String,
+    /// Parte PDF/A declarada (1, 2, 3...). En los PDF/A la firma visible usa
+    /// fuentes incrustadas (`render::preview_appearance_for(.., true)`).
+    pub pdfa_part: Option<u8>,
 }
 
 /// Posición de un campo en la página mostrada (`AcroFields.getFieldPositions`).
@@ -118,6 +121,7 @@ impl PdfInfo {
             encrypted: doc.encrypted,
             certification_level: doc.certification_level(),
             version: doc.header_version.clone(),
+            pdfa_part: doc.pdfa_part().filter(|_| doc.is_pdfa()),
         }
     }
 }
