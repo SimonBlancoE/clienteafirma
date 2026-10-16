@@ -35,6 +35,9 @@ Java.
 | `afirma-signers` | Registro de firmadores por formato, selección automática de formato, firma masiva, firma trifásica y por lotes | `AOSignerFactory`, `afirma-core-massive`, `afirma-crypto-batch-client`, `*-tri-client` |
 | `afirma-protocol` | Protocolo `afirma://`, servidor WebSocket local, servidor intermedio (StorageService/RetrieveService), cifrado de respuestas | `afirma-simple/.../protocol`, `afirma-core/.../misc/protocol` |
 | `afirma-system` | Integración con el sistema: manejador de protocolo, CA local y certificado SSL, almacenes de confianza (Windows, macOS, NSS), directivas de navegadores, preferencias y su bloqueo | `afirma-ui-simple-configurator*`, instaladores |
+| `afirma-cli` | Línea de comandos compatible (`sign`, `verify`, `listaliases`, `batchsign`...) y órdenes de integración (`install`, `doctor`...) | `CommandLineLauncher` |
+| `afirma-hash` | Huellas digitales de ficheros y carpetas, documentos e informes de huellas | `afirma-simple-plugin-hash` |
+| `afirma-certval` | Validación del estado de certificados por OCSP y CRL | `afirma-simple-plugin-validatecerts` |
 | `autofirma` | Ejecutable: interfaz gráfica (egui), línea de comandos y arranque por protocolo | `afirma-simple` |
 
 ## Flujo de una firma
