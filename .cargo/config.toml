@@ -1,0 +1,4 @@
+# Límite de trabajos de compilación en paralelo por proceso de cargo: durante
+# el desarrollo se compilan varios crates a la vez en la misma máquina.
+[build]
+jobs = 4

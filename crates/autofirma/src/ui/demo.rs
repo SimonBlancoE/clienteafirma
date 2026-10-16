@@ -44,6 +44,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         operation: Operation::Sign,
         status: FileStatus::Pending,
         existing_signatures: None,
+        data: Default::default(),
     };
     if demo.contains("ready") || demo.contains("finished") || demo.contains("picker") {
         app.sign.files = vec![

@@ -1,6 +1,6 @@
 [package]
 name = "autofirma"
-description = "AutoFirma-rs: cliente de firma electrónica (interfaz gráfica, línea de comandos y protocolo afirma://)"
+description = "AutoFirma: firma electrónica de documentos y en trámites web (afirma://)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -24,3 +24,114 @@ chrono.workspace = true
 x509-parser.workspace = true
 rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp"] }
+afirma-signers.workspace = true
+afirma-keystores.workspace = true
+afirma-pdf.workspace = true
+afirma-cms.workspace = true
+afirma-xml.workspace = true
+directories.workspace = true
+afirma-protocol.workspace = true
+
+[build-dependencies]
+# Recursos de Windows (icono, versión y manifiesto). build.rs solo los compila cuando el
+# destino es Windows; no se limita con `cfg(windows)` porque las dependencias de
+# compilación se filtran por el anfitrión y eso rompería la compilación cruzada.
+winresource = { version = "0.1.31", default-features = false }
+
+# ----------------------------------------------------------------------------------------
+# Empaquetado para Linux (tools/package/linux.sh). El ejecutable real va en
+# /usr/lib/autofirma-rs junto a los certificados locales que genera
+# `autofirma install --system`; /usr/bin/autofirma es un lanzador.
+
+[package.metadata.deb]
+name = "autofirma-rs"
+maintainer = "AutoFirma-rs <autofirma-rs@users.noreply.github.com>"
+copyright = "2025-2026, AutoFirma-rs contributors. Basado en Autofirma (C) Gobierno de España"
+license-file = ["../../license/gpl-2.0.txt", "0"]
+extended-description = """\
+Cliente de firma electrónica compatible con Autofirma: firma, cofirma, contrafirma y \
+verificación de documentos en formatos PAdES, XAdES, CAdES, FacturaE y ASiC con \
+certificados en tarjeta (DNIe, tarjetas criptográficas), en fichero o en los almacenes \
+del sistema y del navegador, e integración con los trámites web mediante el protocolo \
+afirma://. Reimplementación en Rust sin dependencia de Java."""
+section = "utils"
+priority = "optional"
+depends = "$auto"
+recommends = "libnss3-tools, pcscd, opensc, ca-certificates, libxkbcommon0, libegl1, libwayland-client0, libx11-6, xdg-desktop-portal"
+conflicts = "autofirma"
+replaces = "autofirma"
+maintainer-scripts = "../../packaging/linux/debian/"
+# Si se añade el ejecutable de consola autofirma-cli, añádalo también aquí y en el .rpm
+# (["target/release/autofirma-cli", "usr/lib/autofirma-rs/autofirma-cli", "755"]).
+assets = [
+    ["target/release/autofirma", "usr/lib/autofirma-rs/autofirma", "755"],
+    ["../../packaging/common/configure-hook.sh", "usr/lib/autofirma-rs/configure-hook.sh", "755"],
+    ["../../packaging/linux/autofirma-wrapper.sh", "usr/bin/autofirma", "755"],
+    ["../../packaging/linux/autofirma.desktop", "usr/share/applications/autofirma.desktop", "644"],
+    ["../../packaging/linux/io.github.autofirma_rs.AutoFirma.metainfo.xml", "usr/share/metainfo/io.github.autofirma_rs.AutoFirma.metainfo.xml", "644"],
+    ["../../packaging/icons/autofirma-16.png", "usr/share/icons/hicolor/16x16/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-24.png", "usr/share/icons/hicolor/24x24/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-32.png", "usr/share/icons/hicolor/32x32/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-48.png", "usr/share/icons/hicolor/48x48/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-64.png", "usr/share/icons/hicolor/64x64/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-128.png", "usr/share/icons/hicolor/128x128/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-256.png", "usr/share/icons/hicolor/256x256/apps/autofirma.png", "644"],
+    ["../../packaging/icons/autofirma-512.png", "usr/share/icons/hicolor/512x512/apps/autofirma.png", "644"],
+]
+
+# Variante para empaquetar sin dpkg-shlibdeps (anfitrión que no es Debian o compilación
+# cruzada): dependencias fijas válidas para un ejecutable enlazado con glibc <= 2.28
+# (cargo zigbuild --target <triple>.2.28); linux.sh comprueba que sea así.
+[package.metadata.deb.variants.glibc228]
+name = "autofirma-rs"
+depends = "libc6 (>= 2.28), libgcc-s1 | libgcc1"
+
+[package.metadata.generate-rpm]
+name = "autofirma-rs"
+summary = "AutoFirma: cliente de firma electrónica (protocolo afirma://)"
+license = "GPL-2.0-or-later OR EUPL-1.1"
+url = "https://github.com/autofirma-rs/autofirma-rs"
+vendor = "AutoFirma-rs"
+release = "1"
+# Las dependencias de bibliotecas se declaran abajo: el binario solo enlaza con glibc (el
+# resto se carga en tiempo de ejecución) y así no hace falta `ldd` del sistema de destino
+# al empaquetar de forma cruzada. linux.sh ajusta la versión de glibc al binario real.
+auto-req = "no"
+post_install_script = "../../packaging/linux/rpm/post.sh"
+pre_uninstall_script = "../../packaging/linux/rpm/preun.sh"
+post_uninstall_script = "../../packaging/linux/rpm/postun.sh"
+assets = [
+    { source = "target/release/autofirma", dest = "/usr/lib/autofirma-rs/autofirma", mode = "755" },
+    { source = "../../packaging/common/configure-hook.sh", dest = "/usr/lib/autofirma-rs/configure-hook.sh", mode = "755" },
+    { source = "../../packaging/linux/autofirma-wrapper.sh", dest = "/usr/bin/autofirma", mode = "755" },
+    { source = "../../packaging/linux/autofirma.desktop", dest = "/usr/share/applications/autofirma.desktop", mode = "644" },
+    { source = "../../packaging/linux/io.github.autofirma_rs.AutoFirma.metainfo.xml", dest = "/usr/share/metainfo/io.github.autofirma_rs.AutoFirma.metainfo.xml", mode = "644" },
+    { source = "../../packaging/icons/autofirma-16.png", dest = "/usr/share/icons/hicolor/16x16/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-24.png", dest = "/usr/share/icons/hicolor/24x24/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-32.png", dest = "/usr/share/icons/hicolor/32x32/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-48.png", dest = "/usr/share/icons/hicolor/48x48/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-64.png", dest = "/usr/share/icons/hicolor/64x64/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-128.png", dest = "/usr/share/icons/hicolor/128x128/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/autofirma.png", mode = "644" },
+    { source = "../../packaging/icons/autofirma-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/autofirma.png", mode = "644" },
+    { source = "../../license/gpl-2.0.txt", dest = "/usr/share/licenses/autofirma-rs/gpl-2.0.txt", mode = "644", doc = true },
+]
+
+[package.metadata.generate-rpm.requires]
+"libc.so.6(GLIBC_2.28)(64bit)" = "*"
+"libgcc_s.so.1()(64bit)" = "*"
+
+[package.metadata.generate-rpm.recommends]
+"(nss-tools or mozilla-nss-tools)" = ""
+pcsc-lite = ""
+opensc = ""
+ca-certificates = ""
+"libxkbcommon.so.0()(64bit)" = ""
+"libEGL.so.1()(64bit)" = ""
+"libwayland-client.so.0()(64bit)" = ""
+"libX11.so.6()(64bit)" = ""
+xdg-desktop-portal = ""
+
+[package.metadata.generate-rpm.conflicts]
+# Paquete de la Autofirma Java (también instala /usr/bin/autofirma y el manejador afirma://).
+autofirma = "*"

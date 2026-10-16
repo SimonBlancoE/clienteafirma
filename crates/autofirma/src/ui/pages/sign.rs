@@ -90,6 +90,8 @@ pub struct FileItem {
     pub status: FileStatus,
     /// Resumen de las firmas existentes (si ya estaba firmado).
     pub existing_signatures: Option<String>,
+    /// Contenido del fichero (AutoFirma lee los ficheros completos).
+    pub data: std::sync::Arc<Vec<u8>>,
 }
 
 impl FileItem {

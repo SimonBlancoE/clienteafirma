@@ -61,10 +61,13 @@ pub struct AutoFirmaApp {
     pub(crate) prefs: Box<dyn super::pages::settings::PrefStore>,
     /// Petición en curso desde la web (modo compacto).
     pub(crate) request: Option<super::request_view::RequestView>,
+    pub(crate) rt: super::flows::Runtime,
+    /// Modo protocolo (`afirma://`).
+    pub(crate) proto: Option<super::protocol_flow::ProtocolState>,
 }
 
 impl AutoFirmaApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, start: crate::launch::GuiStart) -> Self {
         theme::install_fonts(&cc.egui_ctx);
         egui_extras::install_image_loaders(&cc.egui_ctx);
         let mut app = AutoFirmaApp {
@@ -81,10 +84,28 @@ impl AutoFirmaApp {
             visible_sig: Default::default(),
             settings: Default::default(),
             request: None,
+            rt: super::flows::Runtime::new(&cc.egui_ctx),
+            proto: None,
             prefs: Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() }),
         };
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
+        }
+        if !start.sign_files.is_empty() {
+            app.load_files(&cc.egui_ctx, start.sign_files);
+        }
+        if let Some(url) = start.protocol_url {
+            let rx = crate::services::protocol::spawn_launcher(url, cc.egui_ctx.clone());
+            app.proto = Some(super::protocol_flow::ProtocolState::new(rx));
+        }
+        if let Some(v) = start.verify_file {
+            app.verify_path(&cc.egui_ctx, v);
+        }
+        // Almacén por defecto sustituible (pruebas y despliegues): `AF_STORE=pkcs12:/ruta` o `pkcs11:/ruta`.
+        if let Ok(spec) = std::env::var("AF_STORE") {
+            if let Ok(parsed) = afirma_keystores::selection::parse_cli_store(Some(&spec), afirma_keystores::Os::current()) {
+                app.rt.store_spec = parsed;
+            }
         }
         app
     }
@@ -92,13 +113,17 @@ impl AutoFirmaApp {
     /// Modo compacto para peticiones desde la web.
     fn request_ui(&mut self, ui: &mut Ui) {
         let p = self.palette;
+        let ctx = ui.ctx().clone();
         let event = egui::CentralPanel::no_frame()
             .frame(Frame::new().fill(p.surface).inner_margin(Margin::symmetric(26, 22)))
             .show(ui, |ui| self.request.as_mut().map(|r| r.ui(ui, &p)))
             .inner;
-        if let Some(super::request_view::RequestEvent::Close) = event {
-            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        if self.proto.is_some() {
+            self.protocol_ui(&ctx, event);
+        } else if let Some(super::request_view::RequestEvent::Close) = event {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
+        super::dialogs::show_inbox(&ctx, &p, &mut self.rt.inbox);
     }
 
     fn handle_settings_actions(&mut self, actions: Vec<super::pages::settings::SettingsAction>) {
@@ -144,36 +169,31 @@ impl AutoFirmaApp {
         }
     }
 
-    fn handle_verify_actions(&mut self, actions: Vec<VerifyAction>) {
-        for a in actions {
-            if a == VerifyAction::Clear {
-                self.verify = VerifyPage::default();
-            }
-        }
+    /// Paleta activa.
+    pub(crate) fn palette(&self) -> Palette {
+        self.palette
     }
 
-    fn handle_sign_actions(&mut self, actions: Vec<SignAction>) {
-        for a in actions {
-            match a {
-                SignAction::Clear => {
-                    self.sign.files.clear();
-                    self.sign.stage = Stage::Empty;
-                }
-                SignAction::Remove(i) => {
-                    if i < self.sign.files.len() {
-                        self.sign.files.remove(i);
-                    }
-                    if self.sign.files.is_empty() {
-                        self.sign.stage = Stage::Empty;
-                    }
-                }
-                SignAction::StartSigning => {
-                    self.picker.accept_label = "Firmar".into();
-                    self.picker.open = true;
-                }
-                _ => {}
-            }
+    /// Aviso temporal en la parte inferior.
+    fn toast_ui(&mut self, ctx: &egui::Context) {
+        let Some((msg, since)) = self.rt.toast.clone() else { return };
+        if since.elapsed() > std::time::Duration::from_secs(5) {
+            self.rt.toast = None;
+            return;
         }
+        ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        let p = self.palette;
+        egui::Area::new(egui::Id::unique("toast"))
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -24.0))
+            .show(ctx, |ui| {
+                Frame::new()
+                    .fill(if p.dark { p.surface_alt } else { egui::Color32::from_rgb(0x1F, 0x24, 0x2C) })
+                    .corner_radius(10)
+                    .inner_margin(Margin::symmetric(16, 10))
+                    .show(ui, |ui| {
+                        ui.label(RichText::new(msg).color(egui::Color32::WHITE).size(13.5));
+                    });
+            });
     }
 
     fn sidebar(&mut self, ui: &mut Ui) {
@@ -215,6 +235,14 @@ impl AutoFirmaApp {
 }
 
 impl eframe::App for AutoFirmaApp {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Con la ventana oculta (modo protocolo) también hay que atender las
+        // peticiones de la página.
+        if self.proto.is_some() {
+            self.protocol_logic(ctx);
+        }
+    }
+
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         let system_dark = ctx.system_theme() == Some(egui::Theme::Dark);
@@ -224,7 +252,24 @@ impl eframe::App for AutoFirmaApp {
             self.applied = Some(self.palette);
         }
         self.files_hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
-        if self.request.is_some() {
+        self.pump_jobs(&ctx);
+        self.handle_dropped_files(&ctx);
+        if self.proto.is_some() {
+            self.protocol_logic(&ctx);
+        }
+        if self.request.is_some() || self.proto.is_some() {
+            if self.request.is_none() {
+                // Esperando a la página: ventana mínima.
+                let p = self.palette;
+                egui::CentralPanel::no_frame().frame(Frame::new().fill(p.surface)).show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(ui.available_height() / 2.0 - 30.0);
+                        ui.spinner();
+                        ui.label("Atendiendo a la página web…");
+                    });
+                });
+                return;
+            }
             self.request_ui(ui);
             return;
         }
@@ -244,11 +289,11 @@ impl eframe::App for AutoFirmaApp {
                 match self.page {
                     Page::Sign => {
                         let actions = self.sign.ui(ui, &p, self.files_hovering);
-                        self.handle_sign_actions(actions);
+                        self.on_sign_actions(&ctx, actions);
                     }
                     Page::Verify => {
                         let actions = self.verify.ui(ui, &p, self.files_hovering);
-                        self.handle_verify_actions(actions);
+                        self.on_verify_actions(&ctx, actions);
                     }
                     Page::Certificates => {
                         let actions = self.certificates.ui(ui, &p);
@@ -266,10 +311,10 @@ impl eframe::App for AutoFirmaApp {
                 }
             });
         });
-        let _ = self.visible_sig.show(&ctx, &p);
-        match self.picker.show(&ctx, &p) {
-            PickerEvent::None => {}
-            _ => {}
-        }
+        self.sign_flow_dialogs(&ctx);
+        let ev = self.picker.show(&ctx, &p);
+        self.on_picker_event(&ctx, ev);
+        super::dialogs::show_inbox(&ctx, &p, &mut self.rt.inbox);
+        self.toast_ui(&ctx);
     }
 }

@@ -53,6 +53,28 @@ impl PrefStore for MemoryPrefs {
     }
 }
 
+/// Todas las claves de preferencias que usa la aplicación.
+pub const ALL_KEYS: &[&str] = &[
+    "omitAskOnClose", "checkForUpdates", "enableProgressDialog", "vdiOptimization", "signatureHashAlgorithm",
+    "defaultSignatureFormatPdf", "defaultSignatureFormatFacturae", "defaultSignatureFormatOoxml", "defaultSignatureFormatOdf",
+    "defaultSignatureFormatXml", "defaultSignatureFormatBin", "confirmToSign", "allowInvalidSignatures", "massiveOverride",
+    "secureConnections", "secureDomainsList", "proxyType", "proxyHost", "proxyPort", "proxyUsername", "proxyPassword",
+    "proxyExcludedUrls", "padesPolicyIdentifier", "padesPolicyIdentifierHash", "padesPolicyIdentifierHashAlgorithm",
+    "padesPolicyQualifier", "padesBasicFormat", "padesVisibleSignature", "padesObfuscateCertInfo", "padesVisibleStamp",
+    "allowShadowAttack", "allowCertifiedPDF", "padesCertificationLevel", "padesSignReason", "padesSignProductionCity",
+    "padesSignerContact", "pdfLayer2Text", "pdfLayer2FontFamily", "pdfLayer2FontSize", "pdfLayer2FontStyle",
+    "pdfLayer2FontColor", "pdfSignatureRotation", "pdfSignatureImage", "cadesPolicyIdentifier", "cadesPolicyIdentifierHash",
+    "cadesPolicyIdentifierHashAlgorithm", "cadesPolicyQualifier", "cadesImplicitMode", "cadesMultisign",
+    "xadesPolicyIdentifier", "xadesPolicyIdentifierHash", "xadesPolicyIdentifierHashAlgorithm", "xadesPolicyQualifier",
+    "xadesSignFormat", "xadesMultisign", "xadesSignatureProductionCity", "xadesSignatureProductionProvince",
+    "xadesSignatureProductionPostalCode", "xadesSignatureProductionCountry", "xadesSignerClaimedRole", "facturaEPolicy",
+    "facturaePolicyIdentifier", "facturaePolicyIdentifierHash", "facturaePolicyIdentifierHashAlgorithm",
+    "facturaeSignerRole", "facturaeSignatureProductionCity", "facturaeSignatureProductionProvince",
+    "facturaeSignatureProductionPostalCode", "facturaeSignatureProductionCountry", "defaultKeystore",
+    "defaultLocalKeystorePath", "useDefaultStoreInBrowserCalls", "hideDnieStartScreen", "showExpiredCerts",
+    "useOnlySignatureCertificates", "useOnlyAliasCertificates", "skipAuthCertDnie", "default.locale", "uiTheme", "uiScale",
+];
+
 /// Valores por defecto de AutoFirma (`preferences.properties`).
 pub fn default_values() -> BTreeMap<String, String> {
     [

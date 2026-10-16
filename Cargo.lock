@@ -154,6 +154,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "afirma-cli"
+version = "2.0.0-alpha.1"
+dependencies = [
+ "afirma-core",
+ "afirma-hash",
+ "afirma-keystores",
+ "afirma-protocol",
+ "afirma-signers",
+ "afirma-system",
+ "afirma-xml",
+ "base64 0.22.1",
+ "chrono",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "afirma-cms"
 version = "2.0.0-alpha.1"
 dependencies = [
@@ -277,7 +294,6 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.21",
  "tracing",
- "ureq",
  "x509-parser",
 ]
 

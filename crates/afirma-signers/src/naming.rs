@@ -37,7 +37,7 @@ pub fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
 pub fn single_output_path(signer: &dyn Signer, input: &Path) -> PathBuf {
     let name = input.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let dir = input.parent().unwrap_or_else(|| Path::new("."));
-    dir.join(signer.signed_name(Some(&name), None))
+    dir.join(signer.signed_name(Some(&name), Some(SIGNED_SUFFIX)))
 }
 
 #[cfg(test)]
