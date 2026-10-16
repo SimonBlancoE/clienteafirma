@@ -1,0 +1,24 @@
+[package]
+name = "afirma-keystores"
+description = "Almacenes de certificados de AutoFirma-rs: PKCS#12, PKCS#11 (DNIe, tarjetas), NSS (Firefox), Windows y macOS"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+afirma-core.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+ring.workspace = true
+rsa.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+p256.workspace = true
+p384.workspace = true
+p521.workspace = true
+ecdsa.workspace = true
+p12-keystore.workspace = true
+x509-parser.workspace = true
+hex.workspace = true

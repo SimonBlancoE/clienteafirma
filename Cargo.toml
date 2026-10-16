@@ -43,8 +43,8 @@ directories = "6"
 tempfile = "3"
 
 # Criptografía
-sha1 = "0.10"
-sha2 = "0.10"
+sha1 = { version = "0.10", features = ["oid"] }
+sha2 = { version = "0.10", features = ["oid"] }
 md-5 = "0.10"
 digest = "0.10"
 ring = "0.17"
