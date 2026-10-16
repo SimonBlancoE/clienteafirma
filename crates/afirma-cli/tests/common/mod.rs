@@ -12,10 +12,16 @@ use afirma_core::{ExtraParams, Signer};
 
 /// Directorio `testdata`.
 pub fn td() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../testdata")
         .canonicalize()
-        .unwrap()
+        .unwrap();
+    // En Windows `canonicalize` da rutas `\\?\C:\...`, que no admiten `/` como
+    // separador; los casos concatenan rutas con `/`.
+    match p.to_str().and_then(|s| s.strip_prefix(r"\\?\")) {
+        Some(plain) => PathBuf::from(plain),
+        None => p,
+    }
 }
 
 /// Directorio de las firmas de Java (`testdata/cli/java`).

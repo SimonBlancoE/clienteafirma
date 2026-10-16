@@ -1,0 +1,16 @@
+# Datos de prueba: mismos bytes en todos los sistemas (sin conversión de fin
+# de línea); muchas pruebas comparan huellas, firmas y salidas exactas.
+testdata/** -text
+# Código y herramientas de AutoFirma-rs con LF también en Windows.
+crates/** text=auto eol=lf
+tools/** text=auto eol=lf
+packaging/** text=auto eol=lf
+docs/** text=auto eol=lf
+*.rs text eol=lf
+*.toml text eol=lf
+# Datos de prueba y recursos dentro de los crates: sin conversión.
+crates/*/tests/** -text
+crates/*/fonts/** -text
+crates/*/icc/** -text
+crates/*/assets/** -text
+crates/*/tests/**/*.rs text eol=lf
