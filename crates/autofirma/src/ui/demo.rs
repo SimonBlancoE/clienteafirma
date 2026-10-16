@@ -211,4 +211,23 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         };
         app.settings.pending.insert("confirmToSign".into(), Some("false".into()));
     }
+    if demo.contains("web") {
+        use super::request_view::{RequestInfo, RequestOp, RequestStage, RequestView};
+        let mut r = RequestView::new(RequestInfo {
+            origin: Some("sede.ejemplo.gob.es".into()),
+            op: if demo.contains("batch") { RequestOp::Batch } else { RequestOp::Sign },
+            format: Some("PAdES".into()),
+            file_name: Some("Solicitud de subvención 2026.pdf".into()),
+            data_len: Some(284_312),
+            doc_kind: Some("PDF".into()),
+            batch_count: demo.contains("batch").then_some(12),
+        });
+        r.picker.stores = app.picker.stores.clone();
+        r.picker.open_with("Almacén del sistema", test_certs().into_iter().filter(|c| c.alias != "caducado").collect());
+        if demo.contains("done") {
+            r.stage = RequestStage::Done("Documento firmado".into());
+        }
+        app.request = Some(r);
+        app.picker.open = false;
+    }
 }

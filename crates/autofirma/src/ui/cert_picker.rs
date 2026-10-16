@@ -93,27 +93,7 @@ impl CertPicker {
             }
         }
 
-        // Teclado.
-        ctx.input(|i| {
-            if i.key_pressed(Key::Escape) {
-                event = PickerEvent::Cancelled;
-            }
-            if i.key_pressed(Key::F5) {
-                event = PickerEvent::Refresh;
-            }
-            if let Some(sel) = self.selected {
-                let pos = visible.iter().position(|&v| v == sel).unwrap_or(0);
-                if i.key_pressed(Key::ArrowDown) && pos + 1 < visible.len() {
-                    self.selected = Some(visible[pos + 1]);
-                }
-                if i.key_pressed(Key::ArrowUp) && pos > 0 {
-                    self.selected = Some(visible[pos - 1]);
-                }
-                if i.key_pressed(Key::Enter) {
-                    event = PickerEvent::Accepted(sel);
-                }
-            }
-        });
+        self.handle_keys(ctx, &visible, &mut event);
 
         let modal = egui::Modal::new(egui::Id::unique("cert_picker"))
             .backdrop_color(Color32::from_black_alpha(if p.dark { 150 } else { 90 }))
@@ -137,77 +117,7 @@ impl CertPicker {
             });
             ui.add_space(14.0);
 
-            // Barra: almacén, vista, búsqueda, recargar.
-            ui.horizontal(|ui| {
-                if self.allow_change_store && !self.stores.is_empty() {
-                    egui::ComboBox::from_id_salt("picker_store")
-                        .selected_text(widgets::icon_job(icons::VAULT, &self.store_label, 13.5, p.text_muted, p.text))
-                        .width(230.0)
-                        .show_ui(ui, |ui| {
-                            for s in &self.stores {
-                                if ui.selectable_label(false, widgets::icon_job(s.icon, &s.label, 13.5, p.text_muted, p.text)).clicked() {
-                                    event = PickerEvent::ChangeStore(s.id.clone());
-                                }
-                            }
-                        });
-                } else {
-                    widgets::icon_label(ui, p, icons::VAULT, &self.store_label);
-                }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui
-                        .add(egui::Button::new(widgets::icon_text(icons::ARROWS_CLOCKWISE, 16.0, p.text_muted)).frame(false))
-                        .on_hover_text("Recargar la lista de certificados (F5)")
-                        .clicked()
-                    {
-                        event = PickerEvent::Refresh;
-                    }
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.search)
-                            .hint_text(widgets::icon_job(icons::MAGNIFYING_GLASS, "Buscar por nombre, NIF o emisor", 13.0, p.text_faint, p.text_faint))
-                            .desired_width(230.0),
-                    );
-                });
-            });
-            ui.add_space(6.0);
-            segmented(ui, p, &mut self.view);
-            ui.add_space(10.0);
-
-            if self.loading {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(40.0);
-                    ui.spinner();
-                    ui.label(RichText::new("Cargando certificados…").color(p.text_muted));
-                    ui.add_space(40.0);
-                });
-            } else if let Some(err) = &self.error {
-                widgets::callout(ui, p, widgets::CalloutKind::Error, "No se ha podido cargar el almacén", Some(err));
-            } else if self.certs.is_empty() {
-                empty_state(ui, p);
-            } else if visible.is_empty() {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(30.0);
-                    ui.label(RichText::new("Ningún certificado coincide con la búsqueda").color(p.text_muted));
-                    ui.add_space(30.0);
-                });
-            } else {
-                ScrollArea::vertical().max_height(380.0).auto_shrink([false, true]).show(ui, |ui| {
-                    for &i in &visible {
-                        let selected = self.selected == Some(i);
-                        let expanded = self.expanded == Some(i);
-                        let r = cert_row(ui, p, &self.certs[i], self.view, selected, expanded);
-                        if r.clicked {
-                            self.selected = Some(i);
-                        }
-                        if r.double_clicked {
-                            event = PickerEvent::Accepted(i);
-                        }
-                        if r.toggle_details {
-                            self.expanded = if expanded { None } else { Some(i) };
-                        }
-                        ui.add_space(6.0);
-                    }
-                });
-            }
+            self.list_section(ui, p, &visible, &mut event, 380.0);
 
             ui.add_space(12.0);
             ui.horizontal(|ui| {
@@ -234,6 +144,122 @@ impl CertPicker {
         if matches!(event, PickerEvent::Accepted(_) | PickerEvent::Cancelled) {
             self.open = false;
         }
+        event
+    }
+
+    /// Atiende el teclado (flechas, Intro, Esc, F5).
+    fn handle_keys(&mut self, ctx: &egui::Context, visible: &[usize], event: &mut PickerEvent) {
+        ctx.input(|i| {
+            if i.key_pressed(Key::Escape) {
+                *event = PickerEvent::Cancelled;
+            }
+            if i.key_pressed(Key::F5) {
+                *event = PickerEvent::Refresh;
+            }
+            if let Some(sel) = self.selected {
+                let pos = visible.iter().position(|&v| v == sel).unwrap_or(0);
+                if i.key_pressed(Key::ArrowDown) && pos + 1 < visible.len() {
+                    self.selected = Some(visible[pos + 1]);
+                }
+                if i.key_pressed(Key::ArrowUp) && pos > 0 {
+                    self.selected = Some(visible[pos - 1]);
+                }
+                if i.key_pressed(Key::Enter) {
+                    *event = PickerEvent::Accepted(sel);
+                }
+            }
+        });
+
+    }
+
+    /// Barra de herramientas y lista de certificados (reutilizable fuera del
+    /// diálogo, p. ej. en la ventana de peticiones desde la web).
+    pub fn list_section(&mut self, ui: &mut Ui, p: &Palette, visible: &[usize], event: &mut PickerEvent, max_height: f32) {
+        // Barra: almacén, vista, búsqueda, recargar.
+        ui.horizontal(|ui| {
+            if self.allow_change_store && !self.stores.is_empty() {
+                egui::ComboBox::from_id_salt("picker_store")
+                    .selected_text(widgets::icon_job(icons::VAULT, &self.store_label, 13.5, p.text_muted, p.text))
+                    .width(230.0)
+                    .show_ui(ui, |ui| {
+                        for s in &self.stores {
+                            if ui.selectable_label(false, widgets::icon_job(s.icon, &s.label, 13.5, p.text_muted, p.text)).clicked() {
+                                *event = PickerEvent::ChangeStore(s.id.clone());
+                            }
+                        }
+                    });
+            } else {
+                widgets::icon_label(ui, p, icons::VAULT, &self.store_label);
+            }
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui
+                    .add(egui::Button::new(widgets::icon_text(icons::ARROWS_CLOCKWISE, 16.0, p.text_muted)).frame(false))
+                    .on_hover_text("Recargar la lista de certificados (F5)")
+                    .clicked()
+                {
+                    *event = PickerEvent::Refresh;
+                }
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.search)
+                        .hint_text(widgets::icon_job(icons::MAGNIFYING_GLASS, "Buscar por nombre, NIF o emisor", 13.0, p.text_faint, p.text_faint))
+                        .desired_width(230.0),
+                );
+            });
+        });
+        ui.add_space(6.0);
+        segmented(ui, p, &mut self.view);
+        ui.add_space(10.0);
+
+        if self.loading {
+            ui.vertical_centered(|ui| {
+                ui.add_space(40.0);
+                ui.spinner();
+                ui.label(RichText::new("Cargando certificados…").color(p.text_muted));
+                ui.add_space(40.0);
+            });
+        } else if let Some(err) = &self.error {
+            widgets::callout(ui, p, widgets::CalloutKind::Error, "No se ha podido cargar el almacén", Some(err));
+        } else if self.certs.is_empty() {
+            empty_state(ui, p);
+        } else if visible.is_empty() {
+            ui.vertical_centered(|ui| {
+                ui.add_space(30.0);
+                ui.label(RichText::new("Ningún certificado coincide con la búsqueda").color(p.text_muted));
+                ui.add_space(30.0);
+            });
+        } else {
+            ScrollArea::vertical().max_height(max_height).auto_shrink([false, true]).show(ui, |ui| {
+                for &i in visible {
+                    let selected = self.selected == Some(i);
+                    let expanded = self.expanded == Some(i);
+                    let r = cert_row(ui, p, &self.certs[i], self.view, selected, expanded);
+                    if r.clicked {
+                        self.selected = Some(i);
+                    }
+                    if r.double_clicked {
+                        *event = PickerEvent::Accepted(i);
+                    }
+                    if r.toggle_details {
+                        self.expanded = if expanded { None } else { Some(i) };
+                    }
+                    ui.add_space(6.0);
+                }
+            });
+        }
+
+    }
+
+    /// Lista embebida: devuelve el evento producido (selección, doble clic…).
+    pub fn show_embedded(&mut self, ui: &mut Ui, p: &Palette, max_height: f32) -> PickerEvent {
+        let mut event = PickerEvent::None;
+        let visible = self.visible();
+        if let Some(sel) = self.selected {
+            if !visible.contains(&sel) {
+                self.selected = visible.first().copied();
+            }
+        }
+        self.handle_keys(ui.ctx(), &visible, &mut event);
+        self.list_section(ui, p, &visible, &mut event, max_height);
         event
     }
 }

@@ -59,6 +59,8 @@ pub struct AutoFirmaApp {
     pub(crate) visible_sig: super::visible_sig::VisibleSigEditor,
     pub(crate) settings: super::pages::settings::SettingsPage,
     pub(crate) prefs: Box<dyn super::pages::settings::PrefStore>,
+    /// Petición en curso desde la web (modo compacto).
+    pub(crate) request: Option<super::request_view::RequestView>,
 }
 
 impl AutoFirmaApp {
@@ -78,12 +80,25 @@ impl AutoFirmaApp {
             picker: CertPicker::default(),
             visible_sig: Default::default(),
             settings: Default::default(),
+            request: None,
             prefs: Box::new(super::pages::settings::MemoryPrefs { defaults: super::pages::settings::default_values(), ..Default::default() }),
         };
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
         }
         app
+    }
+
+    /// Modo compacto para peticiones desde la web.
+    fn request_ui(&mut self, ui: &mut Ui) {
+        let p = self.palette;
+        let event = egui::CentralPanel::no_frame()
+            .frame(Frame::new().fill(p.surface).inner_margin(Margin::symmetric(26, 22)))
+            .show(ui, |ui| self.request.as_mut().map(|r| r.ui(ui, &p)))
+            .inner;
+        if let Some(super::request_view::RequestEvent::Close) = event {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        }
     }
 
     fn handle_settings_actions(&mut self, actions: Vec<super::pages::settings::SettingsAction>) {
@@ -209,6 +224,10 @@ impl eframe::App for AutoFirmaApp {
             self.applied = Some(self.palette);
         }
         self.files_hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
+        if self.request.is_some() {
+            self.request_ui(ui);
+            return;
+        }
         self.sidebar(ui);
         if self.page == Page::Settings && !self.settings.pending.is_empty() {
             let p = self.palette;
