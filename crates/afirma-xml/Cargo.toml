@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+sha3.workspace = true
 afirma-core.workspace = true
 afirma-cms.workspace = true
 thiserror.workspace = true

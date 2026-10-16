@@ -22,7 +22,8 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Firma visible PAdES (texto, rúbrica, rotación, ofuscación) | ✅ | 0 píxeles de diferencia con Java en 20 escenarios |
 | Validación de firmas (veredictos y textos) | ✅ | XML 116/117, PDF 52/53 iguales que Java (las diferencias son fallos de Java) |
 | Detección del ataque de sombra en PDF | ✅ | |
-| Resúmenes SHA-3, RIPEMD-160 y Whirlpool, transformada XSLT | ⚠️ | Solo afectan a validar firmas XML de terceros que los usen |
+| Resúmenes SHA-3 al validar firmas XML | ✅ | |
+| Transformada XSLT al validar firmas XML | ⚠️ | Solo afecta a firmas XML de terceros que la usen |
 | Claves DSA en firmas XML | ❌ | Sin uso real en certificados actuales |
 | Incrustación de fuentes en PDF/A-1 | ⚠️ | La firma se ve igual; usa fuentes estándar no incrustadas |
 

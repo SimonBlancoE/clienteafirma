@@ -437,6 +437,15 @@ impl<'a> RefContext<'a> {
 
     /// Huella calculada de una referencia.
     pub fn reference_digest(&self, reference: NodeId) -> DResult<Vec<u8>> {
+        // SHA-3: AutoFirma nunca la genera, pero Java la valida (el JDK la
+        // incluye). RIPEMD-160 y Whirlpool siguen sin implementación, como en Java.
+        let uri = ds_child(self.doc, reference, "DigestMethod")
+            .and_then(|dm| self.doc.element(dm))
+            .and_then(|e| e.attr("Algorithm"))
+            .unwrap_or("");
+        if let Some(f) = sha3_digest(uri) {
+            return Ok(f(&self.reference_octets(reference)?));
+        }
         let alg = self.reference_digest_algorithm(reference)?;
         Ok(alg.digest(&self.reference_octets(reference)?))
     }
@@ -908,6 +917,18 @@ fn parse_key_value(doc: &Document, kv: NodeId) -> Option<PublicKey> {
     PublicKey::from_ec(oid, &point)
 }
 
+/// Huella SHA-3 de una URI de `DigestMethod` (RFC 6931).
+fn sha3_digest(uri: &str) -> Option<fn(&[u8]) -> Vec<u8>> {
+    use sha3::Digest as _;
+    Some(match uri {
+        "http://www.w3.org/2007/05/xmldsig-more#sha3-224" => |d: &[u8]| sha3::Sha3_224::digest(d).to_vec(),
+        "http://www.w3.org/2007/05/xmldsig-more#sha3-256" => |d: &[u8]| sha3::Sha3_256::digest(d).to_vec(),
+        "http://www.w3.org/2007/05/xmldsig-more#sha3-384" => |d: &[u8]| sha3::Sha3_384::digest(d).to_vec(),
+        "http://www.w3.org/2007/05/xmldsig-more#sha3-512" => |d: &[u8]| sha3::Sha3_512::digest(d).to_vec(),
+        _ => return None,
+    })
+}
+
 /// Algoritmos de huella que reconoce Apache Santuario al analizar una firma
 /// aunque no siempre haya implementación (`DOMDigestMethod`).
 const SANTUARIO_DIGESTS: &[&str] = &[
@@ -1061,5 +1082,11 @@ mod tests {
             resolver: &NoResolver,
         };
         assert_eq!(b64(&ctx.reference_digest(r).unwrap()), "7RVdV2qdgFdEC2G7Jt6VY5s6z0c=");
+        // Vector de FIPS 202: SHA3-256("abc").
+        let f = sha3_digest("http://www.w3.org/2007/05/xmldsig-more#sha3-256").unwrap();
+        assert_eq!(
+            f(b"abc").iter().map(|b| format!("{b:02x}")).collect::<String>(),
+            "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+        );
     }
 }

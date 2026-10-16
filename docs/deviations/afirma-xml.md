@@ -35,7 +35,7 @@ deliberadas.
   todos los XML firmados y sin firmar de las pruebas Java (`afirma-crypto-xades`,
   `afirma-crypto-validation`, `afirma-crypto-xadestri-client`: XAdES-A/XL, sellos XML, FacturaE
   antiguas, IGAE...), todos los *golden* XAdES/XMLDSig/FacturaE y variantes con algoritmos de huella
-  RIPEMD-160 y desconocidos. La excepción es SHA-3 (§2.6).
+  RIPEMD-160 y desconocidos.
 
 ## 1. Generación por inserción de texto (todas las firmas XML)
 
@@ -88,11 +88,9 @@ deliberadas.
   por §1, la instrucción `<?xml-stylesheet?>` del documento se conserva en las firmas Enveloped.
 
 ### 2.6 Algoritmos de huella
-Se admiten SHA-1, SHA-224, SHA-256, SHA-384 y SHA-512 (los de AutoFirma). Al validar, un algoritmo
-que Santuario reconoce pero que no está implementado (RIPEMD-160, Whirlpool, SHA-3) da
-`KO BAD_BUILD_SIGN`, como Java con RIPEMD-160; **con SHA-3 Java sí calcula la huella** (el JDK la
-incluye), así que una firma SHA-3 válida sería `OK` en Java y `KO BAD_BUILD_SIGN` aquí (no hay
-implementación SHA-3 en las dependencias del espacio de trabajo; AutoFirma nunca genera SHA-3).
+Se admiten SHA-1, SHA-224, SHA-256, SHA-384 y SHA-512 (los de AutoFirma) y, al validar, también
+SHA3-224/256/384/512 en las referencias, como Java (el JDK los incluye). RIPEMD-160 y Whirlpool,
+que Santuario reconoce pero no implementa, dan `KO BAD_BUILD_SIGN`, igual que en Java.
 
 ## 3. XAdES-T
 

@@ -48,6 +48,7 @@ tempfile = "3"
 # Criptografía
 sha1 = { version = "0.10", features = ["oid"] }
 sha2 = { version = "0.10", features = ["oid"] }
+sha3 = "0.10"
 md-5 = "0.10"
 digest = "0.10"
 ring = "0.17"
