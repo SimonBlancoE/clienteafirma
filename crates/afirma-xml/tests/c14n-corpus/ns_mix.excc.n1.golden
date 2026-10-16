@@ -1,0 +1,2 @@
+<a:child xmlns:a="urn:a" xmlns:b="urn:b" Id="n1" zz="3" a:y="1" b:z="2"><inner>texto &amp; &lt;más&gt;<c:deep xmlns:c="urn:c" xml:space="preserve"> sp </c:deep></inner>
+  <!-- comentario interno --><?pi datos?></a:child>

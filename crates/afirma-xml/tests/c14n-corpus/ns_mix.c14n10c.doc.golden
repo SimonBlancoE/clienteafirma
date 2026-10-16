@@ -1,0 +1,7 @@
+<!-- antes -->
+<root xmlns="urn:def" xmlns:a="urn:a" xmlns:b="urn:b" attr="x&#x9;y" xml:lang="es">
+  <a:child Id="n1" zz="3" a:y="1" b:z="2"><inner xmlns="" xmlns:c="urn:c">texto &amp; &lt;más&gt;<c:deep xml:space="preserve"> sp </c:deep></inner>
+  <!-- comentario interno --><?pi datos?></a:child>
+  <b:other xmlns:a="urn:a2" Id="n2"><a:q></a:q> &lt;cdata&gt; &amp; </b:other>
+</root>
+<!-- despues -->
