@@ -36,6 +36,7 @@ jobs:
 
   test:
     name: Clippy y pruebas (${{ matrix.os }})
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -60,6 +61,7 @@ jobs:
 
   integration:
     name: Integración real con el sistema (${{ matrix.os }})
+    timeout-minutes: 60
     needs: test
     strategy:
       fail-fast: false

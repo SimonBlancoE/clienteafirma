@@ -110,20 +110,14 @@ fn almacen_root_del_usuario_y_protocolo_reales() {
     );
     assert_eq!(wtrust::remove(ts, TrustScope::User).unwrap(), Change::Changed);
     assert_eq!(wtrust::check(ts, TrustScope::User, &newer.ca_der), TrustCheck::Missing);
-    let store = ctx.win_certs.as_ref();
-    match wtrust::install(store, TrustScope::User, &pack.ca_der) {
-        Ok(Change::Changed) => {
-            assert_eq!(
-                wtrust::check(store, TrustScope::User, &pack.ca_der),
-                TrustCheck::Trusted
-            );
-            assert_eq!(
-                wtrust::install(store, TrustScope::User, &pack.ca_der).unwrap(),
-                Change::Unchanged
-            );
-            let _ = wtrust::remove(store, TrustScope::User);
-        }
-        other => eprintln!("CurrentUser\\ROOT no disponible en este entorno: {other:?}"),
+    // En Windows real, añadir una raíz a CurrentUser\ROOT abre el aviso de seguridad
+    // de Windows y la prueba esperaría a que alguien lo acepte: solo se hace si se
+    // pide expresamente (en Wine no hay aviso). El almacén del equipo, que no avisa,
+    // lo comprueba el trabajo de integración de la CI con `install --system`.
+    if std::env::var_os("AUTOFIRMA_TEST_USER_ROOT").is_none() && std::env::var_os("WINEPREFIX").is_none() {
+        eprintln!("CurrentUser\\ROOT real omitido (AUTOFIRMA_TEST_USER_ROOT=1 para probarlo)");
+    } else {
+        user_root_round_trip(&ctx, &pack.ca_der);
     }
     let opts = ProtocolOptions::default();
     assert_eq!(protocol::register(&ctx, &opts).unwrap(), Change::Changed);
@@ -143,4 +137,20 @@ fn borrado_cryptoapi_persistente() {
     assert!(st.delete(TrustScope::User, &pack.ca_der).unwrap());
     assert!(!st.list(TrustScope::User).unwrap().iter().any(|c| c.der == pack.ca_der));
     assert!(!st.delete(TrustScope::User, &pack.ca_der).unwrap());
+}
+
+/// Instala y retira la CA en el `CurrentUser\ROOT` real.
+fn user_root_round_trip(ctx: &Context, ca_der: &[u8]) {
+    let store = ctx.win_certs.as_ref();
+    match wtrust::install(store, TrustScope::User, ca_der) {
+        Ok(Change::Changed) => {
+            assert_eq!(wtrust::check(store, TrustScope::User, ca_der), TrustCheck::Trusted);
+            assert_eq!(
+                wtrust::install(store, TrustScope::User, ca_der).unwrap(),
+                Change::Unchanged
+            );
+            let _ = wtrust::remove(store, TrustScope::User);
+        }
+        other => eprintln!("CurrentUser\\ROOT no disponible en este entorno: {other:?}"),
+    }
 }
