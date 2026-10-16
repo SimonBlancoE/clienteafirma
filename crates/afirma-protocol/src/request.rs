@@ -1347,7 +1347,9 @@ mod tests {
         };
         let k = ks("x?keystore=PKCS11:%22/usr/lib/a.so%22&ksb64=TU9aX1VOSQ==").unwrap();
         assert_eq!(k.name.as_deref(), Some("PKCS11"));
-        assert_eq!(k.library.as_deref(), Some("/usr/lib/a.so"));
+        // Como `File.getAbsolutePath()` de Java: en Windows se antepone la unidad.
+        let expected = std::path::absolute("/usr/lib/a.so").unwrap();
+        assert_eq!(k.library.as_deref(), expected.to_str());
         assert_eq!(ks("x?ksb64=bm9iYXNlNjQ").map(|k| k.name), Some(Some("nobase".into())));
         assert_eq!(ks("x?keystore=%3A"), None);
         assert_eq!(ks("x?keystore=windows").unwrap().resolved_constant(), Some("WINDOWS"));

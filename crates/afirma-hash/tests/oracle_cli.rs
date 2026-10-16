@@ -66,6 +66,12 @@ fn parse_golden(text: &str) -> Vec<Case> {
 fn casos_de_linea_de_comandos() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().canonicalize().unwrap();
+    // En Windows `canonicalize` da `\\?\C:\...`, que no admite `/` como separador
+    // y los casos concatenan rutas con `/`.
+    let root = match root.to_str().and_then(|s| s.strip_prefix(r"\\?\")) {
+        Some(plain) => std::path::PathBuf::from(plain),
+        None => root,
+    };
     let tree = root.join("tree");
     make_tree(&tree);
     copy_dir(&testdata(), &root.join("h"));

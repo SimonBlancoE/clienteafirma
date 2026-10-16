@@ -154,6 +154,12 @@ fn keytool_reads_what_we_write() {
     assert!(text.contains("Your keystore contains 4 entries"), "{text}");
     assert_eq!(text.matches("trustedCertEntry").count(), 4, "{text}");
     for c in ts.certificates() {
+        // En Windows Java decodifica los argumentos con la página de códigos ANSI: un
+        // alias con emoji no llega íntegro a keytool (el almacén sí es correcto: -list
+        // ve las 4 entradas).
+        if cfg!(windows) && !c.alias.is_ascii() {
+            continue;
+        }
         assert_eq!(
             export(&path, &c.alias).as_deref(),
             Some(c.der.as_slice()),
