@@ -1,0 +1,15 @@
+# Árbol de prueba del plugin de huellas (afirma-hash).
+# Formato: ruta relativa (UTF-8, con /) <TAB> contenido: hex:<bytes en hexadecimal> o pattern:<N> (N bytes i % 251).
+# Lo usan tools/oracle/hash_oracle.sh (HashOracle mktree) y las pruebas de crates/afirma-hash.
+vacio.txt	hex:
+sub/hola.txt	hex:686f6c610a
+sub/deep/datos.bin	hex:000102ff
+sub/deep/grande.bin	pattern:300000
+ñandú é.txt	hex:c3b1
+a&b'c (1).txt	hex:616d70
+.oculto	hex:6f
+Thumbs.db	hex:7468
+.DS_Store	hex:78
+~$bloqueo.docx	hex:78
+sub/.desktop	hex:78
+.Trashes/papelera.txt	hex:7472617368

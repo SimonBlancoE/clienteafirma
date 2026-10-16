@@ -1,0 +1,46 @@
+# Casos de línea de comandos comparados con el plugin de Java (tools/oracle/hash_oracle.sh).
+# Una invocación por línea, argumentos separados por espacios. Se ejecutan con el
+# directorio de trabajo en la raíz del árbol de tree.manifest; $TREE es su ruta
+# absoluta y ../h contiene una copia de testdata/hash.
+createdigest
+createdigest -help
+createdigest no-existe.txt
+createdigest sub/hola.txt
+createdigest sub/hola.txt -halgorithm SHA-1 -hformat B64
+createdigest sub/hola.txt -halgorithm sha-512 -hformat b64
+createdigest sub/hola.txt -hformat foo
+createdigest sub/hola.txt -hformat xml
+createdigest sub -hformat hex
+createdigest sub/hola.txt -hformat bin
+createdigest sub/hola.txt -o
+createdigest sub/hola.txt -o a -o b
+createdigest sub/hola.txt -x
+createdigest sub/hola.txt -xml -hformat foo
+createdigest sub/hola.txt -halgorithm FOO
+createdigest sub/hola.txt -halgorithm FOO -xml
+createdigest sub/hola.txt -o ../no-existe/x.hexhash
+createdigest $TREE/no-existe
+checkdigest
+checkdigest -help
+checkdigest -xml
+checkdigest sub/hola.txt
+checkdigest -i sub/hola.txt
+checkdigest sub/hola.txt -i no-existe
+checkdigest sub/hola.txt -i sub/hola.txt
+checkdigest sub/hola.txt -i ../h/java-hola-sha256.hexhash
+checkdigest sub/hola.txt -i ../h/java-hola-sha256.hashb64
+checkdigest sub/hola.txt -i ../h/java-hola-sha256.hash
+checkdigest sub/hola.txt -i ../h/java-hola-sha1.hexhash
+checkdigest sub/hola.txt -i ../h/java-hola-sha384.hash
+checkdigest sub/hola.txt -i ../h/java-hola-sha512.hashb64
+checkdigest vacio.txt -i ../h/java-hola-sha256.hexhash
+checkdigest sub/hola.txt -i ../h/hola-sin-h.hexhash
+checkdigest sub/hola.txt -i ../h/hola-crlf.hashb64
+checkdigest sub/hola.txt -i ../h/hola-url.hashb64
+checkdigest $TREE -i ../h/java-sha256-rec.hashfiles
+checkdigest $TREE -i ../h/java-sha1-norec.hashfiles
+checkdigest $TREE -i ../h/java-sha512-rec.txthashfiles
+checkdigest $TREE -i ../h/java-sha384-norec.txthashfiles
+checkdigest $TREE -i ../h/corrupto.hashfiles
+checkdigest $TREE -i ../h/sin-extension
+checkdigest $TREE/sub -i ../h/java-sha256-rec.hashfiles

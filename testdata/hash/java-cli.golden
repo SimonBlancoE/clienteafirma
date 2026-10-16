@@ -1,0 +1,225 @@
+>>> createdigest
+status: 255
+Error no reconocido: No se ha indicado ningun fichero o directorio
+<<<
+>>> createdigest -help
+status: 0
+Sintaxis:
+  Autofirma createdigest FICHERO [opciones...]		- Calcula la huella digital de un fichero
+  Autofirma createdigest DIRECTORIO [opciones...]	- Calcula la huella digital de los ficheros de un directorio
+
+Parametros:
+  FICHERO		(Ruta del fichero del que calcular la huella digital)
+  DIRECTORIO		(Ruta del directorio del que calcular las huellas digitales)
+
+Opciones de fichero:
+  -gui			 (Realiza la operacion con entorno grafico)
+  -o FICHERO		 (Ruta del fichero de salida con la huella digital)
+  -halgorithm ALGORITMO	 (Algoritmo de huella digital. Por defecto: SHA-256)
+  -hformat FORMATO	 (Formato de salida cuando se indica por parametro el fichero)
+  	 hex		 (Formato de la salida hexadecimal) (Por defecto)
+  	 b64		 (Formato de la salida Base 64)
+  	 bin		 (Formato de la salida binario. Solo valido con fichero de salida.)
+
+Opciones de directorio:
+  -gui			 (Realiza la operacion con entorno grafico)
+  -o FICHERO		 (Ruta del fichero de salida con las huellas digitales)
+  -halgorithm ALGORITMO	 (Algoritmo de huella digital. Por defecto: SHA-256)
+  -hformat FORMATO	 (Formato de salida cuando se indica por parametro el fichero)
+  	 xml		 (Formato de la salida XML) (Por defecto)
+  	 txt		 (Formato de la salida texto plano)
+  -r		 (Procesar los ficheros de los subdirectorios)
+
+<<<
+>>> createdigest no-existe.txt
+status: 255
+Error no reconocido: El fichero o directorio indicado no existe: no-existe.txt
+<<<
+>>> createdigest sub/hola.txt
+status: 0
+133EE989293F92736301280C6F14C89D521200C17DCDCECCA30CD20705332D44h
+<<<
+>>> createdigest sub/hola.txt -halgorithm SHA-1 -hformat B64
+status: 0
+Y7v+qCuIgO0zzbdiqhH6tyKpCiQ=
+<<<
+>>> createdigest sub/hola.txt -halgorithm sha-512 -hformat b64
+status: 0
+QfJWAhrub4FI1UKtUjfRsXyVi++mDm8Hr/dLSEpCgNHL9fhdaNI22rzg9cbWi+xqdDo9C9t+xMEuEQolRqs5mQ==
+<<<
+>>> createdigest sub/hola.txt -hformat foo
+status: 255
+Error no reconocido: Formato de salida de huella digital no soportado: foo
+<<<
+>>> createdigest sub/hola.txt -hformat xml
+status: 255
+Error no reconocido: No se ha indicado un formato de salida de huella digital de fichero valido: xml
+<<<
+>>> createdigest sub -hformat hex
+status: 255
+Error no reconocido: No se ha indicado un formato de salida de huella digital de directorios valido: hex
+<<<
+>>> createdigest sub/hola.txt -hformat bin
+status: 255
+Error no reconocido: La generacion de la huella en binario requiere que se indique fichero de salida
+<<<
+>>> createdigest sub/hola.txt -o
+status: 255
+Error no reconocido: No se ha indicado fichero de salida
+<<<
+>>> createdigest sub/hola.txt -o a -o b
+status: 255
+Error no reconocido: Parametro duplicado: -o
+<<<
+>>> createdigest sub/hola.txt -x
+status: 255
+Error no reconocido: No se reconoce el parametro -x
+<<<
+>>> createdigest sub/hola.txt -xml -hformat foo
+status: 255
+<afirma><result>false</result><response><msg>Error no reconocido: Formato de salida de huella digital no soportado: foo</msg></response></afirma>
+<<<
+>>> createdigest sub/hola.txt -halgorithm FOO
+status: 255
+Error durante el calculo de huellas digitales
+<<<
+>>> createdigest sub/hola.txt -halgorithm FOO -xml
+status: 255
+<afirma><result>false</result><response><msg>Error durante el calculo de huellas digitales</msg></response></afirma>
+<<<
+>>> createdigest sub/hola.txt -o ../no-existe/x.hexhash
+status: 255
+Error no reconocido: No hay permisos de escritura en el directorio especificado para el fichero de salida: ../no-existe/x.hexhash
+<<<
+>>> createdigest $TREE/no-existe
+status: 255
+Error no reconocido: El fichero o directorio indicado no existe: $TREE/no-existe
+<<<
+>>> checkdigest
+status: 0
+Sintaxis:
+  Autofirma checkdigest [FICHERO] [opciones...]		- Comprueba la huella digital de un fichero
+  Autofirma checkdigest [DIRECTORIO] [opciones...]	- Comprueba las huellas digitales de los ficheros de un directorio
+
+Parametros:
+  FICHERO		(Ruta del fichero del que comprobar la huella digital)
+  DIRECTORIO		(Ruta del directorio del que comprobar las huellas digitales)
+
+Opciones de fichero:
+  -gui			(Realiza la operacion con entorno grafico. Obligatorio si no se indica fichero/directorio)
+  -i FICHERO		(Ruta del fichero de entrada con la huella digital)
+
+Opciones de directorio:
+  -gui			(Realiza la operacion con entorno grafico. Obligatorio si no se indica fichero/directorio)
+  -i FICHERO		(Ruta del fichero de entrada con las huellas digitales)
+  -o FICHERO		(Ruta del fichero de salida con el informe de validacion)
+
+<<<
+>>> checkdigest -help
+status: 0
+Sintaxis:
+  Autofirma checkdigest [FICHERO] [opciones...]		- Comprueba la huella digital de un fichero
+  Autofirma checkdigest [DIRECTORIO] [opciones...]	- Comprueba las huellas digitales de los ficheros de un directorio
+
+Parametros:
+  FICHERO		(Ruta del fichero del que comprobar la huella digital)
+  DIRECTORIO		(Ruta del directorio del que comprobar las huellas digitales)
+
+Opciones de fichero:
+  -gui			(Realiza la operacion con entorno grafico. Obligatorio si no se indica fichero/directorio)
+  -i FICHERO		(Ruta del fichero de entrada con la huella digital)
+
+Opciones de directorio:
+  -gui			(Realiza la operacion con entorno grafico. Obligatorio si no se indica fichero/directorio)
+  -i FICHERO		(Ruta del fichero de entrada con las huellas digitales)
+  -o FICHERO		(Ruta del fichero de salida con el informe de validacion)
+
+<<<
+>>> checkdigest -xml
+status: 255
+<afirma><result>false</result><response><msg>Error no reconocido: No se ha especificado un fichero de entrada</msg></response></afirma>
+<<<
+>>> checkdigest sub/hola.txt
+status: 255
+Error no reconocido: No se ha especificado un fichero de huellas
+<<<
+>>> checkdigest -i sub/hola.txt
+status: 255
+Error no reconocido: No se ha especificado un fichero de entrada
+<<<
+>>> checkdigest sub/hola.txt -i no-existe
+status: 255
+Error no reconocido: El fichero de entrada no existe: no-existe
+<<<
+>>> checkdigest sub/hola.txt -i sub/hola.txt
+status: 255
+Error durante el calculo de huellas digitales
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha256.hexhash
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha256.hashb64
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha256.hash
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha1.hexhash
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha384.hash
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest sub/hola.txt -i ../h/java-hola-sha512.hashb64
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest vacio.txt -i ../h/java-hola-sha256.hexhash
+status: 0
+Las huellas indicadas no se corresponden con las del archivo de entrada
+<<<
+>>> checkdigest sub/hola.txt -i ../h/hola-sin-h.hexhash
+status: 0
+Las huellas indicadas no se corresponden con las del archivo de entrada
+<<<
+>>> checkdigest sub/hola.txt -i ../h/hola-crlf.hashb64
+status: 255
+Error durante el calculo de huellas digitales
+<<<
+>>> checkdigest sub/hola.txt -i ../h/hola-url.hashb64
+status: 255
+Error durante el calculo de huellas digitales
+<<<
+>>> checkdigest $TREE -i ../h/java-sha256-rec.hashfiles
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest $TREE -i ../h/java-sha1-norec.hashfiles
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest $TREE -i ../h/java-sha512-rec.txthashfiles
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest $TREE -i ../h/java-sha384-norec.txthashfiles
+status: 0
+Comprobacion de huella digital finalizada sin errores
+<<<
+>>> checkdigest $TREE -i ../h/corrupto.hashfiles
+status: 255
+El documento de huellas no es valido
+<<<
+>>> checkdigest $TREE -i ../h/sin-extension
+status: 255
+Cannot invoke "String.hashCode()" because "<local3>" is null
+<<<
+>>> checkdigest $TREE/sub -i ../h/java-sha256-rec.hashfiles
+status: 0
+Las huellas indicadas no se corresponden con las del archivo de entrada
+<<<

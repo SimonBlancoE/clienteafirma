@@ -18,3 +18,17 @@ chrono.workspace = true
 x509-parser.workspace = true
 ring.workspace = true
 tracing.workspace = true
+# Detección de tipos de datos (OfficeAnalizer / AOFileUtils.isXML)
+zip.workspace = true
+roxmltree = "0.21"
+encoding_rs = "0.8"
+# Cliente HTTP (UrlHttpManagerImpl) y descarga de datos (DataDownloader)
+ureq.workspace = true
+rustls.workspace = true
+url.workspace = true
+cookie_store = { version = "0.22", default-features = false }
+flate2.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+rcgen.workspace = true

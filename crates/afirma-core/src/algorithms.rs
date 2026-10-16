@@ -437,3 +437,101 @@ mod java_name_tests {
         assert!(compose_signature_algorithm("MD5withRSA", KeyAlgorithm::Rsa).is_err());
     }
 }
+
+/// `AOSignConstants.composeSignatureAlgorithmName` con el resultado como
+/// texto Java exacto. A diferencia de [`compose_signature_algorithm`], no
+/// exige que la huella sea una de las soportadas: devuelve, por ejemplo,
+/// `RIPEMD160withRSA`, `SHA224withECDSA` o `MD5withRSA`, igual que Java.
+///
+/// `key_type` es el valor de `Key.getAlgorithm()` de Java: `RSA`, `DSA` o un
+/// texto que empiece por `EC`. Los errores reproducen las
+/// `IllegalArgumentException` de Java.
+pub fn compose_signature_algorithm_name(algorithm: Option<&str>, key_type: Option<&str>) -> crate::error::Result<String> {
+    let algorithm =
+        algorithm.ok_or_else(|| crate::error::AfirmaError::invalid_argument("El nombre del algoritmo no puede ser nulo"))?;
+    let key_type = key_type
+        .ok_or_else(|| crate::error::AfirmaError::invalid_argument("El tipo de clave de certificado no puede ser nulo"))?;
+    let digest = java_digest_algorithm_name(algorithm).replace('-', "");
+    let suffix = if key_type == "RSA" {
+        "withRSA"
+    } else if key_type == "DSA" {
+        "withDSA"
+    } else if key_type.starts_with("EC") {
+        "withECDSA"
+    } else {
+        return Err(crate::error::AfirmaError::invalid_argument(format!("Tipo de clave de firma no soportado: {key_type}")));
+    };
+    Ok(format!("{digest}{suffix}"))
+}
+
+/// `AOSignConstants.isSHA2SignatureAlgorithm`: nombre exacto (distinguiendo
+/// mayúsculas) de RSA o ECDSA con SHA-256/384/512 (`SHA224withECDSA` no).
+pub fn is_sha2_signature_algorithm(algorithm: &str) -> bool {
+    matches!(
+        algorithm,
+        "SHA256withRSA" | "SHA384withRSA" | "SHA512withRSA" | "SHA256withECDSA" | "SHA384withECDSA" | "SHA512withECDSA"
+    )
+}
+
+/// `AOSignConstants.isSHA1SignatureAlgorithm`.
+pub fn is_sha1_signature_algorithm(algorithm: &str) -> bool {
+    matches!(algorithm, "SHA1withRSA" | "SHA1withDSA" | "SHA1withECDSA")
+}
+
+/// `AOSignConstants.isDSAorECDSASignatureAlgorithm`: termina en `withECDSA`,
+/// `withECDSAinP1363Format`, `withDSA` o `withDSAinP1363Format`.
+pub fn is_dsa_or_ecdsa_signature_algorithm(algorithm: &str) -> bool {
+    ["withECDSA", "withECDSAinP1363Format", "withDSA", "withDSAinP1363Format"]
+        .iter()
+        .any(|s| algorithm.ends_with(s))
+}
+
+impl KeyAlgorithm {
+    /// Valor de `Key.getAlgorithm()` de Java para este tipo de clave (`RSA`,
+    /// `EC`, `DSA`).
+    pub fn java_key_type(self) -> &'static str {
+        match self {
+            Self::Rsa => "RSA",
+            Self::Ec => "EC",
+            Self::Dsa => "DSA",
+        }
+    }
+}
+
+#[cfg(test)]
+mod predicate_tests {
+    use super::*;
+
+    #[test]
+    fn predicates() {
+        assert!(is_sha2_signature_algorithm("SHA256withRSA"));
+        assert!(is_sha2_signature_algorithm("SHA512withECDSA"));
+        assert!(!is_sha2_signature_algorithm("SHA224withECDSA"));
+        assert!(!is_sha2_signature_algorithm("sha256withrsa"));
+        assert!(is_sha1_signature_algorithm("SHA1withDSA"));
+        assert!(!is_sha1_signature_algorithm("SHA256withRSA"));
+        assert!(is_dsa_or_ecdsa_signature_algorithm("SHA256withECDSA"));
+        assert!(is_dsa_or_ecdsa_signature_algorithm("SHA256withECDSAinP1363Format"));
+        assert!(is_dsa_or_ecdsa_signature_algorithm("SHA1withDSA"));
+        assert!(!is_dsa_or_ecdsa_signature_algorithm("SHA1withRSA"));
+    }
+
+    #[test]
+    fn compose_java_names() {
+        let c = |a: &str, k: &str| compose_signature_algorithm_name(Some(a), Some(k)).unwrap();
+        assert_eq!(c("SHA512withRSA", "EC"), "SHA512withECDSA");
+        assert_eq!(c("SHA-256", "RSA"), "SHA256withRSA");
+        assert_eq!(c("SHA224withECDSA", "EC"), "SHA224withECDSA");
+        assert_eq!(c("MD5withRSA", "RSA"), "MD5withRSA");
+        assert_eq!(c("http://www.w3.org/2001/04/xmlenc#ripemd160", "DSA"), "RIPEMD160withDSA");
+        assert_eq!(c("SHA1", "ECDSA"), "SHA1withECDSA");
+        let e = compose_signature_algorithm_name(Some("SHA1"), Some("Ed25519")).unwrap_err();
+        assert_eq!(e.message, "Tipo de clave de firma no soportado: Ed25519");
+        assert!(compose_signature_algorithm_name(None, Some("RSA")).is_err());
+        assert!(compose_signature_algorithm_name(Some("SHA1"), None).is_err());
+        assert_eq!(KeyAlgorithm::Ec.java_key_type(), "EC");
+        // GOTCHA documentado: el URI XML de SHA-384 se convierte en "more#sha384".
+        assert_eq!(java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#sha384"), "more#sha384");
+        assert_eq!(java_digest_algorithm_name("SHA224withECDSA"), "SHA224");
+    }
+}

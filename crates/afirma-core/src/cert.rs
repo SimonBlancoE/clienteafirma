@@ -196,3 +196,109 @@ mod tests {
         assert_eq!(common_name(&der), info.subject_cn);
     }
 }
+
+/// Filtro de uso de clave (`es.gob.afirma.core.keystores.KeyUsage`): nueve
+/// posiciones (digitalSignature, nonRepudiation, keyEncipherment,
+/// dataEncipherment, keyAgreement, keyCertSign, cRLSign, encipherOnly,
+/// decipherOnly) en las que `None` significa "indiferente".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyUsage {
+    /// `None` si el certificado no tiene la extensión keyUsage.
+    pub usage: Option<[Option<bool>; 9]>,
+}
+
+impl KeyUsage {
+    /// Firma: `nonRepudiation`.
+    pub const SIGN: KeyUsage = KeyUsage { usage: Some([None, Some(true), None, None, None, None, None, None, None]) };
+    /// Autenticación: `digitalSignature`.
+    pub const AUTH: KeyUsage = KeyUsage { usage: Some([Some(true), None, None, None, None, None, None, None, None]) };
+    /// Cifrado: `dataEncipherment`.
+    pub const CYPH: KeyUsage = KeyUsage { usage: Some([None, None, None, Some(true), None, None, None, None, None]) };
+
+    /// Uso de clave de un certificado (`new KeyUsage(X509Certificate)`).
+    pub fn from_flags(flags: Option<&KeyUsageFlags>) -> Self {
+        KeyUsage {
+            usage: flags.map(|f| {
+                [
+                    Some(f.digital_signature),
+                    Some(f.non_repudiation),
+                    Some(f.key_encipherment),
+                    Some(f.data_encipherment),
+                    Some(f.key_agreement),
+                    Some(f.key_cert_sign),
+                    Some(f.crl_sign),
+                    Some(f.encipher_only),
+                    Some(f.decipher_only),
+                ]
+            }),
+        }
+    }
+
+    /// Uso de clave de un certificado DER (`None` si no se puede analizar).
+    pub fn from_certificate(der: &[u8]) -> Option<Self> {
+        CertInfo::parse(der).map(|i| Self::from_flags(i.key_usage.as_ref()))
+    }
+
+    /// `includes`: cada posición definida en `other` coincide con la nuestra.
+    pub fn includes(&self, other: &KeyUsage) -> bool {
+        match (self.usage, other.usage) {
+            (Some(me), Some(o)) => me.iter().zip(o.iter()).all(|(m, x)| x.is_none() || x == m),
+            _ => false,
+        }
+    }
+
+    /// Descripción para la interfaz (`toString()`, `KeyUsage.0..8` en
+    /// español).
+    pub fn description(&self) -> &'static str {
+        if self.usage.is_none() {
+            return "Desconocido";
+        }
+        let (s, a, c) = (self.includes(&Self::SIGN), self.includes(&Self::AUTH), self.includes(&Self::CYPH));
+        if s && a && c {
+            "Firma, autenticación y cifrado"
+        } else if a && c {
+            "Autenticación y cifrado"
+        } else if s && a {
+            "Firma y autenticación"
+        } else if a {
+            "Autenticación"
+        } else if s {
+            "Firma"
+        } else if c {
+            "Cifrado"
+        } else {
+            "Otros"
+        }
+    }
+}
+
+impl std::fmt::Display for KeyUsage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.description())
+    }
+}
+
+#[cfg(test)]
+mod key_usage_tests {
+    use super::*;
+
+    #[test]
+    fn key_usage_filters() {
+        let pem = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/pki/firmante-rsa.crt")).unwrap();
+        let der = decode_certificate(&pem).unwrap();
+        let ku = KeyUsage::from_certificate(&der).unwrap();
+        assert!(ku.includes(&KeyUsage::SIGN));
+        assert!(ku.includes(&KeyUsage::AUTH));
+        assert!(!ku.includes(&KeyUsage::CYPH));
+        assert_eq!(ku.description(), "Firma y autenticación");
+        assert_eq!(KeyUsage { usage: None }.to_string(), "Desconocido");
+        assert!(!KeyUsage { usage: None }.includes(&KeyUsage::SIGN));
+        let all = KeyUsage { usage: Some([Some(true); 9]) };
+        assert_eq!(all.description(), "Firma, autenticación y cifrado");
+        let none = KeyUsage { usage: Some([Some(false); 9]) };
+        assert_eq!(none.description(), "Otros");
+        let mut cyph = [Some(false); 9];
+        cyph[3] = Some(true);
+        assert_eq!(KeyUsage { usage: Some(cyph) }.description(), "Cifrado");
+    }
+}

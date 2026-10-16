@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<entries hashAlgorithm="SHA-256" recursive="true">
+    <matching_hash>
+        <entry name=".Trashes/papelera.txt"/>
+        <entry name="ñandú é.txt"/>
+        <entry name=".oculto"/>
+        <entry name="Thumbs.db"/>
+        <entry name="a&amp;b'c (1).txt"/>
+        <entry name="sub/deep/datos.bin"/>
+        <entry name="sub/deep/grande.bin"/>
+    </matching_hash>
+    <not_matching_hash>
+        <entry name="sub/hola.txt"/>
+    </not_matching_hash>
+    <hash_without_file>
+        <entry name="vacio.txt"/>
+    </hash_without_file>
+    <file_without_hash>
+        <entry name="nuevo.txt"/>
+    </file_without_hash>
+</entries>

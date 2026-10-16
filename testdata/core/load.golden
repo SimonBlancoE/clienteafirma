@@ -1,0 +1,41 @@
+a=b	a=b
+a = b	a=b
+a:b	a=b
+a b	a=b
+a\tb	a=b
+a\u000cb	a=b
+  a=b  	a=b  
+a==b	a==b
+a=:b	a=:b
+a :=b	a==b
+a= =b	a==b
+# comentario\na=b	a=b
+! comentario\na=b	a=b
+a=b\\\n  c	a=bc
+a=b\\\r\n  c	a=bc
+a=b\\\r  c	a=bc
+a=b\\\\\nc=d	a=b\\|c=d
+a=b\\	a=b
+a=\\u00f1	a=\u00f1
+a=\\u00F1\\u00d1	a=\u00f1\u00d1
+a\\ b=c	a b=c
+a\\=b=c	a=b=c
+a\\:b=c	a:b=c
+a=\\t\\n\\r\\f\\x	a=\t\n\r\u000cx
+a=b\nb=c\na=d	a=d|b=c
+\n\n  \na=b\n\n	a=b
+a	a=
+a=	a=
+=b	=b
+:b	=b
+ =b	=b
+a=b\\\n# no comentario	a=b# no comentario
+a=b\\\n\nc=d	a=b|c=d
+a=\\ud83d\\ude00	a=\ud83d\ude00
+k\u00f1=v\u00e9	k\u00f1=v\u00e9
+a=b\r\nc=d\re=f	a=b|c=d|e=f
+a=b\\\\\\\nc	a=b\\c
+a=\\u00	ERR:IllegalArgumentException:Malformed \\uxxxx encoding.
+a=\\u00zz	ERR:IllegalArgumentException:Malformed \\uxxxx encoding.
+a=b\\\n   \\\n  c	a=bc
+#a=b\\\nc=d	c=d

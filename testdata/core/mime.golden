@@ -1,0 +1,60 @@
+bin.bin	application/octet-stream	<null>	binary	false	false	false	false
+bom-xml.xml	application/octet-stream	<null>	binary	false	false	false	true
+bz2.bz2	application/x-bzip2	bz2	bzip2 compressed data	false	false	false	false
+class.class	application/octet-stream	<null>	binary	false	false	false	false
+comment.xml	text/sgml	sgml	exported SGML document text	false	false	false	true
+doc.doc	application/msword	doc	Documento de texto	false	false	false	false
+docm.docm	application/zip	zip	Archivo zip	true	true	false	false
+docx.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	docx	Documento de texto	true	true	false	false
+dotm.dotm	application/zip	zip	Archivo zip	true	true	false	false
+empty.bin	application/octet-stream	<null>	binary	false	false	false	false
+exe.exe	application/octet-stream	<null>	MS-DOS executable (EXE)	false	false	false	false
+facturae.xml	text/xml	xml	Documento XML	false	false	false	true
+gif.gif	image/gif		GIF image data	false	false	false	false
+gz.gz	application/x-gzip	gz	gzip compressed data	false	false	false	false
+html-doctype.html	text/html	html	HTML document text	false	false	false	false
+html.html	text/html	html	HTML document text	false	false	false	true
+java.java	text/x-java	java	Java source file	false	false	false	false
+jpeg.jpg	image/jpeg	jpg	JPEG image data	false	false	false	false
+mp3.mp3	audio/mp3		MP3	false	false	false	false
+mpp.mpp	application/vnd.ms-project	mpp	Planificaci&oacute;n de proyecto	false	false	false	false
+odf-unknown.odt	application/zip	zip	Archivo zip	true	false	true	false
+odg.odg	application/vnd.oasis.opendocument.graphics	odg	Gr\u00e1fico	true	false	true	false
+odp.odp	application/vnd.oasis.opendocument.presentation	odp	Presentaci\u00f3n	true	false	true	false
+ods.ods	application/vnd.oasis.opendocument.spreadsheet	ods	Hoja de c\u00e1lculo	true	false	true	false
+odt-template.ott	application/vnd.oasis.opendocument.text-template	zip	Zip archive data	true	false	true	false
+odt.odt	application/vnd.oasis.opendocument.text	odt	Documento de texto	true	false	true	false
+ole-unknown.bin	application/octect-stream	doc	Microsoft Office Document	false	false	false	false
+one-byte.bin	application/octet-stream	<null>	binary	false	false	false	false
+ooxml-unknown.docx	application/zip	zip	Archivo zip	true	true	false	false
+p7s.p7s	application/octet-stream	<null>	binary	false	false	false	false
+pdf-binary.pdf	application/pdf	pdf	PDF document	false	false	false	false
+pdf.pdf	application/pdf	pdf	PDF document	false	false	false	false
+pk-empty.zip	text/plain	txt	Texto plano	false	false	false	false
+pk-truncated.zip	application/octect-stream	zip	Zip archive data	true	false	false	false
+png.png	image/png	png	PNG image data, CORRUPTED	false	false	false	false
+ppt.ppt	application/vnd.ms-powerpoint	ppt	Presentaci\u00f3n	false	false	false	false
+pptx.pptx	application/vnd.openxmlformats-officedocument.presentationml.presentation	pptx	Presentaci\u00f3n	true	true	false	false
+ps2.ps	application/postscript	ps	PostScript Level 2 program data	false	false	false	false
+ps3.ps	text/plain	txt	Texto plano	false	false	false	false
+rar.rar	application/x-rar-compressed	rar	RAR compressed file	false	false	false	false
+rtf.rtf	text/rtf	rtf	Rich Text Format data,	false	false	false	false
+sgml.sgml	text/sgml	sgml	exported SGML document text	false	false	false	false
+sh.sh	application/x-sh	.sh	sh script	false	false	false	false
+tiff-be.tif	text/plain	txt	Texto plano	false	false	false	false
+tiff-le.tif	text/plain	txt	Texto plano	false	false	false	false
+txt-ascii-long-then-utf8.txt	application/octet-stream	<null>	binary	false	false	false	false
+txt-ascii.txt	text/plain	txt	Texto plano	false	false	false	false
+txt-control.txt	text/plain	txt	Texto plano	false	false	false	false
+txt-latin1.txt	application/octet-stream	<null>	binary	false	false	false	false
+txt-utf8.txt	application/octet-stream	<null>	binary	false	false	false	false
+xls.xls	application/vnd.ms-excel	xls	Hoja de c\u00e1lculo	false	false	false	false
+xlsx.xlsx	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet	xlsx	Hoja de c\u00e1lculo	true	true	false	false
+xml-broken.xml	application/octet-stream	<null>	XML 1.0 Document	false	false	false	false
+xml-decl.xml	text/xml	xml	Documento XML	false	false	false	true
+xml-decl11.xml	text/xml	xml	Documento XML	false	false	false	true
+xml-doctype.xml	application/octet-stream	<null>	XML 1.0 Document	false	false	false	false
+xml-nodecl-utf8.xml	application/octet-stream	<null>	binary	false	false	false	true
+xml-nodecl.xml	text/plain	txt	Texto plano	false	false	false	true
+xml-ns-unbound.xml	application/octet-stream	<null>	XML 1.0 Document	false	false	false	false
+zip.zip	application/zip	zip	Archivo zip	true	false	false	false

@@ -142,6 +142,91 @@ pub mod ecdsa_format {
         }
     }
 
+    /// Error de `Pkcs1Utils` (Java lanza `SignatureException` con estos
+    /// mensajes).
+    #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+    pub enum Pkcs1UtilsError {
+        #[error("Could not encode signature")]
+        Encode,
+        #[error("Invalid encoding for signature")]
+        Decode,
+    }
+
+    /// `Pkcs1Utils.encodeSignature`: convierte `r || s` (dos mitades de
+    /// `len/2` bytes; si la longitud es impar se ignora el último byte) en DER
+    /// `SEQUENCE { INTEGER r, INTEGER s }` con enteros mínimos.
+    pub fn encode_signature(raw: &[u8]) -> Result<Vec<u8>, Pkcs1UtilsError> {
+        let n = raw.len() >> 1;
+        let mut tmp = raw[..n].to_vec();
+        tmp.extend_from_slice(&raw[n..2 * n]);
+        Ok(raw_to_der(&tmp))
+    }
+
+    /// `Pkcs1Utils.decodeSignature`: análisis DER estricto de una
+    /// `SEQUENCE` con exactamente dos `INTEGER` y sin bytes sobrantes; cada
+    /// entero se toma sin signo y sin ceros a la izquierda y el resultado
+    /// tiene `2k` bytes con `k = max(len(r), len(s))` (**no** el tamaño de la
+    /// curva; para eso está [`der_to_raw`]).
+    pub fn decode_signature(der: &[u8]) -> Result<Vec<u8>, Pkcs1UtilsError> {
+        let (content, rest) = read_tlv_strict(der, 0x30).ok_or(Pkcs1UtilsError::Decode)?;
+        if !rest.is_empty() {
+            return Err(Pkcs1UtilsError::Decode);
+        }
+        let (r, after_r) = read_tlv_strict(content, 0x02).ok_or(Pkcs1UtilsError::Decode)?;
+        let (s, after_s) = read_tlv_strict(after_r, 0x02).ok_or(Pkcs1UtilsError::Decode)?;
+        if !after_s.is_empty() {
+            return Err(Pkcs1UtilsError::Decode);
+        }
+        for int in [r, s] {
+            // Java: entero vacío o con ceros redundantes → error.
+            if int.is_empty() || (int.len() >= 2 && int[0] == 0 && int[1] < 0x80) {
+                return Err(Pkcs1UtilsError::Decode);
+            }
+        }
+        // `trimZeroes` conserva al menos un byte.
+        let trim = |b: &[u8]| -> Vec<u8> {
+            let first = b.iter().position(|&x| x != 0).unwrap_or(b.len() - 1);
+            b[first..].to_vec()
+        };
+        let r = trim(r);
+        let s = trim(s);
+        let k = r.len().max(s.len());
+        let mut out = vec![0u8; 2 * k];
+        out[k - r.len()..k].copy_from_slice(&r);
+        out[2 * k - s.len()..].copy_from_slice(&s);
+        Ok(out)
+    }
+
+    /// Lee un TLV DER con longitud definida y mínima.
+    fn read_tlv_strict(input: &[u8], tag: u8) -> Option<(&[u8], &[u8])> {
+        if *input.first()? != tag {
+            return None;
+        }
+        let first = *input.get(1)?;
+        let (len, hdr) = if first < 0x80 {
+            (usize::from(first), 2)
+        } else {
+            let n = usize::from(first & 0x7f);
+            if n == 0 || n > 4 {
+                return None;
+            }
+            let bytes = input.get(2..2 + n)?;
+            if bytes[0] == 0 {
+                return None;
+            }
+            let len = bytes.iter().fold(0usize, |acc, &b| (acc << 8) | usize::from(b));
+            if len < 0x80 {
+                return None;
+            }
+            (len, 2 + n)
+        };
+        let end = hdr.checked_add(len)?;
+        if input.len() < end {
+            return None;
+        }
+        Some((&input[hdr..end], &input[end..]))
+    }
+
     fn strip(b: &[u8]) -> &[u8] {
         let first = b.iter().position(|&x| x != 0).unwrap_or(b.len());
         &b[first..]
@@ -187,6 +272,34 @@ pub mod ecdsa_format {
             let der = raw_to_der(&raw);
             assert_eq!(guess_field_len(&der), 32);
             assert_eq!(der_to_raw(&der, 32).unwrap(), raw);
+        }
+
+        #[test]
+        fn java_pkcs1_utils() {
+            // r = 0x0100 (2 bytes), s = 0x05 (1 byte) → k = 2.
+            let der = [0x30, 0x07, 0x02, 0x02, 0x01, 0x00, 0x02, 0x01, 0x05];
+            assert_eq!(decode_signature(&der).unwrap(), vec![0x01, 0x00, 0x00, 0x05]);
+            // Entero con 0x00 de signo: se recorta.
+            let der = [0x30, 0x07, 0x02, 0x02, 0x00, 0x80, 0x02, 0x01, 0x7f];
+            assert_eq!(decode_signature(&der).unwrap(), vec![0x80, 0x7f]);
+            // Entero cero → un byte 0.
+            let der = [0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00];
+            assert_eq!(decode_signature(&der).unwrap(), vec![0, 0]);
+            // Errores: bytes sobrantes, ceros redundantes, entero vacío, tres enteros.
+            assert!(decode_signature(&[0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x00]).is_err());
+            assert!(decode_signature(&[0x30, 0x07, 0x02, 0x02, 0x00, 0x01, 0x02, 0x01, 0x01]).is_err());
+            assert!(decode_signature(&[0x30, 0x05, 0x02, 0x00, 0x02, 0x01, 0x01]).is_err());
+            assert!(decode_signature(&[0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01]).is_err());
+            assert!(decode_signature(&[0x31, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01]).is_err());
+            assert_eq!(decode_signature(&[]).unwrap_err().to_string(), "Invalid encoding for signature");
+            // Codificación e ida y vuelta.
+            let raw = [0x00, 0x80, 0x00, 0x01];
+            let der = encode_signature(&raw).unwrap();
+            assert_eq!(der, vec![0x30, 0x07, 0x02, 0x02, 0x00, 0x80, 0x02, 0x01, 0x01]);
+            assert_eq!(decode_signature(&der).unwrap(), vec![0x80, 0x01]);
+            let mut big = vec![0x11u8; 132];
+            big[0] = 0xff;
+            assert_eq!(decode_signature(&encode_signature(&big).unwrap()).unwrap(), big);
         }
     }
 }

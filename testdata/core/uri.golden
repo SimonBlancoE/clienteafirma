@@ -1,0 +1,21 @@
+/home/user/a b.pdf	file:///home/user/a%20b.pdf	file	///home/user/a b.pdf
+a.pdf	file://a.pdf	file	//a.pdf
+C:\\Users\\a b\\x.pdf	file://C:/Users/a%20b/x.pdf	file	//C:/Users/a b/x.pdf
+c:/x.pdf	file://c:/x.pdf	file	//c:/x.pdf
+http://www.a.es/a?b=c#d	http://www.a.es/a?b=c#d	http	//www.a.es/a?b=c
+https://x/y z	https://x/y%20z	https	//x/y z
+file:///tmp/a.txt	file:///tmp/a.txt	file	///tmp/a.txt
+file:/tmp/a.txt	file:/tmp/a.txt	file	/tmp/a.txt
+urn:oid:1.2.3	urn:oid:1.2.3	urn	oid:1.2.3
+ftp://x/y	ERR:URISyntaxException:Tipo de URI no soportado: ftp://x/y
+mailto:a@b	ERR:URISyntaxException:Tipo de URI no soportado: mailto:a@b
+/tmp/a#b.pdf	file:///tmp/a%23b.pdf	file	///tmp/a#b.pdf
+/tmp/[x]{y}|^`.pdf	file:///tmp/%5Bx%5D%7By%7D%7C%5E%60.pdf	file	///tmp/[x]{y}|^`.pdf
+  /tmp/a.pdf  	file:///tmp/a.pdf	file	///tmp/a.pdf
+	ERR:IllegalArgumentException:No se puede crear una URI a partir de un nulo
+   	ERR:IllegalArgumentException:La URI no puede ser una cadena vacia
+/tmp/a%20b.pdf	file:///tmp/a%20b.pdf	file	///tmp/a b.pdf
+rel/dir/f.txt	file://rel/dir/f.txt	file	//rel/dir/f.txt
+\\\\servidor\\recurso\\f.pdf	file:////servidor/recurso/f.pdf	file	////servidor/recurso/f.pdf
+HTTP://X/Y	ERR:URISyntaxException:Tipo de URI no soportado: HTTP://X/Y
+jar:file:/a!/b	ERR:URISyntaxException:Tipo de URI no soportado: jar:file:/a!/b

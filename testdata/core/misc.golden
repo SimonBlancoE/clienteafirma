@@ -1,0 +1,27 @@
+HEXIFY	00-0D-1A-27-34-41-4E-5B-68-75-82-8F-9C-A9-B6-C3\nD0-DD-EA-F7	000D1A2734414E5B6875828F9CA9B6C3D0DDEAF7	00:0D:1A:27:34:41:4E:5B:68:75:82:8F:9C:A9:B6:C3:D0:DD:EA:F7
+SPLIT	a$b$	a|b|	3
+SPLIT	$a$$b	|a||b	4
+SPLIT			1
+SPLIT	$	|	2
+SPLIT	abc	abc	1
+SPLIT	a$$	a||	3
+CN	CN=Juan Espa\u00f1ol, OU=Personas, O=FNMT, C=ES	Juan Espa\u00f1ol	Personas
+CN	OU=Uno, OU=Dos, O=X	Uno	Uno|Dos
+CN	O=Solo, C=ES	Solo	
+CN	sin igual	sin igual	
+CN	CN="Con, coma", O=X	Con, coma	
+CN	SERIALNUMBER=123, CN=  espacios  , C=ES	espacios	
+CN	CN=, O=X		
+CN	cn=minus	minus	
+CN	XCN=no, CN=si	si	
+CN	CN="", O=X		
+CN	CN="abierta	abierta	
+CN	OID.2.5.4.97=VATES-123, CN=Empresa	Empresa	
+DATE	Europe/Madrid	Fri Oct 16 13:17:00 CEST 2026	16 oct 2026, 13:17
+DATE	UTC	Fri Oct 16 11:17:00 UTC 2026	16 oct 2026, 11:17
+DATE	GMT	Fri Oct 16 11:17:00 GMT 2026	16 oct 2026, 11:17
+DATE	America/New_York	Fri Oct 16 07:17:00 EDT 2026	16 oct 2026, 7:17
+DATE	Atlantic/Canary	Fri Oct 16 12:17:00 WEST 2026	16 oct 2026, 12:17
+MONTHS	5 ene 2026, 9:05|5 feb 2026, 9:05|5 mar 2026, 9:05|5 abr 2026, 9:05|5 may 2026, 9:05|5 jun 2026, 9:05|5 jul 2026, 9:05|5 ago 2026, 9:05|5 sept 2026, 9:05|5 oct 2026, 9:05|5 nov 2026, 9:05|5 dic 2026, 9:05
+JAVA	21.0.12.1
+ISB64BYTES	true	false

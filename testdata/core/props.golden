@@ -1,0 +1,26 @@
+mode=implicit	#\n#DATE\nmode=implicit\n
+ASSTRING	mode=implicit\n
+format=XAdES Detached|headless=true	#\n#DATE\nformat=XAdES Detached\nheadless=true\n
+clave con espacios= valor con espacio inicial	#\n#DATE\nclave\\ con\\ espacios=\\ valor con espacio inicial\n
+ASSTRING	clave con espacios= valor con espacio inicial\n
+esp=a=b:c#d!e\\f	#\n#DATE\nesp=a\\=b\\:c\\#d\\!e\\\\f\n
+ASSTRING	esp=a=b:c#d!e\\f\n
+ctl=l1\nl2\rl3\tt\u000cend	#\n#DATE\nctl=l1\\nl2\\rl3\\tt\\fend\n
+ASSTRING	ctl=l1\nl2\rl3\tt\u000cend\n
+uni=Logro\u00f1o \u20ac \ud83d\ude00	#\n#DATE\nuni=Logro\u00f1o \u20ac \ud83d\ude00\n
+ASSTRING	uni=Logro\u00f1o \u20ac \ud83d\ude00\n
+k=:#!=v	#\n#DATE\nk\\=\\:\\#\\!=v\n
+ASSTRING	k=:#!=v\n
+=vacia|vacio=	#\n#DATE\n=vacia\nvacio=\n
+del=\u007f\u0001	#\n#DATE\ndel=\u007f\u0001\n
+ASSTRING	del=\u007f\u0001\n
+B642P	bW9kZT1pbXBsaWNpdAo=	mode=implicit
+B642P	bW9kZT1pbXBsaWNpdAo	mode=implici
+B642P	Zm9ybWF0PVhBZEVTIERldGFjaGVkCmhlYWRsZXNzPXRydWUK	format=XAdES Detached|headless=true
+B642P	Y2l1ZGFkPUxvZ3Jvw7FvCg==	ciudad=Logro\u00f1o
+B642P	Y2l1ZGFkPUxvZ3Jv8W8K	ciudad=Logro\ufffdo
+B642P	a2V5PXZhbHVlXHUwMEYx	key=value\u00f1
+B642P	a2V5PVx1MDBGeg==	ERR:IllegalArgumentException:Malformed \\uxxxx encoding.
+B642P		
+B642P	a2V5PXY_	key=v?
+B642P	!!!!	

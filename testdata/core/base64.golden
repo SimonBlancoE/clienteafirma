@@ -1,0 +1,63 @@
+			true
+51513d3d	41	41	true
+5155493d	4142	4142	true
+51554a44	414243	414243	true
+51554a4452413d3d	41424344	41424344	true
+51554a445245553d	4142434445	4142434445	true
+51554a4452455647	414243444546	414243444546	true
+5151	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 2	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 2	false
+51513d	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	false
+515549	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	false
+51554a4452	414243	414243	false
+51513d3d51554a44	41	41	false
+5155493d51554a44	4142	4142	false
+51554a4451513d3d	41424341	41424341	true
+51513d41	41	41	true
+512051203d203d	41	41	false
+51550a4a44	414243	414243	true
+51550d0a4a4409	414243	414243	false
+2051554a4420	414243	414243	false
+2d5f2d5f		fbffbf	true
+2b2f2b2f	fbffbf		true
+534756736247386756323979624751	48656c6c6f20576f72	48656c6c6f20576f72	false
+5347567362473867563239796247513d	48656c6c6f20576f726c64	48656c6c6f20576f726c64	true
+534756736247385f563239796247513d	48656c6c6f15dbdc9b	48656c6c6f3f576f726c64	true
+534756736247382d563239796247513d	48656c6c6f15dbdc9b	48656c6c6f3e576f726c64	true
+3d51554a44	fd0509	fd0509	false
+513d554a44	4ff509	4ff509	false
+3d3d51554a44	fff414	fff414	false
+3d3d3d3d	ff	ff	false
+51554a4421	414243	414243	false
+51554a44c3b1	414243	414243	false
+61	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 1	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 1	false
+6162	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 2	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 2	false
+616263	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	ERR:IllegalArgumentException:Base64-encoded string must have at least four characters, but length specified was 3	false
+61626364	69b71d	69b71d	true
+6162636465	69b71d	69b71d	false
+6162637e			true
+6162630a			false
+61623d3d0a	69	69	false
+61623d0a			false
+61620909			true
+7e7e7e7e			true
+51554a440a0a	414243	414243	true
+0a0a51554a44	414243	414243	true
+5a6d3976596d4679	666f6f626172	666f6f626172	true
+5a6d397659673d3d	666f6f62	666f6f62	true
+5a6d3976596d453d	666f6f6261	666f6f6261	true
+5f773d3d		ff	true
+2f773d3d	ff		true
+41414141	000000	000000	true
+41413d3d41413d3d	00	00	false
+51554a4452413d3d0a	41424344	41424344	false
+51554a4452413d	414243	414243	false
+51554a445241	414243	414243	false
+ENC			
+ENC	00	AA==	AA==
+ENC	0001	AAE=	AAE=
+ENC	000102	AAEC	AAEC
+ENC	fbff	+/8=	-_8=
+ENC	fbffbf	+/+/	-_-_
+ENC	68656c6c6f20776f726c64	aGVsbG8gd29ybGQ=	aGVsbG8gd29ybGQ=
+ENC	ffffffffff	//////8=	______8=
+ENC	000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f	AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+Pw==	AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-Pw==
