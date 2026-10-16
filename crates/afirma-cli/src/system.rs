@@ -39,6 +39,11 @@ pub struct InstallRequest {
     pub origins: Vec<String>,
     /// Solo mostrar las acciones (`--dry-run`).
     pub dry_run: bool,
+    /// Opciones avanzadas de los instaladores (`--firefox-roots`,
+    /// `--config-path=...`, `--default-language=...`, `--keystore-path=...`
+    /// y `--certificate-path=...`, `--update-config`...), normalizadas como
+    /// `--nombre` o `--nombre=valor`.
+    pub advanced: Vec<String>,
 }
 
 /// `uninstall`.
@@ -48,6 +53,8 @@ pub struct UninstallRequest {
     pub scope: Scope,
     /// Solo mostrar las acciones (`--dry-run`).
     pub dry_run: bool,
+    /// `--keep-certs`, `--keep-system-prefs`, `--revert-firefox-roots`.
+    pub advanced: Vec<String>,
 }
 
 /// `doctor`.
@@ -100,6 +107,30 @@ pub enum SystemRequest {
 
 /// Analiza los argumentos que siguen al comando. El error es el mensaje que
 /// se imprime antes de la ayuda.
+/// Opciones avanzadas sin valor de `install`.
+const INSTALL_FLAGS: &[&str] = &[
+    "--firefox-roots",
+    "--no-firefox-roots",
+    "--update-config",
+    "--regenerate",
+    "--no-menus",
+    "--no-path",
+    "--no-certs",
+    "--no-nss",
+    "--no-os-trust",
+    "--no-protocol",
+];
+/// Opciones avanzadas con valor de `install`.
+const INSTALL_VALUES: &[&str] = &[
+    "--config-path",
+    "--default-language",
+    "--keystore-path",
+    "--certificate-path",
+    "--menus",
+];
+/// Opciones avanzadas de `uninstall`.
+const UNINSTALL_FLAGS: &[&str] = &["--keep-certs", "--keep-system-prefs", "--revert-firefox-roots"];
+
 pub fn parse(
     command: SystemCommand,
     args: &[String],
@@ -116,6 +147,7 @@ pub fn parse(
     let mut origins: Option<Vec<String>> = None;
     let mut dry_run = false;
     let mut json = false;
+    let mut advanced = Vec::new();
     let mut i = 0;
     while i < args.len() {
         let arg = args[i].as_str();
@@ -123,6 +155,28 @@ pub fn parse(
             Some((n, v)) if n.starts_with("--") => (n, Some(v.to_string())),
             _ => (arg, None),
         };
+        let (flags, values): (&[&str], &[&str]) = match command {
+            SystemCommand::Install => (INSTALL_FLAGS, INSTALL_VALUES),
+            SystemCommand::Uninstall => (UNINSTALL_FLAGS, &[]),
+            _ => (&[], &[]),
+        };
+        if flags.contains(&name) && inline.is_none() {
+            advanced.push(name.to_string());
+            i += 1;
+            continue;
+        }
+        if values.contains(&name) {
+            let value = match inline {
+                Some(v) => v,
+                None => {
+                    i += 1;
+                    args.get(i).cloned().ok_or_else(|| m.fmt(25, &[arg]))?
+                }
+            };
+            advanced.push(format!("{name}={value}"));
+            i += 1;
+            continue;
+        }
         let allowed: &[&str] = match command {
             SystemCommand::Install => &[
                 "--system",
@@ -187,10 +241,12 @@ pub fn parse(
             browser_policies: browser_policies || origins.is_some(),
             origins: origins.unwrap_or_default(),
             dry_run,
+            advanced,
         }),
         SystemCommand::Uninstall => SystemRequest::Uninstall(UninstallRequest {
             scope: need_scope()?,
             dry_run,
+            advanced,
         }),
         SystemCommand::Doctor => SystemRequest::Doctor(DoctorRequest { json }),
         SystemCommand::RestoreConfig => SystemRequest::RestoreConfig(RestoreRequest),
@@ -261,7 +317,8 @@ mod tests {
                 scope: Scope::System,
                 browser_policies: true,
                 origins: vec!["https://a.es".into(), "https://*.b.es".into()],
-                dry_run: true
+                dry_run: true,
+                advanced: vec![]
             }))
         );
         assert_eq!(
@@ -273,7 +330,8 @@ mod tests {
                 scope: Scope::User,
                 browser_policies: true,
                 origins: vec!["https://x.es".into()],
-                dry_run: false
+                dry_run: false,
+                advanced: vec![]
             }))
         );
         assert_eq!(
@@ -307,12 +365,36 @@ mod tests {
     }
 
     #[test]
+    fn opciones_de_los_instaladores() {
+        assert_eq!(
+            p(
+                SystemCommand::Install,
+                &["--system", "--firefox-roots", "--config-path", r"https:\\intra\c.afconfig", "--default-language=ca_ES"]
+            ),
+            Ok(SystemRequest::Install(InstallRequest {
+                scope: Scope::System,
+                browser_policies: false,
+                origins: vec![],
+                dry_run: false,
+                advanced: vec![
+                    "--firefox-roots".into(),
+                    r"--config-path=https:\\intra\c.afconfig".into(),
+                    "--default-language=ca_ES".into()
+                ]
+            }))
+        );
+        assert!(p(SystemCommand::Install, &["--user", "--firefox-roots=1"]).is_err());
+        assert!(p(SystemCommand::Uninstall, &["--user", "--firefox-roots"]).is_err());
+    }
+
+    #[test]
     fn otros() {
         assert_eq!(
             p(SystemCommand::Uninstall, &["--user", "--dry-run"]),
             Ok(SystemRequest::Uninstall(UninstallRequest {
                 scope: Scope::User,
-                dry_run: true
+                dry_run: true,
+                advanced: vec![]
             }))
         );
         assert_eq!(

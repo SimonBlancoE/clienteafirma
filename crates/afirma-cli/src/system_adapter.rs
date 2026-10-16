@@ -59,6 +59,7 @@ impl SystemOps for AfirmaSystemOps {
         if request.dry_run {
             args.push("--dry-run".into());
         }
+        args.extend(request.advanced.iter().cloned());
         self.call(args)
     }
 
@@ -68,6 +69,7 @@ impl SystemOps for AfirmaSystemOps {
         if request.dry_run {
             args.push("--dry-run".into());
         }
+        args.extend(request.advanced.iter().cloned());
         self.call(args)
     }
 
@@ -97,6 +99,7 @@ mod tests {
             browser_policies: true,
             origins: vec!["https://a.es".into()],
             dry_run: true,
+            advanced: vec!["--firefox-roots".into(), "--default-language=ca_ES".into()],
         });
         assert_eq!(r.status, 0, "{}", r.output);
         assert!(!r.output.is_empty());

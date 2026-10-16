@@ -712,14 +712,16 @@ fn comandos_de_sistema() {
                     scope: Scope::System,
                     browser_policies: true,
                     origins: vec!["https://sede.example.es".into()],
-                    dry_run: true
+                    dry_run: true,
+                    advanced: vec![]
                 }
             ),
             format!(
                 "{:?}",
                 UninstallRequest {
                     scope: Scope::User,
-                    dry_run: false
+                    dry_run: false,
+                    advanced: vec![]
                 }
             ),
             format!("{:?}", DoctorRequest { json: true }),
