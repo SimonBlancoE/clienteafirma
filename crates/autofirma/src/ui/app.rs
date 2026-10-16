@@ -56,6 +56,7 @@ pub struct AutoFirmaApp {
     pub(crate) certificates: CertificatesPage,
     pub(crate) tools: ToolsPage,
     pub(crate) picker: CertPicker,
+    pub(crate) visible_sig: super::visible_sig::VisibleSigEditor,
 }
 
 impl AutoFirmaApp {
@@ -73,6 +74,7 @@ impl AutoFirmaApp {
             certificates: CertificatesPage::default(),
             tools: ToolsPage::default(),
             picker: CertPicker::default(),
+            visible_sig: Default::default(),
         };
         if let Ok(demo) = std::env::var("AF_DEMO") {
             super::demo::load(&mut app, &demo);
@@ -208,6 +210,7 @@ impl eframe::App for AutoFirmaApp {
                 }
             });
         });
+        let _ = self.visible_sig.show(&ctx, &p);
         match self.picker.show(&ctx, &p) {
             PickerEvent::None => {}
             _ => {}

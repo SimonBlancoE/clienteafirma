@@ -196,4 +196,8 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
             app.tools.input = Some("/home/usuario/Documentos/contrato.pdf".into());
         }
     }
+    if demo.contains("visible") {
+        app.visible_sig.open_with("Solicitud de subvención 2026.pdf", std::sync::Arc::new(super::visible_sig::DemoPages));
+        app.visible_sig.set_rect_pdf(0, 330.0, 60.0, 545.0, 140.0);
+    }
 }
