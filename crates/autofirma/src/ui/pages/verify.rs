@@ -322,7 +322,11 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                     widgets::kv_row(ui, p, "Política", pol.name.as_deref().unwrap_or(&pol.identifier));
                     if pol.name.is_none() {
                         if let Some(h) = &pol.hash {
-                            widgets::kv_row(ui, p, "Huella de la política", h);
+                            let text = match &pol.hash_algorithm {
+                                Some(a) => format!("{h} ({a})"),
+                                None => h.clone(),
+                            };
+                            widgets::kv_row(ui, p, "Huella de la política", &text);
                         }
                         if let Some(q) = &pol.qualifier {
                             widgets::kv_row(ui, p, "Calificador", q);

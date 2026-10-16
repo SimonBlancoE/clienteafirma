@@ -192,7 +192,7 @@ fn appearance_preview_for_the_gui() {
     // Texto rojo en la parte superior izquierda.
     let red = img
         .data
-        .chunks_exact(4)
+        .as_chunks::<4>().0.iter()
         .filter(|p| p[0] > 200 && p[1] < 80 && p[2] < 80)
         .count();
     assert!(red > 100, "píxeles rojos: {red}");

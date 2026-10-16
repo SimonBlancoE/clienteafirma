@@ -74,7 +74,7 @@ fn utf16be_bytes(s: &str) -> Vec<u8> {
 }
 
 fn utf16be_string(b: &[u8]) -> Option<String> {
-    if b.len() % 2 != 0 {
+    if !b.len().is_multiple_of(2) {
         return None;
     }
     let units: Vec<u16> = b

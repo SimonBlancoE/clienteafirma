@@ -53,9 +53,9 @@ pub fn validate_pdf(
     // Cambios en formularios.
     let allow_form = params.get(ALLOW_MODIFIED_FORM);
     let mut form_modified = false;
-    if !allow_form.is_some_and(|v| v.eq_ignore_ascii_case("true")) && total > 1 {
-        if let Some(oldest) = sigs.last() {
-            if let Ok(orig) = PdfDoc::open(&pdf[..oldest.covered.min(pdf.len())], password) {
+    if !allow_form.is_some_and(|v| v.eq_ignore_ascii_case("true")) && total > 1
+        && let Some(oldest) = sigs.last()
+            && let Ok(orig) = PdfDoc::open(&pdf[..oldest.covered.min(pdf.len())], password) {
                 let changes = form_changes(&orig, &doc);
                 if !changes.is_empty() {
                     if relaxed {
@@ -69,8 +69,6 @@ pub fn validate_pdf(
                     form_modified = true;
                 }
             }
-        }
-    }
 
     // PDF Shadow Attack.
     let allow_psa = params.get(ALLOW_SHADOW_ATTACK);
@@ -373,8 +371,8 @@ fn validate_sign(
             Err(e) => out.push(ko(ValidityError::CorruptedSign).with_detail(e.to_string())),
         }
     }
-    if check_certs {
-        if let Some(cert) = afirma_core::cert::CertInfo::parse(&data.chain[0]) {
+    if check_certs
+        && let Some(cert) = afirma_core::cert::CertInfo::parse(&data.chain[0]) {
             let now = chrono::Utc::now();
             if now > cert.not_after {
                 out.push(ko(ValidityError::CertificateExpired));
@@ -382,7 +380,6 @@ fn validate_sign(
                 out.push(ko(ValidityError::CertificateNotValidYet));
             }
         }
-    }
     if !CHECKED_PROFILES.contains(&profile) {
         out.push(SignValidity::unknown(ValidityError::SignProfileNotChecked));
     }
@@ -497,8 +494,8 @@ fn repr(doc: &PdfDoc, o: Option<&Object>) -> Option<Vec<u8>> {
 /// Valores de los campos (sin firmas), como `DataAnalizerUtil.getFieldValues`.
 fn field_values(doc: &PdfDoc) -> Vec<(String, Option<Vec<u8>>)> {
     let mut out: Vec<(String, Option<Vec<u8>>)> = Vec::new();
-    if let Some(form) = doc.acroform() {
-        if let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
+    if let Some(form) = doc.acroform()
+        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
             fn walk(
                 doc: &PdfDoc,
                 o: &Object,
@@ -547,7 +544,6 @@ fn field_values(doc: &PdfDoc) -> Vec<(String, Option<Vec<u8>>)> {
                 walk(doc, f, "", None, None, &mut out, 0);
             }
         }
-    }
     for (pi, page) in doc.pages().into_iter().enumerate() {
         let Some(pd) = doc.dict_id(page) else {
             continue;

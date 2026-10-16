@@ -410,11 +410,10 @@ fn java_quote_value(val: &str) -> String {
             sb.push(c);
         }
     }
-    if let Some(last) = sb.chars().last() {
-        if last == ' ' || last == '\n' {
+    if let Some(last) = sb.chars().last()
+        && (last == ' ' || last == '\n') {
             quote_needed = true;
         }
-    }
     if !already_quoted && quote_needed { format!("\"{sb}\"") } else { sb }
 }
 

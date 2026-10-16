@@ -13,7 +13,6 @@ use crate::ui::model::CertItem;
 
 /// Almacén abierto con sus certificados candidatos.
 pub struct LoadedStore {
-    pub spec: StoreSpec,
     pub store: Arc<dyn KeyStore>,
     pub label: String,
     /// Entradas candidatas (filtradas y ordenadas), en el orden de `items`.
@@ -81,7 +80,7 @@ pub fn load(spec: &StoreSpec, callback: Arc<dyn PasswordCallback>, filters: &Loc
             entries.push(e);
         }
     }
-    Ok(LoadedStore { label: spec.display_name(), spec: spec.clone(), store, entries, items, hidden_expired: list.hidden_expired })
+    Ok(LoadedStore { label: spec.display_name(), store, entries, items, hidden_expired: list.hidden_expired })
 }
 
 /// Preferencias de filtrado de la aplicación de escritorio.

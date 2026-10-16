@@ -123,11 +123,10 @@ impl MockTsa {
         let set = attrs::attributes_set(&signed_attrs);
         let alg = SignatureAlgorithm::new(digest, self.key.key_algorithm());
         let mut sig = self.key.sign(&set, alg).map_err(|e| e.to_string())?;
-        if self.misbehavior == Misbehavior::BadSignature {
-            if let Some(b) = sig.last_mut() {
+        if self.misbehavior == Misbehavior::BadSignature
+            && let Some(b) = sig.last_mut() {
                 *b ^= 0x01;
             }
-        }
         let si = encode_signer_info(
             &view.issuer_and_serial(),
             &alg::digest_alg_id(digest),

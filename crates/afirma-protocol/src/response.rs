@@ -36,12 +36,11 @@ pub fn sign_result(
     let mut out = cipher_or(cipher, cert_der, true, codes::ENCRIPTING_SIGNING_CERT)?;
     out.push('|');
     out.push_str(&cipher_or(cipher, signature, true, codes::ENCRIPTING_SIGNATURE)?);
-    if let Some(name) = filename {
-        if protocol_major >= 3 {
+    if let Some(name) = filename
+        && protocol_major >= 3 {
             out.push('|');
             out.push_str(&cipher_or(cipher, extra_data_json(&[("filename", name)]).as_bytes(), true, codes::ENCRIPTING_SIGNATURE_EXTRA_DATA)?);
         }
-    }
     Ok(out)
 }
 

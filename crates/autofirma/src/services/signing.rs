@@ -62,11 +62,10 @@ fn sign_one(input: &SignJobInput, file: &FileItem, key: &dyn SigningKey) -> Resu
         .ok_or_else(|| AfirmaError::unsupported(format!("Formato de firma no disponible: {}", file.format)))?;
     let kind = formats::signer_kind_for_format(&file.format).unwrap_or(SignerKind::Cades);
     let mut extra = (input.params_for)(kind);
-    if kind == SignerKind::Pdf {
-        if let Some(v) = &input.visible_params {
+    if kind == SignerKind::Pdf
+        && let Some(v) = &input.visible_params {
             extra.extend(v);
         }
-    }
     // Bucle de intervención del usuario (`RuntimeConfigNeededException`).
     for _ in 0..4 {
         let r = match file.operation {
@@ -134,11 +133,10 @@ fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<
         Ok(p) => Ok(p),
         Err(e) => {
             // Si la carpeta del original no admite escritura, se guarda en Documentos.
-            if let Some(docs) = directories::UserDirs::new().and_then(|u| u.document_dir().map(|d| d.to_path_buf())) {
-                if let Ok(p) = write_atomic(&docs.join(path.file_name().unwrap_or_default()), signed) {
+            if let Some(docs) = directories::UserDirs::new().and_then(|u| u.document_dir().map(|d| d.to_path_buf()))
+                && let Ok(p) = write_atomic(&docs.join(path.file_name().unwrap_or_default()), signed) {
                     return Ok(p);
                 }
-            }
             Err(AfirmaError::new(afirma_core::error::codes::CANT_SAVE_FILE, format!("No se ha podido guardar la firma: {e}")))
         }
     }

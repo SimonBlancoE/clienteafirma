@@ -2,11 +2,11 @@
 
 use eframe::egui::{self, Frame, Margin, RichText, ScrollArea, Stroke, Ui};
 
-use super::cert_picker::{CertPicker, PickerEvent};
-use super::pages::certificates::{CertificatesPage, CertsAction};
-use super::pages::sign::{SignAction, SignPage, Stage};
-use super::pages::tools::{ToolsAction, ToolsPage};
-use super::pages::verify::{VerifyAction, VerifyPage};
+use super::cert_picker::CertPicker;
+use super::pages::certificates::CertificatesPage;
+use super::pages::sign::SignPage;
+use super::pages::tools::ToolsPage;
+use super::pages::verify::VerifyPage;
 use super::theme::{self, Palette, ThemeChoice};
 use super::{icons, widgets};
 
@@ -70,6 +70,9 @@ pub struct AutoFirmaApp {
     integration_job: Option<crate::services::task::Job<(), bool>>,
     asking_close: bool,
     prefs_close_now: bool,
+    pending_import: Option<afirma_system::prefs::PreparedImport>,
+    confirm_restore: bool,
+    proxy_job: Option<crate::services::task::Job<(), Result<(), String>>>,
     /// macOS: ventana aún oculta a la espera de eventos de apertura del sistema.
     launch_grace: Option<std::time::Instant>,
     dont_ask_close: bool,
@@ -100,6 +103,9 @@ impl AutoFirmaApp {
             integration_job: None,
             asking_close: false,
             prefs_close_now: false,
+            pending_import: None,
+            confirm_restore: false,
+            proxy_job: None,
             launch_grace: None,
             dont_ask_close: false,
             prefs: if std::env::var_os("AF_DEMO").is_some() {
@@ -140,6 +146,7 @@ impl AutoFirmaApp {
             app.proto = Some(super::protocol_flow::ProtocolState::new(rx));
         }
         if app.proto.is_none() && std::env::var_os("AF_DEMO").is_none() {
+            crate::services::config_verifier::spawn_daily_update();
             app.integration_job = Some(crate::services::task::Job::spawn(&cc.egui_ctx, "integracion", |_| {
                 crate::services::tools::integration_needed()
             }));
@@ -148,11 +155,10 @@ impl AutoFirmaApp {
             app.verify_path(&cc.egui_ctx, v);
         }
         // Almacén por defecto sustituible (pruebas y despliegues): `AF_STORE=pkcs12:/ruta` o `pkcs11:/ruta`.
-        if let Ok(spec) = std::env::var("AF_STORE") {
-            if let Ok(parsed) = afirma_keystores::selection::parse_cli_store(Some(&spec), afirma_keystores::Os::current()) {
+        if let Ok(spec) = std::env::var("AF_STORE")
+            && let Ok(parsed) = afirma_keystores::selection::parse_cli_store(Some(&spec), afirma_keystores::Os::current()) {
                 app.rt.store_spec = parsed;
             }
-        }
         app
     }
 
@@ -172,7 +178,7 @@ impl AutoFirmaApp {
         super::dialogs::show_inbox(&ctx, &p, &mut self.rt.inbox);
     }
 
-    fn handle_settings_actions(&mut self, actions: Vec<super::pages::settings::SettingsAction>) {
+    fn handle_settings_actions(&mut self, ctx: &egui::Context, actions: Vec<super::pages::settings::SettingsAction>) {
         use super::pages::settings::SettingsAction;
         for a in actions {
             match a {
@@ -180,23 +186,128 @@ impl AutoFirmaApp {
                     for (k, v) in std::mem::take(&mut self.settings.pending) {
                         self.prefs.set(&k, v.as_deref());
                     }
-                    self.theme = theme_from_pref(self.prefs.get("uiTheme").as_deref());
-                    if let Some(scale) = self.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
-                        self.pending_zoom = Some(scale.clamp(0.8, 1.6));
-                    }
-                    if let Some(loc) = self.prefs.get("default.locale") {
-                        crate::i18n::set_locale(&loc);
-                    }
-                    // Cambiar el almacén por defecto obliga a recargarlo.
-                    let prefs = &self.prefs;
-                    let spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
-                    if spec != self.rt.store_spec {
-                        self.rt.store_spec = spec;
-                        self.rt.store = None;
-                    }
+                    self.after_prefs_changed();
                 }
                 SettingsAction::Discard => self.settings.pending.clear(),
-                _ => {}
+                SettingsAction::Export => {
+                    let content = match self.prefs.export_config() {
+                        Ok(c) => c,
+                        Err(e) => {
+                            self.settings.message = Some((widgets::CalloutKind::Error, e));
+                            continue;
+                        }
+                    };
+                    let Some(path) = rfd::FileDialog::new()
+                        .set_title("Exportar configuración")
+                        .set_file_name("configuracion.afconfig")
+                        .add_filter("Configuración de AutoFirma", &["afconfig"])
+                        .save_file()
+                    else {
+                        continue;
+                    };
+                    self.settings.message = Some(match std::fs::write(&path, content) {
+                        Ok(()) => (widgets::CalloutKind::Success, format!("Configuración exportada a {}", path.display())),
+                        Err(e) => (widgets::CalloutKind::Error, format!("No se ha podido guardar el fichero: {e}")),
+                    });
+                }
+                SettingsAction::Import => {
+                    let Some(path) = rfd::FileDialog::new()
+                        .set_title("Importar configuración")
+                        .add_filter("Configuración de AutoFirma", &["afconfig", "xml", "plist"])
+                        .pick_file()
+                    else {
+                        continue;
+                    };
+                    let prepared = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|d| self.prefs.prepare_import(&d));
+                    match prepared {
+                        Ok(p) => self.pending_import = Some(p),
+                        Err(e) => {
+                            self.settings.message = Some((widgets::CalloutKind::Error, format!("No se puede importar la configuración: {e}")))
+                        }
+                    }
+                }
+                SettingsAction::RestoreDefaults => self.confirm_restore = true,
+                SettingsAction::TestProxy => {
+                    // Con los valores en pantalla, aunque no se hayan guardado.
+                    let mut values = std::collections::HashMap::new();
+                    for key in ["proxyType", "proxySelected", "proxyHost", "proxyPort", "proxyUsername", "proxyPassword", "proxyExcludedUrls", "secureConnections", "secureDomainsList"] {
+                        let v = match self.settings.pending.get(key) {
+                            Some(v) => v.clone(),
+                            None => self.prefs.get(key),
+                        };
+                        if let Some(v) = v {
+                            values.insert(key.to_string(), v);
+                        }
+                    }
+                    self.settings.message = Some((widgets::CalloutKind::Info, "Comprobando la conexión…".into()));
+                    self.proxy_job = Some(crate::services::task::Job::spawn(ctx, "proxy", move |_| {
+                        crate::services::network::test(&|k| values.get(k).cloned())
+                    }));
+                }
+            }
+        }
+    }
+
+    /// Aplica las preferencias recién guardadas (tema, tamaño, idioma, almacén y red).
+    fn after_prefs_changed(&mut self) {
+        self.theme = theme_from_pref(self.prefs.get("uiTheme").as_deref());
+        if let Some(scale) = self.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
+            self.pending_zoom = Some(scale.clamp(0.8, 1.6));
+        }
+        if let Some(loc) = self.prefs.get("default.locale") {
+            crate::i18n::set_locale(&loc);
+        }
+        // Cambiar el almacén por defecto obliga a recargarlo.
+        let prefs = &self.prefs;
+        let spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
+        if spec != self.rt.store_spec {
+            self.rt.store_spec = spec;
+            self.rt.store = None;
+        }
+        crate::services::network::install(&|k| prefs.get(k));
+    }
+
+    /// Diálogos de Preferencias: confirmación de importación y de restauración,
+    /// y resultado de la comprobación del proxy.
+    fn settings_dialogs(&mut self, ctx: &egui::Context) {
+        let p = self.palette;
+        if let Some(job) = &mut self.proxy_job {
+            for ev in job.poll() {
+                if let crate::services::task::JobEvent::Done(r) = ev {
+                    self.settings.message = Some(match r {
+                        Ok(()) => (widgets::CalloutKind::Success, "Conexión correcta con la configuración de red indicada".into()),
+                        Err(e) => (widgets::CalloutKind::Error, format!("No se ha podido conectar: {e}")),
+                    });
+                }
+            }
+            if job.is_finished() {
+                self.proxy_job = None;
+            }
+        }
+        if let Some(prepared) = &self.pending_import {
+            let text = prepared.confirmation_text();
+            if let Some(yes) = super::dialogs::confirm_modal(ctx, &p, "Importar configuración", &text, "Importar", false, false) {
+                let prepared = self.pending_import.take().expect("importación pendiente");
+                if yes {
+                    self.settings.pending.clear();
+                    self.settings.message = Some(match self.prefs.apply_import(&prepared) {
+                        Ok(summary) => (widgets::CalloutKind::Success, summary),
+                        Err(e) => (widgets::CalloutKind::Error, format!("No se ha podido importar la configuración: {e}")),
+                    });
+                    self.after_prefs_changed();
+                }
+            }
+        }
+        if self.confirm_restore {
+            let text = "Se borrará tu configuración personalizada y se usarán los valores de fábrica (o los fijados por tu organización). Las tarjetas añadidas se conservan.";
+            if let Some(yes) = super::dialogs::confirm_modal(ctx, &p, "Restaurar valores de fábrica", text, "Restaurar", false, false) {
+                self.confirm_restore = false;
+                if yes {
+                    self.settings.pending.clear();
+                    self.prefs.restore_defaults();
+                    self.after_prefs_changed();
+                    self.settings.message = Some((widgets::CalloutKind::Success, "Se han restaurado los valores de fábrica".into()));
+                }
             }
         }
     }
@@ -450,7 +561,7 @@ impl eframe::App for AutoFirmaApp {
                 .frame(Frame::new().fill(p.surface).inner_margin(Margin::symmetric(36, 12)).stroke(Stroke::new(1.0, p.border)))
                 .show(ui, |ui| self.settings.pending_bar(ui, &p))
                 .inner;
-            self.handle_settings_actions(actions);
+            self.handle_settings_actions(&ctx, actions);
         }
         let p = self.palette;
         egui::CentralPanel::no_frame().frame(Frame::new().fill(p.bg).inner_margin(Margin::symmetric(36, 28))).show(ui, |ui| {
@@ -477,7 +588,7 @@ impl eframe::App for AutoFirmaApp {
                     }
                     Page::Settings => {
                         let actions = self.settings.ui(ui, &p, self.prefs.as_ref());
-                        self.handle_settings_actions(actions);
+                        self.handle_settings_actions(&ctx, actions);
                     }
                     Page::Help => {
                         let actions = super::pages::help::ui(ui, &p);
@@ -490,6 +601,7 @@ impl eframe::App for AutoFirmaApp {
         let ev = self.picker.show(&ctx, &p);
         self.on_picker_event(&ctx, ev);
         super::dialogs::show_inbox(&ctx, &p, &mut self.rt.inbox);
+        self.settings_dialogs(&ctx);
         self.toast_ui(&ctx);
     }
 }

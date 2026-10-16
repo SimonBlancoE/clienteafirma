@@ -384,12 +384,11 @@ fn signers_odf(sign: &[u8]) -> afirma_core::Result<SignersTree> {
         let mut children: Vec<Vec<usize>> = vec![vec![]; nodes.len()];
         let mut is_root = vec![true; nodes.len()];
         for (i, n) in nodes.iter().enumerate() {
-            if !n.1.is_empty() {
-                if let Some(pi) = ids.iter().position(|x| *x == n.1) {
+            if !n.1.is_empty()
+                && let Some(pi) = ids.iter().position(|x| *x == n.1) {
                     children[pi].push(i);
                     is_root[i] = false;
                 }
-            }
         }
         fn build(
             i: usize,

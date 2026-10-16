@@ -157,11 +157,10 @@ impl<'a> Parser<'a> {
                     let g = self.token();
                     if let Some(g) = parse_uint(g) {
                         let r = self.token();
-                        if r == b"R" {
-                            if let (Ok(n), Ok(g)) = (u32::try_from(n), u16::try_from(g)) {
+                        if r == b"R"
+                            && let (Ok(n), Ok(g)) = (u32::try_from(n), u16::try_from(g)) {
                                 return Some(Object::Reference((n, g)));
                             }
-                        }
                     }
                     self.pos = after;
                     return Some(Object::Integer(n));
@@ -177,8 +176,8 @@ impl<'a> Parser<'a> {
             if is_ws(b) || is_delim(b) {
                 break;
             }
-            if b == b'#' {
-                if let Some(h) = self
+            if b == b'#'
+                && let Some(h) = self
                     .data
                     .get(self.pos + 1..self.pos + 3)
                     .and_then(|h| u8::from_str_radix(std::str::from_utf8(h).ok()?, 16).ok())
@@ -187,7 +186,6 @@ impl<'a> Parser<'a> {
                     self.pos += 3;
                     continue;
                 }
-            }
             out.push(b);
             self.pos += 1;
         }
@@ -557,13 +555,11 @@ pub(crate) fn effectively_free_objects(
             if let Some(stm) = trailer.get(b"XRefStm").ok().and_then(|o| o.as_i64().ok()) {
                 let so = stm as usize + base;
                 let mut q = Parser::new(data, so);
-                if q.object_header().is_some() {
-                    if let Some(Object::Dictionary(d)) = q.object() {
-                        if let Some(e) = xref_stream_entries(data, q.pos, &d) {
+                if q.object_header().is_some()
+                    && let Some(Object::Dictionary(d)) = q.object()
+                        && let Some(e) = xref_stream_entries(data, q.pos, &d) {
                             entries.extend(e);
                         }
-                    }
-                }
             }
         } else {
             if p.object_header().is_none() {

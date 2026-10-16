@@ -396,11 +396,10 @@ pub fn java_digest_algorithm_name(pseudo_name: &str) -> String {
         "http://www.w3.org/2000/09/xmldsig#",
         "http://www.w3.org/2009/xmldsig11#",
     ] {
-        if pseudo_name.starts_with(prefix) {
-            if let Some(idx) = pseudo_name.rfind('-') {
+        if pseudo_name.starts_with(prefix)
+            && let Some(idx) = pseudo_name.rfind('-') {
                 return java_digest_algorithm_name(&pseudo_name[idx + 1..]);
             }
-        }
     }
     pseudo_name.to_string()
 }

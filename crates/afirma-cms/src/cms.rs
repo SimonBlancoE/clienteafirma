@@ -567,8 +567,8 @@ pub fn to_der_preserving(t: &Tlv<'_>) -> Vec<u8> {
     let is_string = t.tag.class == Class::Universal
         && t.tag.constructed
         && matches!(t.tag.number, 3 | 4 | 12 | 18 | 19 | 20 | 22 | 26 | 28 | 30);
-    if is_string {
-        if let Ok(content) = t.flatten_content() {
+    if is_string
+        && let Ok(content) = t.flatten_content() {
             if t.tag.number == 3 {
                 // BIT STRING construido: los segmentos llevan su byte de bits
                 // sobrantes; se conserva solo el del último.
@@ -576,7 +576,6 @@ pub fn to_der_preserving(t: &Tlv<'_>) -> Vec<u8> {
             }
             return der::tlv(t.tag.with_constructed(false), &content);
         }
-    }
     if !t.tag.constructed {
         return t.raw.to_vec();
     }

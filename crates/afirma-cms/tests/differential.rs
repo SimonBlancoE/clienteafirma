@@ -221,11 +221,10 @@ fn java_golden_parity() {
             });
             let content =
                 if afirma_cms::detect::obtain_data(&inner_sig).ok().flatten().is_some() { None } else { content };
-            if let Some((ok, msg)) = openssl_verify(&case.name, &inner_sig, content.as_deref()) {
-                if !ok && !expected_invalid {
+            if let Some((ok, msg)) = openssl_verify(&case.name, &inner_sig, content.as_deref())
+                && !ok && !expected_invalid {
                     failures.push(format!("{}: OpenSSL no verifica la firma Rust: {msg}", case.name));
                 }
-            }
         }
     }
     assert!(failures.is_empty(), "{} fallos:\n{}", failures.len(), failures.join("\n"));

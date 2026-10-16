@@ -64,8 +64,8 @@ pub fn update_dates(xmp: &str, t: &SignTime) -> String {
         if let Some(p) = out.find(&decl) {
             let tag_start = out[..p].rfind('<');
             let tag_end = out[p..].find('>').map(|e| e + p);
-            if let (Some(ts), Some(te)) = (tag_start, tag_end) {
-                if out[ts..].starts_with("<rdf:Description") {
+            if let (Some(ts), Some(te)) = (tag_start, tag_end)
+                && out[ts..].starts_with("<rdf:Description") {
                     let elem = format!("<{prefix}:ModifyDate>{date}</{prefix}:ModifyDate>");
                     if out.as_bytes()[te - 1] == b'/' {
                         // `<rdf:Description .../>` → se abre y se cierra.
@@ -74,7 +74,6 @@ pub fn update_dates(xmp: &str, t: &SignTime) -> String {
                         out.insert_str(te + 1, &elem);
                     }
                 }
-            }
         }
     }
     out
@@ -149,14 +148,13 @@ pub fn add_sign_history(xmp: &str, t: &SignTime) -> Option<String> {
 
 /// Garantiza que el prefijo `stEvt` esté declarado.
 fn ensure_stevt_ns(mut xmp: String) -> String {
-    if !xmp.contains("xmlns:stEvt") {
-        if let Some(p) = xmp.find("<xmpMM:History") {
+    if !xmp.contains("xmlns:stEvt")
+        && let Some(p) = xmp.find("<xmpMM:History") {
             xmp.insert_str(
                 p + "<xmpMM:History".len(),
                 " xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"",
             );
         }
-    }
     xmp
 }
 

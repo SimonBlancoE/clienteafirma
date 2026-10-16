@@ -156,24 +156,22 @@ pub struct DecodedFileHash {
 /// 32 → SHA-256, 48 → SHA-384, 64 → SHA-512).
 pub fn decode_file_hash(content: &[u8]) -> Result<DecodedFileHash, HashError> {
     let text = trim_ascii_whitespace_end(content);
-    if let Some(digest) = decode_hex_text(text) {
-        if let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
+    if let Some(digest) = decode_hex_text(text)
+        && let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
             return Ok(DecodedFileHash {
                 digest,
                 encoding: FileHashFormat::Hex,
                 algorithm,
             });
         }
-    }
-    if let Some(digest) = decode_base64_text(text) {
-        if let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
+    if let Some(digest) = decode_base64_text(text)
+        && let Some(algorithm) = algorithm_for_digest_len(digest.len()) {
             return Ok(DecodedFileHash {
                 digest,
                 encoding: FileHashFormat::Base64,
                 algorithm,
             });
         }
-    }
     match algorithm_for_digest_len(content.len()) {
         Some(algorithm) => Ok(DecodedFileHash {
             digest: content.to_vec(),

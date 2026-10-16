@@ -2,8 +2,9 @@
 
 use std::path::PathBuf;
 
-/// Cómo arrancar la aplicación.
+/// Cómo arrancar la aplicación (se crea una vez; el tamaño no importa).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Launch {
     /// Interfaz gráfica de escritorio.
     Gui(GuiStart),

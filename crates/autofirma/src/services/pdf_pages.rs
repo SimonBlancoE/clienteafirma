@@ -35,7 +35,7 @@ impl PageSource for PdfPages {
         let img = doc.render_page(index, scale).ok()?;
         let pixels = img
             .data
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .map(|c| Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]))
             .collect();
         Some(ColorImage::new([img.width as usize, img.height as usize], pixels))

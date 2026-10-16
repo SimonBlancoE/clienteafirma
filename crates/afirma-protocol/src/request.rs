@@ -447,11 +447,10 @@ pub fn download_data(dat: &str, gzip: bool, http: &HttpClient) -> Result<Vec<u8>
     if s.starts_with("ftp://") {
         return Err("No se soporta la descarga de datos por FTP".into());
     }
-    if jbase64::is_base64(s) {
-        if let Ok(v) = jbase64::decode_normalized(s) {
+    if jbase64::is_base64(s)
+        && let Ok(v) = jbase64::decode_normalized(s) {
             return Ok(v);
         }
-    }
     Ok(s.as_bytes().to_vec())
 }
 
@@ -507,17 +506,15 @@ fn parse_common(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<CommonParams, 
             Err(_) => return Err(param_err(codes::UNSUPPORTED_CIPHER_KEY, "El JSON para la clave de cifrado no esta formado correctamente")),
         };
         let mut config = decoded;
-        if r.contains("key") {
-            if let Some(des) = verify_des_key(r.p)? {
+        if r.contains("key")
+            && let Some(des) = verify_des_key(r.p)? {
                 config = crate::cipher::add_legacy_des(&config, &des);
             }
-        }
         c.cipher_config = Some(config);
-    } else if r.contains("key") {
-        if let Some(des) = verify_des_key(r.p)? {
+    } else if r.contains("key")
+        && let Some(des) = verify_des_key(r.p)? {
             c.cipher_config = Some(crate::cipher::des_config(&des));
         }
-    }
     c.active_waiting = r.bool("aw")?;
     c.min_client_version = r.get("mcv")?;
     if let Some(t) = r.get("servicetimeout")? {
@@ -668,11 +665,10 @@ fn parse_sign(r: &Reader<'_>, ctx: &ParseContext<'_>, and_save: bool) -> Result<
         }
     } else {
         for k in r.p.keys() {
-            if !SIGN_KNOWN_PARAMS.contains(&k) {
-                if let Ok(Some(v)) = r.p.get(k) {
+            if !SIGN_KNOWN_PARAMS.contains(&k)
+                && let Ok(Some(v)) = r.p.get(k) {
                     sp.other_params.insert(k.to_string(), v);
                 }
-            }
         }
     }
     Ok(sp)
@@ -763,20 +759,18 @@ fn parse_save(r: &Reader<'_>, ctx: &ParseContext<'_>) -> Result<SaveParams, Pars
     let fail = |code: ErrorCode, msg: String| ParseFailure { error: ProtocolError::parameter(code, msg), reply: reply.clone() };
     let title = r.get("title")?.unwrap_or_else(|| default_save_title(ctx.locale).to_string());
     let filename = r.get("filename")?;
-    if let Some(f) = &filename {
-        if let Some(c) = f.chars().find(|c| INVALID_FILENAME_CHARS.contains(*c)) {
+    if let Some(f) = &filename
+        && let Some(c) = f.chars().find(|c| INVALID_FILENAME_CHARS.contains(*c)) {
             return Err(fail(codes::FILENAME_TO_SAVE_NOT_FOUND, format!("Se ha indicado un nombre de fichero con el caracter invalido: {c}")));
         }
-    }
     let extensions = r.get("exts")?;
-    if let Some(e) = &extensions {
-        if let Some(c) = e.chars().find(|c| "\\/:*?\"<>|; ".contains(*c)) {
+    if let Some(e) = &extensions
+        && let Some(c) = e.chars().find(|c| "\\/:*?\"<>|; ".contains(*c)) {
             return Err(fail(
                 codes::FILE_EXTENSION_TO_SAVE_NOT_FOUND,
                 format!("Se ha indicado una lista de extensiones de nombre de fichero con caracteres invalidos: {c}"),
             ));
         }
-    }
     let description = r.get("desc")?.map(|d| match &extensions {
         Some(exts) if !d.ends_with(')') => {
             let mut s = format!("{d} (");

@@ -363,11 +363,10 @@ pub fn validate_response(resp: &TimeStampResponse, req: &TimeStampRequest) -> af
     if info.imprint_algorithm != req.digest.oid() {
         return Err(invalid("response for different message imprint algorithm."));
     }
-    if let Some(p) = &req.policy {
-        if info.policy != p.to_dotted() {
+    if let Some(p) = &req.policy
+        && info.policy != p.to_dotted() {
             return Err(invalid("TSA responded with wrong policy."));
         }
-    }
     if resp.fail_info != 0 {
         return Err(tsp_error(format!("Respuesta invalida de la TSA con el codigo {}", resp.fail_info)));
     }
@@ -405,11 +404,10 @@ pub fn verify_signer_info(
             .ok_or_else(|| verify::VerifyError(format!("algoritmo no soportado: {}", si.signature_oid)))?;
     let digest = DigestAlgorithm::from_oid(&si.digest_oid.to_dotted())
         .ok_or_else(|| verify::VerifyError(format!("huella no soportada: {}", si.digest_oid)))?;
-    if let Some(c) = content {
-        if si.message_digest().as_deref() != Some(digest.digest(c).as_slice()) {
+    if let Some(c) = content
+        && si.message_digest().as_deref() != Some(digest.digest(c).as_slice()) {
             return Ok(false);
         }
-    }
     let tbs = si.signed_attrs_to_be_signed().ok_or_else(|| verify::VerifyError("sin atributos firmados".into()))?;
     verify::verify_with_certificate(cert, alg, &tbs, &si.signature_value())
 }

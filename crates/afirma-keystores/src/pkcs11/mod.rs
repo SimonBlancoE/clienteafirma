@@ -582,11 +582,10 @@ impl Pkcs11Store {
                 tracing::info!("Se omite el token no inicializado de la ranura {}", desc.slot_id);
                 continue;
             }
-            if let Some(f) = &shared.config.token_filter {
-                if !f(&desc) {
+            if let Some(f) = &shared.config.token_filter
+                && !f(&desc) {
                     continue;
                 }
-            }
             let mechanisms = ctx.get_mechanism_list(slot).unwrap_or_default();
             tokens.push(Arc::new(Token { slot, desc, mechanisms, session: Mutex::new(None) }));
         }
@@ -882,11 +881,10 @@ impl Pkcs11Key {
                     DigestAlgorithm::Sha384 => Some((MechanismType::SHA384_RSA_PKCS, Mechanism::Sha384RsaPkcs)),
                     DigestAlgorithm::Sha512 => Some((MechanismType::SHA512_RSA_PKCS, Mechanism::Sha512RsaPkcs)),
                 };
-                if let Some((t, m)) = combined {
-                    if !mechs.is_empty() && mechs.contains(&t) {
+                if let Some((t, m)) = combined
+                    && !mechs.is_empty() && mechs.contains(&t) {
                         return Ok((m, data.to_vec()));
                     }
-                }
                 if supports(MechanismType::RSA_PKCS) {
                     return Ok((Mechanism::RsaPkcs, digest.digest_info(&digest.digest(data))));
                 }

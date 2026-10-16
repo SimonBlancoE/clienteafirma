@@ -252,11 +252,10 @@ pub fn cosign_at(
     let encap = match &cfg.content_data {
         Some(c) => cms::encap_content_info(Some(c)),
         None => {
-            if cfg.data_digest.is_none() {
-                if let Some(content) = sd.content() {
+            if cfg.data_digest.is_none()
+                && let Some(content) = sd.content() {
                     cfg.data_digest = Some(cfg.digest_algorithm.digest(&content));
                 }
-            }
             to_der_preserving(&sd.encap_content_info)
         }
     };
@@ -270,11 +269,10 @@ pub fn cosign_at(
     let mut signer_infos = Vec::new();
     for si in &sd.signer_infos {
         signer_infos.push(to_der_preserving(&si.raw));
-        if cfg.data_digest.is_none() && si.digest_oid.is(digest_oid) {
-            if let Some(md) = si.message_digest() {
+        if cfg.data_digest.is_none() && si.digest_oid.is(digest_oid)
+            && let Some(md) = si.message_digest() {
                 cfg.data_digest = Some(md);
             }
-        }
     }
     if cfg.data_digest.is_none() && cfg.content_data.is_none() {
         return Err(AfirmaError::new(
@@ -359,11 +357,10 @@ impl CounterSignCtx<'_> {
             AfirmaError::new(codes::UNKWNON_BINARY_SIGNING_ERROR, format!("Atributos no firmados no validos: {e}"))
         })?;
         for ua in &unsigned {
-            if self.check_lts {
-                if let Some(oid) = LONG_TERM_ATTRIBUTES.iter().find(|o| ua.is(o)) {
+            if self.check_lts
+                && let Some(oid) = LONG_TERM_ATTRIBUTES.iter().find(|o| ua.is(o)) {
                     return Err(signing_lts_error(oid, self.lts_denied));
                 }
-            }
             if ua.is(oids::COUNTER_SIGNATURE) {
                 is_leaf = false;
                 for v in &ua.values {

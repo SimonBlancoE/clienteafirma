@@ -70,20 +70,18 @@ fn bundle() -> &'static ExtraParams {
 pub fn policy_property(id: Option<&str>, property: &str, format: Option<&str>) -> Option<&'static str> {
     let b = bundle();
     if let Some(id) = id {
-        if let Some(f) = format {
-            if let Some(v) = b.get(&format!("{id}.{property}.{f}")) {
+        if let Some(f) = format
+            && let Some(v) = b.get(&format!("{id}.{property}.{f}")) {
                 return Some(v);
             }
-        }
         if let Some(v) = b.get(&format!("{id}.{property}")) {
             return Some(v);
         }
     }
-    if let Some(f) = format {
-        if let Some(v) = b.get(&format!("{property}.{f}")) {
+    if let Some(f) = format
+        && let Some(v) = b.get(&format!("{property}.{f}")) {
             return Some(v);
         }
-    }
     b.get(property)
 }
 
@@ -177,11 +175,10 @@ pub fn expand_properties(
     };
     let normalized = normalize_policy_format(format);
     if normalized == FORMAT_CADES {
-        if !p.contains("mode") {
-            if let Some(d) = signed_data {
+        if !p.contains("mode")
+            && let Some(d) = signed_data {
                 p.set("mode", if d.len() < SIZE_1MB { SIGN_MODE_IMPLICIT } else { SIGN_MODE_EXPLICIT });
             }
-        }
         force_advanced_profile(&mut p);
         set_policy_properties(&mut p, &policy_name, FORMAT_CADES);
     } else if normalized == FORMAT_XADES {

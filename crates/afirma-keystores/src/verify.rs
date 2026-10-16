@@ -225,7 +225,7 @@ impl<K: SigningKey> SigningKey for VerifyingKey<K> {
 
 /// Convierte una firma ECDSA en bruto (`r || s`, formato PKCS#11/CNG) a DER.
 pub fn ecdsa_raw_to_der(raw: &[u8]) -> Result<Vec<u8>, KeyError> {
-    if raw.is_empty() || raw.len() % 2 != 0 {
+    if raw.is_empty() || !raw.len().is_multiple_of(2) {
         return Err(KeyError::Other("firma ECDSA en bruto con longitud no válida".into()));
     }
     Ok(afirma_core::key::ecdsa_format::raw_to_der(raw))

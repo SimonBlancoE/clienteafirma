@@ -52,6 +52,8 @@ pub struct CertPicker {
     pub show_remember: bool,
     pub remember: bool,
     pub accept_label: String,
+    /// Certificados caducados que el filtro de las preferencias oculta.
+    pub hidden_expired: usize,
 }
 
 impl CertPicker {
@@ -87,11 +89,10 @@ impl CertPicker {
         }
         let mut event = PickerEvent::None;
         let visible = self.visible();
-        if let Some(sel) = self.selected {
-            if !visible.contains(&sel) {
+        if let Some(sel) = self.selected
+            && !visible.contains(&sel) {
                 self.selected = visible.first().copied();
             }
-        }
 
         self.handle_keys(ctx, &visible, &mut event);
 
@@ -127,11 +128,10 @@ impl CertPicker {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let can_accept = self.selected.is_some() && !self.loading;
                     let label = if self.accept_label.is_empty() { "Usar este certificado" } else { &self.accept_label };
-                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), label, can_accept).clicked() {
-                        if let Some(sel) = self.selected {
+                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), label, can_accept).clicked()
+                        && let Some(sel) = self.selected {
                             event = PickerEvent::Accepted(sel);
                         }
-                    }
                     if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() {
                         event = PickerEvent::Cancelled;
                     }
@@ -246,18 +246,25 @@ impl CertPicker {
                 }
             });
         }
-
+        if self.hidden_expired > 0 && !self.loading {
+            let n = self.hidden_expired;
+            let text = if n == 1 {
+                "1 certificado caducado oculto. Puedes mostrar los caducados en Preferencias.".to_string()
+            } else {
+                format!("{n} certificados caducados ocultos. Puedes mostrar los caducados en Preferencias.")
+            };
+            ui.label(RichText::new(text).size(12.0).color(p.text_faint));
+        }
     }
 
     /// Lista embebida: devuelve el evento producido (selección, doble clic…).
     pub fn show_embedded(&mut self, ui: &mut Ui, p: &Palette, max_height: f32) -> PickerEvent {
         let mut event = PickerEvent::None;
         let visible = self.visible();
-        if let Some(sel) = self.selected {
-            if !visible.contains(&sel) {
+        if let Some(sel) = self.selected
+            && !visible.contains(&sel) {
                 self.selected = visible.first().copied();
             }
-        }
         self.handle_keys(ui.ctx(), &visible, &mut event);
         self.list_section(ui, p, &visible, &mut event, max_height);
         event

@@ -291,8 +291,8 @@ pub fn render_qualifying_object(
         render_cert(&mut w);
         render_policy(&mut w);
     }
-    if let Some(place) = &props.place {
-        if !place.is_empty(props.baseline) {
+    if let Some(place) = &props.place
+        && !place.is_empty(props.baseline) {
             let name = if props.baseline {
                 "SignatureProductionPlaceV2"
             } else {
@@ -302,11 +302,10 @@ pub fn render_qualifying_object(
             if let Some(v) = &place.city {
                 w.leaf("City", v);
             }
-            if props.baseline {
-                if let Some(v) = &place.street {
+            if props.baseline
+                && let Some(v) = &place.street {
                     w.leaf("StreetAddress", v);
                 }
-            }
             if let Some(v) = &place.province {
                 w.leaf("StateOrProvince", v);
             }
@@ -318,7 +317,6 @@ pub fn render_qualifying_object(
             }
             w.close(name);
         }
-    }
     if !props.roles.is_empty() {
         let name = if props.baseline {
             "SignerRoleV2"
@@ -426,23 +424,21 @@ pub fn render_key_info(ds: &DsNames, id: &str, o: &KeyInfoOptions) -> String {
     s.push_str(&dsig::render_x509_data(ds, &o.certs));
     let first = o.certs.first().cloned().unwrap_or_default();
     let is_ec = crate::crypto::cert_key_algorithm(&first) == Some(afirma_core::KeyAlgorithm::Ec);
-    if o.key_value && !is_ec {
-        if let Some(kv) = dsig::render_key_value(ds, &first) {
+    if o.key_value && !is_ec
+        && let Some(kv) = dsig::render_key_value(ds, &first) {
             s.push_str(&kv);
         }
-    }
     let names = CertNames::from_der(&first);
-    if o.key_name {
-        if let Some(n) = &names {
+    if o.key_name
+        && let Some(n) = &names {
             s.push_str(&format!(
                 "<{k}>{}</{k}>",
                 esc_text(&n.subject_ldap),
                 k = ds.q("KeyName")
             ));
         }
-    }
-    if o.issuer_serial {
-        if let Some(n) = &names {
+    if o.issuer_serial
+        && let Some(n) = &names {
             s.push_str(&format!(
                 "<{is}><{a}>{}</{a}><{b}>{}</{b}></{is}>",
                 esc_text(&n.issuer_ldap),
@@ -452,7 +448,6 @@ pub fn render_key_info(ds: &DsNames, id: &str, o: &KeyInfoOptions) -> String {
                 b = ds.q("X509SerialNumber")
             ));
         }
-    }
     s.push_str(&format!("</{}>", ds.q("KeyInfo")));
     s
 }

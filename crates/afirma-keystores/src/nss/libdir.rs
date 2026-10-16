@@ -159,15 +159,14 @@ pub fn nss_lib_dir(env: &MozEnv, firefox_profile: Option<&Path>) -> Result<PathB
         let f = dir.join(softokn);
         f.is_file() && binary_arch_matches(&f)
     };
-    if env.use_env_vars() {
-        if let Some(d) = env.var(AFIRMA_NSS_HOME_ENV) {
+    if env.use_env_vars()
+        && let Some(d) = env.var(AFIRMA_NSS_HOME_ENV) {
             let d = PathBuf::from(d);
             if d.is_dir() && usable(&d) {
                 return Ok(d);
             }
             tracing::warn!("La variable de entorno '{AFIRMA_NSS_HOME_ENV}' apunta a un directorio que no existe o sobre el que no se tienen permisos de lectura, se ignorara");
         }
-    }
     let candidates: Vec<PathBuf> = match env.os {
         Os::Windows => {
             let mut v = Vec::new();

@@ -7,7 +7,7 @@
 
 use afirma_core::constants::*;
 use afirma_core::formats::{DataFileType, SignerKind};
-use afirma_core::{ExtraParams, Signer};
+use afirma_core::ExtraParams;
 
 use crate::registry;
 
@@ -86,14 +86,12 @@ pub fn analyze_for_desktop(data: &[u8], pref: &dyn Fn(&str) -> Option<String>) -
     // Un PDF ya firmado se cofirma (sigue siendo de tipo PDF).
     let mut operation = ProposedOperation::Sign;
     let mut existing = None;
-    if file_type == DataFileType::Pdf {
-        if let Some(s) = &pdf {
-            if format.eq_ignore_ascii_case(SIGN_FORMAT_PADES) && s.is_sign(data, &params) {
+    if file_type == DataFileType::Pdf
+        && let Some(s) = &pdf
+            && format.eq_ignore_ascii_case(SIGN_FORMAT_PADES) && s.is_sign(data, &params) {
                 operation = ProposedOperation::Multisign;
                 existing = Some(SignerKind::Pdf);
             }
-        }
-    }
     FileAnalysis { file_type, format, alternatives, operation, existing_signature: existing }
 }
 

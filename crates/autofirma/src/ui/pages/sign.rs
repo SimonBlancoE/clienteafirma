@@ -379,11 +379,10 @@ impl SignPage {
                     });
                     if self.visible_signature {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if let Some(i) = self.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF") {
-                                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), "Colocar firma", true).clicked() {
+                            if let Some(i) = self.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF")
+                                && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), "Colocar firma", true).clicked() {
                                     actions.push(SignAction::ConfigureVisibleSignature(i));
                                 }
-                            }
                         });
                     }
                 });
@@ -447,8 +446,8 @@ impl SignPage {
                             .color(p.text),
                     );
                 }
-                if let [only] = ok.as_slice() {
-                    if let FileStatus::Done(path) = &only.status {
+                if let [only] = ok.as_slice()
+                    && let FileStatus::Done(path) = &only.status {
                         ui.add_space(4.0);
                         ui.label(RichText::new(path.display().to_string()).size(13.0).color(p.text_muted));
                         ui.add_space(14.0);
@@ -466,7 +465,6 @@ impl SignPage {
                             }
                         });
                     }
-                }
                 ui.add_space(10.0);
             });
         });

@@ -32,6 +32,9 @@ struct LoadedCandidates {
     mandatory: bool,
 }
 
+/// Clave de firma obtenida (o el error).
+type KeyResult = Result<Arc<dyn SigningKey>, AfirmaError>;
+
 /// Estado del modo protocolo.
 pub struct ProtocolState {
     rx: Receiver<ProtocolUiRequest>,
@@ -39,7 +42,7 @@ pub struct ProtocolState {
     cert_reply: Option<CertReply>,
     cert_request: Option<(ExtraParams, Option<Vec<u8>>)>,
     store_job: Option<Job<(), Result<LoadedCandidates, String>>>,
-    key_job: Option<Job<(), Result<Arc<dyn SigningKey>, AfirmaError>>>,
+    key_job: Option<Job<(), KeyResult>>,
     candidates: Option<LoadedCandidates>,
     visible_reply: Option<Sender<Result<Option<ExtraParams>, AfirmaError>>>,
     finished_at: Option<Instant>,
@@ -134,11 +137,10 @@ impl AutoFirmaApp {
                 Ok(ProtocolUiRequest::Finished(code)) => {
                     EXIT_CODE.store(code, Ordering::SeqCst);
                     proto.finished_at = Some(Instant::now());
-                    if let Some(r) = self.request.as_mut() {
-                        if !matches!(r.stage, RequestStage::Failed(_)) {
+                    if let Some(r) = self.request.as_mut()
+                        && !matches!(r.stage, RequestStage::Failed(_)) {
                             r.stage = RequestStage::Done("Operación completada".into());
                         }
-                    }
                 }
                 Ok(ProtocolUiRequest::Error { title, message }) => {
                     let mut r = self.request.take().unwrap_or_else(|| RequestView::new(view_info(None)));
@@ -257,10 +259,11 @@ impl AutoFirmaApp {
             ProtocolUiRequest::Password { message, reply } => {
                 proto.pending = Some(ProtocolUiRequest::Password { message, reply });
             }
-            ProtocolUiRequest::VisibleSignature { data, custom, mandatory: _, reply } => {
+            ProtocolUiRequest::VisibleSignature { data, custom, mandatory, reply } => {
                 match crate::services::pdf_pages::PdfPages::open(&data, None) {
                     Ok(pages) => {
                         self.visible_sig.custom_appearance = custom;
+                        self.visible_sig.mandatory = mandatory;
                         self.visible_sig.multi_document = false;
                         self.visible_sig.empty_fields.clear();
                         self.visible_sig.open_with("Documento PDF", Arc::new(pages));
@@ -342,14 +345,13 @@ impl AutoFirmaApp {
         let Some(proto) = self.proto.as_mut() else { return };
         match event {
             Some(RequestEvent::Accept(i)) => {
-                if let Some(c) = &proto.candidates {
-                    if let Some(e) = c.entries.get(i) {
+                if let Some(c) = &proto.candidates
+                    && let Some(e) = c.entries.get(i) {
                         proto.key_job = Some(spawn_key_job(ctx, c.store.clone(), e.id.clone()));
                         if let Some(v) = self.request.as_mut() {
                             v.stage = RequestStage::Working("Accediendo a la clave…".into());
                         }
                     }
-                }
             }
             Some(RequestEvent::Cancel) => {
                 if let Some(reply) = proto.cert_reply.take() {
@@ -383,8 +385,8 @@ impl AutoFirmaApp {
                 } else {
                     None
                 };
-                if id != "PKCS12" || lib.is_some() {
-                    if let (Some(spec), Some((extra, _))) = (crate::services::certs::spec_for(&id, lib), &proto.cert_request) {
+                if (id != "PKCS12" || lib.is_some())
+                    && let (Some(spec), Some((extra, _))) = (crate::services::certs::spec_for(&id, lib), &proto.cert_request) {
                         let bridge = self.rt.bridge.clone();
                         let extra = extra.clone();
                         proto.store_job = Some(Job::spawn(ctx, "almacen-web", move |_| load_candidates(&spec, &extra, bridge)));
@@ -392,7 +394,6 @@ impl AutoFirmaApp {
                             v.picker.loading = true;
                         }
                     }
-                }
             }
             _ => {}
         }
@@ -440,6 +441,12 @@ impl AutoFirmaApp {
                 VisibleSigEvent::Accepted(params, _) => {
                     if let Some(r) = proto.visible_reply.take() {
                         let _ = r.send(Ok(Some(params)));
+                    }
+                }
+                VisibleSigEvent::Cancelled if self.visible_sig.mandatory => {
+                    // Firma visible obligatoria: cancelar cancela la operación.
+                    if let Some(r) = proto.visible_reply.take() {
+                        let _ = r.send(Err(AfirmaError::cancelled()));
                     }
                 }
                 VisibleSigEvent::Invisible | VisibleSigEvent::Cancelled => {

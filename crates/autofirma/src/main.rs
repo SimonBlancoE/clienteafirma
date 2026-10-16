@@ -3,6 +3,9 @@
 // En Windows la aplicación es de ventana (sin consola); la línea de comandos
 // se engancha a la consola del proceso padre si existe.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+// `AfirmaError` (código, mensaje y causa) es el error común de todos los
+// crates; se devuelve tal cual en lugar de encajonarlo.
+#![allow(clippy::result_large_err)]
 
 mod cli;
 mod i18n;
@@ -18,6 +21,12 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     logging::init();
     platform::early_init();
+    services::config_verifier::register();
+    {
+        // Proxy y TLS de las preferencias para todas las conexiones del proceso.
+        let prefs = services::prefs::load();
+        services::network::install(&|k| prefs.get(k));
+    }
     let code = match launch::classify(&args) {
         Launch::Gui(start) => run_gui(start),
         Launch::Protocol(url) => {

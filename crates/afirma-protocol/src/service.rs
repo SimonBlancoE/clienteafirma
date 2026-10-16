@@ -223,11 +223,10 @@ async fn process_request(text: &str, st: &Arc<State>) -> String {
     let head = &text[..eof];
     let id_pos = head.find("idsession");
     let session = id_pos.map(|i| head.get(i + "idsession".len() + 1..).unwrap_or("").to_string());
-    if let Some(expected) = &st.session_id {
-        if session.as_deref() != Some(expected.as_str()) {
+    if let Some(expected) = &st.session_id
+        && session.as_deref() != Some(expected.as_str()) {
             return st.error(codes::INVALID_SESSION_ID);
         }
-    }
     let data = &head[..id_pos.unwrap_or(eof)];
     let Some((cmd, pos)) = COMMANDS.iter().find_map(|c| data.find(c).map(|p| (*c, p))) else {
         return st.error(codes::MALFORMED_REQUEST_TO_SOCKET);

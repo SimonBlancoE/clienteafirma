@@ -36,11 +36,10 @@ pub fn signing_certificate_v2(
         ess.push(cert.ess_issuer_serial());
     }
     let mut parts = vec![der::sequence([der::sequence(ess)])];
-    if include_policies {
-        if let Some(p) = cert.policy_informations() {
+    if include_policies
+        && let Some(p) = cert.policy_informations() {
             parts.push(der::sequence(p));
         }
-    }
     encode_attribute(oids::SIGNING_CERTIFICATE_V2, &[der::sequence(parts)])
 }
 
@@ -56,11 +55,10 @@ pub fn signing_certificate_v1(
         ess.push(cert.ess_issuer_serial());
     }
     let mut parts = vec![der::sequence([der::sequence(ess)])];
-    if include_policies {
-        if let Some(p) = cert.policy_informations() {
+    if include_policies
+        && let Some(p) = cert.policy_informations() {
             parts.push(der::sequence(p));
         }
-    }
     encode_attribute(oids::SIGNING_CERTIFICATE, &[der::sequence(parts)])
 }
 
@@ -178,30 +176,27 @@ pub fn generate_signed_attributes(
     if let Some(p) = &cfg.external_policy {
         out.push(sig_policy_id(p)?);
     }
-    if !is_countersign || cfg.profile != Profile::Baseline {
-        if let Some(ct) = &cfg.content_type_oid {
+    if (!is_countersign || cfg.profile != Profile::Baseline)
+        && let Some(ct) = &cfg.content_type_oid {
             out.push(content_hints(ct, cfg.content_description.as_deref())?);
         }
-    }
     for cti in &cfg.commitment_type_indications {
         out.push(commitment_type(cti)?);
     }
     if let Some(loc) = cfg.signer_location.as_ref().and_then(signer_location) {
         out.push(loc);
     }
-    if let Some(roles) = cfg.claimed_roles.as_ref().filter(|r| !r.is_empty()) {
-        if let Some(a) = signer_attr(roles, cfg.profile) {
+    if let Some(roles) = cfg.claimed_roles.as_ref().filter(|r| !r.is_empty())
+        && let Some(a) = signer_attr(roles, cfg.profile) {
             out.push(a);
         }
-    }
     if let Some(t) = &cfg.signing_time {
         out.push(encode_attribute(oids::SIGNING_TIME, &[der::utc_time(t)]));
     }
-    if !is_countersign {
-        if let Some(m) = &cfg.mime_type {
+    if !is_countersign
+        && let Some(m) = &cfg.mime_type {
             out.push(encode_attribute(oids::MIME_TYPE, &[der::utf8_string(m)]));
         }
-    }
     Ok(out)
 }
 

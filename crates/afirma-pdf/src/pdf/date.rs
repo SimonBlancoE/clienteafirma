@@ -447,7 +447,7 @@ pub fn java_format(t: &SignTime, pattern: &str) -> Option<String> {
                     'k' => pad(i64::from(if t.hour() == 0 { 24 } else { t.hour() }), n),
                     'K' => pad(i64::from(t.hour() % 12), n),
                     'h' => pad(
-                        i64::from(if t.hour() % 12 == 0 {
+                        i64::from(if t.hour().is_multiple_of(12) {
                             12
                         } else {
                             t.hour() % 12

@@ -691,7 +691,7 @@ fn run_action(ctx: &Context, a: &Action, st: &mut ExecState) -> Result<Change> {
                 path,
                 *allow_updates,
                 &prefs::remote::HttpsFetcher::default(),
-                None,
+                prefs::afconfig::default_verifier(),
             )?;
             Ok(Change::Changed)
         }

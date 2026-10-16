@@ -169,11 +169,10 @@ pub fn cosign_at(
     // Huella del ÚLTIMO firmante con el mismo algoritmo (el bucle de Java no se detiene).
     let mut md = None;
     for si in &sd.signer_infos {
-        if si.digest_oid.is(alg.digest.oid()) {
-            if let Some(m) = si.message_digest() {
+        if si.digest_oid.is(alg.digest.oid())
+            && let Some(m) = si.message_digest() {
                 md = Some(m);
             }
-        }
     }
     let attrs = match (&content, &md) {
         (Some(c), _) => vec![content_type_attr(), signing_time_attr(&now), message_digest_attr(&alg.digest.digest(c))],

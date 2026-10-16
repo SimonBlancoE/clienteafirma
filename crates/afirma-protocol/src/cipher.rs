@@ -128,7 +128,7 @@ fn des_cipher(key: &[u8], data: &[u8]) -> Result<String, CipherError> {
     let pad = (8 - data.len() % 8) % 8;
     let mut buf = data.to_vec();
     buf.resize(data.len() + pad, 0);
-    for chunk in buf.chunks_exact_mut(8) {
+    for chunk in buf.as_chunks_mut::<8>().0 {
         des.encrypt_block(blk::<Des>(chunk));
     }
     Ok(format!("{pad}.{}", jbase64::encode_url_safe(&buf)))
@@ -148,7 +148,7 @@ fn des_decipher(key: &[u8], text: &str) -> Result<Vec<u8>, CipherError> {
         return Err(crypto("Input length not multiple of 8 bytes".into()));
     }
     let des = des_from_key(key)?;
-    for chunk in data.chunks_exact_mut(8) {
+    for chunk in data.as_chunks_mut::<8>().0 {
         des.decrypt_block(blk::<Des>(chunk));
     }
     if padding > data.len() {
@@ -208,7 +208,7 @@ pub fn aes_cbc_encrypt(key: &[u8], iv: &[u8], data: &[u8]) -> Result<Vec<u8>, Ci
     buf.extend(std::iter::repeat_n(pad as u8, pad));
     let mut prev = [0u8; 16];
     prev.copy_from_slice(iv);
-    for chunk in buf.chunks_exact_mut(16) {
+    for chunk in buf.as_chunks_mut::<16>().0 {
         for (b, p) in chunk.iter_mut().zip(prev.iter()) {
             *b ^= p;
         }
@@ -222,13 +222,13 @@ pub fn aes_cbc_encrypt(key: &[u8], iv: &[u8], data: &[u8]) -> Result<Vec<u8>, Ci
 pub fn aes_cbc_decrypt(key: &[u8], iv: &[u8], data: &[u8]) -> Result<Vec<u8>, CipherError> {
     let aes = AesKey::new(key)?;
     check_iv(iv)?;
-    if data.is_empty() || data.len() % 16 != 0 {
+    if data.is_empty() || !data.len().is_multiple_of(16) {
         return Err(CipherError::Crypto("Input length must be multiple of 16 when decrypting with padded cipher".into()));
     }
     let mut buf = data.to_vec();
     let mut prev = [0u8; 16];
     prev.copy_from_slice(iv);
-    for chunk in buf.chunks_exact_mut(16) {
+    for chunk in buf.as_chunks_mut::<16>().0 {
         let mut saved = [0u8; 16];
         saved.copy_from_slice(chunk);
         aes.decrypt(chunk);

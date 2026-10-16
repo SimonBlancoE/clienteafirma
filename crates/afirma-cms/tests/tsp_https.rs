@@ -93,11 +93,10 @@ fn serve(p: &Pki, client_ca: Option<Vec<u8>>, requests: usize) -> (u16, std::thr
                 if l.is_empty() {
                     break;
                 }
-                if let Some((k, v)) = l.split_once(':') {
-                    if k.eq_ignore_ascii_case("content-length") {
+                if let Some((k, v)) = l.split_once(':')
+                    && k.eq_ignore_ascii_case("content-length") {
                         len = v.trim().parse().unwrap_or(0);
                     }
-                }
             }
             if !ok {
                 continue;

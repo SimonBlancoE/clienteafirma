@@ -91,6 +91,9 @@ pub struct VisibleSigEditor {
     drag_start: Option<Pos2>,
     pub page_mode: PageMode,
     pub multi_document: bool,
+    /// Firma visible obligatoria (`visibleSignature=want` desde la web): no
+    /// se ofrece firmar sin ella.
+    pub mandatory: bool,
     pub empty_fields: Vec<EmptyField>,
     pub selected_field: Option<usize>,
     // Apariencia.
@@ -122,6 +125,7 @@ impl Default for VisibleSigEditor {
             drag_start: None,
             page_mode: PageMode::Current,
             multi_document: false,
+            mandatory: false,
             empty_fields: Vec::new(),
             selected_field: None,
             custom_appearance: true,
@@ -146,7 +150,7 @@ impl VisibleSigEditor {
     /// Abre el editor sobre un documento.
     pub fn open_with(&mut self, title: impl Into<String>, source: Arc<dyn PageSource>) {
         self.title = title.into();
-        self.page = source.page_count().saturating_sub(1).min(0);
+        self.page = 0;
         self.source = Some(source);
         self.textures.clear();
         self.rect = None;
@@ -332,7 +336,9 @@ impl VisibleSigEditor {
                             Err(e) => self.error = Some(e),
                         }
                     }
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Firmar sin firma visible", true).clicked() {
+                    if !self.mandatory
+                        && widgets::button(ui, p, ButtonKind::Secondary, None, "Firmar sin firma visible", true).clicked()
+                    {
                         event = VisibleSigEvent::Invisible;
                     }
                     if widgets::button(ui, p, ButtonKind::Ghost, None, "Cancelar", true).clicked() {
@@ -383,18 +389,16 @@ impl VisibleSigEditor {
             let v = (pos - page_rect.min) / scale;
             Pos2::new(v.x.clamp(0.0, pw), v.y.clamp(0.0, ph))
         };
-        if response.drag_started() {
-            if let Some(pos) = response.interact_pointer_pos() {
+        if response.drag_started()
+            && let Some(pos) = response.interact_pointer_pos() {
                 self.drag_start = Some(to_pt(pos));
                 self.selected_field = None;
                 self.error = None;
             }
-        }
-        if let (Some(start), Some(pos)) = (self.drag_start, response.interact_pointer_pos()) {
-            if response.dragged() {
+        if let (Some(start), Some(pos)) = (self.drag_start, response.interact_pointer_pos())
+            && response.dragged() {
                 self.rect = Some(Rect::from_two_pos(start, to_pt(pos)));
             }
-        }
         if response.drag_stopped() {
             self.drag_start = None;
             if self.rect.is_some_and(|r| r.width() < 2.0 || r.height() < 2.0) {
@@ -574,7 +578,7 @@ impl VisibleSigEditor {
                 });
         });
         ui.horizontal(|ui| {
-            let mut toggle = |ui: &mut Ui, on: bool, text: RichText, tip: &str| -> bool {
+            let toggle = |ui: &mut Ui, on: bool, text: RichText, tip: &str| -> bool {
                 ui.add(egui::Button::selectable(on, text).min_size(Vec2::new(32.0, 28.0))).on_hover_text(tip).clicked()
             };
             if toggle(ui, self.bold, RichText::new("N").strong(), "Negrita") {
@@ -625,8 +629,8 @@ impl VisibleSigEditor {
             }
             None => {
                 ui.label(RichText::new("Puedes añadir tu rúbrica o el sello de tu organización.").size(12.5).color(p.text_muted));
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), "Elegir imagen…", true).clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
+                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), "Elegir imagen…", true).clicked()
+                    && let Some(path) = rfd::FileDialog::new()
                         .set_title("Selecciona la imagen de la firma")
                         .add_filter("Imágenes", &["jpg", "jpeg", "png", "gif", "bmp"])
                         .pick_file()
@@ -641,7 +645,6 @@ impl VisibleSigEditor {
                             Err(e) => self.error = Some(format!("No se ha podido leer la imagen: {e}")),
                         }
                     }
-                }
             }
         }
         ui.add_space(12.0);
@@ -721,8 +724,7 @@ mod tests {
 
     #[test]
     fn params_from_rectangle() {
-        let mut e = VisibleSigEditor::default();
-        e.source = Some(Arc::new(DemoPages));
+        let mut e = VisibleSigEditor { source: Some(Arc::new(DemoPages)), ..Default::default() };
         e.set_rect_pdf(0, 100.0, 50.0, 300.0, 150.0);
         let p = e.build_params().unwrap();
         assert_eq!(p.get("signaturePages"), Some("1"));

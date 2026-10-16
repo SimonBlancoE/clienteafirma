@@ -169,12 +169,11 @@ pub fn open_store(spec: &StoreSpec, opts: &OpenOptions) -> Result<Arc<dyn KeySto
         }
     }
     let store = open_uncached(spec, opts)?;
-    if cacheable(spec.kind, &opts.switches) {
-        if let Ok(mut c) = cache().lock() {
+    if cacheable(spec.kind, &opts.switches)
+        && let Ok(mut c) = cache().lock() {
             c.retain(|(k, _)| *k != key);
             c.push((key, store.clone()));
         }
-    }
     Ok(store)
 }
 
@@ -332,8 +331,8 @@ fn open_mozilla(kind: KeyStoreKind, opts: &OpenOptions) -> Result<Arc<dyn KeySto
         }
     }
     let (preferred, exclude_native_dnie) = add_preferred(&agg, opts);
-    if !preferred {
-        if let Ok(p) = &profile {
+    if !preferred
+        && let Ok(p) = &profile {
             let filter = ModuleFilter {
                 exclude_native_dnie,
                 disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
@@ -345,15 +344,13 @@ fn open_mozilla(kind: KeyStoreKind, opts: &OpenOptions) -> Result<Arc<dyn KeySto
                 agg.add(Arc::new(s));
             }
         }
-    }
-    if agg.is_empty() {
-        if let Some(e) = nss_error {
+    if agg.is_empty()
+        && let Some(e) = nss_error {
             return Err(match e {
                 KeyStoreError::Firefox(m) => KeyStoreError::Firefox(m),
                 other => KeyStoreError::load(kind, other.to_string()),
             });
         }
-    }
     Ok(Arc::new(agg))
 }
 
@@ -377,8 +374,8 @@ fn open_shared_nss(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreErro
         }
     }
     let (preferred, cancelled) = add_preferred(&agg, opts);
-    if !preferred {
-        if let Ok(d) = &dir {
+    if !preferred
+        && let Ok(d) = &dir {
             let filter = ModuleFilter {
                 exclude_native_dnie: cancelled,
                 disable_dnie_native_driver: opts.switches.disable_dnie_native_driver,
@@ -390,7 +387,6 @@ fn open_shared_nss(opts: &OpenOptions) -> Result<Arc<dyn KeyStore>, KeyStoreErro
                 agg.add(Arc::new(s));
             }
         }
-    }
     Ok(Arc::new(agg))
 }
 

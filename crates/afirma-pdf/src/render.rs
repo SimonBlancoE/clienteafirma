@@ -18,7 +18,7 @@ impl RgbaImage {
     /// Convierte a escala de grises (un byte por píxel, luminancia BT.601).
     pub fn to_gray(&self) -> Vec<u8> {
         self.data
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .map(|p| {
                 ((u32::from(p[0]) * 299 + u32::from(p[1]) * 587 + u32::from(p[2]) * 114 + 500)
                     / 1000) as u8

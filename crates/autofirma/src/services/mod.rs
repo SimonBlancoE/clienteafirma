@@ -3,9 +3,11 @@
 
 pub mod bridge;
 pub mod certs;
+pub mod config_verifier;
 pub mod desktop;
 pub mod files;
 pub mod messages;
+pub mod network;
 pub mod pdf_pages;
 pub mod prefs;
 pub mod protocol;

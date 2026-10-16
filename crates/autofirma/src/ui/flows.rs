@@ -34,17 +34,22 @@ pub enum SignStep {
 }
 
 /// Estado de ejecución (tareas, almacén, puente con la interfaz).
+/// Ficheros leídos y errores de lectura.
+pub type LoadedFiles = (Vec<FileItem>, Vec<String>);
+/// Carga de los certificados de un almacén de "Mis certificados".
+pub type CertsJob = Job<(), Result<Vec<super::model::CertItem>, String>>;
+
 pub struct Runtime {
     pub bridge: UiBridge,
     pub inbox: UiInbox,
-    pub load_job: Option<Job<(), (Vec<FileItem>, Vec<String>)>>,
+    pub load_job: Option<Job<(), LoadedFiles>>,
     pub store_job: Option<Job<(), Result<LoadedStore, String>>>,
     pub store: Option<Arc<LoadedStore>>,
     pub store_spec: StoreSpec,
     pub sign_job: Option<Job<SignProgress, Result<(), String>>>,
     pub verify_job: Option<Job<(), Result<SignatureReport, String>>>,
     pub tool_job: Option<Job<(), crate::services::tools::ToolOutcome>>,
-    pub certs_job: Option<(usize, Job<(), Result<Vec<super::model::CertItem>, String>>)>,
+    pub certs_job: Option<(usize, CertsJob)>,
     pub step: SignStep,
     pub visible_params: Option<ExtraParams>,
     pub toast: Option<(String, std::time::Instant)>,
@@ -186,6 +191,7 @@ impl AutoFirmaApp {
                             self.picker.store_label = store.label.clone();
                             self.sign.store_label = store.label.clone();
                             self.picker.set_certs(store.items.clone());
+                            self.picker.hidden_expired = store.hidden_expired;
                             self.rt.store = Some(Arc::new(store));
                         }
                         Err(e) => {
@@ -362,6 +368,7 @@ impl AutoFirmaApp {
         let Some(f) = self.sign.files.get(index) else { return };
         match crate::services::pdf_pages::PdfPages::open(&f.data, None) {
             Ok(pages) => {
+                self.visible_sig.mandatory = false;
                 self.visible_sig.multi_document = self.sign.files.iter().filter(|f| f.format == "PAdES").count() > 1;
                 self.visible_sig.empty_fields = afirma_pdf::info::empty_signature_fields(&f.data)
                     .into_iter()
@@ -384,14 +391,13 @@ impl AutoFirmaApp {
         let needs_visible = self.sign.visible_signature
             && self.rt.visible_params.is_none()
             && self.sign.files.iter().any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
-        if needs_visible {
-            if let Some(i) = self.sign.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF") {
+        if needs_visible
+            && let Some(i) = self.sign.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF") {
                 self.open_visible_editor(i);
                 if self.rt.step == SignStep::VisibleSignature {
                     return;
                 }
             }
-        }
         self.rt.step = SignStep::ChooseCertificate;
         self.picker.accept_label = "Firmar".into();
         self.open_picker(ctx);
@@ -563,13 +569,11 @@ impl AutoFirmaApp {
                     }
                 }
                 VerifyAction::ExportCertificate(i) => {
-                    if let Some(der) = self.verify.report.as_ref().and_then(|r| r.signatures.get(i)).map(|s| s.cert_der.clone()) {
-                        if let Some(path) = rfd::FileDialog::new().set_file_name("certificado.cer").save_file() {
-                            if let Err(e) = std::fs::write(&path, der) {
+                    if let Some(der) = self.verify.report.as_ref().and_then(|r| r.signatures.get(i)).map(|s| s.cert_der.clone())
+                        && let Some(path) = rfd::FileDialog::new().set_file_name("certificado.cer").save_file()
+                            && let Err(e) = std::fs::write(&path, der) {
                                 self.notify(format!("No se ha podido guardar: {e}"));
                             }
-                        }
-                    }
                 }
             }
         }
@@ -646,17 +650,15 @@ impl AutoFirmaApp {
                 }
                 ToolOutcome::Check { ok, title, detail, report_xml } => {
                     self.tools.result = Some((if ok { CalloutKind::Success } else { CalloutKind::Warning }, title, detail));
-                    if let Some(xml) = report_xml {
-                        if !ok {
-                            if let Some(path) = rfd::FileDialog::new()
+                    if let Some(xml) = report_xml
+                        && !ok
+                            && let Some(path) = rfd::FileDialog::new()
                                 .set_title("Guardar informe de huellas digitales")
                                 .set_file_name("informe.hashreport")
                                 .save_file()
                             {
                                 let _ = std::fs::write(path, xml);
                             }
-                        }
-                    }
                 }
                 ToolOutcome::Doctor(rows) => {
                     if self.page != Page::Tools {
@@ -801,8 +803,8 @@ impl AutoFirmaApp {
             self.rt.certs_job = None;
         }
         for ev in events {
-            if let JobEvent::Done(r) = ev {
-                if let Some(s) = self.certificates.stores.get_mut(index) {
+            if let JobEvent::Done(r) = ev
+                && let Some(s) = self.certificates.stores.get_mut(index) {
                     s.loading = false;
                     match r {
                         Ok(items) => s.certs = Some(items),
@@ -812,7 +814,6 @@ impl AutoFirmaApp {
                         }
                     }
                 }
-            }
         }
     }
 
@@ -901,13 +902,11 @@ impl AutoFirmaApp {
                 }
                 CertsAction::Export(si, ci) => {
                     let der = self.certificates.stores.get(si).and_then(|s| s.certs.as_ref()).and_then(|c| c.get(ci)).map(|c| (c.der.clone(), c.info.subject_cn.clone()));
-                    if let Some((der, cn)) = der {
-                        if let Some(path) = rfd::FileDialog::new().set_file_name(format!("{cn}.cer")).add_filter("Certificado (*.cer)", &["cer"]).save_file() {
-                            if let Err(e) = std::fs::write(&path, der) {
+                    if let Some((der, cn)) = der
+                        && let Some(path) = rfd::FileDialog::new().set_file_name(format!("{cn}.cer")).add_filter("Certificado (*.cer)", &["cer"]).save_file()
+                            && let Err(e) = std::fs::write(&path, der) {
                                 self.notify(format!("No se ha podido guardar: {e}"));
                             }
-                        }
-                    }
                 }
             }
         }

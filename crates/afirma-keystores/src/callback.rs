@@ -372,11 +372,10 @@ impl PinCache {
     }
 
     fn expire(&self, s: &mut PinCacheState) {
-        if let Some(t) = s.first_request {
-            if t.elapsed() >= self.ttl {
+        if let Some(t) = s.first_request
+            && t.elapsed() >= self.ttl {
                 *s = PinCacheState::default();
             }
-        }
     }
 }
 
@@ -398,11 +397,10 @@ impl PasswordCallback for PinCache {
             }
         }
         let response = self.inner.request_password(request);
-        if let PasswordResponse::Provided { secret, remember: true } = &response {
-            if let Ok(mut s) = self.state.lock() {
+        if let PasswordResponse::Provided { secret, remember: true } = &response
+            && let Ok(mut s) = self.state.lock() {
                 s.pin = Some(secret.clone());
             }
-        }
         response
     }
 
@@ -414,14 +412,13 @@ impl PasswordCallback for PinCache {
             }
         }
         let ok = self.inner.confirm_signature(request);
-        if ok {
-            if let Ok(mut s) = self.state.lock() {
+        if ok
+            && let Ok(mut s) = self.state.lock() {
                 // Como `DnieCacheCallbackHandler`: una vez autorizada, no se
                 // vuelve a preguntar mientras viva la caché (se vacía con el
                 // temporizador de 1 h o al recargar el almacén).
                 s.confirmed = true;
             }
-        }
         ok
     }
 

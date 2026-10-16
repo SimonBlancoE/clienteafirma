@@ -274,8 +274,8 @@ impl<'a> Edit<'a> {
 /// Nombre `SignatureN` libre.
 fn next_signature_name(doc: &PdfDoc) -> String {
     let mut names: BTreeSet<String> = doc.form_fields().into_iter().map(|f| f.name).collect();
-    if let Some(form) = doc.acroform() {
-        if let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
+    if let Some(form) = doc.acroform()
+        && let Some(Object::Array(fields)) = doc.dict_get(form, b"Fields") {
             fn walk(
                 doc: &PdfDoc,
                 o: &Object,
@@ -309,7 +309,6 @@ fn next_signature_name(doc: &PdfDoc) -> String {
                 walk(doc, f, "", &mut names, 0);
             }
         }
-    }
     let mut k = 1;
     loop {
         let n = format!("Signature{k}");
@@ -601,11 +600,10 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
         let widget_id = item
             .widget_id
             .ok_or_else(|| errors::internal("El campo de firma no es un objeto indirecto"))?;
-        if let Some(vid) = item.value_id {
-            if let Some(d) = ed.dict_mut(vid) {
+        if let Some(vid) = item.value_id
+            && let Some(d) = ed.dict_mut(vid) {
                 d.set("V", Object::Reference(sig_id));
             }
-        }
         if let Some(wd) = ed.dict_mut(widget_id) {
             wd.set("P", Object::Reference(page_id));
             let old_f = wd.get(b"F").and_then(Object::as_i64).unwrap_or(0);
@@ -730,13 +728,12 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
     update_acroform(&mut ed, root_id, new_field_ref, frm_for_dr);
 
     // Certificación (DocMDP).
-    if cert_level > 0 {
-        if let Some(cat) = ed.dict_mut(root_id) {
+    if cert_level > 0
+        && let Some(cat) = ed.dict_mut(root_id) {
             let mut perms = Dictionary::new();
             perms.set("DocMDP", Object::Reference(sig_id));
             cat.set("Perms", Object::Dictionary(perms));
         }
-    }
 
     // Versión del documento.
     if let Some(v) = pdf_version(xp) {
@@ -756,11 +753,10 @@ pub fn prepare(input: &PrepareInput<'_>) -> Result<Prepared, AfirmaError> {
                     .ok()
             });
         let current = header_minor.max(catalog_minor).unwrap_or(7);
-        if doc.header_version.starts_with("1.") && current < v && !is_pdfa {
-            if let Some(cat) = ed.dict_mut(root_id) {
+        if doc.header_version.starts_with("1.") && current < v && !is_pdfa
+            && let Some(cat) = ed.dict_mut(root_id) {
                 cat.set("Version", Object::Name(format!("1.{v}").into_bytes()));
             }
-        }
     }
 
     // Info /ModDate.
@@ -1042,11 +1038,10 @@ fn append_blank_page(
     );
     pd.set("Parent", Object::Reference(parent));
     let new_id = ed.new_editable(Object::Dictionary(pd));
-    if let Some(d) = ed.dict_mut(parent) {
-        if let Ok(Object::Array(kids)) = d.get_mut(b"Kids") {
+    if let Some(d) = ed.dict_mut(parent)
+        && let Ok(Object::Array(kids)) = d.get_mut(b"Kids") {
             kids.push(Object::Reference(new_id));
         }
-    }
     // Incremento de /Count en todos los ascendientes.
     let mut cur = Some(parent);
     let mut guard = 0;
@@ -1192,11 +1187,10 @@ fn update_xmp(ed: &mut Edit<'_>, root: ObjectId, t: &SignTime, add_history: bool
         return;
     };
     let mut new_text = crate::xmp::update_dates(&text, t);
-    if add_history {
-        if let Some(h) = crate::xmp::add_sign_history(&new_text, t) {
+    if add_history
+        && let Some(h) = crate::xmp::add_sign_history(&new_text, t) {
             new_text = h;
         }
-    }
     if new_text == text {
         return;
     }
@@ -1409,22 +1403,20 @@ fn collect_name_tree(ed: &Edit<'_>, node: &Object, out: &mut Vec<(Vec<u8>, Objec
         return;
     }
     let Object::Dictionary(d) = node else { return };
-    if let Ok(names) = d.get(b"Names") {
-        if let Object::Array(a) = ed.resolve(names) {
+    if let Ok(names) = d.get(b"Names")
+        && let Object::Array(a) = ed.resolve(names) {
             for pair in a.chunks(2) {
                 if let [Object::String(n, _), v] = pair {
                     out.push((n.clone(), v.clone()));
                 }
             }
         }
-    }
-    if let Ok(kids) = d.get(b"Kids") {
-        if let Object::Array(a) = ed.resolve(kids) {
+    if let Ok(kids) = d.get(b"Kids")
+        && let Object::Array(a) = ed.resolve(kids) {
             for k in a {
                 collect_name_tree(ed, &ed.resolve(&k), out, depth + 1);
             }
         }
-    }
 }
 
 /// Reconstruye un PDF dañado (sin firmas ni cifrado) como un fichero nuevo.

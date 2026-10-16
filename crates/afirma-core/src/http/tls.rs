@@ -211,11 +211,10 @@ pub fn certificate_matches_host(cert_der: &[u8], host: &str) -> bool {
                     }
                 }
                 GeneralName::IPAddress(bytes) => {
-                    if let Some(ip) = ip_to_java_string(bytes) {
-                        if matches_host(&host, &ip, true) {
+                    if let Some(ip) = ip_to_java_string(bytes)
+                        && matches_host(&host, &ip, true) {
                             return true;
                         }
-                    }
                 }
                 _ => {}
             }

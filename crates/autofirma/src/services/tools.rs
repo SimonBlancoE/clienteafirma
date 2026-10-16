@@ -1,6 +1,6 @@
 //! Herramientas: huellas digitales, diagnóstico e integración con el sistema.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use afirma_hash::document::DirDocumentFormat;
 use afirma_hash::single::FileHashFormat;
@@ -97,11 +97,10 @@ fn row_from(c: &afirma_system::doctor::Check) -> CheckRow {
         CheckStatus::Skipped => None,
     };
     let mut detail = c.detail.clone();
-    if let Some(f) = &c.fix {
-        if ok == Some(false) {
+    if let Some(f) = &c.fix
+        && ok == Some(false) {
             detail = format!("{detail} {f}");
         }
-    }
     CheckRow { ok, title: c.title.clone(), detail }
 }
 
@@ -136,11 +135,6 @@ pub fn repair() -> ToolOutcome {
         rows.append(&mut after);
     }
     ToolOutcome::Doctor(rows)
-}
-
-/// Propuesta de ruta para guardar junto a `near`.
-pub fn proposed_path(near: &Path, name: &str) -> PathBuf {
-    near.parent().map(|d| d.join(name)).unwrap_or_else(|| PathBuf::from(name))
 }
 
 /// Formato de documento de huellas según la extensión elegida al guardar.

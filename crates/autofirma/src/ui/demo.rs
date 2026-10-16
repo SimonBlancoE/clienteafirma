@@ -14,13 +14,11 @@ fn test_certs() -> Vec<CertItem> {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki");
     let mut certs = Vec::new();
     for name in ["firmante-rsa", "firmante-ec", "autenticacion", "caducado"] {
-        if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt"))) {
-            if let Some(der) = afirma_core::cert::decode_certificate(&pem) {
-                if let Some(c) = CertItem::from_der(name, der) {
+        if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt")))
+            && let Some(der) = afirma_core::cert::decode_certificate(&pem)
+                && let Some(c) = CertItem::from_der(name, der) {
                     certs.push(c);
                 }
-            }
-        }
     }
     certs
 }
@@ -133,13 +131,11 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki");
         let mut certs = Vec::new();
         for name in ["firmante-rsa", "firmante-ec", "autenticacion", "caducado"] {
-            if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt"))) {
-                if let Some(der) = afirma_core::cert::decode_certificate(&pem) {
-                    if let Some(c) = CertItem::from_der(name, der) {
+            if let Ok(pem) = std::fs::read(dir.join(format!("{name}.crt")))
+                && let Some(der) = afirma_core::cert::decode_certificate(&pem)
+                    && let Some(c) = CertItem::from_der(name, der) {
                         certs.push(c);
                     }
-                }
-            }
         }
         app.picker.stores = vec![
             StoreOption { id: "system".into(), label: "Almacén del sistema".into(), icon: icons::VAULT },

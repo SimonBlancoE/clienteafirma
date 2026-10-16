@@ -52,7 +52,7 @@ pub fn is_base64(data: &[u8]) -> bool {
             count += 1;
         }
     }
-    count % 4 == 0
+    count.is_multiple_of(4)
 }
 
 /// Fecha en el formato de `SigningTime` de jxades

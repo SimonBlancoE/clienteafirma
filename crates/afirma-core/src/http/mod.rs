@@ -580,11 +580,10 @@ pub fn download_data(
         let uri = crate::aoutil::create_uri(trimmed).map_err(|e| DownloadError::Io(e.to_string()))?;
         return crate::aoutil::load_file(&uri, client).map_err(|e| DownloadError::Io(e.to_string()));
     }
-    if crate::base64::is_base64(ds) {
-        if let Ok(d) = crate::base64::decode(&ds.replace('_', "/").replace('-', "+")) {
+    if crate::base64::is_base64(ds)
+        && let Ok(d) = crate::base64::decode(&ds.replace('_', "/").replace('-', "+")) {
             return Ok(d);
         }
-    }
     Ok(ds.as_bytes().to_vec())
 }
 

@@ -620,14 +620,13 @@ pub fn verify_signer(
             if !signature_ok {
                 // Como Bouncy Castle: se prueba también con los atributos en
                 // orden DER (firmas de terceros con el SET sin ordenar).
-                if let Ok(t) = Tlv::parse_single(attrs) {
-                    if let Ok(children) = t.children() {
+                if let Ok(t) = Tlv::parse_single(attrs)
+                    && let Ok(children) = t.children() {
                         let sorted = der::set_of(children.iter().map(|c| c.raw.to_vec()));
                         if sorted != *attrs {
                             signature_ok = verify_signature(cert, digest, &sorted, &si.signature)?;
                         }
                     }
-                }
             }
             Ok(SignerCheck {
                 digest_ok,

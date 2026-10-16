@@ -131,11 +131,10 @@ impl PadesSigner {
         let tsa = TsaParams::from_extra_params(&xp)?;
         let ts_type = xp.get(TS_TYPE).unwrap_or("").trim().to_string();
         let mut data = data.to_vec();
-        if let Some(tp) = &tsa {
-            if ts_type == "2" || ts_type == "3" {
+        if let Some(tp) = &tsa
+            && (ts_type == "2" || ts_type == "3") {
                 data = self.document_timestamp(&data, &xp, &sign_time, tp)?;
             }
-        }
         let pre = self.presign(&data, alg, &chain, sign_time, &xp)?;
         let pkcs1 = key.sign(&pre.signed_attributes, alg)?;
         match cms::verify_signature(&chain[0], alg.digest, &pre.signed_attributes, &pkcs1) {
@@ -640,8 +639,8 @@ pub fn configure_respectful_properties(data: &[u8], config: &mut ExtraParams) {
         if d.get(b"Type").and_then(lopdf::Object::as_name).ok() != Some(b"Sig".as_slice()) {
             continue;
         }
-        if let Ok(sf) = d.get(b"SubFilter").and_then(lopdf::Object::as_name) {
-            if matches!(
+        if let Ok(sf) = d.get(b"SubFilter").and_then(lopdf::Object::as_name)
+            && matches!(
                 sf,
                 b"adbe.pkcs7.detached" | b"ETSI.CAdES.detached" | b"adbe.pkcs7.sha1"
             ) {
@@ -651,7 +650,6 @@ pub fn configure_respectful_properties(data: &[u8], config: &mut ExtraParams) {
                 );
                 return;
             }
-        }
     }
 }
 

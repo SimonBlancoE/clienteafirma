@@ -459,8 +459,8 @@ pub fn err21_intervention(format: TriphaseFormat, code: &str, extra: &ExtraParam
 /// operación (`buildInternalException` + `getInternalException`).
 pub fn server_error(msg: &str, presign: bool, format: TriphaseFormat, extra: &ExtraParams) -> AfirmaError {
     let sep = msg.find(':').unwrap_or(msg.len());
-    if msg.starts_with("ERR-21:") {
-        if let Some(sep2) = msg[sep + 1..].find(':').map(|p| p + sep + 1) {
+    if msg.starts_with("ERR-21:")
+        && let Some(sep2) = msg[sep + 1..].find(':').map(|p| p + sep + 1) {
             let code = &msg[sep + 1..sep2];
             let text = &msg[sep2 + 1..];
             if let Some(i) = err21_intervention(format, code, extra) {
@@ -471,7 +471,6 @@ pub fn server_error(msg: &str, presign: bool, format: TriphaseFormat, extra: &Ex
                 };
             }
         }
-    }
     let tri_code = &msg[..sep];
     let rest = msg.get(sep + 1..).unwrap_or("");
     let (class_name, int_message) = match rest.find(':') {

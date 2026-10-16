@@ -540,18 +540,16 @@ impl PdfDoc {
                     if let Some(t) = &t {
                         name = format!("{t}.{name}");
                     }
-                    if last_v.is_none() {
-                        if let Ok(v) = d.get(b"V") {
+                    if last_v.is_none()
+                        && let Ok(v) = d.get(b"V") {
                             last_v = Some(self.resolve(v).clone());
                         }
-                    }
                     if value.is_none() && t.is_some() {
                         let mut vd = d.clone();
-                        if vd.get(b"V").is_err() {
-                            if let Some(lv) = &last_v {
+                        if vd.get(b"V").is_err()
+                            && let Some(lv) = &last_v {
                                 vd.set("V", lv.clone());
                             }
-                        }
                         value = Some((cur_id, vd));
                     }
                     cur = d.get(b"Parent").ok().and_then(|p| {
@@ -588,8 +586,8 @@ impl PdfDoc {
             .dict_get(top, b"SigFlags")
             .and_then(|o| o.as_i64().ok())
             .unwrap_or(0);
-        if sig_flags & 1 == 1 {
-            if let Some(Object::Array(fields)) = self.dict_get(top, b"Fields") {
+        if sig_flags & 1 == 1
+            && let Some(Object::Array(fields)) = self.dict_get(top, b"Fields") {
                 for f in fields {
                     let Some(annot) = self.dict(f) else { continue };
                     if self.dict_get_name(annot, b"Subtype") != Some(b"Widget")
@@ -620,7 +618,6 @@ impl PdfDoc {
                     });
                 }
             }
-        }
         items
     }
 

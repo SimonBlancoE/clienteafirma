@@ -396,9 +396,9 @@ pub fn get_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
             .child_elements(referenced)
             .filter(|&c| local_name(&doc, c) == Some("Signature"))
             .collect();
-        if referenced != root {
-            if let Some(&first) = doc.children(referenced).first() {
-                if matches!(doc.kind(first), NodeKind::Text { .. }) {
+        if referenced != root
+            && let Some(&first) = doc.children(referenced).first()
+                && matches!(doc.kind(first), NodeKind::Text { .. }) {
                     let mut text = String::new();
                     for c in doc.descendants(referenced) {
                         if sigs.iter().any(|s| doc.descendants(*s).contains(&c)) {
@@ -410,8 +410,6 @@ pub fn get_data(sign: &[u8]) -> afirma_core::Result<Option<Vec<u8>>> {
                     }
                     return decode_or_raw(&text, base64_declared(&doc, r0)).map(Some);
                 }
-            }
-        }
         return Ok(Some(xml_bytes(&standalone_element(
             &doc, referenced, &sigs,
         ))));

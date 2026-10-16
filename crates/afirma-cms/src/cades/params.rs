@@ -116,14 +116,13 @@ pub fn signer_location(params: &ExtraParams) -> afirma_core::Result<Option<Signe
     if postal.is_none() && country.is_none() && locality.is_none() {
         return Ok(None);
     }
-    if let Some(p) = &postal {
-        if p.len() > 6 {
+    if let Some(p) = &postal
+        && p.len() > 6 {
             return Err(AfirmaError::invalid_argument(format!(
                 "La direccion postal debe tener un maximo de seis lineas, y se han proporcionado {}",
                 p.len()
             )));
         }
-    }
     Ok(Some(SignerLocation { country, locality, postal_address: postal }))
 }
 
@@ -200,23 +199,20 @@ impl CadesParameters {
                     if found {
                         break;
                     }
-                    if mimetype_needed && mime.is_none() {
-                        if let Some(v) = si.signed_attr(oids::MIME_TYPE).and_then(|a| a.first_value()) {
+                    if mimetype_needed && mime.is_none()
+                        && let Some(v) = si.signed_attr(oids::MIME_TYPE).and_then(|a| a.first_value()) {
                             mime = v.as_string().ok();
                             found = true;
                         }
-                    }
-                    if content_hint_needed && oid.is_none() {
-                        if let Some(v) = si.signed_attr(oids::CONTENT_HINT).and_then(|a| a.first_value()) {
-                            if let Some((d, o)) = parse_content_hints(&v) {
+                    if content_hint_needed && oid.is_none()
+                        && let Some(v) = si.signed_attr(oids::CONTENT_HINT).and_then(|a| a.first_value())
+                            && let Some((d, o)) = parse_content_hints(&v) {
                                 oid = Some(o);
                                 if desc.is_none() {
                                     desc = d;
                                 }
                                 found = true;
                             }
-                        }
-                    }
                     if mime.is_some() && oid.is_none() {
                         let o = mime::mime_to_oid(mime.as_deref());
                         oid = (o != mime::DEFAULT_CONTENT_OID_DATA).then(|| o.to_string());

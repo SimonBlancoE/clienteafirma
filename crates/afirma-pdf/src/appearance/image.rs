@@ -78,8 +78,8 @@ fn jpeg_info(data: &[u8]) -> Option<(u32, u32, u8, bool)> {
 impl PdfImage {
     /// Prepara una imagen a partir de sus bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<PdfImage, ImageError> {
-        if let Some((w, h, comps, adobe)) = jpeg_info(bytes) {
-            if w > 0 && h > 0 {
+        if let Some((w, h, comps, adobe)) = jpeg_info(bytes)
+            && w > 0 && h > 0 {
                 let mut d = Dictionary::new();
                 d.set("Type", Object::Name(b"XObject".to_vec()));
                 d.set("Subtype", Object::Name(b"Image".to_vec()));
@@ -111,7 +111,6 @@ impl PdfImage {
                     smask: None,
                 });
             }
-        }
         let img = image::load_from_memory(bytes).map_err(|_| ImageError::Unsupported)?;
         let rgba = img.to_rgba8();
         let (w, h) = (rgba.width(), rgba.height());

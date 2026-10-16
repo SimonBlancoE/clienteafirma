@@ -243,11 +243,10 @@ where
             Ok(_) => continue,
         };
         let reply = handle_message(&text, peer, &origin, &st).await;
-        if let Some(r) = reply {
-            if sink.send(Message::Text(r.into())).await.is_err() {
+        if let Some(r) = reply
+            && sink.send(Message::Text(r.into())).await.is_err() {
                 break;
             }
-        }
     }
 }
 
@@ -291,11 +290,10 @@ async fn handle_message(message: &str, peer: SocketAddr, origin: &Option<String>
     if !local {
         return Some(format_error(Some(st.version), codes::EXTERNAL_REQUEST, locale));
     }
-    if let Some(expected) = &st.session_id {
-        if message_session_id(message).as_deref() != Some(expected.as_str()) {
+    if let Some(expected) = &st.session_id
+        && message_session_id(message).as_deref() != Some(expected.as_str()) {
             return Some(format_error(Some(st.version), codes::INVALID_SESSION_ID, locale));
         }
-    }
     mark_working(st);
     if message.starts_with("echo=") {
         return Some("OK".into());

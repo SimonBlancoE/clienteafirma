@@ -430,6 +430,19 @@ pub trait ConfigSignatureVerifier: Send + Sync {
     fn verify(&self, xml: &[u8]) -> Result<ConfigSigner, ConfigError>;
 }
 
+static DEFAULT_VERIFIER: std::sync::OnceLock<Box<dyn ConfigSignatureVerifier>> = std::sync::OnceLock::new();
+
+/// Registra el verificador XMLDSig del proceso (la aplicación lo hace al arrancar con
+/// `afirma-xml`). Lo usan la instalación (`--config-path`) y la actualización diaria.
+pub fn set_default_verifier(verifier: Box<dyn ConfigSignatureVerifier>) {
+    let _ = DEFAULT_VERIFIER.set(verifier);
+}
+
+/// Verificador registrado con [`set_default_verifier`].
+pub fn default_verifier() -> Option<&'static dyn ConfigSignatureVerifier> {
+    DEFAULT_VERIFIER.get().map(|v| v.as_ref())
+}
+
 /// Resultado de la comprobación de firma.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignatureStatus {

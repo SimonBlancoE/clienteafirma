@@ -170,11 +170,10 @@ impl RequestView {
                     ui.checkbox(&mut self.picker.remember, RichText::new("Recordar durante la sesión").size(13.0));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let can = self.picker.selected.is_some() && !self.picker.loading;
-                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), self.info.op.action_label(), can).clicked() {
-                            if let Some(i) = self.picker.selected {
+                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), self.info.op.action_label(), can).clicked()
+                            && let Some(i) = self.picker.selected {
                                 ev = RequestEvent::Accept(i);
                             }
-                        }
                         if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() {
                             ev = RequestEvent::Cancel;
                         }

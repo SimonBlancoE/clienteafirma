@@ -21,11 +21,10 @@ fn pdfdoc_byte(c: char) -> Option<u8> {
     if let Some(i) = PDFDOC_18.iter().position(|&x| u32::from(x) == u) {
         return Some(0x18 + i as u8);
     }
-    if u != 0 {
-        if let Some(i) = PDFDOC_80.iter().position(|&x| u32::from(x) == u) {
+    if u != 0
+        && let Some(i) = PDFDOC_80.iter().position(|&x| u32::from(x) == u) {
             return Some(0x80 + i as u8);
         }
-    }
     None
 }
 

@@ -109,21 +109,19 @@ pub fn profiles_ini_candidates(env: &MozEnv) -> Vec<PathBuf> {
 
 /// Ruta de `profiles.ini` (`MozillaKeyStoreUtilities.getProfilesIniPath`).
 pub fn profiles_ini_path(env: &MozEnv) -> Option<PathBuf> {
-    if env.use_env_vars() {
-        if let Some(p) = env.var(AFIRMA_NSS_PROFILES_INI) {
+    if env.use_env_vars()
+        && let Some(p) = env.var(AFIRMA_NSS_PROFILES_INI) {
             let mut p = p.to_string();
-            if let Some(idx) = p.to_uppercase().find("%APPDATA%") {
-                if let Some(app) = env.windows_app_data() {
+            if let Some(idx) = p.to_uppercase().find("%APPDATA%")
+                && let Some(app) = env.windows_app_data() {
                     p.replace_range(idx..idx + "%APPDATA%".len(), &app.to_string_lossy());
                 }
-            }
             let path = PathBuf::from(&p);
             if path.is_file() && std::fs::File::open(&path).is_ok() {
                 return Some(path);
             }
             tracing::warn!("La variable de entorno '{AFIRMA_NSS_PROFILES_INI}' apunta a un fichero que no existe o sobre el que no se tienen permisos de lectura, se ignorara");
         }
-    }
     let candidates = profiles_ini_candidates(env);
     match env.os {
         Os::Windows | Os::MacOs => candidates.into_iter().next(),
@@ -236,14 +234,13 @@ impl ProfilesIni {
                     Some(g) => out.general = g,
                     None => tracing::warn!("No se ha podido leer la seccion general del fichero de perfiles de Firefox"),
                 }
-            } else if starts_with_ci(line, "[install") {
-                if let Some(s) = parse_state(&body) {
+            } else if starts_with_ci(line, "[install")
+                && let Some(s) = parse_state(&body) {
                     // Con varias secciones prevalece la que declara Locked=.
                     if out.state.as_ref().is_none_or(|st| !st.locked_declared) {
                         out.state = Some(s);
                     }
                 }
-            }
         }
         out
     }
@@ -328,11 +325,10 @@ pub fn select_profile(ini: &ProfilesIni) -> Option<PathBuf> {
     } else {
         ini.state.as_ref().and_then(|s| ini.profiles.iter().find(|p| p.path == s.default_profile_path))
     };
-    if let Some(p) = active {
-        if !is_dummy_profile(&p.absolute_path) {
+    if let Some(p) = active
+        && !is_dummy_profile(&p.absolute_path) {
             return Some(p.absolute_path.clone());
         }
-    }
     if let Some(p) = ini.profiles.iter().find(|p| !is_dummy_profile(&p.absolute_path) && p.default) {
         return Some(p.absolute_path.clone());
     }

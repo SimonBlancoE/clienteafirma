@@ -198,11 +198,10 @@ fn base64_content_encoding() {
             if l.is_empty() {
                 break;
             }
-            if let Some((k, v)) = l.split_once(':') {
-                if k.eq_ignore_ascii_case("content-length") {
+            if let Some((k, v)) = l.split_once(':')
+                && k.eq_ignore_ascii_case("content-length") {
                     len = v.trim().parse().unwrap();
                 }
-            }
         }
         let mut body = vec![0u8; len];
         reader.read_exact(&mut body).unwrap();

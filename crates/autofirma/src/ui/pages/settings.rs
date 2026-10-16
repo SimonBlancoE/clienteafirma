@@ -23,8 +23,21 @@ pub trait PrefStore {
     fn set(&mut self, key: &str, value: Option<&str>);
     /// Indica si la organización ha bloqueado la clave.
     fn is_locked(&self, key: &str) -> bool;
-    /// Valor por defecto de fábrica.
-    fn default_value(&self, key: &str) -> Option<String>;
+    /// Configuración efectiva como fichero `.afconfig`.
+    fn export_config(&self) -> Result<String, String> {
+        Err("La exportación no está disponible en este modo".into())
+    }
+    /// Analiza un `.afconfig` y comprueba su firma (sin aplicarlo todavía).
+    fn prepare_import(&self, _data: &[u8]) -> Result<afirma_system::prefs::PreparedImport, String> {
+        Err("La importación no está disponible en este modo".into())
+    }
+    /// Aplica una importación confirmada; devuelve un resumen.
+    fn apply_import(&mut self, _prepared: &afirma_system::prefs::PreparedImport) -> Result<String, String> {
+        Err("La importación no está disponible en este modo".into())
+    }
+    /// Vuelve a los valores de fábrica (borra los del usuario; las tarjetas
+    /// añadidas se conservan).
+    fn restore_defaults(&mut self);
 }
 
 /// Preferencias en memoria (demostración y pruebas).
@@ -48,8 +61,8 @@ impl PrefStore for MemoryPrefs {
     fn is_locked(&self, key: &str) -> bool {
         self.locked.iter().any(|k| k == key)
     }
-    fn default_value(&self, key: &str) -> Option<String> {
-        self.defaults.get(key).cloned()
+    fn restore_defaults(&mut self) {
+        self.values.clear();
     }
 }
 

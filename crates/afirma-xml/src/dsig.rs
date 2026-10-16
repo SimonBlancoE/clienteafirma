@@ -270,8 +270,8 @@ impl<'a> RefContext<'a> {
             .ok_or_else(|| DsigError::Malformed("Transform sin Algorithm".into()))?
             .to_string();
         if let Some(mut method) = C14n::from_uri(&alg) {
-            if method.kind == Kind::Exclusive {
-                if let Some(inc) = sdoc.find_child(transform, EXC_C14N_NS, "InclusiveNamespaces") {
+            if method.kind == Kind::Exclusive
+                && let Some(inc) = sdoc.find_child(transform, EXC_C14N_NS, "InclusiveNamespaces") {
                     let list = sdoc
                         .element(inc)
                         .and_then(|e| e.attr("PrefixList"))
@@ -279,7 +279,6 @@ impl<'a> RefContext<'a> {
                     method =
                         method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
                 }
-            }
             let data = to_nodes(data)?;
             let Data::Nodes(d, set) = data else {
                 unreachable!()
@@ -410,11 +409,10 @@ impl<'a> RefContext<'a> {
                         let mut t = String::new();
                         for i in 0..doc.len() {
                             let id = NodeId(i);
-                            if set.contains_node(id) {
-                                if let NodeKind::Text { text, .. } = doc.kind(id) {
+                            if set.contains_node(id)
+                                && let NodeKind::Text { text, .. } = doc.kind(id) {
                                     t.push_str(text);
                                 }
-                            }
                         }
                         t
                     }
@@ -432,11 +430,10 @@ impl<'a> RefContext<'a> {
                         if let Some(v) = e.attr("SourceId") {
                             ids.push(v.to_string());
                         }
-                    } else if e.is(MDSSI_NS, "RelationshipsGroupReference") {
-                        if let Some(v) = e.attr("SourceType") {
+                    } else if e.is(MDSSI_NS, "RelationshipsGroupReference")
+                        && let Some(v) = e.attr("SourceType") {
                             types.push(v.to_string());
                         }
-                    }
                 }
                 let octets = to_octets(data);
                 Ok(Data::Octets(relationship_transform(&octets, &ids, &types)?))
@@ -574,15 +571,14 @@ pub fn canonicalize_signed_info(doc: &Document, signed_info: NodeId) -> DResult<
         .unwrap_or("");
     let mut method = C14n::from_uri(uri)
         .ok_or_else(|| DsigError::Unsupported(format!("canonicalización {uri}")))?;
-    if method.kind == Kind::Exclusive {
-        if let Some(inc) = doc.find_child(cm, EXC_C14N_NS, "InclusiveNamespaces") {
+    if method.kind == Kind::Exclusive
+        && let Some(inc) = doc.find_child(cm, EXC_C14N_NS, "InclusiveNamespaces") {
             let list = doc
                 .element(inc)
                 .and_then(|e| e.attr("PrefixList"))
                 .unwrap_or("");
             method = method.with_inclusive_prefixes(list.split_whitespace().map(str::to_string));
         }
-    }
     let set = NodeSet::subtree(doc, signed_info, method.with_comments);
     Ok(method.canonicalize_set(doc, &set))
 }
@@ -940,15 +936,12 @@ pub fn select_key(doc: &Document, sig: NodeId) -> Option<PublicKey> {
             if let Some(k) = parse_key_value(doc, c) {
                 return Some(k);
             }
-        } else if e.is(DSIG_NS, "X509Data") {
-            if let Some(cert) = ds_child(doc, c, "X509Certificate") {
-                if let Some(der) = crate::util::b64_decode(&doc.text_content(cert)) {
-                    if let Some(k) = PublicKey::from_cert(&der) {
+        } else if e.is(DSIG_NS, "X509Data")
+            && let Some(cert) = ds_child(doc, c, "X509Certificate")
+                && let Some(der) = crate::util::b64_decode(&doc.text_content(cert))
+                    && let Some(k) = PublicKey::from_cert(&der) {
                         return Some(k);
                     }
-                }
-            }
-        }
     }
     None
 }

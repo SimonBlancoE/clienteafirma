@@ -107,11 +107,10 @@ pub fn canonical_path(p: &Path) -> PathBuf {
     if let Ok(c) = std::fs::canonicalize(p) {
         // En Windows `canonicalize` devuelve rutas `\\?\C:\...`.
         let s = c.to_string_lossy();
-        if let Some(rest) = s.strip_prefix(r"\\?\") {
-            if !rest.starts_with("UNC\\") {
+        if let Some(rest) = s.strip_prefix(r"\\?\")
+            && !rest.starts_with("UNC\\") {
                 return PathBuf::from(rest);
             }
-        }
         return c;
     }
     let abs = if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().map(|d| d.join(p)).unwrap_or_else(|_| p.to_path_buf()) };
@@ -206,13 +205,12 @@ pub fn protocol_store_choice(
         }
         return Some(spec);
     }
-    if prefs.use_default_store_in_browser_calls && !prefs.default_keystore.eq_ignore_ascii_case("default") {
-        if let Some(spec) = resolve_store_name(Some(&prefs.default_keystore), true, cards) {
+    if prefs.use_default_store_in_browser_calls && !prefs.default_keystore.eq_ignore_ascii_case("default")
+        && let Some(spec) = resolve_store_name(Some(&prefs.default_keystore), true, cards) {
             let kind = validate_preference_store(spec.kind, os, firefox_available)?;
             let kind = if kind == KeyStoreKind::MozUni { KeyStoreKind::MozUniWithOs } else { kind };
             return Some(with_pref_lib(StoreSpec { kind, ..spec }, prefs));
         }
-    }
     if let Some(u) = url_store {
         return Some(u.clone());
     }

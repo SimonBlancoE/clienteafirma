@@ -579,14 +579,13 @@ pub fn cosign(
                         found = Some(c);
                         break;
                     }
-                    if local(&doc, c) == "Signature" {
-                        if let Some(&sc) = doc.children(c).iter().rev().find(|&&sc| {
+                    if local(&doc, c) == "Signature"
+                        && let Some(&sc) = doc.children(c).iter().rev().find(|&&sc| {
                             doc.element(sc).and_then(|e| e.attr("Id")) == Some(data_id.as_str())
                         }) {
                             found = Some(sc);
                             break;
                         }
-                    }
                 }
             }
             if let Some(f) = found {

@@ -3,6 +3,7 @@
 
 /// Lo que el sistema pide abrir a la aplicación ya arrancada.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub enum Opened {
     /// URL `afirma://` (invocación desde el navegador).
     Url(String),

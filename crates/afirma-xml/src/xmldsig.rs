@@ -273,11 +273,10 @@ fn sign_impl(
                 if encoding.is_none() {
                     encoding = doc.xml_decl.as_ref().and_then(|d| d.encoding.clone());
                 }
-                if let Some(e) = &encoding {
-                    if e != dsig::BASE64 {
+                if let Some(e) = &encoding
+                    && e != dsig::BASE64 {
                         output_encoding = Some(e.clone());
                     }
-                }
                 let root = doc.document_element().expect("raíz");
                 if format == FORMAT_DETACHED {
                     data_text = format!(
@@ -799,11 +798,10 @@ fn countersign_impl(
                             continue;
                         }
                         out.push(s);
-                        if let Some(id) = signature_value_id(doc, s) {
-                            if id != sv_id {
+                        if let Some(id) = signature_value_id(doc, s)
+                            && id != sv_id {
                                 add_sub(doc, sigs, &id, out);
                             }
-                        }
                     }
                 }
             }

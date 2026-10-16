@@ -53,11 +53,10 @@ fn trim_zeros(s: String) -> String {
 /// Número real como objeto (redondeado como iText).
 pub fn num(d: f64) -> Object {
     let s = format_number(d);
-    if !s.contains('.') {
-        if let Ok(i) = s.parse::<i64>() {
+    if !s.contains('.')
+        && let Ok(i) = s.parse::<i64>() {
             return Object::Integer(i);
         }
-    }
     Object::Real(s.parse::<f32>().unwrap_or(0.0))
 }
 

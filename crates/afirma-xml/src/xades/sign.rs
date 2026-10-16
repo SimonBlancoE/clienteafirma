@@ -141,14 +141,13 @@ pub(crate) fn data_object_format(
     encoding: Option<&str>,
 ) -> DataObjectFormat {
     let mut data_oid = oid.map(str::to_string);
-    if data_oid.is_none() {
-        if let Some(m) = mime_type {
+    if data_oid.is_none()
+        && let Some(m) = mime_type {
             let o = mime::mime_to_oid(m);
             if !(m != mime::DEFAULT_MIMETYPE && o == mime::DEFAULT_OID) {
                 data_oid = Some(o);
             }
         }
-    }
     DataObjectFormat {
         object_reference: format!("#{reference_id}"),
         description: None,
@@ -200,13 +199,12 @@ fn percent_decode(s: &str) -> String {
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;
     while i < b.len() {
-        if b[i] == b'%' && i + 2 < b.len() {
-            if let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+        if b[i] == b'%' && i + 2 < b.len()
+            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
                 out.push(v);
                 i += 3;
                 continue;
             }
-        }
         out.push(b[i]);
         i += 1;
     }
@@ -246,14 +244,13 @@ pub(crate) fn encoding_param(p: &ExtraParams) -> afirma_core::Result<Option<Stri
     {
         encoding = Some(dsig::BASE64.to_string());
     }
-    if let Some(e) = &encoding {
-        if !e.is_empty() && !util::is_valid_uri(e) {
+    if let Some(e) = &encoding
+        && !e.is_empty() && !util::is_valid_uri(e) {
             return Err(AfirmaError::new(
                 codes::INVALID_ENCODING_URI,
                 format!("La codificacion indicada en 'encoding' debe ser una URI: {e}"),
             ));
         }
-    }
     Ok(encoding)
 }
 
@@ -488,11 +485,10 @@ pub fn sign(
         .unwrap_or_else(|| mime::DEFAULT_MIMETYPE.to_string());
 
     if format == FORMAT_ENVELOPING {
-        if !is_base64 {
-            if let Some(c) = &c14n {
+        if !is_base64
+            && let Some(c) = &c14n {
                 transforms.push(TransformSpec::Plain(c.clone()));
             }
-        }
         let object_id = format!("Object-{}", uuid_v4());
         let mut obj = format!("<{}", ds.q("Object"));
         if let Some(e) = &encoding {
@@ -518,11 +514,10 @@ pub fn sign(
         r.transforms = transforms.clone();
         data_refs.push(r);
     } else if format == FORMAT_DETACHED {
-        if !is_base64 {
-            if let Some(c) = &c14n {
+        if !is_base64
+            && let Some(c) = &c14n {
                 transforms.push(TransformSpec::Plain(c.clone()));
             }
-        }
         let mut r = ReferenceSpec::new(
             format!("#{}", node_to_sign.clone().unwrap_or(content_id.clone())),
             &digest_uri,
@@ -623,20 +618,18 @@ pub fn sign(
         if !avoid_enveloped {
             transforms.push(TransformSpec::Plain(dsig::ENVELOPED.into()));
         }
-        if !facturae {
-            if let Some(c) = &c14n {
+        if !facturae
+            && let Some(c) = &c14n {
                 transforms.push(TransformSpec::Plain(c.clone()));
             }
-        }
-        if node_to_sign.is_none() {
-            if let Some(id) = doc
+        if node_to_sign.is_none()
+            && let Some(id) = doc
                 .element(root)
                 .and_then(|e| e.attr("Id"))
                 .filter(|s| !s.is_empty())
             {
                 node_to_sign = Some(id.to_string());
             }
-        }
         if !facturae && !avoid_xpath {
             transforms.push(TransformSpec::XPath(format!(
                 "not(ancestor-or-self::{DS_PREFIX}:Signature)"

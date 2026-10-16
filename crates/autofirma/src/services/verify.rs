@@ -29,8 +29,8 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
     };
     // Avisos globales (documento modificado, formulario, etc.).
     for v in &validity {
-        if let Some(e) = v.error {
-            if matches!(
+        if let Some(e) = v.error
+            && matches!(
                 e,
                 ValidityError::ModifiedForm
                     | ValidityError::ModifiedDocument
@@ -45,7 +45,6 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
                     report.global_issues.push(text);
                 }
             }
-        }
     }
     let Some((kind, signer)) = detected else {
         if report.overall.is_none() {
@@ -80,21 +79,19 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
     let now = chrono::Utc::now();
     for s in &mut report.signatures {
         let mut v = Vec::new();
-        if let Some(na) = s.cert_not_after {
-            if na < now {
+        if let Some(na) = s.cert_not_after
+            && na < now {
                 v.push(SignValidity::ko(ValidityError::CertificateExpired));
             }
-        }
         if v.is_empty() {
             v.push(SignValidity::ok());
         }
         s.validity = v;
     }
-    if let Some(o) = &report.overall {
-        if o.validity == Validity::Ko && report.signatures.len() == 1 {
+    if let Some(o) = &report.overall
+        && o.validity == Validity::Ko && report.signatures.len() == 1 {
             report.signatures[0].validity = vec![o.clone()];
         }
-    }
     report
 }
 

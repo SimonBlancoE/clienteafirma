@@ -126,14 +126,13 @@ fn bc_verify(
 ) -> Result<bool, VerifyFailure> {
     let view = CertView::parse(cert).map_err(|e| VerifyFailure::Other(e.to_string()))?;
     // Validez del certificado en la fecha de firma.
-    if si.signed_attrs.is_some() {
-        if let Some(t) = single_valued(si, oids::SIGNING_TIME)? {
+    if si.signed_attrs.is_some()
+        && let Some(t) = single_valued(si, oids::SIGNING_TIME)? {
             let when = t.as_time().map_err(|e| VerifyFailure::Other(e.to_string()))?;
             if !view.is_valid_at(when) {
                 return Err(VerifyFailure::Other("verifier not valid at signingTime".into()));
             }
         }
-    }
     let digest = DigestAlgorithm::from_oid(&si.digest_oid.to_dotted())
         .ok_or_else(|| VerifyFailure::Other(format!("Algoritmo de huella no soportado: {}", si.digest_oid)))?;
     let sig_alg = alg::signer_signature_algorithm(&si.digest_oid.to_dotted(), &si.signature_oid.to_dotted())

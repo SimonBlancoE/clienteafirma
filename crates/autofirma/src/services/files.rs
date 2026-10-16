@@ -18,13 +18,12 @@ pub fn expand_selection(paths: &[PathBuf]) -> Vec<PathBuf> {
     while let Some(p) = work.pop_front() {
         if p.is_file() {
             out.push(p);
-        } else if p.is_dir() {
-            if let Ok(rd) = std::fs::read_dir(&p) {
+        } else if p.is_dir()
+            && let Ok(rd) = std::fs::read_dir(&p) {
                 let mut children: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
                 children.sort();
                 work.extend(children);
             }
-        }
     }
     out
 }
@@ -63,8 +62,8 @@ pub fn load_file(path: &Path, pref: &dyn Fn(&str) -> Option<String>) -> Result<F
             DataFileType::SignXades | DataFileType::SignCades => multisign_operation(analysis.file_type, pref),
             _ => Operation::Cosign,
         };
-        if let Some(signer) = afirma_signers::signer_for_format(&analysis.format) {
-            if let Ok(tree) = signer.signers_structure(&data, &ExtraParams::new()) {
+        if let Some(signer) = afirma_signers::signer_for_format(&analysis.format)
+            && let Ok(tree) = signer.signers_structure(&data, &ExtraParams::new()) {
                 let names: Vec<String> = tree.signers.iter().map(|n| n.info.signer_name()).collect();
                 existing = Some(match names.as_slice() {
                     [] => "Firmado".to_string(),
@@ -72,7 +71,6 @@ pub fn load_file(path: &Path, pref: &dyn Fn(&str) -> Option<String>) -> Result<F
                     many => format!("{} firmas", many.len()),
                 });
             }
-        }
     }
     Ok(FileItem {
         path: path.to_path_buf(),

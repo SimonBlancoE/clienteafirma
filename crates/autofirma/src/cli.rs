@@ -139,8 +139,7 @@ impl CertificateChooser for GuiChooser {
             .collect();
         let result: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
         let out = result.clone();
-        let mut picker = crate::ui::cert_picker::CertPicker::default();
-        picker.accept_label = "Seleccionar".into();
+        let mut picker = crate::ui::cert_picker::CertPicker { accept_label: "Seleccionar".into(), ..Default::default() };
         picker.open_with("Almacén indicado en -store", items);
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
@@ -183,7 +182,7 @@ impl eframe::App for ChooserApp {
         let mut close = false;
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg).inner_margin(egui::Margin::same(18)))
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.label(egui::RichText::new("Elige el certificado de firma").font(egui::FontId::new(18.0, crate::ui::theme::semibold())));
                 ui.add_space(10.0);
                 let h = ui.available_height() - 56.0;

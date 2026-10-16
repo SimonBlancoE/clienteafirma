@@ -2,7 +2,6 @@
 //! firmadores piden PIN, contraseñas o confirmaciones desde hilos de fondo y
 //! esperan la respuesta del usuario.
 
-use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use afirma_keystores::{ConfirmRequest, PasswordCallback, PasswordRequest, PasswordResponse};
@@ -80,15 +79,12 @@ impl UiInbox {
 
     /// Toma la siguiente petición si no hay ninguna en curso.
     pub fn pump(&mut self) {
-        if self.current.is_none() {
-            if let Ok(r) = self.rx.try_recv() {
+        if self.current.is_none()
+            && let Ok(r) = self.rx.try_recv() {
                 self.secret.clear();
                 self.remember = false;
                 self.current = Some(r);
             }
-        }
     }
 }
 
-/// Estado compartido opcional (para pruebas).
-pub type SharedInbox = Mutex<UiInbox>;

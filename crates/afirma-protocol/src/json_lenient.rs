@@ -242,14 +242,13 @@ impl Tokener {
                             // Pares sustitutos UTF-16.
                             if (0xD800..0xDC00).contains(&v) && self.chars.get(self.pos) == Some(&'\\') && self.chars.get(self.pos + 1) == Some(&'u') {
                                 let hex2: String = self.chars.get(self.pos + 2..self.pos + 6).unwrap_or(&[]).iter().collect();
-                                if let Ok(lo) = u32::from_str_radix(&hex2, 16) {
-                                    if (0xDC00..0xE000).contains(&lo) {
+                                if let Ok(lo) = u32::from_str_radix(&hex2, 16)
+                                    && (0xDC00..0xE000).contains(&lo) {
                                         self.pos += 6;
                                         let cp = 0x10000 + ((v - 0xD800) << 10) + (lo - 0xDC00);
                                         out.push(char::from_u32(cp).unwrap_or('\u{FFFD}'));
                                         continue;
                                     }
-                                }
                             }
                             out.push(char::from_u32(v).unwrap_or('\u{FFFD}'));
                         }

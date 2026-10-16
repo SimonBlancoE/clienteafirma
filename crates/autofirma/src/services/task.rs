@@ -1,6 +1,6 @@
 //! Tareas en segundo plano que informan a la interfaz.
 
-use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
+use std::sync::mpsc::{Receiver, TryRecvError, channel};
 
 use eframe::egui;
 
@@ -14,13 +14,6 @@ pub enum JobEvent<P, R> {
 pub struct Job<P, R> {
     rx: Receiver<JobEvent<P, R>>,
     finished: bool,
-}
-
-/// Canal con el que la tarea informa de su progreso.
-#[derive(Clone)]
-pub struct Progress<P> {
-    tx: Sender<JobEvent<P, ()>>,
-    ctx: egui::Context,
 }
 
 impl<P: Send + 'static, R: Send + 'static> Job<P, R> {
@@ -69,9 +62,3 @@ impl<P: Send + 'static, R: Send + 'static> Job<P, R> {
     }
 }
 
-impl<P> Progress<P> {
-    pub fn send(&self, p: P) {
-        let _ = self.tx.send(JobEvent::Progress(p));
-        self.ctx.request_repaint();
-    }
-}

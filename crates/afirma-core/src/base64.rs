@@ -188,7 +188,7 @@ fn is_base64_chars(chars: &[char]) -> bool {
             count += 1;
         }
     }
-    count % 4 == 0
+    count.is_multiple_of(4)
 }
 
 /// Decodificación tras cambiar el alfabeto URL-safe por el estándar

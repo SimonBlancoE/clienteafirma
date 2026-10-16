@@ -146,13 +146,12 @@ pub fn decode(bytes: &[u8]) -> Result<(String, &'static Encoding)> {
         .map(|&b| b as char)
         .collect();
     let mut enc = encoding_rs::UTF_8;
-    if head_str.starts_with("<?xml") {
-        if let Some(label) = pseudo_attr(&head_str, "encoding") {
+    if head_str.starts_with("<?xml")
+        && let Some(label) = pseudo_attr(&head_str, "encoding") {
             enc = Encoding::for_label(label.as_bytes())
                 .ok_or_else(|| XmlError::Encoding(label.to_string()))?;
             // ISO-8859-1 se trata como windows-1252 (como en la web), que es un superconjunto.
         }
-    }
     let (text, had_errors) = enc.decode_without_bom_handling(bytes);
     if had_errors {
         return Err(XmlError::Encoding(format!(

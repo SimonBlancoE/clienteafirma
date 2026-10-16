@@ -259,11 +259,10 @@ impl UreqHttpClient {
         let mut method = request.method;
         let mut headers_base: Vec<(String, String)> = Vec::new();
         let has = |name: &str| request.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case(name));
-        if let Some(a) = &auth {
-            if !has("Authorization") {
+        if let Some(a) = &auth
+            && !has("Authorization") {
                 headers_base.push(("Authorization".into(), format!("Basic {a}")));
             }
-        }
         if !has("Accept") {
             headers_base.push(("Accept".into(), "*/*".into()));
         }
@@ -300,11 +299,10 @@ impl UreqHttpClient {
             if body.is_some() && !has("Content-Type") {
                 headers.push(("Content-Type".into(), "application/x-www-form-urlencoded".into()));
             }
-            if !has("Cookie") {
-                if let Some(c) = self.cookie_header(current.as_str()) {
+            if !has("Cookie")
+                && let Some(c) = self.cookie_header(current.as_str()) {
                     headers.push(("Cookie".into(), c));
                 }
-            }
             let send = |m: TlsMode| {
                 self.send_once(
                     m,
@@ -329,8 +327,8 @@ impl UreqHttpClient {
             let mut resp = result.map_err(|e| map_ureq_error(e, &url))?;
             self.store_cookies(&current, resp.headers().get_all("set-cookie").iter().filter_map(|v| v.to_str().ok()));
             let status = resp.status().as_u16();
-            if is_followed_redirect(status) {
-                if let Some(next) =
+            if is_followed_redirect(status)
+                && let Some(next) =
                     resp.headers().get("location").and_then(|l| l.to_str().ok()).and_then(|l| current.join(l).ok())
                 {
                     // Java no sigue redirecciones que cambian de protocolo.
@@ -343,7 +341,6 @@ impl UreqHttpClient {
                         continue;
                     }
                 }
-            }
             let data = resp.body_mut().with_config().limit(u64::MAX).read_to_vec();
             let status_str = status.to_string();
             if status_str.starts_with('4') || status_str.starts_with('5') {

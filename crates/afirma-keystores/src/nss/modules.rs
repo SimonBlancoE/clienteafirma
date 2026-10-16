@@ -58,13 +58,12 @@ pub fn parse_pkcs11_txt(text: &str) -> Result<Vec<ExternalModule>, String> {
         } else if let Some(n) = line.strip_prefix("name=") {
             name = Some(n.trim().to_string());
         }
-        if let (Some(l), Some(n)) = (&lib, &name) {
-            if !l.is_empty() && !n.is_empty() {
+        if let (Some(l), Some(n)) = (&lib, &name)
+            && !l.is_empty() && !n.is_empty() {
                 out.push(ExternalModule { description: n.clone(), lib: l.clone() });
                 lib = None;
                 name = None;
             }
-        }
     }
     Ok(out)
 }

@@ -249,12 +249,11 @@ impl ProtocolLauncher {
         // directa), pero no los sube.
         let early_failure = |err: &ProtocolError, reply: Option<ReplyChannel>| -> String {
             let text = self.error_response(err, channel);
-            if !by_socket && self.config.upload_all_errors {
-                if let Some(r) = reply.or_else(|| request::reply_channel_hint(params)) {
+            if !by_socket && self.config.upload_all_errors
+                && let Some(r) = reply.or_else(|| request::reply_channel_hint(params)) {
                     let hv = Self::hint_version(params, jvc);
                     self.upload(&r, &err.response(Some(hv), self.config.locale), Some(hv));
                 }
-            }
             text
         };
         let mut req = match request::parse_request(kind, params, &ctx) {
@@ -269,12 +268,11 @@ impl ProtocolLauncher {
                     // Java solo mostraba el error (y en `save` lo subía con el
                     // identificador del fichero, que la página no consulta).
                     let text = self.error_response(&ProtocolError::parameter(e.code, e.message.clone()), channel);
-                    if !by_socket && self.config.upload_all_errors {
-                        if let Some(r) = request::reply_channel_hint(params) {
+                    if !by_socket && self.config.upload_all_errors
+                        && let Some(r) = request::reply_channel_hint(params) {
                             let hv = Self::hint_version(params, jvc);
                             self.upload(&r, &e.response(Some(hv), self.config.locale), Some(hv));
                         }
-                    }
                     return text;
                 }
             };
@@ -353,11 +351,10 @@ impl ProtocolLauncher {
     /// Selección de certificado con el firmante persistente. Devuelve la
     /// clave y si se mostró el diálogo.
     fn select_key(&self, sel: &KeySelection<'_>, restrict: Option<&[u8]>) -> Result<(Arc<dyn SigningKey>, bool), ProtocolError> {
-        if restrict.is_none() && sel.sticky && !sel.reset_sticky {
-            if let Some(k) = self.sticky_key() {
+        if restrict.is_none() && sel.sticky && !sel.reset_sticky
+            && let Some(k) = self.sticky_key() {
                 return Ok((k, false));
             }
-        }
         self.progress(sel.extra, ProgressEvent::LoadingKeyStore, Some(sel.info));
         let req = CertificateRequest {
             info: sel.info,
@@ -538,15 +535,13 @@ impl ProtocolLauncher {
             && extra.get("mode").is_some_and(|m| m.eq_ignore_ascii_case("explicit"))
             && !extra.get_bool("useManifest", false)
             && !format.eq_ignore_ascii_case("XAdEStri")
-        {
-            if let Some(d) = &data {
+            && let Some(d) = &data {
                 data = Some(afirma_core::DigestAlgorithm::Sha1.digest(d));
                 extra.set("mimeType", "hash/sha1");
             }
-        }
         // Validación previa de las firmas.
-        if let Some(d) = &data {
-            if extra.get_bool("checkSignatures", false) {
+        if let Some(d) = &data
+            && extra.get_bool("checkSignatures", false) {
                 self.progress(&extra, ProgressEvent::CheckingSignatures, Some(info));
                 if PADES_FORMATS.contains(&format.as_str()) && !extra.get_bool("allowShadowAttack", false) && !extra.contains("pagesToCheckShadowAttack") {
                     extra.set("pagesToCheckShadowAttack", "10");
@@ -563,7 +558,6 @@ impl ProtocolLauncher {
                     return Err(ProtocolError::operation(code, e.to_string()));
                 }
             }
-        }
         // Políticas.
         extra = self.signer.expand_extra_params(&extra, data.as_deref(), &format).map_err(|e| {
             ProtocolError::operation(e.code.unwrap_or(codes::SIGNING_WITH_POLICY_INCOMPATIBILITY), e.to_string())

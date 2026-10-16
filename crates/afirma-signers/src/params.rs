@@ -10,7 +10,7 @@ use afirma_core::formats::SignerKind;
 pub fn from_preferences(kind: SignerKind, pref: &dyn Fn(&str) -> Option<String>) -> ExtraParams {
     let mut p = ExtraParams::new();
     let get = |k: &str| pref(k).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
-    let mut copy = |p: &mut ExtraParams, from: &str, to: &str| {
+    let copy = |p: &mut ExtraParams, from: &str, to: &str| {
         if let Some(v) = get(from) {
             p.set(to, v);
         }
@@ -24,11 +24,10 @@ pub fn from_preferences(kind: SignerKind, pref: &dyn Fn(&str) -> Option<String>)
             if let Some(v) = get(&format!("{prefix}PolicyIdentifierHashAlgorithm")) {
                 p.set("policyIdentifierHashAlgorithm", v);
             }
-            if with_qualifier {
-                if let Some(v) = get(&format!("{prefix}PolicyQualifier")) {
+            if with_qualifier
+                && let Some(v) = get(&format!("{prefix}PolicyQualifier")) {
                     p.set("policyQualifier", v);
                 }
-            }
         }
     };
     match kind {

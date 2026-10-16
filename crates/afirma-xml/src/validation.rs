@@ -101,12 +101,10 @@ fn is_b_level_with(doc: &Document, sig: NodeId, cert_tag: &str) -> bool {
         .find_descendants(sp, NS132, "SignedDataObjectProperties")
         .into_iter()
         .next()
-    {
-        if let Some(dof) = xml_element(doc, sdop, NS132, "DataObjectFormat") {
+        && let Some(dof) = xml_element(doc, sdop, NS132, "DataObjectFormat") {
             has_dof = true;
             has_mime = has_desc(doc, dof, NS132, "MimeType");
         }
-    }
     has_time && has_cert && has_dof && has_mime
 }
 
@@ -316,13 +314,12 @@ pub fn check_long_standing(mut list: Vec<SignValidity>) -> Vec<SignValidity> {
     let other_ko = list
         .iter()
         .any(|v| v.validity == Validity::Ko && v.error != Some(ValidityError::CertificateExpired));
-    if expired && !other_ko {
-        if let Some(pos) = list.iter().rposition(|v| {
+    if expired && !other_ko
+        && let Some(pos) = list.iter().rposition(|v| {
             v.validity == Validity::Unknown && v.error == Some(ValidityError::SignProfileNotChecked)
         }) {
             list.swap(0, pos);
         }
-    }
     list
 }
 
@@ -349,6 +346,17 @@ fn push_abort(result: &mut Vec<SignValidity>, e: DsigError) {
             result.push(SignValidity::unknown(ValidityError::UnknownError).with_detail(m))
         }
     }
+}
+
+/// Certificado del firmante (primer `X509Certificate` de `KeyInfo`) de
+/// cada `ds:Signature` del documento, en orden.
+pub fn signature_certificates(sign: &[u8]) -> Vec<Vec<u8>> {
+    let Some(x) = crate::xades::sign::load_xml(sign) else { return Vec::new() };
+    let doc = x.doc;
+    doc.find_descendants(doc.root(), DSIG_NS, "Signature")
+        .into_iter()
+        .filter_map(|s| keyinfo_certificates(&doc, s).and_then(|v| v.into_iter().next()))
+        .collect()
 }
 
 /// Certificados de los `X509Data` de `KeyInfo` (DER).

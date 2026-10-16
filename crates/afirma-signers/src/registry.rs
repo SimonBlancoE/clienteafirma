@@ -47,11 +47,10 @@ pub fn signer_for_format(format: &str) -> Option<Box<dyn Signer>> {
 /// AutoFirma (`AOSignerFactory.getSigner(byte[])`).
 pub fn detect(data: &[u8], params: &ExtraParams) -> Option<(SignerKind, Box<dyn Signer>)> {
     for kind in formats::detection_order() {
-        if let Some(s) = signer(kind) {
-            if s.is_sign(data, params) {
+        if let Some(s) = signer(kind)
+            && s.is_sign(data, params) {
                 return Some((kind, s));
             }
-        }
     }
     None
 }

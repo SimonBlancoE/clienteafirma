@@ -365,11 +365,10 @@ impl Writer<'_> {
                 let mut utilized: BTreeSet<String> = BTreeSet::new();
                 utilized.insert(e.prefix.clone().unwrap_or_default());
                 for (k, a) in e.attrs.iter().enumerate() {
-                    if let Some(p) = &a.prefix {
-                        if set.contains_attr(id, k as u32) {
+                    if let Some(p) = &a.prefix
+                        && set.contains_attr(id, k as u32) {
                             utilized.insert(p.clone());
                         }
-                    }
                 }
                 for p in &self.method.inclusive_prefixes {
                     let p = if p == "#default" {

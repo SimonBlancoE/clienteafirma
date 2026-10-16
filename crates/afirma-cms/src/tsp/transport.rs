@@ -78,11 +78,10 @@ fn pkcs12_client(data: &[u8], password: &str) -> Result<(Vec<u8>, Vec<Vec<u8>>),
     let key = archive.keys.first().ok_or_else(|| "El almacen de certificado cliente no contiene claves".to_string())?;
     let id = key.local_key_id.as_ref().map(|k| k.0.clone());
     let mut chain: Vec<Vec<u8>> = Vec::new();
-    if let Some(id) = &id {
-        if let Some(c) = archive.certs.iter().find(|c| c.local_key_id.as_deref() == Some(id.as_slice())) {
+    if let Some(id) = &id
+        && let Some(c) = archive.certs.iter().find(|c| c.local_key_id.as_deref() == Some(id.as_slice())) {
             chain.push(c.cert.as_der().to_vec());
         }
-    }
     for c in &archive.certs {
         let der = c.cert.as_der().to_vec();
         if !chain.contains(&der) {
