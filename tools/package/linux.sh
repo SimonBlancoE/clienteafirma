@@ -118,7 +118,7 @@ case "$BUILDER" in
             "
         ;;
     none)
-        [ -n "$BINARY" ] && [ -f "$BINARY" ] || die "--binary no indica un fichero"
+        if [ -z "$BINARY" ] || [ ! -f "$BINARY" ]; then die "--binary no indica un fichero"; fi
         mkdir -p "$BIN_DIR"
         if [ "$(realpath "$BINARY")" != "$(realpath -m "$BIN_DIR/autofirma")" ]; then
             install -m 755 "$BINARY" "$BIN_DIR/autofirma"
