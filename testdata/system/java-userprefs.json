@@ -1,0 +1,16 @@
+{
+ "comment": "Generado por tools/oracle/system/JPrefsGolden.java (FileSystemPreferences del JDK 21): directorio relativo -> prefs.xml",
+ "files": {
+  "es": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/core": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/core/keystores": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/core/keystores/1": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\">\n  <entry key=\"Tarjeta España\" value=\"/usr/lib/libpkcs11-españa.so\"/>\n</map>\n",
+  "es/gob/afirma/plugin": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/plugin/_!'g!}@\"z!'g!.g\"2!$)=": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\">\n  <entry key=\"createHashAlgorithm\" value=\"SHA-256\"/>\n</map>\n",
+  "es/gob/afirma/standalone": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/standalone/ui": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\"/>\n",
+  "es/gob/afirma/standalone/ui/preferences": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<!DOCTYPE map SYSTEM \"http://java.sun.com/dtd/preferences.dtd\">\n<map MAP_XML_VERSION=\"1.0\">\n  <entry key=\"defaultLocalKeystorePath\" value=\"/home/u/certs/a.p12\"/>\n  <entry key=\"pdfLayer2Text\" value=\"Firmado por $$SUBJECTCN$$ el día &lt;hoy&gt; &amp; &quot;mañana&quot;\"/>\n  <entry key=\"preferencesBlocked\" value=\"true\"/>\n  <entry key=\"signatureHashAlgorithm\" value=\"SHA512\"/>\n  <entry key=\"xadesSignFormat\" value=\"XAdES Detached\"/>\n</map>\n"
+ }
+}

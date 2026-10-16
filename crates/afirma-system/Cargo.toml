@@ -1,0 +1,52 @@
+[package]
+name = "afirma-system"
+description = "Integración de AutoFirma-rs con el sistema: preferencias y directivas, CA local y certificado SSL, almacenes de confianza, manejador del protocolo afirma://, directivas de navegadores, restauración y diagnóstico"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+hex.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+chrono.workspace = true
+directories.workspace = true
+ring.workspace = true
+rsa = { workspace = true, features = ["getrandom"] }
+rcgen.workspace = true
+p12-keystore.workspace = true
+x509-parser.workspace = true
+ureq.workspace = true
+quick-xml = "0.38"
+plist = "1"
+libloading = "0.8"
+cryptoki-sys = "0.4"
+md-5.workspace = true
+aes = "0.9"
+cbc = { version = "0.2", features = ["alloc", "block-padding"] }
+des = "0.9"
+time = "0.3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6"
+windows-result = "0.4"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true
