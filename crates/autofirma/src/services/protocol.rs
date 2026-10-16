@@ -253,10 +253,21 @@ pub fn spawn_launcher(url: String, ctx: egui::Context) -> std::sync::mpsc::Recei
     let _ = std::thread::Builder::new().name("protocolo".into()).spawn(move || {
         let config = afirma_protocol::LauncherConfig::new(afirma_protocol::HttpClient::installed());
         let launcher = Arc::new(afirma_protocol::ProtocolLauncher::new(handler, signer, config));
-        let pfx = afirma_protocol::channel::find_autofirma_pfx(None).unwrap_or_default();
+        let pfx = find_local_pfx().unwrap_or_default();
         let code = launcher.run_url(&url, &afirma_protocol::TlsSource::autofirma_pfx(pfx));
         let _ = tx.send(ProtocolUiRequest::Finished(code));
         ctx.request_repaint();
     });
     rx
+}
+
+/// `autofirma.pfx` del servidor local, en los mismos sitios donde lo genera la
+/// instalación (junto al ejecutable, en el directorio alternativo y, en macOS,
+/// en el de sistema).
+pub fn find_local_pfx() -> Option<std::path::PathBuf> {
+    let ctx = afirma_system::Context::detect(afirma_system::AppIdentity::current());
+    afirma_system::certs::search_dirs(&ctx)
+        .into_iter()
+        .map(|d| d.join(afirma_protocol::channel::AUTOFIRMA_PFX_NAME))
+        .find(|p| p.is_file())
 }

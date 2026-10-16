@@ -181,7 +181,7 @@ pub fn dir_format_for(path: &Path) -> DirDocumentFormat {
 /// instalador y no se avisa.
 pub fn integration_needed() -> bool {
     let ctx = Context::detect(AppIdentity::current());
-    let pfx = afirma_protocol::channel::find_autofirma_pfx(Some(&ctx.app.app_dir)).is_some();
+    let pfx = crate::services::protocol::find_local_pfx().is_some();
     let proto = afirma_system::protocol::status(&ctx).registered;
     !(pfx && proto)
 }
