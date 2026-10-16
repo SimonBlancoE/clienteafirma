@@ -130,6 +130,19 @@ pub struct VisibleSigEditor {
     image_tex: Option<TextureHandle>,
     pub remember: bool,
     pub error: Option<String>,
+    /// Se coloca la firma visible (falso si solo se pide la marca de imagen).
+    pub signature_enabled: bool,
+    /// Marca de imagen independiente de la firma (`image`, `imagePage`...):
+    /// casilla «Insertar una marca visible» de AutoFirma.
+    pub stamp_enabled: bool,
+    stamp_image: Option<(String, Vec<u8>)>,
+    stamp_tex: Option<TextureHandle>,
+    /// Recuadro de la marca en puntos PDF (origen arriba a la izquierda) y su página.
+    stamp_rect: Option<Rect>,
+    stamp_page: usize,
+    pub stamp_all_pages: bool,
+    /// El arrastre sobre la página coloca la marca (si no, la firma).
+    editing_stamp: bool,
 }
 
 impl Default for VisibleSigEditor {
@@ -161,6 +174,14 @@ impl Default for VisibleSigEditor {
             image_tex: None,
             remember: true,
             error: None,
+            signature_enabled: true,
+            stamp_enabled: false,
+            stamp_image: None,
+            stamp_tex: None,
+            stamp_rect: None,
+            stamp_page: 0,
+            stamp_all_pages: false,
+            editing_stamp: false,
         }
     }
 }
@@ -176,6 +197,9 @@ impl VisibleSigEditor {
         self.drag_start = None;
         self.selected_field = None;
         self.error = None;
+        self.stamp_rect = None;
+        self.stamp_page = 0;
+        self.editing_stamp = !self.signature_enabled;
         self.open = true;
     }
 
@@ -198,8 +222,25 @@ impl VisibleSigEditor {
         }
     }
 
-    /// Construye los parámetros de la firma visible (`extraParams`).
+    /// Construye los parámetros de la firma visible y de la marca (`extraParams`).
     pub fn build_params(&self) -> Result<ExtraParams, String> {
+        let mut params = if self.signature_enabled { self.signature_params()? } else { ExtraParams::new() };
+        if self.stamp_enabled {
+            let Some(src) = &self.source else { return Err(tr("No hay documento").into()) };
+            let (_, bytes) = self.stamp_image.as_ref().ok_or(tr("Elige la imagen de la marca."))?;
+            let rect = self.stamp_rect.ok_or(tr("Dibuja en la página el recuadro donde quieres la marca."))?;
+            let (_, h) = src.page_size(self.stamp_page);
+            params.set("image", afirma_core::base64_encode(bytes));
+            params.set("imagePage", if self.stamp_all_pages { "0".to_string() } else { (self.stamp_page + 1).to_string() });
+            params.set("imagePositionOnPageLowerLeftX", (rect.left().round() as i64).to_string());
+            params.set("imagePositionOnPageLowerLeftY", ((h - rect.bottom()).round() as i64).to_string());
+            params.set("imagePositionOnPageUpperRightX", (rect.right().round() as i64).to_string());
+            params.set("imagePositionOnPageUpperRightY", ((h - rect.top()).round() as i64).to_string());
+        }
+        Ok(params)
+    }
+
+    fn signature_params(&self) -> Result<ExtraParams, String> {
         let mut params = ExtraParams::new();
         if let Some(fi) = self.selected_field {
             let f = &self.empty_fields[fi];
@@ -260,6 +301,16 @@ impl VisibleSigEditor {
         self.image_tex = None;
     }
 
+    /// Imagen de la marca visible (se valida decodificándola, como Java).
+    pub fn set_stamp_image(&mut self, ctx: &egui::Context, name: String, bytes: Vec<u8>) -> Result<(), String> {
+        let img = image::load_from_memory(&bytes).map_err(|_| tr("No se ha podido cargar la imagen seleccionada.").to_string())?;
+        let rgba = img.to_rgba8();
+        let ci = ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
+        self.stamp_tex = Some(ctx.load_texture("stamp", ci, TextureOptions::LINEAR));
+        self.stamp_image = Some((name, bytes));
+        Ok(())
+    }
+
     fn texture(&mut self, ctx: &egui::Context, index: usize) -> Option<TextureHandle> {
         if let Some(t) = self.textures.get(&index) {
             return Some(t.clone());
@@ -314,7 +365,8 @@ impl VisibleSigEditor {
             ui.horizontal(|ui| {
                 widgets::status_circle(ui, icons::SIGNATURE, 38.0, p.primary, p.primary_soft);
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(tr("Firma visible")).font(FontId::new(19.0, semibold())));
+                    let title = if self.signature_enabled { tr("Firma visible") } else { tr("Marca de imagen") };
+                    ui.label(RichText::new(title).font(FontId::new(19.0, semibold())));
                     let sub = if self.multi_document {
                         tr("La posición y la apariencia se aplicarán a todos los PDF").to_string()
                     } else {
@@ -355,9 +407,8 @@ impl VisibleSigEditor {
                             Err(e) => self.error = Some(e),
                         }
                     }
-                    if !self.mandatory
-                        && widgets::button(ui, p, ButtonKind::Secondary, None, tr("Firmar sin firma visible"), true).clicked()
-                    {
+                    let skip = if self.signature_enabled { tr("Firmar sin firma visible") } else { tr("Firmar sin marca") };
+                    if !self.mandatory && widgets::button(ui, p, ButtonKind::Secondary, None, skip, true).clicked() {
                         event = VisibleSigEvent::Invisible;
                     }
                     if widgets::button(ui, p, ButtonKind::Ghost, None, tr("Cancelar"), true).clicked() {
@@ -411,21 +462,48 @@ impl VisibleSigEditor {
         if response.drag_started()
             && let Some(pos) = response.interact_pointer_pos() {
                 self.drag_start = Some(to_pt(pos));
-                self.selected_field = None;
+                if !self.editing_stamp {
+                    self.selected_field = None;
+                }
                 self.error = None;
             }
         if let (Some(start), Some(pos)) = (self.drag_start, response.interact_pointer_pos())
             && response.dragged() {
-                self.rect = Some(Rect::from_two_pos(start, to_pt(pos)));
+                let r = Rect::from_two_pos(start, to_pt(pos));
+                if self.editing_stamp {
+                    self.stamp_rect = Some(r);
+                    self.stamp_page = self.page;
+                } else {
+                    self.rect = Some(r);
+                }
             }
         if response.drag_stopped() {
             self.drag_start = None;
             if self.rect.is_some_and(|r| r.width() < 2.0 || r.height() < 2.0) {
                 self.rect = None;
             }
+            if self.stamp_rect.is_some_and(|r| r.width() < 2.0 || r.height() < 2.0) {
+                self.stamp_rect = None;
+            }
+        }
+        // Marca de imagen (estirada al recuadro, como la dibuja AutoFirma).
+        if self.stamp_enabled
+            && let Some(r) = self.stamp_rect.filter(|_| self.stamp_all_pages || self.stamp_page == self.page)
+        {
+            let screen = Rect::from_min_max(page_rect.min + r.min.to_vec2() * scale, page_rect.min + r.max.to_vec2() * scale);
+            match &self.stamp_tex {
+                Some(tex) => {
+                    painter.image(tex.id(), screen, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
+                }
+                None => {
+                    painter.rect_filled(screen, CornerRadius::ZERO, p.info.gamma_multiply(0.15));
+                }
+            }
+            painter.rect_stroke(screen, CornerRadius::ZERO, Stroke::new(2.0, p.info), StrokeKind::Outside);
+            painter.text(screen.left_bottom() + Vec2::new(0.0, 4.0), Align2::LEFT_TOP, tr("Marca"), FontId::proportional(11.0), p.info);
         }
         let response = response.on_hover_cursor(egui::CursorIcon::Crosshair);
-        if let Some(r) = self.rect.filter(|_| self.selected_field.is_none()) {
+        if let Some(r) = self.rect.filter(|_| self.signature_enabled && self.selected_field.is_none()) {
             let screen = Rect::from_min_max(page_rect.min + r.min.to_vec2() * scale, page_rect.min + r.max.to_vec2() * scale);
             // Oscurece el resto de la página.
             let shade = Color32::from_black_alpha(55);
@@ -447,7 +525,15 @@ impl VisibleSigEditor {
                 FontId::proportional(11.0),
                 p.primary,
             );
-        } else if self.selected_field.is_none() {
+        } else if self.editing_stamp && self.stamp_rect.is_none() {
+            painter.text(
+                page_rect.center_bottom() - Vec2::new(0.0, 18.0),
+                Align2::CENTER_CENTER,
+                tr("Arrastra sobre la página para colocar la marca"),
+                FontId::new(13.0, semibold()),
+                p.info,
+            );
+        } else if self.signature_enabled && !self.editing_stamp && self.selected_field.is_none() {
             painter.text(
                 page_rect.center_bottom() - Vec2::new(0.0, 18.0),
                 Align2::CENTER_CENTER,
@@ -528,6 +614,13 @@ impl VisibleSigEditor {
     }
 
     fn side_panel(&mut self, ui: &mut Ui, p: &Palette, ctx: &egui::Context) {
+        if self.stamp_enabled {
+            self.stamp_section(ui, p, ctx);
+            if !self.signature_enabled {
+                return;
+            }
+            ui.add_space(14.0);
+        }
         if !self.empty_fields.is_empty() {
             widgets::section_title(ui, p, tr("Campos de firma del documento"));
             ui.label(RichText::new(tr("Puedes firmar en un campo ya preparado o dibujar uno nuevo.")).size(12.5).color(p.text_muted));
@@ -683,6 +776,76 @@ impl VisibleSigEditor {
     }
 }
 
+impl VisibleSigEditor {
+    /// Opciones de la marca de imagen (`SignPdfUiPanelStamp` de AutoFirma).
+    fn stamp_section(&mut self, ui: &mut Ui, p: &Palette, ctx: &egui::Context) {
+        if self.signature_enabled {
+            widgets::section_title(ui, p, tr("Qué colocas en la página"));
+            ui.horizontal(|ui| {
+                if ui.radio(!self.editing_stamp, tr("Firma")).clicked() {
+                    self.editing_stamp = false;
+                }
+                if ui.radio(self.editing_stamp, tr("Marca de imagen")).clicked() {
+                    self.editing_stamp = true;
+                }
+            });
+            ui.add_space(10.0);
+        }
+        widgets::section_title(ui, p, tr("Marca de imagen"));
+        ui.label(
+            RichText::new(tr("Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo."))
+                .size(12.5)
+                .color(p.text_muted),
+        );
+        match self.stamp_image.as_ref().map(|(n, _)| n.clone()) {
+            Some(name) => {
+                ui.horizontal(|ui| {
+                    widgets::icon_label(ui, p, icons::IMAGE, &name);
+                    if ui.link(tr("Cambiar")).clicked() {
+                        self.pick_stamp_image(ctx);
+                    }
+                });
+            }
+            None => {
+                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), tr("Elegir imagen…"), true).clicked() {
+                    self.pick_stamp_image(ctx);
+                }
+            }
+        }
+        ui.add_space(4.0);
+        ui.checkbox(&mut self.stamp_all_pages, tr("Incluir la imagen en todas las páginas"));
+    }
+
+    /// Marca de ejemplo para las capturas de demostración.
+    pub fn set_stamp_demo(&mut self, ctx: &egui::Context, png: Vec<u8>) -> Result<(), String> {
+        self.set_stamp_image(ctx, "logo.png".into(), png)?;
+        self.stamp_rect = Some(Rect::from_min_max(Pos2::new(470.0, 40.0), Pos2::new(555.0, 125.0)));
+        self.stamp_page = 0;
+        self.editing_stamp = false;
+        Ok(())
+    }
+
+    fn pick_stamp_image(&mut self, ctx: &egui::Context) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title(tr("Selecciona la imagen de la marca"))
+            .add_filter(tr("Imágenes"), &["jpg", "jpeg", "png", "gif", "bmp"])
+            .pick_file()
+        else {
+            return;
+        };
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                match self.set_stamp_image(ctx, name, bytes) {
+                    Ok(()) => self.editing_stamp = true,
+                    Err(e) => self.error = Some(e),
+                }
+            }
+            Err(e) => self.error = Some(trf("No se ha podido leer la imagen: {0}", &[&e])),
+        }
+    }
+}
+
 /// Valida un rango de páginas como `PdfUtil.checkPagesRangeInputFormat`.
 pub fn check_pages_range(s: &str) -> bool {
     let s = s.trim();
@@ -739,6 +902,29 @@ mod tests {
         for bad in ["", "1,", "1,,2", "1---2", "3-", "--1", "-", "a"] {
             assert!(!check_pages_range(bad), "{bad}");
         }
+    }
+
+    #[test]
+    fn stamp_params() {
+        let mut e = VisibleSigEditor {
+            source: Some(Arc::new(DemoPages)),
+            signature_enabled: false,
+            stamp_enabled: true,
+            stamp_image: Some(("logo.png".into(), vec![1, 2, 3])),
+            stamp_rect: Some(Rect::from_min_max(Pos2::new(10.0, 20.0), Pos2::new(110.0, 70.0))),
+            stamp_page: 1,
+            ..Default::default()
+        };
+        let (_, h) = DemoPages.page_size(1);
+        let p = e.build_params().unwrap();
+        assert_eq!(p.get("imagePage"), Some("2"));
+        assert_eq!(p.get("image"), Some("AQID"));
+        assert_eq!(p.get("imagePositionOnPageLowerLeftX"), Some("10"));
+        assert_eq!(p.get("imagePositionOnPageLowerLeftY"), Some(((h - 70.0) as i64).to_string().as_str()));
+        assert_eq!(p.get("imagePositionOnPageUpperRightY"), Some(((h - 20.0) as i64).to_string().as_str()));
+        assert!(p.get("signaturePages").is_none());
+        e.stamp_all_pages = true;
+        assert_eq!(e.build_params().unwrap().get("imagePage"), Some("0"));
     }
 
     #[test]

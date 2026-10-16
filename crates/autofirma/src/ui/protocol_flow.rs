@@ -265,6 +265,8 @@ impl AutoFirmaApp {
                     Ok(pages) => {
                         self.visible_sig.custom_appearance = custom;
                         self.visible_sig.mandatory = mandatory;
+                        self.visible_sig.signature_enabled = true;
+                        self.visible_sig.stamp_enabled = false;
                         self.visible_sig.multi_document = false;
                         self.visible_sig.empty_fields.clear();
                         self.visible_sig.open_with(tr("Documento PDF"), Arc::new(pages));

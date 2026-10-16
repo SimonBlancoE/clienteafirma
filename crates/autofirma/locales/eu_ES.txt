@@ -599,3 +599,19 @@ Restaurar la apariencia por defecto = Leheneratu itxura lehenetsia
 # services/updater.rs (aviso de versión en la barra lateral)
 Nueva versión {0} disponible = {0} bertsio berria eskuragarri
 Abre la página de descarga en el navegador = Deskarga-orria nabigatzailean irekitzen du
+
+# Marca de imagen (ui/pages/sign.rs, ui/visible_sig.rs)
+Marca de imagen en el PDF = Irudi-marka PDFan
+Añade una imagen (logotipo, sello…) en una página o en todas. = Irudi bat (logotipoa, zigilua…) gehitzen du orri batean edo guztietan.
+No se pueden aplicar marcas visibles a documentos ya firmados. = Ezin zaie marka ikusgarririk aplikatu lehendik sinatuta dauden dokumentuei.
+Colocar marca = Kokatu marka
+Marca de imagen = Irudi-marka
+Firmar sin marca = Sinatu markarik gabe
+Marca = Marka
+Arrastra sobre la página para colocar la marca = Arrastatu orriaren gainean marka kokatzeko
+Dibuja en la página el recuadro donde quieres la marca. = Marraztu orrian marka nahi duzun laukia.
+Elige la imagen de la marca. = Aukeratu markaren irudia.
+Qué colocas en la página = Zer kokatzen duzun orrian
+Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = Dokumentua sinatu aurretik gehitzen zaion irudia (logotipoa, zigilua…).
+Incluir la imagen en todas las páginas = Sartu irudia orri guztietan
+Selecciona la imagen de la marca = Hautatu markaren irudia

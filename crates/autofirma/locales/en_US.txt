@@ -599,3 +599,19 @@ Restaurar la apariencia por defecto = Restore the default appearance
 # services/updater.rs (aviso de versión en la barra lateral)
 Nueva versión {0} disponible = New version {0} available
 Abre la página de descarga en el navegador = Opens the download page in the browser
+
+# Marca de imagen (ui/pages/sign.rs, ui/visible_sig.rs)
+Marca de imagen en el PDF = Image mark in the PDF
+Añade una imagen (logotipo, sello…) en una página o en todas. = Adds an image (logo, stamp…) on one page or on all of them.
+No se pueden aplicar marcas visibles a documentos ya firmados. = Visible marks cannot be applied to documents already signed.
+Colocar marca = Place mark
+Marca de imagen = Image mark
+Firmar sin marca = Sign without mark
+Marca = Mark
+Arrastra sobre la página para colocar la marca = Drag over the page to place the mark
+Dibuja en la página el recuadro donde quieres la marca. = Draw on the page the box where you want the mark.
+Elige la imagen de la marca. = Choose the mark image.
+Qué colocas en la página = What you are placing on the page
+Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = An image (logo, stamp…) added to the document before signing it.
+Incluir la imagen en todas las páginas = Include the image on all pages
+Selecciona la imagen de la marca = Select the mark image

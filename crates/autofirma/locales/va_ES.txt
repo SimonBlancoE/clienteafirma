@@ -599,3 +599,19 @@ Restaurar la apariencia por defecto = Restaurar l'aparença per defecte
 # services/updater.rs (aviso de versión en la barra lateral)
 Nueva versión {0} disponible = Nova versió {0} disponible
 Abre la página de descarga en el navegador = Obri la pàgina de descàrrega en el navegador
+
+# Marca de imagen (ui/pages/sign.rs, ui/visible_sig.rs)
+Marca de imagen en el PDF = Marca d'imatge en el PDF
+Añade una imagen (logotipo, sello…) en una página o en todas. = Afig una imatge (logotip, segell…) en una pàgina o en totes.
+No se pueden aplicar marcas visibles a documentos ya firmados. = No es poden aplicar marques visibles a documents ja signats.
+Colocar marca = Col·loca la marca
+Marca de imagen = Marca d'imatge
+Firmar sin marca = Signa sense marca
+Marca = Marca
+Arrastra sobre la página para colocar la marca = Arrossega sobre la pàgina per a col·locar la marca
+Dibuja en la página el recuadro donde quieres la marca. = Dibuixa en la pàgina el requadre on vols la marca.
+Elige la imagen de la marca. = Tria la imatge de la marca.
+Qué colocas en la página = Què col·loques en la pàgina
+Una imagen (logotipo, sello…) que se añade al documento antes de firmarlo. = Una imatge (logotip, segell…) que s'afig al document abans de signar-lo.
+Incluir la imagen en todas las páginas = Inclou la imatge en totes les pàgines
+Selecciona la imagen de la marca = Selecciona la imatge de la marca

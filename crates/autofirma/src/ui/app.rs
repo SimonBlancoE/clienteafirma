@@ -140,7 +140,7 @@ impl AutoFirmaApp {
             cc.egui_ctx.set_zoom_factor(scale.clamp(0.8, 1.6));
         }
         if let Ok(demo) = std::env::var("AF_DEMO") {
-            super::demo::load(&mut app, &demo);
+            super::demo::load(&mut app, &demo, &cc.egui_ctx);
         }
         if crate::platform::launch_events_by_message() && start.is_empty() && std::env::var_os("AF_DEMO").is_none() {
             app.launch_grace = Some(std::time::Instant::now());

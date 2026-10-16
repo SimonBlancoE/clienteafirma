@@ -60,7 +60,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Cofirma/contrafirma según preferencias, confirmación antes de firmar | ✅ | |
 | Nombres de salida `_signed` y `(n)`, sobrescritura masiva | ✅ | |
 | Editor de firma visible (área, páginas, apariencia, rúbrica, campos vacíos) | ➕ | Vista previa real del PDF |
-| Sello de imagen independiente (`image`, `imagePage`) | ❌ | Pendiente en el editor |
+| Marca de imagen independiente (`image`, `imagePage`) | ✅ | En el mismo editor que la firma visible |
 | Pantalla de resultado y visor de firmas (árbol, sellos, certificados, datos firmados) | ✅ | Página «Verificar firmas» |
 | Validación del certificado de firma (OCSP/CRL) | ⚠️ | En desarrollo; con verificación de las respuestas (Java no las verificaba) |
 | Huellas digitales (ficheros y carpetas, crear y comprobar) | ✅ | Salidas idénticas a las de Java |
@@ -71,8 +71,8 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Seis idiomas | ✅ | |
 | Paquetes de idioma (ZIP) | ➖ | Sin uso conocido |
 | Complementos (plugins) | 🔁 | Huellas y validación de certificados integrados |
-| Aviso de nueva versión | ❌ | Pendiente (depende de dónde se publiquen las versiones) |
-| Instancia única de la interfaz | ❌ | Pendiente |
+| Aviso de nueva versión | ✅ | Consulta las versiones publicadas del repositorio; mismas exclusiones que Java |
+| Instancia única de la interfaz | ➕ | Una segunda ejecución entrega sus ficheros a la ventana abierta |
 | Tema de alto contraste, escalado, lector de pantalla | ➕ | Temas claro/oscuro/alto contraste; AccessKit |
 
 ## Preferencias

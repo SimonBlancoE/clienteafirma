@@ -130,6 +130,8 @@ pub struct SignPage {
     pub stage: Stage,
     pub files: Vec<FileItem>,
     pub visible_signature: bool,
+    /// Marca de imagen en el PDF (solo con un único PDF sin firmar, como Java).
+    pub visible_stamp: bool,
     pub output_dir: Option<PathBuf>,
     pub store_label: String,
     pub store_ready: bool,
@@ -144,6 +146,7 @@ impl Default for SignPage {
             stage: Stage::Empty,
             files: Vec::new(),
             visible_signature: false,
+            visible_stamp: false,
             output_dir: None,
             store_label: tr("Almacén del sistema").into(),
             store_ready: true,
@@ -393,6 +396,35 @@ impl SignPage {
                     }
                 });
                 ui.add_space(8.0);
+                // Marca de imagen: como en AutoFirma, solo al firmar un único PDF.
+                if self.files.len() == 1 {
+                    let signed = self.files[0].is_signed();
+                    if signed {
+                        self.visible_stamp = false;
+                    }
+                    ui.horizontal(|ui| {
+                        ui.add_enabled_ui(!signed, |ui| toggle(ui, p, &mut self.visible_stamp));
+                        ui.vertical(|ui| {
+                            ui.label(RichText::new(tr("Marca de imagen en el PDF")).font(FontId::new(14.0, semibold())));
+                            let hint = if signed {
+                                tr("No se pueden aplicar marcas visibles a documentos ya firmados.")
+                            } else {
+                                tr("Añade una imagen (logotipo, sello…) en una página o en todas.")
+                            };
+                            ui.label(RichText::new(hint).size(12.5).color(p.text_muted));
+                        });
+                        if self.visible_stamp && !self.visible_signature {
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), tr("Colocar marca"), true).clicked() {
+                                    actions.push(SignAction::ConfigureVisibleSignature(0));
+                                }
+                            });
+                        }
+                    });
+                    ui.add_space(8.0);
+                } else {
+                    self.visible_stamp = false;
+                }
             }
             if self.files.len() > 1 {
                 ui.horizontal(|ui| {

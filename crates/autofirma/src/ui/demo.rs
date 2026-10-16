@@ -1,5 +1,6 @@
 //! Datos de demostración para revisar la interfaz sin almacenes reales.
 
+use eframe::egui;
 use super::app::{AutoFirmaApp, Page};
 use super::cert_picker::StoreOption;
 use super::icons;
@@ -26,7 +27,7 @@ fn test_certs() -> Vec<CertItem> {
 
 /// Estados de demostración para revisar la interfaz (capturas de pantalla).
 /// Se activan con la variable de entorno `AF_DEMO`.
-pub fn load(app: &mut AutoFirmaApp, demo: &str) {
+pub fn load(app: &mut AutoFirmaApp, demo: &str, ctx: &egui::Context) {
     if demo.contains("dark") {
         app.theme = ThemeChoice::Dark;
     }
@@ -195,8 +196,13 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         }
     }
     if demo.contains("visible") {
+        app.visible_sig.stamp_enabled = demo.contains("stamp");
         app.visible_sig.open_with("Solicitud de subvención 2026.pdf", std::sync::Arc::new(super::visible_sig::DemoPages));
         app.visible_sig.set_rect_pdf(0, 330.0, 60.0, 545.0, 140.0);
+        if demo.contains("stamp") {
+            let logo = include_bytes!("../../../../packaging/icons/autofirma-128.png").to_vec();
+            let _ = app.visible_sig.set_stamp_demo(ctx, logo);
+        }
     }
     if demo.contains("settings") {
         app.page = Page::Settings;

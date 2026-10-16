@@ -180,6 +180,7 @@ impl AutoFirmaApp {
                     self.sign.stage = Stage::Ready;
                     self.sign.last_error = None;
                     self.sign.visible_signature = self.pref_bool("padesVisibleSignature", false);
+                    self.sign.visible_stamp = self.pref_bool("padesVisibleStamp", false);
                 }
             }
         }
@@ -370,6 +371,8 @@ impl AutoFirmaApp {
         match crate::services::pdf_pages::PdfPages::open(&f.data, None) {
             Ok(pages) => {
                 self.visible_sig.mandatory = false;
+                self.visible_sig.signature_enabled = self.sign.visible_signature;
+                self.visible_sig.stamp_enabled = self.sign.visible_stamp;
                 self.visible_sig.multi_document = self.sign.files.iter().filter(|f| f.format == "PAdES").count() > 1;
                 self.visible_sig.empty_fields = afirma_pdf::info::empty_signature_fields(&f.data)
                     .into_iter()
@@ -389,7 +392,7 @@ impl AutoFirmaApp {
     }
 
     fn after_confirm(&mut self, ctx: &egui::Context) {
-        let needs_visible = self.sign.visible_signature
+        let needs_visible = (self.sign.visible_signature || self.sign.visible_stamp)
             && self.rt.visible_params.is_none()
             && self.sign.files.iter().any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
         if needs_visible
@@ -489,7 +492,7 @@ impl AutoFirmaApp {
                     p
                 })
             },
-            visible_params: if self.sign.visible_signature { self.rt.visible_params.clone() } else { None },
+            visible_params: if self.sign.visible_signature || self.sign.visible_stamp { self.rt.visible_params.clone() } else { None },
             output_dir: self.sign.output_dir.clone(),
             overwrite: prefs.get("massiveOverride").is_some_and(|v| v == "true"),
             bridge: self.rt.bridge.clone(),
@@ -529,6 +532,7 @@ impl AutoFirmaApp {
             }
             VisibleSigEvent::Invisible => {
                 self.sign.visible_signature = false;
+                self.sign.visible_stamp = false;
                 if self.rt.step == SignStep::VisibleSignature {
                     self.rt.step = SignStep::ChooseCertificate;
                     self.picker.accept_label = tr("Firmar").into();
