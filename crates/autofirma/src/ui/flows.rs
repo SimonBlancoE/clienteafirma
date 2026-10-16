@@ -56,6 +56,19 @@ pub struct Runtime {
     pub toast: Option<(String, std::time::Instant)>,
     /// Opciones de `sign -gui` de la línea de comandos.
     pub cli_sign: Option<crate::launch::CliSign>,
+    /// Certificado (y cadena) de la última firma, para validarlo.
+    pub signing_cert: Option<(Vec<u8>, Vec<Vec<u8>>)>,
+    /// Validación de un certificado en curso y dónde mostrar el resultado.
+    pub certval_job: Option<(CertvalTarget, Job<(), crate::services::certval::CertCheck>)>,
+}
+
+/// Dónde se muestra el resultado de una validación de certificado.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CertvalTarget {
+    /// Resultado de la firma.
+    Signing,
+    /// «Mis certificados»: (almacén, certificado).
+    Store(usize, usize),
 }
 
 impl Runtime {
@@ -74,6 +87,8 @@ impl Runtime {
             certs_job: None,
             step: SignStep::Idle,
             cli_sign: None,
+            signing_cert: None,
+            certval_job: None,
             visible_params: None,
             toast: None,
         }
@@ -168,6 +183,20 @@ impl AutoFirmaApp {
 
     /// Consulta las tareas en curso y aplica sus resultados.
     pub(crate) fn pump_jobs(&mut self, ctx: &egui::Context) {
+        if let Some((target, job)) = &mut self.rt.certval_job {
+            let target = *target;
+            for ev in job.poll() {
+                if let JobEvent::Done(r) = ev {
+                    match target {
+                        CertvalTarget::Signing => self.sign.cert_validation = Some(Some(r)),
+                        CertvalTarget::Store(si, ci) => self.certificates.validation = Some(((si, ci), Some(r))),
+                    }
+                }
+            }
+            if self.rt.certval_job.as_ref().is_some_and(|(_, j)| j.is_finished()) {
+                self.rt.certval_job = None;
+            }
+        }
         let (events, finished) = match &mut self.rt.load_job {
             Some(job) => (job.poll(), job.is_finished()),
             None => (Vec::new(), false),
@@ -356,7 +385,19 @@ impl AutoFirmaApp {
                         self.load_files(ctx, files);
                     }
                 }
+                SignAction::ValidateSigningCert => {
+                    if let Some((der, chain)) = self.rt.signing_cert.clone() {
+                        self.sign.cert_validation = Some(None);
+                        self.rt.certval_job = Some((
+                            CertvalTarget::Signing,
+                            Job::spawn(ctx, "validacion", move |_| {
+                                crate::services::certval::check(&der, &chain)
+                            }),
+                        ));
+                    }
+                }
                 SignAction::Clear => {
+                    self.sign.cert_validation = None;
                     self.sign.files.clear();
                     self.sign.stage = Stage::Empty;
                     self.sign.last_error = None;
@@ -524,6 +565,8 @@ impl AutoFirmaApp {
         let Some(entry) = store.entries.get(index).cloned() else {
             return;
         };
+        self.rt.signing_cert = Some((entry.certificate.clone(), entry.chain.clone()));
+        self.sign.cert_validation = None;
         let prefs = self.prefs_snapshot();
         let params_prefs = prefs.clone();
         let input = SignJobInput {
@@ -895,6 +938,15 @@ impl AutoFirmaApp {
                         Tool::CheckHashFile => tools::check_file(&input, secondary.as_deref().unwrap_or(&input)),
                         Tool::HashDir => tools::hash_dir(&input, &alg, rec),
                         Tool::CheckHashDir => tools::check_dir(&input, secondary.as_deref().unwrap_or(&input)),
+                        Tool::ValidateCert => {
+                            let r = crate::services::certval::check_file(&input);
+                            tools::ToolOutcome::Check {
+                                ok: r.ok,
+                                title: r.title,
+                                detail: r.detail,
+                                report_xml: None,
+                            }
+                        }
                         _ => tools::ToolOutcome::Error(tr("Herramienta no disponible todavía").into()),
                     }));
                 }
@@ -1111,6 +1163,22 @@ impl AutoFirmaApp {
                             self.certificates.default_store = Some(s.id.clone());
                             self.notify(tr("Almacén predeterminado actualizado"));
                         }
+                    }
+                }
+                CertsAction::Validate(si, ci) => {
+                    let der = self
+                        .certificates
+                        .stores
+                        .get(si)
+                        .and_then(|s| s.certs.as_ref())
+                        .and_then(|c| c.get(ci))
+                        .map(|c| c.der.clone());
+                    if let Some(der) = der {
+                        self.certificates.validation = Some(((si, ci), None));
+                        self.rt.certval_job = Some((
+                            CertvalTarget::Store(si, ci),
+                            Job::spawn(ctx, "validacion", move |_| crate::services::certval::check(&der, &[])),
+                        ));
                     }
                 }
                 CertsAction::Export(si, ci) => {

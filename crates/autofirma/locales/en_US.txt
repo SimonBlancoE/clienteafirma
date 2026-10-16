@@ -618,3 +618,22 @@ Selecciona la imagen de la marca = Select the mark image
 
 # ui/pages/verify.rs (VALIDe)
 Para comprobar también la revocación de los certificados puedes usar el servicio oficial = To also check certificate revocation you can use the official service
+
+# Validación de certificados (services/certval.rs, páginas de firma y certificados)
+Autoridad de certificación no soportada = Certification authority not supported
+Comprobar si el certificado está revocado (OCSP/CRL) = Check whether the certificate is revoked (OCSP/CRL)
+El certificado aún no es válido = The certificate is not valid yet
+El certificado es válido = The certificate is valid
+El certificado está caducado = The certificate has expired
+El certificado está corrupto = The certificate is corrupt
+El certificado está revocado = The certificate is revoked
+El fichero no contiene ningún certificado = The file does not contain any certificate
+El servicio de validación devolvió un error = The validation service returned an error
+No se dispone de ningún mecanismo de validación para el tipo de certificado utilizado = There is no validation mechanism available for this type of certificate
+No se ha podido comprobar la validez del certificado = The validity of the certificate could not be checked
+No se ha podido leer el certificado = The certificate could not be read
+Revocado el {0} = Revoked on {0}
+Se desconoce el estado del certificado. = The status of the certificate is unknown.
+Validando certificado… = Validating certificate…
+Validar certificado de firma = Validate signing certificate
+Validar el certificado con el que se ha realizado la firma = Validate the certificate used to sign

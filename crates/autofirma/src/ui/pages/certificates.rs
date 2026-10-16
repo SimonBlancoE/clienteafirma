@@ -34,11 +34,15 @@ pub enum CertsAction {
     RegisterPkcs11,
     RemoveStore(usize),
     Export(usize, usize),
+    /// Comprobar la revocación (OCSP/CRL) de un certificado.
+    Validate(usize, usize),
     SetDefault(usize),
 }
 
 #[derive(Debug, Default)]
 pub struct CertificatesPage {
+    /// Validación en curso o terminada: (almacén, certificado) → resultado.
+    pub validation: Option<((usize, usize), Option<crate::services::certval::CertCheck>)>,
     pub stores: Vec<StoreEntry>,
     pub selected: usize,
     pub expanded: Option<usize>,
@@ -254,11 +258,47 @@ impl CertificatesPage {
                                     {
                                         actions.push(CertsAction::Export(self.selected, ci));
                                     }
+                                    if ui
+                                        .add(
+                                            egui::Button::new(widgets::icon_text(
+                                                icons::SHIELD_CHECK,
+                                                16.0,
+                                                p.text_muted,
+                                            ))
+                                            .frame(false),
+                                        )
+                                        .on_hover_text(tr("Comprobar si el certificado está revocado (OCSP/CRL)"))
+                                        .clicked()
+                                    {
+                                        actions.push(CertsAction::Validate(self.selected, ci));
+                                    }
                                     if ui.link(if expanded { tr("Ocultar") } else { tr("Detalles") }).clicked() {
                                         self.expanded = if expanded { None } else { Some(ci) };
                                     }
                                 });
                             });
+                            if let Some(((si, vi), state)) = &self.validation
+                                && *si == self.selected
+                                && *vi == ci
+                            {
+                                ui.add_space(6.0);
+                                match state {
+                                    None => {
+                                        ui.horizontal(|ui| {
+                                            ui.spinner();
+                                            ui.label(
+                                                RichText::new(tr("Validando certificado…"))
+                                                    .size(12.5)
+                                                    .color(p.text_muted),
+                                            );
+                                        });
+                                    }
+                                    Some(r) => {
+                                        let kind = if r.ok { CalloutKind::Success } else { CalloutKind::Error };
+                                        widgets::callout(ui, p, kind, &r.title, r.detail.as_deref());
+                                    }
+                                }
+                            }
                             if expanded {
                                 ui.separator();
                                 cert_details(ui, p, c);

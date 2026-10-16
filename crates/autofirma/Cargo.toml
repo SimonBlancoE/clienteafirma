@@ -26,6 +26,7 @@ rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp"] }
 afirma-signers.workspace = true
 afirma-keystores.workspace = true
+afirma-certval.workspace = true
 afirma-pdf.workspace = true
 afirma-cms.workspace = true
 afirma-xml.workspace = true

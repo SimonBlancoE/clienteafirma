@@ -123,6 +123,8 @@ pub enum SignAction {
     VerifyOutput(PathBuf),
     ChooseOutputDir,
     RepairIntegration,
+    /// Botón «Validar certificado de firma» del resultado (complemento de Java).
+    ValidateSigningCert,
 }
 
 #[derive(Debug)]
@@ -132,6 +134,8 @@ pub struct SignPage {
     pub visible_signature: bool,
     /// Marca de imagen en el PDF (solo con un único PDF sin firmar, como Java).
     pub visible_stamp: bool,
+    /// Validación del certificado de firma: `Some(None)` en curso.
+    pub cert_validation: Option<Option<crate::services::certval::CertCheck>>,
     pub output_dir: Option<PathBuf>,
     pub store_label: String,
     pub store_ready: bool,
@@ -147,6 +151,7 @@ impl Default for SignPage {
             files: Vec::new(),
             visible_signature: false,
             visible_stamp: false,
+            cert_validation: None,
             output_dir: None,
             store_label: tr("Almacén del sistema").into(),
             store_ready: true,
@@ -682,6 +687,36 @@ impl SignPage {
             });
         });
         ui.add_space(14.0);
+        if !ok.is_empty() {
+            match &self.cert_validation {
+                None => {
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Ghost,
+                        Some(icons::SHIELD_CHECK),
+                        tr("Validar certificado de firma"),
+                        true,
+                    )
+                    .on_hover_text(tr("Validar el certificado con el que se ha realizado la firma"))
+                    .clicked()
+                    {
+                        actions.push(SignAction::ValidateSigningCert);
+                    }
+                }
+                Some(None) => {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(RichText::new(tr("Validando certificado…")).color(p.text_muted));
+                    });
+                }
+                Some(Some(r)) => {
+                    let kind = if r.ok { CalloutKind::Success } else { CalloutKind::Error };
+                    widgets::callout(ui, p, kind, &r.title, r.detail.as_deref());
+                }
+            }
+            ui.add_space(10.0);
+        }
         if self.files.len() > 1 || failed > 0 {
             self.file_list(ui, p, false, actions);
         }

@@ -3,6 +3,7 @@
 
 pub mod bridge;
 pub mod certs;
+pub mod certval;
 pub mod config_verifier;
 pub mod desktop;
 pub mod files;

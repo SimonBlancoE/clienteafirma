@@ -618,3 +618,22 @@ Selecciona la imagen de la marca = Hautatu markaren irudia
 
 # ui/pages/verify.rs (VALIDe)
 Para comprobar también la revocación de los certificados puedes usar el servicio oficial = Ziurtagirien errebokazioa ere egiaztatzeko, zerbitzu ofiziala erabil dezakezu
+
+# Validación de certificados (services/certval.rs, páginas de firma y certificados)
+Autoridad de certificación no soportada = Ziurtapen-agintaritza ez da onartzen
+Comprobar si el certificado está revocado (OCSP/CRL) = Egiaztatu ziurtagiria errebokatuta dagoen (OCSP/CRL)
+El certificado aún no es válido = Ziurtagiria ez da oraindik baliozkoa
+El certificado es válido = Ziurtagiria baliozkoa da
+El certificado está caducado = Ziurtagiria iraungita dago
+El certificado está corrupto = Ziurtagiria hondatuta dago
+El certificado está revocado = Ziurtagiria errebokatuta dago
+El fichero no contiene ningún certificado = Fitxategiak ez du ziurtagiririk
+El servicio de validación devolvió un error = Baliozkotze-zerbitzuak errore bat itzuli du
+No se dispone de ningún mecanismo de validación para el tipo de certificado utilizado = Ez dago baliozkotze-mekanismorik ziurtagiri mota honetarako
+No se ha podido comprobar la validez del certificado = Ezin izan da ziurtagiriaren baliozkotasuna egiaztatu
+No se ha podido leer el certificado = Ezin izan da ziurtagiria irakurri
+Revocado el {0} = Errebokatze-data: {0}
+Se desconoce el estado del certificado. = Ziurtagiriaren egoera ezezaguna da.
+Validando certificado… = Ziurtagiria baliozkotzen…
+Validar certificado de firma = Baliozkotu sinadura-ziurtagiria
+Validar el certificado con el que se ha realizado la firma = Baliozkotu sinatzeko erabili den ziurtagiria

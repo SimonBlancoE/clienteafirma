@@ -618,3 +618,22 @@ Selecciona la imagen de la marca = Selecciona a imaxe da marca
 
 # ui/pages/verify.rs (VALIDe)
 Para comprobar también la revocación de los certificados puedes usar el servicio oficial = Para comprobar tamén a revogación dos certificados podes usar o servizo oficial
+
+# Validación de certificados (services/certval.rs, páginas de firma y certificados)
+Autoridad de certificación no soportada = Autoridade de certificación non admitida
+Comprobar si el certificado está revocado (OCSP/CRL) = Comprobar se o certificado está revogado (OCSP/CRL)
+El certificado aún no es válido = O certificado aínda non é válido
+El certificado es válido = O certificado é válido
+El certificado está caducado = O certificado caducou
+El certificado está corrupto = O certificado está corrupto
+El certificado está revocado = O certificado está revogado
+El fichero no contiene ningún certificado = O ficheiro non contén ningún certificado
+El servicio de validación devolvió un error = O servizo de validación devolveu un erro
+No se dispone de ningún mecanismo de validación para el tipo de certificado utilizado = Non hai ningún mecanismo de validación para este tipo de certificado
+No se ha podido comprobar la validez del certificado = Non se puido comprobar a validez do certificado
+No se ha podido leer el certificado = Non se puido ler o certificado
+Revocado el {0} = Revogado o {0}
+Se desconoce el estado del certificado. = Descoñécese o estado do certificado.
+Validando certificado… = Validando o certificado…
+Validar certificado de firma = Validar o certificado de sinatura
+Validar el certificado con el que se ha realizado la firma = Validar o certificado co que se fixo a sinatura

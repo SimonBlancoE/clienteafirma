@@ -62,7 +62,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Editor de firma visible (área, páginas, apariencia, rúbrica, campos vacíos) | ➕ | Vista previa real del PDF |
 | Marca de imagen independiente (`image`, `imagePage`) | ✅ | En el mismo editor que la firma visible |
 | Pantalla de resultado y visor de firmas (árbol, sellos, certificados, datos firmados) | ✅ | Página «Verificar firmas» |
-| Validación del certificado de firma (OCSP/CRL) | ⚠️ | En desarrollo; con verificación de las respuestas (Java no las verificaba) |
+| Validación del certificado de firma (OCSP/CRL) | ➕ | Tras firmar, en «Mis certificados» y en Herramientas; verifica las respuestas OCSP y las CRL (Java no lo hacía) |
 | Huellas digitales (ficheros y carpetas, crear y comprobar) | ✅ | Salidas idénticas a las de Java |
 | Restaurar la instalación / diagnóstico | ➕ | Diagnóstico nuevo con reparación |
 | Pantalla de espera del DNIe al arrancar | 🔁 | El almacén y el DNIe se eligen en la página de firma |
