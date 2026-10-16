@@ -1,0 +1,11 @@
+resp_ec_good.der VALID
+resp_good_by_ca.der VALID
+resp_good.der VALID
+resp_good_keyid.der VALID
+resp_good_nocerts.der VALID
+resp_nonext.der VALID
+resp_other.der VALID
+resp_revoked.der REVOKED
+resp_rogue.der VALID
+resp_stale.der VALID
+resp_unknown.der UNKNOWN

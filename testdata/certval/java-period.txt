@@ -1,0 +1,3 @@
+good.crt VALID
+expired.crt EXPIRED
+notyet.crt NOT_YET_VALID

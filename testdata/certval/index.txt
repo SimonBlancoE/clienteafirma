@@ -1,0 +1,12 @@
+V	461011161822Z		1000	unknown	/CN=ocsp certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161822Z		1001	unknown	/CN=rogue_ocsp certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161822Z		1002	unknown	/CN=good certval/O=AutoFirma-rs Pruebas/C=ES
+R	461011161823Z	261016161823Z,keyCompromise	1003	unknown	/CN=revoked certval/O=AutoFirma-rs Pruebas/C=ES
+V	210101000000Z		1004	unknown	/CN=expired certval/O=AutoFirma-rs Pruebas/C=ES
+V	21000101000000Z		1005	unknown	/CN=notyet certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161823Z		1006	unknown	/CN=crlonly certval/O=AutoFirma-rs Pruebas/C=ES
+R	461011161823Z	261016161823Z,superseded	1007	unknown	/CN=crlonly_revoked certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161823Z		1008	unknown	/CN=nothing certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161823Z		1009	unknown	/CN=ldap certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161823Z		100A	unknown	/CN=multidp certval/O=AutoFirma-rs Pruebas/C=ES
+V	461011161823Z		100B	unknown	/CN=aia_p7c certval/O=AutoFirma-rs Pruebas/C=ES

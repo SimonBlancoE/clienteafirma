@@ -1,0 +1,4 @@
+fnmt_aia.crt CA_NOT_SUPPORTED
+fnmt_noaia.crt ERROR:IllegalArgumentException
+expired.crt EXPIRED
+notyet.crt NOT_YET_VALID

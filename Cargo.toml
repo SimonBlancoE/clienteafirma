@@ -22,6 +22,7 @@ afirma-protocol = { path = "crates/afirma-protocol" }
 afirma-system = { path = "crates/afirma-system" }
 afirma-cli = { path = "crates/afirma-cli" }
 afirma-hash = { path = "crates/afirma-hash" }
+afirma-certval = { path = "crates/afirma-certval" }
 
 # Utilidades
 thiserror = "2"

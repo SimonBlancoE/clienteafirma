@@ -1,0 +1,4 @@
+Your keystore contains 3 entries
+clave, Oct 16, 2026, PrivateKeyEntry, 
+mi raíz, Oct 16, 2026, trustedCertEntry, 
+otra, Oct 16, 2026, trustedCertEntry, 

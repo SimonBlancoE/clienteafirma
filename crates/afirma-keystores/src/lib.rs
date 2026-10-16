@@ -32,6 +32,9 @@
 //! - [`filters`], [`candidates`], [`display`], [`dn`]: filtros de
 //!   certificados, lista de candidatos y datos para el diálogo.
 //! - [`verify`]: verificación de la firma producida con el certificado.
+//! - [`jks`]: almacén de confianza personal de AutoFirma
+//!   (`~/.afirma/TrustedCertsKeystore.jks`, formato JKS) e importación de
+//!   certificados de confianza.
 //! - [`error`]: errores y su correspondencia con los códigos de AutoFirma.
 
 pub mod callback;
@@ -43,6 +46,7 @@ pub mod dn;
 pub mod error;
 pub mod factory;
 pub mod filters;
+pub mod jks;
 // Fuera de macOS solo se compila en pruebas (lógica pura: alias, números de
 // serie, algoritmos y errores).
 #[cfg(any(target_os = "macos", test))]

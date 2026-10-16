@@ -229,3 +229,40 @@ Diferencias que conlleva:
   filtrado, así que no se reproduce el fallo de Java que devolvía otro
   certificado si una fila fallaba al pintarse (§8.9). El orden secundario es
   determinista: caducidad descendente y después huella SHA-1.
+
+## Almacén de confianza personal (`jks`)
+
+Módulo `jks` (`TrustStoreManager` de `afirma-core` Java y diálogos de
+`afirma-simple`, especificación §4.14). El formato es el JKS de Sun: lo que se
+escribe lo lee `keytool` y AutoFirma Java, y se leen los almacenes de ambos
+(pruebas `tests/jks_interop.rs` con `keytool` en vivo y con el almacén que
+genera `TrustStoreManager` de Java, `testdata/keystores/jks/gen.sh` y
+`tools/oracle/TrustStoreOracle.java`). Los alias son los de Java
+(`X500Principal.toString()` del titular en minúsculas, `" (1)"`, `" (2)"`...).
+
+- **Escritura atómica.** Java sobrescribe el fichero directamente; aquí se escribe
+  un temporal en el mismo directorio y se renombra. Además se crea `~/.afirma`
+  si no existe (Java falla si no lo ha creado antes la aplicación).
+- **Entradas de clave privada.** Se leen y se conservan intactas al guardar
+  (byte a byte: `keytool` puede seguir usando la clave), pero
+  `TrustStore::certificates()` y `load_trusted_certs()` solo devuelven las
+  entradas `trustedCertEntry`. Java, al construir la confianza TLS, también
+  usaría el primer certificado de la cadena de una entrada de clave (en el
+  almacén de AutoFirma no hay ninguna).
+- **Formato dual.** Como el tipo `JKS` de Java 9+, un fichero PKCS#12 con la misma
+  contraseña se acepta al leer (solo sus certificados); al guardar se escribe JKS.
+- **Orden.** Las entradas se escriben en orden de alta (Java usa el orden de un
+  `Hashtable`). No afecta a la interoperabilidad.
+- **Importación desde ficheros.** `parse_certificate_file` acepta DER, PEM con
+  varios bloques `CERTIFICATE` y Base64 sin cabeceras; Java
+  (`CertificateFactory.generateCertificate`) solo leía el primer certificado de
+  cada fichero.
+- **Importación desde URL.** `fetch_server_chain` fuerza `https://` como
+  `buildUrl` y propone la cadena menos el certificado del servidor (o el único
+  certificado) como `downloadServerCerts`, pero descarga la cadena sin
+  validarla desde el primer intento (Java intentaba primero con validación y
+  repetía sin ella si fallaba la negociación: la cadena obtenida es la misma).
+- **Mensaje de almacén dañado.** `LOAD_ERROR_MESSAGE`/`LOAD_ERROR_TITLE` son los
+  textos de `coremessages_es_ES.properties` ("No se ha podido cargar el almacén
+  de claves de Autofirma. Es posible que esté corrupto. ¿Desea crearlo de
+  nuevo?"); la especificación §4.14 los parafrasea.

@@ -1,0 +1,4 @@
+cn=otra ca jks, o=autofirma-rs pruebas, c=es	c8594cf9dd9a34dabd320aa2d71001101bf298544499a44d82ee6df840d1a4be
+cn=prueba 😀 jks, o=autofirma-rs pruebas, c=es	345e2f17a7a06a122b7b04c5f1ca2d7283052a945ff1c2d95a1704bc63ec1356
+cn=raíz pruebas jks, o=autofirma-rs pruebas, c=es	00990fdd03f9724bf1a13080932c53396478a74173d92f5ae20348814952f206
+cn=raíz pruebas jks, o=autofirma-rs pruebas, c=es (1)	1bdcb25348b87a1c69c254134927c862dceabb1a3f9467412ceba90f7ff29295
