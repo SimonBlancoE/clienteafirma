@@ -1,0 +1,2 @@
+# Traducciones de la interfaz de AutoFirma-rs (gl_ES).
+# Formato: texto en español = traducción

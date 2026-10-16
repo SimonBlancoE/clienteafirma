@@ -1,0 +1,2 @@
+# Traducciones de la interfaz de AutoFirma-rs (va_ES).
+# Formato: texto en español = traducción

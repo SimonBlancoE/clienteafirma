@@ -1,0 +1,4 @@
+# Traducciones de la interfaz de AutoFirma-rs (en_US).
+# Formato: texto en español = traducción
+Firmar = Sign
+Firmar {0} documentos = Sign {0} documents
