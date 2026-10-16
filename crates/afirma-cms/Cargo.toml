@@ -1,0 +1,15 @@
+[package]
+name = "afirma-cms"
+description = "Firmas CMS/PKCS#7 y CAdES, sellos de tiempo RFC 3161 y utilidades ASN.1 para AutoFirma-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+chrono.workspace = true
+hex.workspace = true
+
+[dev-dependencies]

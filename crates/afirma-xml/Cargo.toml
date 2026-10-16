@@ -1,0 +1,12 @@
+[package]
+name = "afirma-xml"
+description = "Firmas XML (XMLDSig, XAdES, FacturaE, ODF, OOXML) y canonicalización C14N para AutoFirma-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+encoding_rs = "0.8"

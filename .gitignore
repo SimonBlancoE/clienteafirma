@@ -75,3 +75,8 @@ hs_err_pid*
 
 # macOS
 .DS_Store
+
+### Rust (AutoFirma-rs) ###
+/target/
+**/*.rs.bk
+/dist/
