@@ -52,6 +52,67 @@ jobs:
       - name: Pruebas
         run: cargo test --workspace --locked
 
+  integration:
+    name: Integración real con el sistema (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
+      - name: Compilar
+        run: cargo build --release --locked -p autofirma
+      - name: Instalar (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo target/release/autofirma install --system
+          sudo target/release/autofirma doctor --json | tee doctor.json > /dev/null
+          test -f /usr/local/share/ca-certificates/Autofirma_ROOT.crt
+      - name: Instalar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path target\release\autofirma.exe
+          Start-Process -FilePath $exe -ArgumentList 'install','--system' -Wait -NoNewWindow
+          Start-Process -FilePath $exe -ArgumentList 'doctor','--json' -Wait -NoNewWindow -RedirectStandardOutput doctor.json
+          if (-not (Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like '*Autofirma ROOT*')) {
+            throw 'La CA no está en LocalMachine\Root'
+          }
+          (Get-ItemProperty 'Registry::HKEY_LOCAL_MACHINE\Software\Classes\afirma\shell\open\command').'(default)'
+      - name: Instalar (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sudo target/release/autofirma install --system
+          target/release/autofirma doctor --json > doctor.json
+          security find-certificate -c "Autofirma ROOT" /Library/Keychains/System.keychain > /dev/null
+      - name: Comprobar el diagnóstico
+        run: python3 tools/ci/check_doctor.py doctor.json
+      - name: Firmar y verificar por línea de comandos
+        shell: bash
+        run: |
+          exe=target/release/autofirma
+          [ -f "$exe.exe" ] && exe="$exe.exe"
+          for f in cades xades pades; do
+            in=testdata/pki/ca.crt; [ $f = pades ] && in=testdata/pades/rotated_pages.pdf
+            "$exe" sign -i "$in" -o "firma-$f" -format "$f" \
+              -store pkcs12:testdata/pki/firmante-rsa.p12 -password 12341234 -alias firmante-rsa | tee salida.txt
+            test -s "firma-$f"
+            "$exe" verify -i "firma-$f" | tee verificacion.txt
+          done
+      - name: Desinstalar
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) target/release/autofirma.exe uninstall --system ;;
+            *) sudo target/release/autofirma uninstall --system ;;
+          esac
+
   packaging:
     name: Ficheros de empaquetado
     runs-on: ubuntu-latest

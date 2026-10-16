@@ -44,7 +44,9 @@ nueva y preparado para desplegarse en equipos corporativos sin avisos.
   TLS con `rustls` y el almacén de confianza del sistema.
 
 La lista completa de funciones y su estado está en [docs/PARITY.md](docs/PARITY.md); las
-diferencias deliberadas con Java, en [docs/deviations/](docs/deviations/).
+diferencias deliberadas con Java, en [docs/deviations/](docs/deviations/), y la comparación
+medida de rendimiento y uso, en [docs/COMPARISON.md](docs/COMPARISON.md) (por ejemplo, firmar
+un PDF de 2,5 MB por línea de comandos: 2,0 s y 193 MB en Java, 0,02 s y 27 MB aquí).
 
 ## Instalación
 
