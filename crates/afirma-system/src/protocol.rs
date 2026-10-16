@@ -726,6 +726,36 @@ fn unregister_linux(ctx: &Context, opts: &ProtocolOptions) -> Result<Change> {
     Ok(if changed { Change::Changed } else { Change::Unchanged })
 }
 
+/// Indica si la línea `Exec=` de un `.desktop` lanza este ejecutable: por ruta
+/// completa, o por un nombre del `PATH` que es este ejecutable (enlace) o un
+/// envoltorio que lo invoca (el `/usr/bin/autofirma` de los paquetes .deb/.rpm).
+fn exec_points_to(ctx: &Context, exec: &str) -> bool {
+    let exe = ctx.app.exe.to_string_lossy();
+    if exec.contains(&*exe) {
+        return true;
+    }
+    let program = exec.split_whitespace().next().unwrap_or("").trim_matches('"');
+    if program.is_empty() {
+        return false;
+    }
+    let resolved = if program.contains('/') {
+        Some(ctx.sys(program))
+    } else {
+        ["/usr/local/bin", "/usr/bin", "/bin"]
+            .iter()
+            .map(|d| ctx.sys(d).join(program))
+            .find(|p| p.is_file())
+    };
+    let Some(path) = resolved else { return false };
+    let canonical = |p: &std::path::Path| std::fs::canonicalize(p).ok();
+    if canonical(&path).is_some_and(|c| Some(c) == canonical(&ctx.app.exe)) {
+        return true;
+    }
+    // Envoltorio de shell pequeño que ejecuta este binario.
+    std::fs::metadata(&path).is_ok_and(|m| m.len() < 4096)
+        && std::fs::read_to_string(&path).is_ok_and(|t| t.starts_with("#!") && t.contains(&*exe))
+}
+
 fn status_linux(ctx: &Context) -> ProtocolStatus {
     let mime = format!("x-scheme-handler/{SCHEME}");
     // Prioridad XDG: usuario, sistema.
@@ -788,9 +818,7 @@ fn status_linux(ctx: &Context) -> ProtocolStatus {
         .as_ref()
         .and_then(|f| std::fs::read_to_string(f).ok())
         .and_then(|t| t.lines().find(|l| l.starts_with("Exec=")).map(|l| l[5..].to_string()));
-    let points = exec
-        .as_ref()
-        .is_some_and(|e| e.contains(&*ctx.app.exe.to_string_lossy()));
+    let points = exec.as_ref().is_some_and(|e| exec_points_to(ctx, e));
     ProtocolStatus {
         registered: file.is_some(),
         handler: Some(desktop.clone()),
@@ -1188,6 +1216,38 @@ mod tests {
         let ml = std::fs::read_to_string(home.join(".config/mimeapps.list")).unwrap();
         assert!(!ml.contains("x-scheme-handler/afirma") && ml.contains("text/html=firefox.desktop;"));
         assert!(!home.join(".local/share/applications/autofirma.desktop").exists());
+    }
+
+    #[test]
+    fn linux_paquete_con_envoltorio() {
+        // Paquete .deb/.rpm: el .desktop ejecuta «autofirma» (envoltorio de /usr/bin) y el
+        // binario real está en /usr/lib/autofirma-rs.
+        let t = tempfile::tempdir().unwrap();
+        let mut ctx = Context::for_tests(Os::Linux, t.path());
+        ctx.app.exe = PathBuf::from("/usr/lib/autofirma-rs/autofirma");
+        let apps = ctx.sys("/usr/share/applications");
+        std::fs::create_dir_all(&apps).unwrap();
+        std::fs::write(
+            apps.join("autofirma.desktop"),
+            "[Desktop Entry]\nExec=autofirma %u\nMimeType=x-scheme-handler/afirma;\n",
+        )
+        .unwrap();
+        let bin = ctx.sys("/usr/bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(
+            bin.join("autofirma"),
+            "#!/bin/sh\nexec /usr/lib/autofirma-rs/autofirma \"$@\"\n",
+        )
+        .unwrap();
+        let st = status(&ctx);
+        assert!(st.registered && st.points_to_current, "{st:?}");
+        // Otro programa con el mismo nombre no cuenta.
+        std::fs::write(
+            bin.join("autofirma"),
+            "#!/bin/sh\nexec java -jar /usr/lib/Autofirma/Autofirma.jar \"$@\"\n",
+        )
+        .unwrap();
+        assert!(!status(&ctx).points_to_current);
     }
 
     #[test]

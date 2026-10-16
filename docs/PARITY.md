@@ -103,8 +103,23 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | CA local y certificado SSL (`autofirma.pfx`, `Autofirma_ROOT.cer`) | ✅ | |
 | Confianza en Windows, macOS (llavero) y NSS (Firefox, Chrome) | ✅ | |
 | Manejador `afirma://`, menús contextuales «Firmar/Verificar/Huella» | ✅ | |
-| Instalador de Windows (MSI con propiedades `CONFIG_PATH`, `FIREFOX_SECURITY_ROOTS`...) | ✅ | Probado con Wine; pendiente en Windows real |
+| Instalador de Windows (MSI con propiedades `CONFIG_PATH`, `FIREFOX_SECURITY_ROOTS`...) | ✅ | Probado con Wine: instalación silenciosa, protocolo, directivas, desinstalación limpia y firma desde la web; pendiente en Windows real |
 | Paquetes de Linux (.deb, .rpm) y AppImage | ➕ | AppImage nuevo |
 | Paquete de macOS (.pkg, .dmg) | ✅ | Pendiente de prueba en un Mac real |
 | Directivas de navegadores para abrir `afirma://` sin preguntar | ➕ | Nuevo: Chrome, Edge, Firefox |
 | Firefox en Linux: confianza en la CA local también para perfiles nuevos | ➕ | `Certificates.Install` |
+
+## Cómo se ha comprobado
+
+- **Formatos**: firmas comparadas con las de la versión Java (oráculo en `tools/oracle/`) y
+  validadas con OpenSSL, `pdfsig`, pyHanko, LibreOffice y veraPDF.
+- **Firma desde la web**: `tools/e2e/web_sign.py` abre una página con el `autoscript.js` real
+  en Chromium, la app atiende `afirma://websocket` y la firma devuelta se verifica (CAdES,
+  XAdES y PAdES en Linux; CAdES con el ejecutable de Windows en Wine,
+  `tools/e2e/wine-autofirma.sh`).
+- **Línea de comandos**: 179 casos comparados con la versión Java (`testdata/cli/`).
+- **Instaladores**: MSI con WiX 5 instalado y desinstalado con `msiexec` en Wine; .deb
+  instalado y purgado en Debian 13 y .rpm en Rocky Linux 8 (glibc 2.28), con firma por línea
+  de comandos y diagnóstico.
+- **Pruebas automáticas**: `cargo test --workspace` (más de 630 pruebas), que la CI
+  (`.github/workflows/ci.yml`) ejecuta en Linux, Windows y macOS.
