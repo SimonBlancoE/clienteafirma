@@ -135,21 +135,23 @@ pub fn structure(xml: &[u8]) -> Vec<String> {
 
 /// Compara dos estructuras mostrando la primera diferencia.
 pub fn assert_same_structure(name: &str, expected: &[u8], got: &[u8]) {
-    let mut got = structure(got);
-    if cfg!(windows) {
-        // OOXML añade WindowsVersion al ejecutarse en Windows, como Java; las
-        // referencias de Java se generaron en Linux.
-        got.retain(|l| {
-            !l.trim_start()
-                .starts_with("WindowsVersion {http://schemas.microsoft.com/office/2006/digsig}")
-        });
-    }
-    assert_same_lines(name, &structure(expected), &got);
+    assert_same_lines(name, &structure(expected), &structure(got));
 }
 
-/// Compara dos listas de líneas de estructura.
+/// Compara dos listas de líneas de estructura (`a`, la de Java).
 pub fn assert_same_lines(name: &str, a: &[String], b: &[String]) {
-    if a != b {
+    // OOXML añade WindowsVersion al ejecutarse en Windows, como Java; las
+    // referencias de Java se generaron en Linux.
+    let b: Vec<String> = b
+        .iter()
+        .filter(|l| {
+            !(cfg!(windows)
+                && l.trim_start()
+                    .starts_with("WindowsVersion {http://schemas.microsoft.com/office/2006/digsig}"))
+        })
+        .cloned()
+        .collect();
+    if a != b.as_slice() {
         let pos = a
             .iter()
             .zip(b.iter())
