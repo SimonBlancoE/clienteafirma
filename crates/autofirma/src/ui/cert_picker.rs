@@ -11,6 +11,7 @@ use eframe::egui::{
 };
 
 use super::icons;
+use crate::i18n::{tr, trf};
 use super::model::{CertItem, CertListView, CertState, fmt_date, state_colors};
 use super::theme::{self, Palette, semibold};
 use super::widgets::{self, ButtonKind};
@@ -66,7 +67,7 @@ impl CertPicker {
         self.expanded = None;
         self.set_certs(certs);
         if self.accept_label.is_empty() {
-            self.accept_label = "Usar este certificado".into();
+            self.accept_label = tr("Usar este certificado").into();
         }
     }
 
@@ -111,8 +112,8 @@ impl CertPicker {
             ui.horizontal(|ui| {
                 widgets::status_circle(ui, icons::SIGNATURE, 40.0, p.primary, p.primary_soft);
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Elige tu certificado").font(FontId::new(19.0, semibold())).color(p.text));
-                    let sub = self.subtitle.clone().unwrap_or_else(|| "Selecciona el certificado con el que quieres firmar".into());
+                    ui.label(RichText::new(tr("Elige tu certificado")).font(FontId::new(19.0, semibold())).color(p.text));
+                    let sub = self.subtitle.clone().unwrap_or_else(|| tr("Selecciona el certificado con el que quieres firmar").into());
                     ui.label(RichText::new(sub).size(13.0).color(p.text_muted));
                 });
             });
@@ -123,16 +124,16 @@ impl CertPicker {
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 if self.show_remember {
-                    ui.checkbox(&mut self.remember, RichText::new("Recordar durante la sesión").size(13.0));
+                    ui.checkbox(&mut self.remember, RichText::new(tr("Recordar durante la sesión")).size(13.0));
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let can_accept = self.selected.is_some() && !self.loading;
-                    let label = if self.accept_label.is_empty() { "Usar este certificado" } else { &self.accept_label };
+                    let label = if self.accept_label.is_empty() { tr("Usar este certificado") } else { &self.accept_label };
                     if widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), label, can_accept).clicked()
                         && let Some(sel) = self.selected {
                             event = PickerEvent::Accepted(sel);
                         }
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() {
                         event = PickerEvent::Cancelled;
                     }
                 });
@@ -194,14 +195,14 @@ impl CertPicker {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui
                     .add(egui::Button::new(widgets::icon_text(icons::ARROWS_CLOCKWISE, 16.0, p.text_muted)).frame(false))
-                    .on_hover_text("Recargar la lista de certificados (F5)")
+                    .on_hover_text(tr("Recargar la lista de certificados (F5)"))
                     .clicked()
                 {
                     *event = PickerEvent::Refresh;
                 }
                 ui.add(
                     egui::TextEdit::singleline(&mut self.search)
-                        .hint_text(widgets::icon_job(icons::MAGNIFYING_GLASS, "Buscar por nombre, NIF o emisor", 13.0, p.text_faint, p.text_faint))
+                        .hint_text(widgets::icon_job(icons::MAGNIFYING_GLASS, tr("Buscar por nombre, NIF o emisor"), 13.0, p.text_faint, p.text_faint))
                         .desired_width(230.0),
                 );
             });
@@ -214,17 +215,17 @@ impl CertPicker {
             ui.vertical_centered(|ui| {
                 ui.add_space(40.0);
                 ui.spinner();
-                ui.label(RichText::new("Cargando certificados…").color(p.text_muted));
+                ui.label(RichText::new(tr("Cargando certificados…")).color(p.text_muted));
                 ui.add_space(40.0);
             });
         } else if let Some(err) = &self.error {
-            widgets::callout(ui, p, widgets::CalloutKind::Error, "No se ha podido cargar el almacén", Some(err));
+            widgets::callout(ui, p, widgets::CalloutKind::Error, tr("No se ha podido cargar el almacén"), Some(err));
         } else if self.certs.is_empty() {
             empty_state(ui, p);
         } else if visible.is_empty() {
             ui.vertical_centered(|ui| {
                 ui.add_space(30.0);
-                ui.label(RichText::new("Ningún certificado coincide con la búsqueda").color(p.text_muted));
+                ui.label(RichText::new(tr("Ningún certificado coincide con la búsqueda")).color(p.text_muted));
                 ui.add_space(30.0);
             });
         } else {
@@ -249,9 +250,9 @@ impl CertPicker {
         if self.hidden_expired > 0 && !self.loading {
             let n = self.hidden_expired;
             let text = if n == 1 {
-                "1 certificado caducado oculto. Puedes mostrar los caducados en Preferencias.".to_string()
+                tr("1 certificado caducado oculto. Puedes mostrar los caducados en Preferencias.").to_string()
             } else {
-                format!("{n} certificados caducados ocultos. Puedes mostrar los caducados en Preferencias.")
+                trf("{0} certificados caducados ocultos. Puedes mostrar los caducados en Preferencias.", &[&n])
             };
             ui.label(RichText::new(text).size(12.0).color(p.text_faint));
         }
@@ -298,40 +299,38 @@ fn cert_row(ui: &mut Ui, p: &Palette, c: &CertItem, view: CertListView, selected
                         ui.label(RichText::new(c.title(view)).font(FontId::new(14.5, semibold())).color(p.text));
                         match state {
                             CertState::ExpiringSoon => {
-                                widgets::chip(ui, &format!("Caduca en {} días", c.days_left().max(0)), p.warning, p.warning_soft);
+                                widgets::chip(ui, &trf("Caduca en {0} días", &[&c.days_left().max(0)]), p.warning, p.warning_soft);
                             }
                             CertState::Expired => {
-                                widgets::chip(ui, "Caducado", p.danger, p.danger_soft);
+                                widgets::chip(ui, tr("Caducado"), p.danger, p.danger_soft);
                             }
                             CertState::NotYetValid => {
-                                widgets::chip(ui, "Aún no válido", p.danger, p.danger_soft);
+                                widgets::chip(ui, tr("Aún no válido"), p.danger, p.danger_soft);
                             }
                             CertState::Valid => {}
                         }
                     });
                     let second = match view {
-                        CertListView::Representative => format!("Representante: {}", c.info.subject_cn),
-                        CertListView::Pseudonym if c.pseudonym.is_some() => format!(
-                            "Organismo: {} · {}",
-                            c.subject_ou.clone().or(c.subject_o.clone()).unwrap_or_default(),
-                            c.usage_text()
+                        CertListView::Representative => trf("Representante: {0}", &[&c.info.subject_cn]),
+                        CertListView::Pseudonym if c.pseudonym.is_some() => trf(
+                            "Organismo: {0} · {1}",
+                            &[&c.subject_ou.clone().or(c.subject_o.clone()).unwrap_or_default(), &c.usage_text()],
                         ),
                         _ => format!("{} · {}", c.info.issuer_cn, c.usage_text()),
                     };
                     ui.label(RichText::new(second).size(12.5).color(p.text_muted));
                     ui.horizontal(|ui| {
                         ui.label(
-                            RichText::new(format!(
-                                "Válido del {} al {}",
-                                fmt_date(c.info.not_before),
-                                fmt_date(c.info.not_after)
+                            RichText::new(trf(
+                                "Válido del {0} al {1}",
+                                &[&fmt_date(c.info.not_before), &fmt_date(c.info.not_after)],
                             ))
                             .size(12.5)
                             .color(p.text_faint),
                         );
                         let link = ui.add(
                             egui::Label::new(
-                                RichText::new(if expanded { "Ocultar detalles" } else { "Ver detalles" })
+                                RichText::new(if expanded { tr("Ocultar detalles") } else { tr("Ver detalles") })
                                     .size(12.5)
                                     .color(p.primary)
                                     .underline(),
@@ -362,18 +361,18 @@ fn cert_row(ui: &mut Ui, p: &Palette, c: &CertItem, view: CertListView, selected
 
 /// Ficha detallada de un certificado.
 pub fn cert_details(ui: &mut Ui, p: &Palette, c: &CertItem) {
-    widgets::kv_row(ui, p, "Titular", &c.info.subject_dn);
-    widgets::kv_row(ui, p, "Emisor", &c.info.issuer_dn);
+    widgets::kv_row(ui, p, tr("Titular"), &c.info.subject_dn);
+    widgets::kv_row(ui, p, tr("Emisor"), &c.info.issuer_dn);
     if let Some(n) = &c.info.subject_serial_number {
-        widgets::kv_row(ui, p, "Nº de serie del titular", n);
+        widgets::kv_row(ui, p, tr("Nº de serie del titular"), n);
     }
-    widgets::kv_row(ui, p, "Nº de serie", &c.info.serial_hex.to_uppercase());
-    widgets::kv_row(ui, p, "Uso de la clave", c.usage_text());
+    widgets::kv_row(ui, p, tr("Nº de serie"), &c.info.serial_hex.to_uppercase());
+    widgets::kv_row(ui, p, tr("Uso de la clave"), c.usage_text());
     if !c.info.policies.is_empty() {
-        widgets::kv_row(ui, p, "Políticas", &c.info.policies.join(", "));
+        widgets::kv_row(ui, p, tr("Políticas"), &c.info.policies.join(", "));
     }
-    widgets::kv_row(ui, p, "Huella SHA-256", &group_hex(&c.info.sha256_hex));
-    widgets::kv_row(ui, p, "Alias", &c.alias);
+    widgets::kv_row(ui, p, tr("Huella SHA-256"), &group_hex(&c.info.sha256_hex));
+    widgets::kv_row(ui, p, tr("Alias"), &c.alias);
 }
 
 /// Huella en grupos de 4 bytes separados por espacios (para que pueda partirse
@@ -393,9 +392,9 @@ fn radio_dot(ui: &mut Ui, p: &Palette, c: Pos2, on: bool) {
 
 fn segmented(ui: &mut Ui, p: &Palette, view: &mut CertListView) {
     let options = [
-        (CertListView::Personal, "Personales"),
-        (CertListView::Representative, "De representante"),
-        (CertListView::Pseudonym, "De seudónimo"),
+        (CertListView::Personal, tr("Personales")),
+        (CertListView::Representative, tr("De representante")),
+        (CertListView::Pseudonym, tr("De seudónimo")),
     ];
     let height = 30.0;
     let widths: Vec<f32> = options
@@ -433,9 +432,9 @@ fn empty_state(ui: &mut Ui, p: &Palette) {
         ui.add_space(24.0);
         widgets::status_circle(ui, icons::IDENTIFICATION_CARD, 56.0, p.text_faint, p.surface_alt);
         ui.add_space(8.0);
-        ui.label(RichText::new("No hay certificados válidos en este almacén").font(FontId::new(15.0, theme::semibold())).color(p.text));
+        ui.label(RichText::new(tr("No hay certificados válidos en este almacén")).font(FontId::new(15.0, theme::semibold())).color(p.text));
         ui.label(
-            RichText::new("Inserta tu tarjeta o DNIe en el lector y pulsa Recargar, o elige otro almacén.")
+            RichText::new(tr("Inserta tu tarjeta o DNIe en el lector y pulsa Recargar, o elige otro almacén."))
                 .size(13.0)
                 .color(p.text_muted),
         );

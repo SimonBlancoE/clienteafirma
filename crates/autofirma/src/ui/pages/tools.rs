@@ -3,6 +3,7 @@
 
 use eframe::egui::{self, CornerRadius, FontId, Frame, Margin, RichText, Stroke, Ui};
 
+use crate::i18n::tr;
 use crate::ui::icons;
 use crate::ui::theme::{Palette, semibold};
 use crate::ui::widgets::{self, ButtonKind, CalloutKind};
@@ -22,25 +23,25 @@ pub enum Tool {
 impl Tool {
     pub fn title(self) -> &'static str {
         match self {
-            Tool::HashFile => "Calcular huella digital",
-            Tool::CheckHashFile => "Comprobar huella digital",
-            Tool::HashDir => "Huellas de una carpeta",
-            Tool::CheckHashDir => "Comprobar una carpeta",
-            Tool::ValidateCert => "Validar un certificado",
-            Tool::Doctor => "Diagnóstico del sistema",
-            Tool::RestoreBrowsers => "Restaurar navegadores",
+            Tool::HashFile => tr("Calcular huella digital"),
+            Tool::CheckHashFile => tr("Comprobar huella digital"),
+            Tool::HashDir => tr("Huellas de una carpeta"),
+            Tool::CheckHashDir => tr("Comprobar una carpeta"),
+            Tool::ValidateCert => tr("Validar un certificado"),
+            Tool::Doctor => tr("Diagnóstico del sistema"),
+            Tool::RestoreBrowsers => tr("Restaurar navegadores"),
         }
     }
 
     pub fn description(self) -> &'static str {
         match self {
-            Tool::HashFile => "Obtén la huella (SHA-256, SHA-512…) de un fichero para comprobar más tarde que no ha cambiado.",
-            Tool::CheckHashFile => "Comprueba que un fichero coincide con una huella digital guardada.",
-            Tool::HashDir => "Genera un fichero con las huellas de todos los documentos de una carpeta.",
-            Tool::CheckHashDir => "Verifica una carpeta contra su fichero de huellas e informa de cambios.",
-            Tool::ValidateCert => "Consulta por OCSP o CRL si un certificado está revocado.",
-            Tool::Doctor => "Comprueba que AutoFirma está bien integrado con tus navegadores y tarjetas.",
-            Tool::RestoreBrowsers => "Reinstala el certificado local y el protocolo afirma:// en los navegadores.",
+            Tool::HashFile => tr("Obtén la huella (SHA-256, SHA-512…) de un fichero para comprobar más tarde que no ha cambiado."),
+            Tool::CheckHashFile => tr("Comprueba que un fichero coincide con una huella digital guardada."),
+            Tool::HashDir => tr("Genera un fichero con las huellas de todos los documentos de una carpeta."),
+            Tool::CheckHashDir => tr("Verifica una carpeta contra su fichero de huellas e informa de cambios."),
+            Tool::ValidateCert => tr("Consulta por OCSP o CRL si un certificado está revocado."),
+            Tool::Doctor => tr("Comprueba que AutoFirma está bien integrado con tus navegadores y tarjetas."),
+            Tool::RestoreBrowsers => tr("Reinstala el certificado local y el protocolo afirma:// en los navegadores."),
         }
     }
 
@@ -107,11 +108,24 @@ impl Default for ToolsPage {
     }
 }
 
-const SECTIONS: &[(&str, &[Tool])] = &[
-    ("Huellas digitales", &[Tool::HashFile, Tool::CheckHashFile, Tool::HashDir, Tool::CheckHashDir]),
-    ("Certificados", &[Tool::ValidateCert]),
-    ("Integración con el sistema", &[Tool::Doctor, Tool::RestoreBrowsers]),
-];
+/// Secciones de la página (título traducido y herramientas).
+fn sections() -> [(&'static str, &'static [Tool]); 3] {
+    [
+        (tr("Huellas digitales"), &[Tool::HashFile, Tool::CheckHashFile, Tool::HashDir, Tool::CheckHashDir]),
+        (tr("Certificados"), &[Tool::ValidateCert]),
+        (tr("Integración con el sistema"), &[Tool::Doctor, Tool::RestoreBrowsers]),
+    ]
+}
+
+/// Texto visible de un formato de huella (el valor se guarda en español,
+/// como en AutoFirma).
+fn hash_format_label(value: &str) -> &str {
+    match value {
+        "Hexadecimal en ASCII (Base16)" => tr("Hexadecimal en ASCII (Base16)"),
+        "Binario" => tr("Binario"),
+        other => other,
+    }
+}
 
 impl ToolsPage {
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette) -> Vec<ToolsAction> {
@@ -120,13 +134,15 @@ impl ToolsPage {
             self.tool_view(ui, p, tool, &mut actions);
             return actions;
         }
-        widgets::page_header(ui, p, "Herramientas", Some("Utilidades para comprobar documentos, certificados y la instalación."));
-        for (title, tools) in SECTIONS {
+        widgets::page_header(ui, p, tr("Herramientas"), Some(tr("Utilidades para comprobar documentos, certificados y la instalación.")));
+        for (title, tools) in sections() {
             widgets::section_title(ui, p, title);
             ui.add_space(6.0);
             let cols = if ui.available_width() > 640.0 { 2 } else { 1 };
-            egui::Grid::new(("tools", *title)).num_columns(cols).spacing([12.0, 12.0]).show(ui, |ui| {
-                let w = (ui.available_width() - 12.0 * (cols as f32 - 1.0)) / cols as f32;
+            // Ancho de cada tarjeta: se calcula fuera de la rejilla (dentro, el
+            // ancho disponible es el de la celda, mínimo en la primera pasada).
+            let w = (ui.available_width() - 12.0 * (cols as f32 - 1.0)) / cols as f32;
+            egui::Grid::new(("tools", title)).num_columns(cols).spacing([12.0, 12.0]).show(ui, |ui| {
                 for (i, t) in tools.iter().enumerate() {
                     let r = Frame::new()
                         .fill(p.surface)
@@ -134,7 +150,7 @@ impl ToolsPage {
                         .corner_radius(CornerRadius::same(12))
                         .inner_margin(Margin::same(16))
                         .show(ui, |ui| {
-                            ui.set_width(w - 32.0);
+                            ui.set_width((w - 32.0).max(0.0));
                             ui.set_min_height(64.0);
                             ui.horizontal_top(|ui| {
                                 widgets::status_circle(ui, t.icon(), 40.0, p.primary, p.primary_soft);
@@ -159,7 +175,7 @@ impl ToolsPage {
     }
 
     fn tool_view(&mut self, ui: &mut Ui, p: &Palette, tool: Tool, actions: &mut Vec<ToolsAction>) {
-        if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_LEFT), "Herramientas", true).clicked() {
+        if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_LEFT), tr("Herramientas"), true).clicked() {
             actions.push(ToolsAction::Close);
         }
         ui.add_space(6.0);
@@ -167,11 +183,11 @@ impl ToolsPage {
         widgets::card(ui, p, |ui| match tool {
             Tool::HashFile | Tool::CheckHashFile | Tool::HashDir | Tool::CheckHashDir | Tool::ValidateCert => {
                 let (first, second) = match tool {
-                    Tool::HashFile => ("Fichero", None),
-                    Tool::CheckHashFile => ("Fichero de datos", Some("Fichero de huella (.hexhash, .hashb64, .hash)")),
-                    Tool::HashDir => ("Carpeta", None),
-                    Tool::CheckHashDir => ("Carpeta", Some("Fichero de huellas (.hashfiles, .txthashfiles)")),
-                    _ => ("Certificado (.cer, .crt, .pem)", None),
+                    Tool::HashFile => (tr("Fichero"), None),
+                    Tool::CheckHashFile => (tr("Fichero de datos"), Some(tr("Fichero de huella (.hexhash, .hashb64, .hash)"))),
+                    Tool::HashDir => (tr("Carpeta"), None),
+                    Tool::CheckHashDir => (tr("Carpeta"), Some(tr("Fichero de huellas (.hashfiles, .txthashfiles)"))),
+                    _ => (tr("Certificado (.cer, .crt, .pem)"), None),
                 };
                 path_row(ui, p, first, self.input.as_deref(), || actions.push(ToolsAction::PickInput));
                 if let Some(label) = second {
@@ -180,7 +196,7 @@ impl ToolsPage {
                 if matches!(tool, Tool::HashFile | Tool::HashDir) {
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("Algoritmo").color(p.text_muted));
+                        ui.label(RichText::new(tr("Algoritmo")).color(p.text_muted));
                         egui::ComboBox::from_id_salt("hash_alg").selected_text(&self.algorithm).show_ui(ui, |ui| {
                             for a in ["SHA-256", "SHA-1", "SHA-384", "SHA-512"] {
                                 ui.selectable_value(&mut self.algorithm, a.to_string(), a);
@@ -188,27 +204,27 @@ impl ToolsPage {
                         });
                         if tool == Tool::HashFile {
                             ui.add_space(12.0);
-                            ui.label(RichText::new("Formato").color(p.text_muted));
-                            egui::ComboBox::from_id_salt("hash_fmt").selected_text(&self.format).show_ui(ui, |ui| {
+                            ui.label(RichText::new(tr("Formato")).color(p.text_muted));
+                            egui::ComboBox::from_id_salt("hash_fmt").selected_text(hash_format_label(&self.format)).show_ui(ui, |ui| {
                                 for f in ["Hexadecimal en ASCII (Base16)", "Base64", "Binario"] {
-                                    ui.selectable_value(&mut self.format, f.to_string(), f);
+                                    ui.selectable_value(&mut self.format, f.to_string(), hash_format_label(f));
                                 }
                             });
                         } else {
                             ui.add_space(12.0);
-                            ui.checkbox(&mut self.recursive, "Incluir subcarpetas");
+                            ui.checkbox(&mut self.recursive, tr("Incluir subcarpetas"));
                         }
                     });
                     if tool == Tool::HashFile {
-                        ui.checkbox(&mut self.copy_clipboard, "Copiar la huella al portapapeles");
+                        ui.checkbox(&mut self.copy_clipboard, tr("Copiar la huella al portapapeles"));
                     }
                 }
                 ui.add_space(10.0);
                 let ready = self.input.is_some() && (second.is_none() || self.secondary.is_some()) && !self.running;
                 let label = match tool {
-                    Tool::HashFile | Tool::HashDir => "Calcular y guardar",
-                    Tool::ValidateCert => "Validar",
-                    _ => "Comprobar",
+                    Tool::HashFile | Tool::HashDir => tr("Calcular y guardar"),
+                    Tool::ValidateCert => tr("Validar"),
+                    _ => tr("Comprobar"),
                 };
                 ui.horizontal(|ui| {
                     if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLAY), label, ready).clicked() {
@@ -221,7 +237,7 @@ impl ToolsPage {
             }
             Tool::Doctor | Tool::RestoreBrowsers => {
                 if self.doctor.is_empty() && !self.running {
-                    ui.label(RichText::new("Pulsa \"Comprobar\" para revisar la instalación.").color(p.text_muted));
+                    ui.label(RichText::new(tr("Pulsa \"Comprobar\" para revisar la instalación.")).color(p.text_muted));
                 }
                 for row in &self.doctor {
                     ui.horizontal_top(|ui| {
@@ -242,10 +258,10 @@ impl ToolsPage {
                 }
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::STETHOSCOPE), "Comprobar", !self.running).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::STETHOSCOPE), tr("Comprobar"), !self.running).clicked() {
                         actions.push(ToolsAction::RunDoctor);
                     }
-                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::WRENCH), "Reparar todo", !self.running).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::WRENCH), tr("Reparar todo"), !self.running).clicked() {
                         actions.push(ToolsAction::RepairAll);
                     }
                     if self.running {
@@ -264,12 +280,12 @@ impl ToolsPage {
 fn path_row(ui: &mut Ui, p: &Palette, label: &str, value: Option<&std::path::Path>, mut on_pick: impl FnMut()) {
     ui.label(RichText::new(label).size(13.0).color(p.text_muted));
     ui.horizontal(|ui| {
-        let text = value.map(|v| v.display().to_string()).unwrap_or_else(|| "Ninguno seleccionado".into());
+        let text = value.map(|v| v.display().to_string()).unwrap_or_else(|| tr("Ninguno seleccionado").into());
         Frame::new().fill(p.surface_alt).corner_radius(CornerRadius::same(8)).inner_margin(Margin::symmetric(10, 8)).show(ui, |ui| {
             ui.set_width((ui.available_width() - 130.0).max(200.0));
             ui.label(RichText::new(text).size(13.0).color(if value.is_some() { p.text } else { p.text_faint }));
         });
-        if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), "Examinar", true).clicked() {
+        if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), tr("Examinar"), true).clicked() {
             on_pick();
         }
     });

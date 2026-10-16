@@ -16,6 +16,7 @@ use eframe::egui::{
 };
 
 use super::icons;
+use crate::i18n::{tr, trf};
 use super::theme::{Palette, semibold};
 use super::widgets::{self, ButtonKind};
 
@@ -45,30 +46,48 @@ pub enum PageMode {
 }
 
 /// Colores de texto admitidos (`layer2FontColor`).
-const COLORS: [(&str, &str, Color32); 7] = [
-    ("black", "Negro", Color32::from_rgb(0, 0, 0)),
-    ("white", "Blanco", Color32::from_rgb(255, 255, 255)),
-    ("lightGray", "Gris claro", Color32::from_rgb(192, 192, 192)),
-    ("gray", "Gris", Color32::from_rgb(128, 128, 128)),
-    ("darkGray", "Gris oscuro", Color32::from_rgb(64, 64, 64)),
-    ("red", "Rojo", Color32::from_rgb(255, 0, 0)),
-    ("pink", "Rosa", Color32::from_rgb(255, 175, 175)),
+const COLORS: [(&str, Color32); 7] = [
+    ("black", Color32::from_rgb(0, 0, 0)),
+    ("white", Color32::from_rgb(255, 255, 255)),
+    ("lightGray", Color32::from_rgb(192, 192, 192)),
+    ("gray", Color32::from_rgb(128, 128, 128)),
+    ("darkGray", Color32::from_rgb(64, 64, 64)),
+    ("red", Color32::from_rgb(255, 0, 0)),
+    ("pink", Color32::from_rgb(255, 175, 175)),
 ];
+
+/// Nombre visible de un color de [`COLORS`].
+fn color_name(index: usize) -> &'static str {
+    match index {
+        0 => tr("Negro"),
+        1 => tr("Blanco"),
+        2 => tr("Gris claro"),
+        3 => tr("Gris"),
+        4 => tr("Gris oscuro"),
+        5 => tr("Rojo"),
+        _ => tr("Rosa"),
+    }
+}
 
 const FONTS: [&str; 3] = ["Courier", "Helvetica", "Times Roman"];
 
-/// Marcadores que se pueden insertar en el texto.
-const TOKENS: [(&str, &str); 6] = [
-    ("Nombre", "$$SUBJECTCN$$"),
-    ("Emisor", "$$ISSUERCN$$"),
-    ("Fecha", "$$SIGNDATE=dd/MM/yyyy$$"),
-    ("Nº de serie", "$$CERTSERIAL$$"),
-    ("Razón", "$$REASON$$"),
-    ("Lugar", "$$LOCATION$$"),
-];
+/// Marcadores que se pueden insertar en el texto (etiqueta y marcador).
+fn tokens() -> [(&'static str, &'static str); 6] {
+    [
+        (tr("Nombre"), "$$SUBJECTCN$$"),
+        (tr("Emisor"), "$$ISSUERCN$$"),
+        (tr("Fecha"), "$$SIGNDATE=dd/MM/yyyy$$"),
+        (tr("Nº de serie"), "$$CERTSERIAL$$"),
+        (tr("Razón"), "$$REASON$$"),
+        (tr("Lugar"), "$$LOCATION$$"),
+    ]
+}
 
-pub const DEFAULT_TEXT: &str =
-    "Firmado por $$SUBJECTCN$$ el día $$SIGNDATE=dd/MM/yyyy$$ con un certificado emitido por $$ISSUERCN$$";
+/// Texto por defecto de la firma visible, en el idioma de la interfaz (como
+/// en AutoFirma).
+pub fn default_text() -> &'static str {
+    tr("Firmado por $$SUBJECTCN$$ el día $$SIGNDATE=dd/MM/yyyy$$ con un certificado emitido por $$ISSUERCN$$")
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VisibleSigEvent {
@@ -129,7 +148,7 @@ impl Default for VisibleSigEditor {
             empty_fields: Vec::new(),
             selected_field: None,
             custom_appearance: true,
-            text: DEFAULT_TEXT.into(),
+            text: default_text().into(),
             font_family: 1,
             font_size: 12,
             bold: false,
@@ -186,17 +205,17 @@ impl VisibleSigEditor {
             let f = &self.empty_fields[fi];
             params.set("signatureField", f.name.clone());
         } else {
-            let Some(src) = &self.source else { return Err("No hay documento".into()) };
-            let rect = self.rect.ok_or("Dibuja en la página el recuadro donde quieres la firma.")?;
+            let Some(src) = &self.source else { return Err(tr("No hay documento").into()) };
+            let rect = self.rect.ok_or(tr("Dibuja en la página el recuadro donde quieres la firma."))?;
             if rect.width() < 30.0 || rect.height() < 45.0 || rect.width() * rect.height() < 1350.0 {
-                return Err("El recuadro es demasiado pequeño para mostrar la firma.".into());
+                return Err(tr("El recuadro es demasiado pequeño para mostrar la firma.").into());
             }
             let pages = match &self.page_mode {
                 PageMode::Current => (self.page + 1).to_string(),
                 PageMode::All => "all".into(),
                 PageMode::Custom(s) => {
                     if !check_pages_range(s) {
-                        return Err("El formato de la selección de páginas no es correcto (ej.: 1,3-5,-1).".into());
+                        return Err(tr("El formato de la selección de páginas no es correcto (ej.: 1,3-5,-1).").into());
                     }
                     s.trim().to_string()
                 }
@@ -228,7 +247,7 @@ impl VisibleSigEditor {
     }
 
     pub fn set_image(&mut self, ctx: &egui::Context, name: String, bytes: Vec<u8>) -> Result<(), String> {
-        let img = image::load_from_memory(&bytes).map_err(|_| "No se ha podido cargar la imagen seleccionada.".to_string())?;
+        let img = image::load_from_memory(&bytes).map_err(|_| tr("No se ha podido cargar la imagen seleccionada.").to_string())?;
         let rgba = img.to_rgba8();
         let ci = ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
         self.image_tex = Some(ctx.load_texture("rubric", ci, TextureOptions::LINEAR));
@@ -295,9 +314,9 @@ impl VisibleSigEditor {
             ui.horizontal(|ui| {
                 widgets::status_circle(ui, icons::SIGNATURE, 38.0, p.primary, p.primary_soft);
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Firma visible").font(FontId::new(19.0, semibold())));
+                    ui.label(RichText::new(tr("Firma visible")).font(FontId::new(19.0, semibold())));
                     let sub = if self.multi_document {
-                        "La posición y la apariencia se aplicarán a todos los PDF".to_string()
+                        tr("La posición y la apariencia se aplicarán a todos los PDF").to_string()
                     } else {
                         self.title.clone()
                     };
@@ -330,18 +349,18 @@ impl VisibleSigEditor {
                     ui.label(RichText::new(e).color(p.danger).size(13.0));
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), "Aceptar", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), tr("Aceptar"), true).clicked() {
                         match self.build_params() {
                             Ok(params) => event = VisibleSigEvent::Accepted(params, self.remember),
                             Err(e) => self.error = Some(e),
                         }
                     }
                     if !self.mandatory
-                        && widgets::button(ui, p, ButtonKind::Secondary, None, "Firmar sin firma visible", true).clicked()
+                        && widgets::button(ui, p, ButtonKind::Secondary, None, tr("Firmar sin firma visible"), true).clicked()
                     {
                         event = VisibleSigEvent::Invisible;
                     }
-                    if widgets::button(ui, p, ButtonKind::Ghost, None, "Cancelar", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Ghost, None, tr("Cancelar"), true).clicked() {
                         event = VisibleSigEvent::Cancelled;
                     }
                 });
@@ -368,7 +387,7 @@ impl VisibleSigEditor {
             }
             None => {
                 painter.rect_filled(page_rect, CornerRadius::ZERO, Color32::WHITE);
-                painter.text(page_rect.center(), Align2::CENTER_CENTER, "No se puede previsualizar la página", FontId::proportional(13.0), Color32::GRAY);
+                painter.text(page_rect.center(), Align2::CENTER_CENTER, tr("No se puede previsualizar la página"), FontId::proportional(13.0), Color32::GRAY);
             }
         }
         // Campos vacíos de la página.
@@ -432,7 +451,7 @@ impl VisibleSigEditor {
             painter.text(
                 page_rect.center_bottom() - Vec2::new(0.0, 18.0),
                 Align2::CENTER_CENTER,
-                "Arrastra sobre la página para colocar la firma",
+                tr("Arrastra sobre la página para colocar la firma"),
                 FontId::new(13.0, semibold()),
                 p.primary,
             );
@@ -456,16 +475,16 @@ impl VisibleSigEditor {
             _ => FontFamily::Proportional,
         };
         let size = (self.font_size as f32 * scale).max(4.0);
-        let text = self.text.replace("$$SUBJECTCN$$", "NOMBRE APELLIDOS - 00000000T").replace(
+        let text = self.text.replace("$$SUBJECTCN$$", tr("NOMBRE APELLIDOS - 00000000T")).replace(
             "$$SIGNDATE=dd/MM/yyyy$$",
             &chrono::Local::now().format("%d/%m/%Y").to_string(),
         );
-        let text = text.replace("$$ISSUERCN$$", "AC EMISORA").replace("$$CERTSERIAL$$", "0123ABCD");
+        let text = text.replace("$$ISSUERCN$$", tr("AC EMISORA")).replace("$$CERTSERIAL$$", "0123ABCD");
         let wrap = if self.rotation == 90 || self.rotation == 270 { rect.height() } else { rect.width() } - 6.0;
-        let galley = painter.layout(text, FontId::new(size, family), COLORS[self.color].2, wrap.max(10.0));
+        let galley = painter.layout(text, FontId::new(size, family), COLORS[self.color].1, wrap.max(10.0));
         let painter = painter.with_clip_rect(rect);
         match self.rotation {
-            0 => painter.galley(rect.min + Vec2::new(3.0, 2.0), galley, COLORS[self.color].2),
+            0 => painter.galley(rect.min + Vec2::new(3.0, 2.0), galley, COLORS[self.color].1),
             r => {
                 let angle = match r {
                     90 => -std::f32::consts::FRAC_PI_2,
@@ -477,7 +496,7 @@ impl VisibleSigEditor {
                     180 => rect.right_bottom() - Vec2::new(3.0, 2.0),
                     _ => rect.right_top() + Vec2::new(-2.0, 3.0),
                 };
-                let mut shape = egui::epaint::TextShape::new(origin, galley, COLORS[self.color].2);
+                let mut shape = egui::epaint::TextShape::new(origin, galley, COLORS[self.color].1);
                 shape.angle = angle;
                 painter.add(shape);
             }
@@ -498,7 +517,7 @@ impl VisibleSigEditor {
             if nav(ui, icons::CARET_LEFT, self.page > 0) {
                 self.page -= 1;
             }
-            ui.label(RichText::new(format!("Página {} de {}", self.page + 1, n)).font(FontId::new(13.5, semibold())));
+            ui.label(RichText::new(trf("Página {0} de {1}", &[&(self.page + 1), &n])).font(FontId::new(13.5, semibold())));
             if nav(ui, icons::CARET_RIGHT, self.page + 1 < n) {
                 self.page += 1;
             }
@@ -510,48 +529,48 @@ impl VisibleSigEditor {
 
     fn side_panel(&mut self, ui: &mut Ui, p: &Palette, ctx: &egui::Context) {
         if !self.empty_fields.is_empty() {
-            widgets::section_title(ui, p, "Campos de firma del documento");
-            ui.label(RichText::new("Puedes firmar en un campo ya preparado o dibujar uno nuevo.").size(12.5).color(p.text_muted));
+            widgets::section_title(ui, p, tr("Campos de firma del documento"));
+            ui.label(RichText::new(tr("Puedes firmar en un campo ya preparado o dibujar uno nuevo.")).size(12.5).color(p.text_muted));
             for i in 0..self.empty_fields.len() {
                 let f = &self.empty_fields[i];
-                let label = format!("{} (página {})", f.name, f.page + 1);
+                let label = trf("{0} (página {1})", &[&f.name, &(f.page + 1)]);
                 if ui.radio(self.selected_field == Some(i), label).clicked() {
                     self.selected_field = Some(i);
                     self.page = self.empty_fields[i].page;
                 }
             }
-            if ui.radio(self.selected_field.is_none(), "Nuevo recuadro").clicked() {
+            if ui.radio(self.selected_field.is_none(), tr("Nuevo recuadro")).clicked() {
                 self.selected_field = None;
             }
             ui.add_space(12.0);
         }
         if self.selected_field.is_none() {
-            widgets::section_title(ui, p, "Páginas");
+            widgets::section_title(ui, p, tr("Páginas"));
             ui.horizontal_wrapped(|ui| {
-                if ui.radio(self.page_mode == PageMode::Current, "Esta página").clicked() {
+                if ui.radio(self.page_mode == PageMode::Current, tr("Esta página")).clicked() {
                     self.page_mode = PageMode::Current;
                 }
-                if ui.radio(self.page_mode == PageMode::All, "Todas").clicked() {
+                if ui.radio(self.page_mode == PageMode::All, tr("Todas")).clicked() {
                     self.page_mode = PageMode::All;
                 }
                 let custom = matches!(self.page_mode, PageMode::Custom(_));
-                if ui.radio(custom, "Selección").clicked() && !custom {
+                if ui.radio(custom, tr("Selección")).clicked() && !custom {
                     self.page_mode = PageMode::Custom(String::new());
                 }
             });
             if let PageMode::Custom(s) = &mut self.page_mode {
-                ui.add(egui::TextEdit::singleline(s).hint_text("Ej.: 1,3-5,-1 (última)").desired_width(f32::INFINITY));
+                ui.add(egui::TextEdit::singleline(s).hint_text(tr("Ej.: 1,3-5,-1 (última)")).desired_width(f32::INFINITY));
             }
             ui.add_space(12.0);
         }
         if !self.custom_appearance {
             return;
         }
-        widgets::section_title(ui, p, "Texto");
+        widgets::section_title(ui, p, tr("Texto"));
         ui.add(egui::TextEdit::multiline(&mut self.text).desired_rows(4).desired_width(f32::INFINITY));
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Insertar:").size(12.0).color(p.text_muted));
-            for (label, token) in TOKENS {
+            ui.label(RichText::new(tr("Insertar:")).size(12.0).color(p.text_muted));
+            for (label, token) in tokens() {
                 if ui.small_button(label).on_hover_text(token).clicked() {
                     if !self.text.ends_with(' ') && !self.text.is_empty() {
                         self.text.push(' ');
@@ -569,11 +588,11 @@ impl VisibleSigEditor {
             });
             ui.add(egui::DragValue::new(&mut self.font_size).range(1..=50).suffix(" pt"));
             egui::ComboBox::from_id_salt("vs_color")
-                .selected_text(COLORS[self.color].1)
+                .selected_text(color_name(self.color))
                 .width(110.0)
                 .show_ui(ui, |ui| {
-                    for (i, (_, name, _)) in COLORS.iter().enumerate() {
-                        ui.selectable_value(&mut self.color, i, *name);
+                    for i in 0..COLORS.len() {
+                        ui.selectable_value(&mut self.color, i, color_name(i));
                     }
                 });
         });
@@ -581,23 +600,23 @@ impl VisibleSigEditor {
             let toggle = |ui: &mut Ui, on: bool, text: RichText, tip: &str| -> bool {
                 ui.add(egui::Button::selectable(on, text).min_size(Vec2::new(32.0, 28.0))).on_hover_text(tip).clicked()
             };
-            if toggle(ui, self.bold, RichText::new("N").strong(), "Negrita") {
+            if toggle(ui, self.bold, RichText::new(tr("N")).strong(), tr("Negrita")) {
                 self.bold = !self.bold;
                 self.underline = false;
                 self.strike = false;
             }
-            if toggle(ui, self.italic, RichText::new("K").italics(), "Cursiva") {
+            if toggle(ui, self.italic, RichText::new(tr("K")).italics(), tr("Cursiva")) {
                 self.italic = !self.italic;
                 self.underline = false;
                 self.strike = false;
             }
-            if toggle(ui, self.underline, RichText::new("S").underline(), "Subrayado") {
+            if toggle(ui, self.underline, RichText::new(tr("S")).underline(), tr("Subrayado")) {
                 self.underline = !self.underline;
                 self.bold = false;
                 self.italic = false;
                 self.strike = false;
             }
-            if toggle(ui, self.strike, RichText::new("T").strikethrough(), "Tachado") {
+            if toggle(ui, self.strike, RichText::new(tr("T")).strikethrough(), tr("Tachado")) {
                 self.strike = !self.strike;
                 self.bold = false;
                 self.italic = false;
@@ -605,34 +624,34 @@ impl VisibleSigEditor {
             }
             ui.add_space(8.0);
             egui::ComboBox::from_id_salt("vs_rot")
-                .selected_text(if self.rotation == 0 { "Sin rotar".to_string() } else { format!("Rotar {}º", self.rotation) })
+                .selected_text(if self.rotation == 0 { tr("Sin rotar").to_string() } else { trf("Rotar {0}º", &[&self.rotation]) })
                 .width(100.0)
                 .show_ui(ui, |ui| {
                     for r in [0u16, 90, 180, 270] {
-                        let label = if r == 0 { "Sin rotar".to_string() } else { format!("Rotar {r}º") };
+                        let label = if r == 0 { tr("Sin rotar").to_string() } else { trf("Rotar {0}º", &[&r]) };
                         ui.selectable_value(&mut self.rotation, r, label);
                     }
                 });
         });
         ui.add_space(12.0);
-        widgets::section_title(ui, p, "Imagen");
+        widgets::section_title(ui, p, tr("Imagen"));
         match self.image.as_ref().map(|(n, _)| n.clone()) {
             Some(name) => {
                 let mut remove = false;
                 ui.horizontal(|ui| {
                     widgets::icon_label(ui, p, icons::IMAGE, &name);
-                    remove = ui.link("Quitar").clicked();
+                    remove = ui.link(tr("Quitar")).clicked();
                 });
                 if remove {
                     self.clear_image();
                 }
             }
             None => {
-                ui.label(RichText::new("Puedes añadir tu rúbrica o el sello de tu organización.").size(12.5).color(p.text_muted));
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), "Elegir imagen…", true).clicked()
+                ui.label(RichText::new(tr("Puedes añadir tu rúbrica o el sello de tu organización.")).size(12.5).color(p.text_muted));
+                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::IMAGE), tr("Elegir imagen…"), true).clicked()
                     && let Some(path) = rfd::FileDialog::new()
-                        .set_title("Selecciona la imagen de la firma")
-                        .add_filter("Imágenes", &["jpg", "jpeg", "png", "gif", "bmp"])
+                        .set_title(tr("Selecciona la imagen de la firma"))
+                        .add_filter(tr("Imágenes"), &["jpg", "jpeg", "png", "gif", "bmp"])
                         .pick_file()
                     {
                         match std::fs::read(&path) {
@@ -642,15 +661,15 @@ impl VisibleSigEditor {
                                     self.error = Some(e);
                                 }
                             }
-                            Err(e) => self.error = Some(format!("No se ha podido leer la imagen: {e}")),
+                            Err(e) => self.error = Some(trf("No se ha podido leer la imagen: {0}", &[&e])),
                         }
                     }
             }
         }
         ui.add_space(12.0);
-        ui.checkbox(&mut self.remember, "Recordar esta apariencia para próximas firmas");
-        if ui.link("Restaurar la apariencia por defecto").clicked() {
-            self.text = DEFAULT_TEXT.into();
+        ui.checkbox(&mut self.remember, tr("Recordar esta apariencia para próximas firmas"));
+        if ui.link(tr("Restaurar la apariencia por defecto")).clicked() {
+            self.text = default_text().into();
             self.font_family = 1;
             self.font_size = 12;
             self.bold = false;

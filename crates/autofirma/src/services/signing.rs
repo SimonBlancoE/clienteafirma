@@ -10,6 +10,7 @@ use afirma_core::{AfirmaError, CounterSignTarget, ExtraParams, SigningKey};
 use afirma_keystores::KeyStore;
 
 use super::bridge::UiBridge;
+use crate::i18n::{tr, trf};
 use crate::ui::pages::sign::{FileItem, Operation};
 
 /// Datos de una firma múltiple o simple.
@@ -59,7 +60,7 @@ pub fn describe(e: &AfirmaError) -> String {
 
 fn sign_one(input: &SignJobInput, file: &FileItem, key: &dyn SigningKey) -> Result<Vec<u8>, AfirmaError> {
     let signer = afirma_signers::signer_for_format(&file.format)
-        .ok_or_else(|| AfirmaError::unsupported(format!("Formato de firma no disponible: {}", file.format)))?;
+        .ok_or_else(|| AfirmaError::unsupported(trf("Formato de firma no disponible: {0}", &[&file.format])))?;
     let kind = formats::signer_kind_for_format(&file.format).unwrap_or(SignerKind::Cades);
     let mut extra = (input.params_for)(kind);
     if kind == SignerKind::Pdf
@@ -79,7 +80,7 @@ fn sign_one(input: &SignJobInput, file: &FileItem, key: &dyn SigningKey) -> Resu
                 match intervention {
                     UserIntervention::Confirm { requestor_text, param, effect } => {
                         let text = super::messages::intervention_text(&requestor_text).unwrap_or(&message);
-                        if !input.bridge.confirm(format!("{} — {}", file.name, "Confirmación necesaria"), text) {
+                        if !input.bridge.confirm(format!("{} — {}", file.name, tr("Confirmación necesaria")), text) {
                             return Err(AfirmaError::cancelled());
                         }
                         match effect {
@@ -107,12 +108,12 @@ fn sign_one(input: &SignJobInput, file: &FileItem, key: &dyn SigningKey) -> Resu
             other => return other,
         }
     }
-    Err(AfirmaError::msg("La operación necesita demasiadas confirmaciones"))
+    Err(AfirmaError::msg(tr("La operación necesita demasiadas confirmaciones")))
 }
 
 fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<PathBuf, AfirmaError> {
     let signer = afirma_signers::signer_for_format(&file.format)
-        .ok_or_else(|| AfirmaError::unsupported("Formato no disponible"))?;
+        .ok_or_else(|| AfirmaError::unsupported(tr("Formato no disponible")))?;
     let path = if input.files.len() > 1 {
         let dir = input
             .output_dir
@@ -137,7 +138,7 @@ fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<
                 && let Ok(p) = write_atomic(&docs.join(path.file_name().unwrap_or_default()), signed) {
                     return Ok(p);
                 }
-            Err(AfirmaError::new(afirma_core::error::codes::CANT_SAVE_FILE, format!("No se ha podido guardar la firma: {e}")))
+            Err(AfirmaError::new(afirma_core::error::codes::CANT_SAVE_FILE, trf("No se ha podido guardar la firma: {0}", &[&e])))
         }
     }
 }

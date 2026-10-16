@@ -29,6 +29,9 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   AUTOFIRMA_BUILD_NUMBER: ${{ github.run_number }}
+  # Aviso de nueva versión: las compilaciones publicadas consultan las versiones
+  # de este mismo repositorio (sin esta variable la comprobación se desactiva).
+  AUTOFIRMA_RELEASES_API: https://api.github.com/repos/${{ github.repository }}/releases/latest
 
 jobs:
   meta:

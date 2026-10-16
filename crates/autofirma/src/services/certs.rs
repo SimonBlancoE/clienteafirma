@@ -7,6 +7,7 @@ use afirma_keystores::{
     PasswordCallback, StoreSpec, select_candidates,
 };
 
+use crate::i18n::tr;
 use crate::ui::cert_picker::StoreOption;
 use crate::ui::icons;
 use crate::ui::model::CertItem;
@@ -26,13 +27,13 @@ pub struct LoadedStore {
 pub fn store_options() -> Vec<StoreOption> {
     let mut out = Vec::new();
     match Os::current() {
-        Os::Windows => out.push(StoreOption { id: "WINDOWS".into(), label: "Almacén de Windows".into(), icon: icons::VAULT }),
-        Os::MacOs => out.push(StoreOption { id: "APPLE".into(), label: "Llavero de macOS".into(), icon: icons::VAULT }),
-        _ => out.push(StoreOption { id: "SHARED_NSS".into(), label: "Almacén del sistema (NSS)".into(), icon: icons::VAULT }),
+        Os::Windows => out.push(StoreOption { id: "WINDOWS".into(), label: tr("Almacén de Windows").into(), icon: icons::VAULT }),
+        Os::MacOs => out.push(StoreOption { id: "APPLE".into(), label: tr("Llavero de macOS").into(), icon: icons::VAULT }),
+        _ => out.push(StoreOption { id: "SHARED_NSS".into(), label: tr("Almacén del sistema (NSS)").into(), icon: icons::VAULT }),
     }
     out.push(StoreOption { id: "MOZ_UNI".into(), label: "Firefox".into(), icon: icons::BROWSER });
-    out.push(StoreOption { id: "DNIEJAVA".into(), label: "DNIe y tarjetas".into(), icon: icons::IDENTIFICATION_BADGE });
-    out.push(StoreOption { id: "PKCS12".into(), label: "Fichero .p12 / .pfx…".into(), icon: icons::FILE_LOCK });
+    out.push(StoreOption { id: "DNIEJAVA".into(), label: tr("DNIe y tarjetas").into(), icon: icons::IDENTIFICATION_BADGE });
+    out.push(StoreOption { id: "PKCS12".into(), label: tr("Fichero .p12 / .pfx…").into(), icon: icons::FILE_LOCK });
     out
 }
 

@@ -5,11 +5,12 @@ use std::path::Path;
 use afirma_core::validity::{SignValidity, Validity, ValidityError};
 use afirma_core::{ExtraParams, SignerNode};
 
+use crate::i18n::{tr, trf};
 use crate::ui::pages::verify::{SignatureDetail, SignatureReport};
 
 /// Analiza y valida un fichero de firma.
 pub fn verify_file(path: &Path, params: &ExtraParams) -> Result<SignatureReport, String> {
-    let data = std::fs::read(path).map_err(|e| format!("No se ha podido leer el fichero: {e}"))?;
+    let data = std::fs::read(path).map_err(|e| trf("No se ha podido leer el fichero: {0}", &[&e]))?;
     Ok(verify_bytes(&data, path, params))
 }
 
@@ -23,7 +24,7 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
         format: detected
             .as_ref()
             .map(|(k, _)| afirma_core::formats::get_sign_format(*k).to_string())
-            .unwrap_or_else(|| "Desconocido".into()),
+            .unwrap_or_else(|| tr("Desconocido").into()),
         overall: validity.first().cloned(),
         ..Default::default()
     };
@@ -61,16 +62,16 @@ pub fn verify_bytes(data: &[u8], path: &Path, params: &ExtraParams) -> Signature
     report.has_embedded_data = embedded && kind != afirma_core::formats::SignerKind::Pdf;
     report.data_location = Some(
         match kind {
-            afirma_core::formats::SignerKind::Pdf => "La firma se encuentra dentro del PDF",
+            afirma_core::formats::SignerKind::Pdf => tr("La firma se encuentra dentro del PDF"),
             afirma_core::formats::SignerKind::Xades | afirma_core::formats::SignerKind::FacturaE => {
                 if embedded {
-                    "La firma contiene los datos"
+                    tr("La firma contiene los datos")
                 } else {
-                    "La firma no contiene los datos (firma separada)"
+                    tr("La firma no contiene los datos (firma separada)")
                 }
             }
-            _ if embedded => "La firma contiene los datos",
-            _ => "La firma no contiene los datos (firma explícita)",
+            _ if embedded => tr("La firma contiene los datos"),
+            _ => tr("La firma no contiene los datos (firma explícita)"),
         }
         .to_string(),
     );
@@ -108,10 +109,10 @@ fn flatten(node: &SignerNode, depth: usize, out: &mut Vec<SignatureDetail>) {
     let cert = info.certs.first().and_then(|c| afirma_core::cert::CertInfo::parse(c));
     let now = chrono::Utc::now();
     let cert_status = match &cert {
-        Some(c) if c.not_after < now => "Certificado caducado.".to_string(),
-        Some(c) if c.not_before > now => "Certificado aún no válido.".to_string(),
-        Some(_) => "Correcto. No se ha comprobado la revocación del certificado.".to_string(),
-        None => "No se ha podido leer el certificado.".to_string(),
+        Some(c) if c.not_after < now => tr("Certificado caducado.").to_string(),
+        Some(c) if c.not_before > now => tr("Certificado aún no válido.").to_string(),
+        Some(_) => tr("Correcto. No se ha comprobado la revocación del certificado.").to_string(),
+        None => tr("No se ha podido leer el certificado.").to_string(),
     };
     out.push(SignatureDetail {
         depth,

@@ -9,6 +9,7 @@ use super::pages::sign::{FileItem, FileKind, FileStatus, Operation, Stage};
 use super::pages::tools::{CheckRow, Tool};
 use super::pages::verify::{PolicyInfo, SignatureDetail, SignatureReport};
 use super::theme::ThemeChoice;
+use crate::i18n::{tr, trf};
 
 fn test_certs() -> Vec<CertItem> {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pki");
@@ -52,7 +53,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         ];
         let mut signed = item("informe-tecnico.pdf.csig", FileKind::Signature("CAdES".into()), "CAdES", &["CAdES"], 9_102);
         signed.operation = Operation::Cosign;
-        signed.existing_signatures = Some("1 firma de PRUEBA MARIA".into());
+        signed.existing_signatures = Some(trf("1 firma de {0}", &[&"PRUEBA MARIA"]));
         app.sign.files.push(signed);
         app.sign.stage = Stage::Ready;
         app.sign.visible_signature = true;
@@ -78,7 +79,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
         let mut report = SignatureReport {
             file_name: "Resolución 2026-0117.pdf".into(),
             format: "PAdES".into(),
-            data_location: Some("La firma se encuentra dentro del PDF".into()),
+            data_location: Some(tr("La firma se encuentra dentro del PDF").into()),
             data_objects: vec![(String::new(), "PDF".into(), String::new())],
             overall: Some(SignValidity::ok()),
             has_embedded_data: true,
@@ -90,7 +91,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
                 signer_id: Some("00000000T".into()),
                 issuer: "AC FNMT Usuarios".into(),
                 cert_not_after: Some(t("2028-05-11T10:00:00Z")),
-                cert_status: "Correcto. No se ha comprobado la revocación del certificado.".into(),
+                cert_status: tr("Correcto. No se ha comprobado la revocación del certificado.").into(),
                 profile: Some("PAdES-B-B".into()),
                 algorithm: Some("SHA256withRSA".into()),
                 signing_time: Some(t("2026-10-14T09:31:00Z")),
@@ -103,7 +104,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
                 signer: "PRUEBA MARIA - 99999999R".into(),
                 issuer: "AC DNIE 004".into(),
                 cert_not_after: Some(t("2029-01-01T00:00:00Z")),
-                cert_status: "Correcto. No se ha comprobado la revocación del certificado.".into(),
+                cert_status: tr("Correcto. No se ha comprobado la revocación del certificado.").into(),
                 profile: Some("PAdES-T".into()),
                 algorithm: Some("SHA512withECDSA".into()),
                 signing_time: Some(t("2026-10-15T16:02:00Z")),
@@ -115,7 +116,7 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
                 depth: 1,
                 signer: "CERTIFICADO CADUCADO".into(),
                 issuer: "AC Raiz de Pruebas".into(),
-                cert_status: "Certificado caducado.".into(),
+                cert_status: tr("Certificado caducado.").into(),
                 signing_time: Some(t("2026-10-16T08:00:00Z")),
                 validity: vec![SignValidity::ko(ValidityError::CertificateExpired)],
                 ..Default::default()
@@ -138,17 +139,17 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
                     }
         }
         app.picker.stores = vec![
-            StoreOption { id: "system".into(), label: "Almacén del sistema".into(), icon: icons::VAULT },
+            StoreOption { id: "system".into(), label: tr("Almacén del sistema").into(), icon: icons::VAULT },
             StoreOption { id: "mozilla".into(), label: "Firefox".into(), icon: icons::BROWSER },
-            StoreOption { id: "dnie".into(), label: "DNI electrónico".into(), icon: icons::IDENTIFICATION_BADGE },
-            StoreOption { id: "pkcs12".into(), label: "Fichero PKCS#12 (.p12, .pfx)…".into(), icon: icons::FILE_LOCK },
+            StoreOption { id: "dnie".into(), label: tr("DNI electrónico").into(), icon: icons::IDENTIFICATION_BADGE },
+            StoreOption { id: "pkcs12".into(), label: tr("Fichero PKCS#12 (.p12, .pfx)…").into(), icon: icons::FILE_LOCK },
         ];
         app.picker.allow_change_store = true;
         app.picker.show_remember = demo.contains("web");
         if demo.contains("web") {
             app.picker.subtitle = Some("sede.ejemplo.gob.es solicita tu firma para 1 documento".into());
         }
-        app.picker.open_with("Almacén del sistema", certs);
+        app.picker.open_with(tr("Almacén del sistema"), certs);
         if demo.contains("details") {
             app.picker.expanded = Some(0);
         }
@@ -167,9 +168,9 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
             removable,
         };
         app.certificates.stores = vec![
-            mk("system", "Sistema", "Almacén de certificados del sistema operativo", icons::VAULT, Some(test_certs()), false),
-            mk("mozilla", "Firefox", "Perfil predeterminado de Mozilla Firefox", icons::BROWSER, None, false),
-            mk("dnie", "DNIe y tarjetas", "DNI electrónico y tarjetas criptográficas", icons::IDENTIFICATION_BADGE, Some(vec![]), false),
+            mk("system", tr("Sistema"), tr("Almacén de certificados del sistema operativo"), icons::VAULT, Some(test_certs()), false),
+            mk("mozilla", "Firefox", tr("Perfil predeterminado de Mozilla Firefox"), icons::BROWSER, None, false),
+            mk("dnie", tr("DNIe y tarjetas"), tr("DNI electrónico y tarjetas criptográficas"), icons::IDENTIFICATION_BADGE, Some(vec![]), false),
             mk("p12:/home/usuario/certificado.p12", "certificado.p12", "/home/usuario/certificado.p12", icons::FILE_LOCK, None, true),
         ];
         app.certificates.default_store = Some("system".into());
@@ -220,9 +221,9 @@ pub fn load(app: &mut AutoFirmaApp, demo: &str) {
             batch_count: demo.contains("batch").then_some(12),
         });
         r.picker.stores = app.picker.stores.clone();
-        r.picker.open_with("Almacén del sistema", test_certs().into_iter().filter(|c| c.alias != "caducado").collect());
+        r.picker.open_with(tr("Almacén del sistema"), test_certs().into_iter().filter(|c| c.alias != "caducado").collect());
         if demo.contains("done") {
-            r.stage = RequestStage::Done("Documento firmado".into());
+            r.stage = RequestStage::Done(tr("Documento firmado").into());
         }
         app.request = Some(r);
         app.picker.open = false;

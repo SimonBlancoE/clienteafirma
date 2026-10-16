@@ -17,6 +17,7 @@ use super::app::AutoFirmaApp;
 use super::model::CertItem;
 use super::request_view::{RequestEvent, RequestInfo as ViewInfo, RequestOp, RequestStage, RequestView};
 use super::visible_sig::VisibleSigEvent;
+use crate::i18n::tr;
 use crate::services::protocol::ProtocolUiRequest;
 use crate::services::task::{Job, JobEvent};
 
@@ -88,7 +89,7 @@ fn view_info(info: Option<&RequestInfo>) -> ViewInfo {
         } else if afirma_core::mime::is_xml(d) {
             "XML".to_string()
         } else {
-            "Documento".to_string()
+            tr("Documento").to_string()
         }
     });
     ViewInfo {
@@ -122,12 +123,12 @@ impl AutoFirmaApp {
                 Ok(ProtocolUiRequest::Progress(ev)) => {
                     if let Some(r) = self.request.as_mut() {
                         match ev {
-                            ProgressEvent::Signing => r.stage = RequestStage::Working("Firmando…".into()),
-                            ProgressEvent::CheckingSignatures => r.stage = RequestStage::Working("Comprobando las firmas del documento…".into()),
-                            ProgressEvent::LoadingKeyStore => r.stage = RequestStage::Working("Cargando los certificados…".into()),
+                            ProgressEvent::Signing => r.stage = RequestStage::Working(tr("Firmando…").into()),
+                            ProgressEvent::CheckingSignatures => r.stage = RequestStage::Working(tr("Comprobando las firmas del documento…").into()),
+                            ProgressEvent::LoadingKeyStore => r.stage = RequestStage::Working(tr("Cargando los certificados…").into()),
                             ProgressEvent::Hide => {
                                 if matches!(r.stage, RequestStage::Working(_)) {
-                                    r.stage = RequestStage::Done("Operación completada".into());
+                                    r.stage = RequestStage::Done(tr("Operación completada").into());
                                     proto.done_at = Some(Instant::now());
                                 }
                             }
@@ -139,7 +140,7 @@ impl AutoFirmaApp {
                     proto.finished_at = Some(Instant::now());
                     if let Some(r) = self.request.as_mut()
                         && !matches!(r.stage, RequestStage::Failed(_)) {
-                            r.stage = RequestStage::Done("Operación completada".into());
+                            r.stage = RequestStage::Done(tr("Operación completada").into());
                         }
                 }
                 Ok(ProtocolUiRequest::Error { title, message }) => {
@@ -219,7 +220,7 @@ impl AutoFirmaApp {
                     dlg = dlg.set_file_name(n);
                 }
                 if let Some(exts) = &extensions {
-                    dlg = dlg.add_filter("Ficheros", exts);
+                    dlg = dlg.add_filter(tr("Ficheros"), exts);
                 }
                 let r = match dlg.save_file() {
                     Some(p) => std::fs::write(&p, &data).map_err(|e| AfirmaError::new(codes::CANT_SAVE_FILE, e.to_string())),
@@ -233,7 +234,7 @@ impl AutoFirmaApp {
                     dlg = dlg.set_title(t);
                 }
                 if let Some(exts) = &req.extensions {
-                    dlg = dlg.add_filter(req.description.as_deref().unwrap_or("Ficheros"), exts);
+                    dlg = dlg.add_filter(req.description.as_deref().unwrap_or(tr("Ficheros")), exts);
                 }
                 let picked: Option<Vec<std::path::PathBuf>> =
                     if req.multiple { dlg.pick_files() } else { dlg.pick_file().map(|p| vec![p]) };
@@ -266,7 +267,7 @@ impl AutoFirmaApp {
                         self.visible_sig.mandatory = mandatory;
                         self.visible_sig.multi_document = false;
                         self.visible_sig.empty_fields.clear();
-                        self.visible_sig.open_with("Documento PDF", Arc::new(pages));
+                        self.visible_sig.open_with(tr("Documento PDF"), Arc::new(pages));
                         proto.visible_reply = Some(reply);
                     }
                     Err(_) => {
@@ -299,13 +300,13 @@ impl AutoFirmaApp {
                                     let _ = reply.send(Err(AfirmaError::from_code(codes::CERTIFICATE_NEEDED)));
                                 }
                                 view.stage = RequestStage::Failed(
-                                    "No hay ningún certificado válido en el almacén para esta operación.".into(),
+                                    tr("No hay ningún certificado válido en el almacén para esta operación.").into(),
                                 );
                             } else if loaded.mandatory && loaded.entries.len() == 1 {
                                 let store = loaded.store.clone();
                                 let id = loaded.entries[0].id.clone();
                                 proto.key_job = Some(spawn_key_job(ctx, store, id));
-                                view.stage = RequestStage::Working("Accediendo a la clave…".into());
+                                view.stage = RequestStage::Working(tr("Accediendo a la clave…").into());
                             }
                             proto.candidates = Some(loaded);
                         }
@@ -327,8 +328,8 @@ impl AutoFirmaApp {
                     if let Some(view) = self.request.as_mut() {
                         view.stage = match failed {
                             Some(e) if !e.contains("cancel") => RequestStage::Failed(e),
-                            Some(_) => RequestStage::Working("Operación cancelada".into()),
-                            None => RequestStage::Working("Firmando…".into()),
+                            Some(_) => RequestStage::Working(tr("Operación cancelada").into()),
+                            None => RequestStage::Working(tr("Firmando…").into()),
                         };
                     }
                 }
@@ -349,7 +350,7 @@ impl AutoFirmaApp {
                     && let Some(e) = c.entries.get(i) {
                         proto.key_job = Some(spawn_key_job(ctx, c.store.clone(), e.id.clone()));
                         if let Some(v) = self.request.as_mut() {
-                            v.stage = RequestStage::Working("Accediendo a la clave…".into());
+                            v.stage = RequestStage::Working(tr("Accediendo a la clave…").into());
                         }
                     }
             }
@@ -358,7 +359,7 @@ impl AutoFirmaApp {
                     let _ = reply.send(Err(AfirmaError::cancelled()));
                 }
                 if let Some(v) = self.request.as_mut() {
-                    v.stage = RequestStage::Working("Cancelando…".into());
+                    v.stage = RequestStage::Working(tr("Cancelando…").into());
                 }
             }
             Some(RequestEvent::Close) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -381,7 +382,7 @@ impl AutoFirmaApp {
             }
             Some(RequestEvent::Picker(super::cert_picker::PickerEvent::ChangeStore(id))) => {
                 let lib = if id == "PKCS12" {
-                    rfd::FileDialog::new().add_filter("Almacenes de claves (*.p12, *.pfx)", &["p12", "pfx"]).pick_file().map(|p| p.display().to_string())
+                    rfd::FileDialog::new().add_filter(tr("Almacenes de claves (*.p12, *.pfx)"), &["p12", "pfx"]).pick_file().map(|p| p.display().to_string())
                 } else {
                     None
                 };
@@ -401,7 +402,7 @@ impl AutoFirmaApp {
         let (enter, esc) = ctx.input(|i| (i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::Escape)));
         match proto.pending.take() {
             Some(ProtocolUiRequest::Confirm { message, reply }) => {
-                match super::dialogs::confirm_modal(ctx, &p, "Confirmación necesaria", &message, "Continuar", false, esc) {
+                match super::dialogs::confirm_modal(ctx, &p, tr("Confirmación necesaria"), &message, tr("Continuar"), false, esc) {
                     Some(b) => {
                         let _ = reply.send(b);
                     }
@@ -416,10 +417,10 @@ impl AutoFirmaApp {
                     let r = ui.add(egui::TextEdit::singleline(&mut self.rt.inbox.secret).password(true));
                     r.request_focus();
                     ui.horizontal(|ui| {
-                        if ui.button("Aceptar").clicked() || enter {
+                        if ui.button(tr("Aceptar")).clicked() || enter {
                             done = Some(Some(self.rt.inbox.secret.clone()));
                         }
-                        if ui.button("Cancelar").clicked() || esc {
+                        if ui.button(tr("Cancelar")).clicked() || esc {
                             done = Some(None);
                         }
                     });

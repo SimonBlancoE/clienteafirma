@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use eframe::egui::{self, Align, FontId, Frame, Layout, Margin, RichText, Stroke, Ui};
 
+use crate::i18n::{tr, trf};
 use crate::ui::icons;
 use crate::ui::model::fmt_size;
 use crate::ui::theme::{self, Palette, semibold};
@@ -25,13 +26,13 @@ pub enum FileKind {
 impl FileKind {
     pub fn label(&self) -> String {
         match self {
-            FileKind::Pdf => "Documento PDF".into(),
-            FileKind::Xml => "Documento XML".into(),
-            FileKind::FacturaE => "Factura electrónica".into(),
-            FileKind::Odf => "Documento OpenDocument".into(),
-            FileKind::Ooxml => "Documento de Microsoft Office".into(),
-            FileKind::Signature(f) => format!("Firma {f}"),
-            FileKind::Binary => "Fichero".into(),
+            FileKind::Pdf => tr("Documento PDF").into(),
+            FileKind::Xml => tr("Documento XML").into(),
+            FileKind::FacturaE => tr("Factura electrónica").into(),
+            FileKind::Odf => tr("Documento OpenDocument").into(),
+            FileKind::Ooxml => tr("Documento de Microsoft Office").into(),
+            FileKind::Signature(f) => trf("Firma {0}", &[f]),
+            FileKind::Binary => tr("Fichero").into(),
         }
     }
 
@@ -59,10 +60,10 @@ pub enum Operation {
 impl Operation {
     pub fn label(self) -> &'static str {
         match self {
-            Operation::Sign => "Firmar",
-            Operation::Cosign => "Cofirmar (añadir una firma)",
-            Operation::CountersignLeafs => "Contrafirmar las últimas firmas",
-            Operation::CountersignTree => "Contrafirmar todas las firmas",
+            Operation::Sign => tr("Firmar"),
+            Operation::Cosign => tr("Cofirmar (añadir una firma)"),
+            Operation::CountersignLeafs => tr("Contrafirmar las últimas firmas"),
+            Operation::CountersignTree => tr("Contrafirmar todas las firmas"),
         }
     }
 }
@@ -144,7 +145,7 @@ impl Default for SignPage {
             files: Vec::new(),
             visible_signature: false,
             output_dir: None,
-            store_label: "Almacén del sistema".into(),
+            store_label: tr("Almacén del sistema").into(),
             store_ready: true,
             last_error: None,
             integration_needed: false,
@@ -157,23 +158,23 @@ impl SignPage {
         let mut actions = Vec::new();
         match self.stage {
             Stage::Empty => {
-                widgets::page_header(ui, p, "Firmar documentos", Some("Firma electrónicamente cualquier documento con tu certificado o DNIe."));
+                widgets::page_header(ui, p, tr("Firmar documentos"), Some(tr("Firma electrónicamente cualquier documento con tu certificado o DNIe.")));
                 self.empty_view(ui, p, files_hovering, &mut actions);
             }
             Stage::Ready => {
                 let n = self.files.len();
-                let title = if n == 1 { "Revisa y firma".to_string() } else { format!("Revisa y firma {n} documentos") };
-                widgets::page_header(ui, p, &title, Some("Comprueba el formato de firma elegido para cada documento y pulsa Firmar."));
+                let title = if n == 1 { tr("Revisa y firma").to_string() } else { trf("Revisa y firma {0} documentos", &[&n]) };
+                widgets::page_header(ui, p, &title, Some(tr("Comprueba el formato de firma elegido para cada documento y pulsa Firmar.")));
                 self.ready_view(ui, p, files_hovering, &mut actions);
             }
             Stage::Signing { done, total } => {
-                widgets::page_header(ui, p, "Firmando…", None);
+                widgets::page_header(ui, p, tr("Firmando…"), None);
                 widgets::card(ui, p, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.add_space(20.0);
                         ui.spinner();
                         ui.add_space(8.0);
-                        ui.label(RichText::new(format!("Firmando documento {} de {}", (done + 1).min(total), total)).size(15.0));
+                        ui.label(RichText::new(trf("Firmando documento {0} de {1}", &[&(done + 1).min(total), &total])).size(15.0));
                         ui.add_space(8.0);
                         ui.add(egui::ProgressBar::new(done as f32 / total.max(1) as f32).desired_width(360.0));
                         ui.add_space(20.0);
@@ -192,14 +193,14 @@ impl SignPage {
             ui.add_space(26.0);
             widgets::status_circle(ui, icons::UPLOAD_SIMPLE, 64.0, p.primary, p.primary_soft);
             ui.add_space(10.0);
-            ui.label(RichText::new("Arrastra aquí tus documentos o carpetas").font(FontId::new(18.0, semibold())).color(p.text));
+            ui.label(RichText::new(tr("Arrastra aquí tus documentos o carpetas")).font(FontId::new(18.0, semibold())).color(p.text));
             ui.label(
-                RichText::new("PDF, XML, facturas electrónicas, documentos de Office o cualquier otro fichero")
+                RichText::new(tr("PDF, XML, facturas electrónicas, documentos de Office o cualquier otro fichero"))
                     .size(13.0)
                     .color(p.text_muted),
             );
             ui.add_space(12.0);
-            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), "Seleccionar archivos", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), tr("Seleccionar archivos"), true).clicked() {
                 actions.push(SignAction::PickFiles);
             }
         });
@@ -212,15 +213,15 @@ impl SignPage {
                 ui.horizontal(|ui| {
                     widgets::status_circle(ui, icons::GLOBE, 42.0, p.warning, p.warning_soft);
                     ui.vertical(|ui| {
-                        ui.label(RichText::new("Integra AutoFirma con tu navegador").font(FontId::new(14.5, semibold())));
+                        ui.label(RichText::new(tr("Integra AutoFirma con tu navegador")).font(FontId::new(14.5, semibold())));
                         ui.label(
-                            RichText::new("Necesario para firmar en sedes electrónicas. Solo tarda unos segundos.")
+                            RichText::new(tr("Necesario para firmar en sedes electrónicas. Solo tarda unos segundos."))
                                 .size(12.5)
                                 .color(p.text_muted),
                         );
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUGS_CONNECTED), "Integrar ahora", true).clicked() {
+                        if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUGS_CONNECTED), tr("Integrar ahora"), true).clicked() {
                             actions.push(SignAction::RepairIntegration);
                         }
                     });
@@ -234,11 +235,11 @@ impl SignPage {
             ui,
             p,
             CalloutKind::Info,
-            "Protege tus datos personales",
-            Some(
+            tr("Protege tus datos personales"),
+            Some(tr(
                 "Al firmar se pueden incorporar al documento datos personales como tu nombre, tu DNI o tu cargo. \
                  Consulta las políticas de protección de datos de los destinatarios antes de enviarlo.",
-            ),
+            )),
         );
     }
 
@@ -247,16 +248,16 @@ impl SignPage {
             ui.horizontal(|ui| {
                 widgets::status_circle(ui, icons::VAULT, 42.0, p.info, p.info_soft);
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Certificados de firma").size(12.5).color(p.text_muted));
-                    let status = if self.store_ready { "" } else { " · cargando…" };
+                    ui.label(RichText::new(tr("Certificados de firma")).size(12.5).color(p.text_muted));
+                    let label = if self.store_ready { self.store_label.clone() } else { format!("{} · {}", self.store_label, tr("cargando…")) };
                     ui.label(
-                        RichText::new(format!("{}{status}", self.store_label))
+                        RichText::new(label)
                             .font(FontId::new(14.5, semibold()))
                             .color(p.text),
                     );
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::ARROWS_LEFT_RIGHT), "Cambiar almacén", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::ARROWS_LEFT_RIGHT), tr("Cambiar almacén"), true).clicked() {
                         actions.push(SignAction::ChangeStore);
                     }
                 });
@@ -293,10 +294,10 @@ impl SignPage {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             match &f.status {
                                 FileStatus::Done(_) => {
-                                    widgets::chip(ui, "Firmado", p.success, p.success_soft);
+                                    widgets::chip(ui, tr("Firmado"), p.success, p.success_soft);
                                 }
                                 FileStatus::Failed(_) => {
-                                    widgets::chip(ui, "Error", p.danger, p.danger_soft);
+                                    widgets::chip(ui, tr("Error"), p.danger, p.danger_soft);
                                 }
                                 FileStatus::Signing => {
                                     ui.spinner();
@@ -304,7 +305,7 @@ impl SignPage {
                                 FileStatus::Pending if editable => {
                                     if ui
                                         .add(egui::Button::new(widgets::icon_text(icons::X, 16.0, p.text_faint)).frame(false))
-                                        .on_hover_text("Quitar de la lista")
+                                        .on_hover_text(tr("Quitar de la lista"))
                                         .clicked()
                                     {
                                         actions.push(SignAction::Remove(i));
@@ -319,16 +320,21 @@ impl SignPage {
                                             }
                                         })
                                         .response
-                                        .on_hover_text("Formato de firma");
+                                        .on_hover_text(tr("Formato de firma"));
                                     if f.is_signed() {
+                                        // Ancho fijo (el texto se recorta): en otros idiomas
+                                        // la operación es más larga que en español.
                                         egui::ComboBox::from_id_salt(("op", i))
                                             .selected_text(RichText::new(f.operation.label()).size(13.0))
                                             .width(200.0)
+                                            .truncate()
                                             .show_ui(ui, |ui| {
                                                 for op in [Operation::Cosign, Operation::CountersignLeafs, Operation::CountersignTree] {
                                                     ui.selectable_value(&mut f.operation, op, op.label());
                                                 }
-                                            });
+                                            })
+                                            .response
+                                            .on_hover_text(f.operation.label());
                                     }
                                 }
                                 FileStatus::Pending => {
@@ -348,15 +354,15 @@ impl SignPage {
 
     fn ready_view(&mut self, ui: &mut Ui, p: &Palette, hovering: bool, actions: &mut Vec<SignAction>) {
         if hovering {
-            widgets::callout(ui, p, CalloutKind::Info, "Suelta los ficheros para añadirlos a la lista", None);
+            widgets::callout(ui, p, CalloutKind::Info, tr("Suelta los ficheros para añadirlos a la lista"), None);
             ui.add_space(8.0);
         }
         self.file_list(ui, p, true, actions);
         ui.horizontal(|ui| {
-            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::PLUS), "Añadir más documentos", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::PLUS), tr("Añadir más documentos"), true).clicked() {
                 actions.push(SignAction::PickFiles);
             }
-            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::TRASH), "Vaciar lista", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::TRASH), tr("Vaciar lista"), true).clicked() {
                 actions.push(SignAction::Clear);
             }
         });
@@ -364,15 +370,15 @@ impl SignPage {
 
         let has_pdf = self.files.iter().any(|f| f.format == "PAdES" || f.format == "Adobe PDF");
         widgets::card(ui, p, |ui| {
-            widgets::section_title(ui, p, "Opciones de firma");
+            widgets::section_title(ui, p, tr("Opciones de firma"));
             ui.add_space(6.0);
             if has_pdf {
                 ui.horizontal(|ui| {
                     toggle(ui, p, &mut self.visible_signature);
                     ui.vertical(|ui| {
-                        ui.label(RichText::new("Firma visible en el PDF").font(FontId::new(14.0, semibold())));
+                        ui.label(RichText::new(tr("Firma visible en el PDF")).font(FontId::new(14.0, semibold())));
                         ui.label(
-                            RichText::new("Añade un recuadro con los datos del firmante en la página que elijas.")
+                            RichText::new(tr("Añade un recuadro con los datos del firmante en la página que elijas."))
                                 .size(12.5)
                                 .color(p.text_muted),
                         );
@@ -380,7 +386,7 @@ impl SignPage {
                     if self.visible_signature {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             if let Some(i) = self.files.iter().position(|f| f.format == "PAdES" || f.format == "Adobe PDF")
-                                && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), "Colocar firma", true).clicked() {
+                                && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::SELECTION_PLUS), tr("Colocar firma"), true).clicked() {
                                     actions.push(SignAction::ConfigureVisibleSignature(i));
                                 }
                         });
@@ -390,35 +396,35 @@ impl SignPage {
             }
             if self.files.len() > 1 {
                 ui.horizontal(|ui| {
-                    widgets::icon_label(ui, p, icons::FOLDER, "Carpeta de destino:");
+                    widgets::icon_label(ui, p, icons::FOLDER, tr("Carpeta de destino:"));
                     let label = self
                         .output_dir
                         .as_ref()
                         .map(|d| d.display().to_string())
-                        .unwrap_or_else(|| "Junto a cada documento original".into());
+                        .unwrap_or_else(|| tr("Junto a cada documento original").into());
                     ui.label(RichText::new(label).font(FontId::new(13.5, semibold())));
-                    if ui.link("Cambiar").clicked() {
+                    if ui.link(tr("Cambiar")).clicked() {
                         actions.push(SignAction::ChooseOutputDir);
                     }
                 });
                 ui.add_space(4.0);
             }
             ui.horizontal(|ui| {
-                widgets::icon_label(ui, p, icons::VAULT, "Certificados:");
+                widgets::icon_label(ui, p, icons::VAULT, tr("Certificados:"));
                 ui.label(RichText::new(&self.store_label).font(FontId::new(13.5, semibold())));
-                if ui.link("Cambiar").clicked() {
+                if ui.link(tr("Cambiar")).clicked() {
                     actions.push(SignAction::ChangeStore);
                 }
             });
         });
         ui.add_space(16.0);
         if let Some(e) = &self.last_error {
-            widgets::callout(ui, p, CalloutKind::Error, "No se ha podido completar la firma", Some(e));
+            widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido completar la firma"), Some(e));
             ui.add_space(12.0);
         }
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
             let n = self.files.len();
-            let label = if n == 1 { "Firmar documento".to_string() } else { format!("Firmar {n} documentos") };
+            let label = if n == 1 { tr("Firmar documento").to_string() } else { trf("Firmar {0} documentos", &[&n]) };
             let enabled = self.store_ready && n > 0;
             if widgets::button_sized(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), &label, enabled, 220.0, 46.0).clicked() {
                 actions.push(SignAction::StartSigning);
@@ -435,13 +441,13 @@ impl SignPage {
                 if failed == 0 {
                     widgets::status_circle(ui, icons::CHECK_CIRCLE, 72.0, p.success, p.success_soft);
                     ui.add_space(10.0);
-                    let title = if ok.len() == 1 { "Documento firmado correctamente".to_string() } else { format!("{} documentos firmados correctamente", ok.len()) };
+                    let title = if ok.len() == 1 { tr("Documento firmado correctamente").to_string() } else { trf("{0} documentos firmados correctamente", &[&ok.len()]) };
                     ui.label(RichText::new(title).font(FontId::new(22.0, semibold())).color(p.text));
                 } else {
                     widgets::status_circle(ui, icons::WARNING, 72.0, p.warning, p.warning_soft);
                     ui.add_space(10.0);
                     ui.label(
-                        RichText::new(format!("{} firmados, {} con errores", ok.len(), failed))
+                        RichText::new(trf("{0} firmados, {1} con errores", &[&ok.len(), &failed]))
                             .font(FontId::new(22.0, semibold()))
                             .color(p.text),
                     );
@@ -454,13 +460,13 @@ impl SignPage {
                         ui.horizontal(|ui| {
                             let w = 3.0 * 170.0 + 16.0;
                             ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), "Abrir carpeta", true, 170.0, 40.0).clicked() {
+                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::FOLDER_OPEN), tr("Abrir carpeta"), true, 170.0, 40.0).clicked() {
                                 actions.push(SignAction::OpenFolder(path.clone()));
                             }
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::SEAL_CHECK), "Ver la firma", true, 170.0, 40.0).clicked() {
+                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::SEAL_CHECK), tr("Ver la firma"), true, 170.0, 40.0).clicked() {
                                 actions.push(SignAction::VerifyOutput(path.clone()));
                             }
-                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::ARROW_SQUARE_OUT), "Abrir documento", true, 170.0, 40.0).clicked() {
+                            if widgets::button_sized(ui, p, ButtonKind::Secondary, Some(icons::ARROW_SQUARE_OUT), tr("Abrir documento"), true, 170.0, 40.0).clicked() {
                                 actions.push(SignAction::OpenOutput(path.clone()));
                             }
                         });
@@ -474,7 +480,7 @@ impl SignPage {
         }
         ui.add_space(6.0);
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUS), "Firmar otros documentos", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PLUS), tr("Firmar otros documentos"), true).clicked() {
                 actions.push(SignAction::Clear);
             }
         });

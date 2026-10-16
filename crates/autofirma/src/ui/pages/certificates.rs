@@ -3,6 +3,7 @@
 
 use eframe::egui::{self, Align, CornerRadius, FontId, Frame, Layout, Margin, RichText, Stroke, Ui};
 
+use crate::i18n::{tr, trf};
 use crate::ui::cert_picker::cert_details;
 use crate::ui::icons;
 use crate::ui::model::{CertItem, CertState, fmt_date, state_colors};
@@ -51,8 +52,8 @@ impl CertificatesPage {
         widgets::page_header(
             ui,
             p,
-            "Mis certificados",
-            Some("Consulta los certificados de tus almacenes, tarjetas y DNIe, y gestiona los almacenes adicionales."),
+            tr("Mis certificados"),
+            Some(tr("Consulta los certificados de tus almacenes, tarjetas y DNIe, y gestiona los almacenes adicionales.")),
         );
 
         // Selector de almacenes en forma de tarjetas horizontales.
@@ -75,9 +76,10 @@ impl CertificatesPage {
                             ui.vertical(|ui| {
                                 ui.add(egui::Label::new(RichText::new(&s.label).font(FontId::new(13.5, semibold())).color(p.text)).truncate());
                                 let sub = match (&s.certs, s.loading, s.available) {
-                                    (_, true, _) => "Cargando…".to_string(),
-                                    (_, _, false) => "No disponible".to_string(),
-                                    (Some(c), _, _) => format!("{} certificado{}", c.len(), if c.len() == 1 { "" } else { "s" }),
+                                    (_, true, _) => tr("Cargando…").to_string(),
+                                    (_, _, false) => tr("No disponible").to_string(),
+                                    (Some(c), _, _) if c.len() == 1 => tr("1 certificado").to_string(),
+                                    (Some(c), _, _) => trf("{0} certificados", &[&c.len()]),
                                     (None, _, _) => s.description.clone(),
                                 };
                                 ui.add(egui::Label::new(RichText::new(sub).size(12.0).color(p.text_muted)).truncate());
@@ -92,10 +94,10 @@ impl CertificatesPage {
         });
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::FILE_LOCK), "Abrir fichero .p12 / .pfx", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::FILE_LOCK), tr("Abrir fichero .p12 / .pfx"), true).clicked() {
                 actions.push(CertsAction::OpenPkcs12);
             }
-            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::CPU), "Añadir tarjeta (módulo PKCS#11)", true).clicked() {
+            if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::CPU), tr("Añadir tarjeta (módulo PKCS#11)"), true).clicked() {
                 actions.push(CertsAction::RegisterPkcs11);
             }
         });
@@ -108,21 +110,21 @@ impl CertificatesPage {
             ui.horizontal(|ui| {
                 widgets::section_title(ui, p, &store.label);
                 if self.default_store.as_deref() == Some(store.id.as_str()) {
-                    widgets::chip(ui, "Predeterminado", p.success, p.success_soft);
+                    widgets::chip(ui, tr("Predeterminado"), p.success, p.success_soft);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if store.removable && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::TRASH), "Quitar", true).clicked() {
+                    if store.removable && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::TRASH), tr("Quitar"), true).clicked() {
                         actions.push(CertsAction::RemoveStore(self.selected));
                     }
                     if self.default_store.as_deref() != Some(store.id.as_str())
-                        && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::STAR), "Usar por defecto", true).clicked()
+                        && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::STAR), tr("Usar por defecto"), true).clicked()
                     {
                         actions.push(CertsAction::SetDefault(self.selected));
                     }
-                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROWS_CLOCKWISE), "Recargar", !store.loading).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROWS_CLOCKWISE), tr("Recargar"), !store.loading).clicked() {
                         actions.push(CertsAction::LoadStore(self.selected));
                     }
-                    ui.checkbox(&mut self.show_expired, RichText::new("Mostrar caducados").size(13.0));
+                    ui.checkbox(&mut self.show_expired, RichText::new(tr("Mostrar caducados")).size(13.0));
                 });
             });
             ui.label(RichText::new(&store.description).size(12.5).color(p.text_muted));
@@ -134,7 +136,7 @@ impl CertificatesPage {
                     ui.add_space(20.0);
                 });
             } else if let Some(err) = &store.error {
-                widgets::callout(ui, p, CalloutKind::Error, "No se ha podido abrir el almacén", Some(err));
+                widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido abrir el almacén"), Some(err));
             } else if let Some(certs) = &store.certs {
                 let visible: Vec<(usize, &CertItem)> = certs
                     .iter()
@@ -142,7 +144,7 @@ impl CertificatesPage {
                     .filter(|(_, c)| self.show_expired || !matches!(c.state(), CertState::Expired))
                     .collect();
                 if visible.is_empty() {
-                    ui.label(RichText::new("Este almacén no contiene certificados con clave privada.").color(p.text_muted));
+                    ui.label(RichText::new(tr("Este almacén no contiene certificados con clave privada.")).color(p.text_muted));
                 }
                 for (ci, c) in visible {
                     let expanded = self.expanded == Some(ci);
@@ -159,11 +161,9 @@ impl CertificatesPage {
                                 ui.vertical(|ui| {
                                     ui.label(RichText::new(&c.info.subject_cn).font(FontId::new(14.0, semibold())));
                                     ui.label(
-                                        RichText::new(format!(
-                                            "{} · {} · hasta el {}",
-                                            c.info.issuer_cn,
-                                            c.usage_text(),
-                                            fmt_date(c.info.not_after)
+                                        RichText::new(trf(
+                                            "{0} · {1} · hasta el {2}",
+                                            &[&c.info.issuer_cn, &c.usage_text(), &fmt_date(c.info.not_after)],
                                         ))
                                         .size(12.5)
                                         .color(p.text_muted),
@@ -172,12 +172,12 @@ impl CertificatesPage {
                                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                     if ui
                                         .add(egui::Button::new(widgets::icon_text(icons::EXPORT, 16.0, p.text_muted)).frame(false))
-                                        .on_hover_text("Exportar certificado (.cer)")
+                                        .on_hover_text(tr("Exportar certificado (.cer)"))
                                         .clicked()
                                     {
                                         actions.push(CertsAction::Export(self.selected, ci));
                                     }
-                                    if ui.link(if expanded { "Ocultar" } else { "Detalles" }).clicked() {
+                                    if ui.link(if expanded { tr("Ocultar") } else { tr("Detalles") }).clicked() {
                                         self.expanded = if expanded { None } else { Some(ci) };
                                     }
                                 });
@@ -191,8 +191,8 @@ impl CertificatesPage {
                 }
             } else {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Los certificados de este almacén aún no se han cargado.").color(p.text_muted));
-                    if ui.link("Cargar ahora").clicked() {
+                    ui.label(RichText::new(tr("Los certificados de este almacén aún no se han cargado.")).color(p.text_muted));
+                    if ui.link(tr("Cargar ahora")).clicked() {
                         actions.push(CertsAction::LoadStore(self.selected));
                     }
                 });

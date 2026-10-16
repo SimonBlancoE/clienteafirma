@@ -5,6 +5,7 @@ use afirma_core::cert::CertInfo;
 use chrono::{DateTime, Local, Utc};
 
 use super::icons;
+use crate::i18n::tr;
 use super::theme::Palette;
 use eframe::egui::Color32;
 
@@ -96,17 +97,17 @@ impl CertItem {
 
     /// Texto de uso de la clave como `KeyUsage.toString` de AutoFirma.
     pub fn usage_text(&self) -> &'static str {
-        let Some(ku) = self.info.key_usage else { return "Desconocido" };
+        let Some(ku) = self.info.key_usage else { return tr("Desconocido") };
         let (s, a, c) = (ku.non_repudiation, ku.digital_signature, ku.data_encipherment);
         match (s, a, c) {
-            (true, true, true) => "Firma, autenticación y cifrado",
-            (false, true, true) => "Autenticación y cifrado",
-            (true, true, false) => "Firma y autenticación",
-            (false, true, false) => "Autenticación",
-            (true, false, false) => "Firma",
-            (true, false, true) => "Firma y cifrado",
-            (false, false, true) => "Cifrado",
-            _ => "Otros",
+            (true, true, true) => tr("Firma, autenticación y cifrado"),
+            (false, true, true) => tr("Autenticación y cifrado"),
+            (true, true, false) => tr("Firma y autenticación"),
+            (false, true, false) => tr("Autenticación"),
+            (true, false, false) => tr("Firma"),
+            (true, false, true) => tr("Firma y cifrado"),
+            (false, false, true) => tr("Cifrado"),
+            _ => tr("Otros"),
         }
     }
 

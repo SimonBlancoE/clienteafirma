@@ -7,6 +7,7 @@ use afirma_core::ExtraParams;
 use afirma_core::formats::DataFileType;
 use afirma_signers::{FileAnalysis, ProposedOperation};
 
+use crate::i18n::{tr, trf};
 use crate::ui::pages::sign::{FileItem, FileKind, FileStatus, Operation};
 
 /// Expande la selección: ficheros tal cual y carpetas recorridas
@@ -53,7 +54,7 @@ pub fn multisign_operation(file_type: DataFileType, pref: &dyn Fn(&str) -> Optio
 
 /// Lee y analiza un fichero.
 pub fn load_file(path: &Path, pref: &dyn Fn(&str) -> Option<String>) -> Result<FileItem, String> {
-    let data = std::fs::read(path).map_err(|e| format!("No se ha podido leer {}: {e}", path.display()))?;
+    let data = std::fs::read(path).map_err(|e| trf("No se ha podido leer {0}: {1}", &[&path.display(), &e]))?;
     let analysis = afirma_signers::analyze_for_desktop(&data, pref);
     let mut operation = Operation::Sign;
     let mut existing = None;
@@ -66,9 +67,9 @@ pub fn load_file(path: &Path, pref: &dyn Fn(&str) -> Option<String>) -> Result<F
             && let Ok(tree) = signer.signers_structure(&data, &ExtraParams::new()) {
                 let names: Vec<String> = tree.signers.iter().map(|n| n.info.signer_name()).collect();
                 existing = Some(match names.as_slice() {
-                    [] => "Firmado".to_string(),
-                    [one] => format!("1 firma de {one}"),
-                    many => format!("{} firmas", many.len()),
+                    [] => tr("Firmado").to_string(),
+                    [one] => trf("1 firma de {0}", &[one]),
+                    many => trf("{0} firmas", &[&many.len()]),
                 });
             }
     }

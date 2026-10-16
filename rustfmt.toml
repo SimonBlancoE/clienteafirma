@@ -1,0 +1,3 @@
+# Formato común del proyecto (cargo fmt --all). Las líneas de hasta 120
+# caracteres mantienen legibles las tablas de parámetros y mensajes.
+max_width = 120

@@ -6,6 +6,7 @@ use afirma_hash::document::DirDocumentFormat;
 use afirma_hash::single::FileHashFormat;
 use afirma_system::{AppIdentity, Context};
 
+use crate::i18n::{tr, trf};
 use crate::ui::pages::tools::CheckRow;
 
 /// Resultado de una herramienta.
@@ -38,14 +39,14 @@ pub fn check_file(data: &Path, hash: &Path) -> ToolOutcome {
     match afirma_hash::single::check_file_hash_file(data, hash) {
         Ok(c) if c.matches => ToolOutcome::Check {
             ok: true,
-            title: "Las huellas digitales coinciden".into(),
-            detail: Some("El fichero no ha cambiado desde que se calculó la huella.".into()),
+            title: tr("Las huellas digitales coinciden").into(),
+            detail: Some(tr("El fichero no ha cambiado desde que se calculó la huella.").into()),
             report_xml: None,
         },
         Ok(_) => ToolOutcome::Check {
             ok: false,
-            title: "Las huellas digitales no coinciden".into(),
-            detail: Some("El fichero ha cambiado o la huella corresponde a otro fichero.".into()),
+            title: tr("Las huellas digitales no coinciden").into(),
+            detail: Some(tr("El fichero ha cambiado o la huella corresponde a otro fichero.").into()),
             report_xml: None,
         },
         Err(e) => ToolOutcome::Error(e.to_string()),
@@ -67,20 +68,20 @@ pub fn check_dir(dir: &Path, document: &Path) -> ToolOutcome {
     match afirma_hash::dir::check_directory_with_file(dir, document, &opts) {
         Ok(r) => {
             let mut lines = Vec::new();
-            lines.push(format!("{} ficheros coinciden", r.matching_hash.len()));
+            lines.push(trf("{0} ficheros coinciden", &[&r.matching_hash.len()]));
             if !r.not_matching_hash.is_empty() {
-                lines.push(format!("Modificados: {}", r.not_matching_hash.join(", ")));
+                lines.push(trf("Modificados: {0}", &[&r.not_matching_hash.join(", ")]));
             }
             if !r.hash_without_file.is_empty() {
-                lines.push(format!("Eliminados: {}", r.hash_without_file.join(", ")));
+                lines.push(trf("Eliminados: {0}", &[&r.hash_without_file.join(", ")]));
             }
             if !r.file_without_hash.is_empty() {
-                lines.push(format!("Nuevos: {}", r.file_without_hash.join(", ")));
+                lines.push(trf("Nuevos: {0}", &[&r.file_without_hash.join(", ")]));
             }
             let ok = !r.has_errors();
             ToolOutcome::Check {
                 ok,
-                title: if ok { "Las huellas digitales coinciden".into() } else { "Se han encontrado diferencias en la carpeta".into() },
+                title: if ok { tr("Las huellas digitales coinciden").into() } else { tr("Se han encontrado diferencias en la carpeta").into() },
                 detail: Some(lines.join("\n")),
                 report_xml: r.to_xml().ok(),
             }

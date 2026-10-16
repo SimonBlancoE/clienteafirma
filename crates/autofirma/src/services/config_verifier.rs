@@ -22,7 +22,7 @@ impl ConfigSignatureVerifier for XmlConfigVerifier {
         let certificate_der = afirma_xml::validation::signature_certificates(xml)
             .into_iter()
             .next()
-            .ok_or_else(|| ConfigError::new(codes::INVALID_PREFERENCES_FILE_SIGNATURE).with_detail("firma sin certificado"))?;
+            .ok_or_else(|| ConfigError::new(codes::INVALID_PREFERENCES_FILE_SIGNATURE).with_detail(crate::i18n::tr("firma sin certificado")))?;
         Ok(ConfigSigner { certificate_der })
     }
 }

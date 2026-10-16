@@ -5,6 +5,7 @@ use afirma_keystores::{PasswordResponse, Secret};
 use eframe::egui::{self, Color32, CornerRadius, FontId, Frame, Key, Layout, Margin, RichText, Stroke};
 
 use super::icons;
+use crate::i18n::{tr, trf};
 use super::theme::{Palette, semibold};
 use super::widgets::{self, ButtonKind};
 use crate::services::bridge::{UiInbox, UiRequest};
@@ -33,7 +34,7 @@ pub fn show_inbox(ctx: &egui::Context, p: &Palette, inbox: &mut UiInbox) {
                     widgets::status_circle(ui, glyph, 40.0, p.primary, p.primary_soft);
                     ui.vertical(|ui| {
                         let title = request.title.clone().unwrap_or_else(|| {
-                            if request.smartcard { "PIN de la tarjeta".into() } else { "Contraseña".into() }
+                            if request.smartcard { tr("PIN de la tarjeta").into() } else { tr("Contraseña").into() }
                         });
                         ui.label(RichText::new(title).font(FontId::new(18.0, semibold())));
                         if let Some(d) = &request.device_label {
@@ -49,9 +50,9 @@ pub fn show_inbox(ctx: &egui::Context, p: &Palette, inbox: &mut UiInbox) {
                 ui.label(RichText::new(&request.prompt).size(13.5));
                 if let Some(n) = request.retries_left {
                     let txt = if request.final_try {
-                        "Último intento: si fallas, el PIN quedará bloqueado.".to_string()
+                        tr("Último intento: si fallas, el PIN quedará bloqueado.").to_string()
                     } else {
-                        format!("Intentos restantes: {n}")
+                        trf("Intentos restantes: {0}", &[&n])
                     };
                     ui.label(RichText::new(txt).size(12.5).color(p.warning));
                 }
@@ -59,18 +60,18 @@ pub fn show_inbox(ctx: &egui::Context, p: &Palette, inbox: &mut UiInbox) {
                 let edit = ui.add(egui::TextEdit::singleline(&mut inbox.secret).password(true).desired_width(f32::INFINITY));
                 edit.request_focus();
                 if request.allow_remember {
-                    ui.checkbox(&mut inbox.remember, "Recordar durante la sesión");
+                    ui.checkbox(&mut inbox.remember, tr("Recordar durante la sesión"));
                 }
                 ui.add_space(12.0);
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                     let len_ok = request.min_len.is_none_or(|m| inbox.secret.chars().count() >= m)
                         && request.max_len.is_none_or(|m| inbox.secret.chars().count() <= m);
-                    if (widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), "Aceptar", len_ok).clicked() || (enter && len_ok))
+                    if (widgets::button(ui, p, ButtonKind::Primary, Some(icons::CHECK), tr("Aceptar"), len_ok).clicked() || (enter && len_ok))
                         && done.is_none()
                     {
                         done = Some(PasswordResponse::Provided { secret: Secret::new(inbox.secret.clone()), remember: inbox.remember });
                     }
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() || esc {
+                    if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() || esc {
                         done = Some(PasswordResponse::Cancelled);
                     }
                 });
@@ -84,14 +85,14 @@ pub fn show_inbox(ctx: &egui::Context, p: &Palette, inbox: &mut UiInbox) {
             }
         }
         UiRequest::ConfirmSignature { message, reply } => {
-            match confirm_modal(ctx, p, "Confirmar la firma", &message, "Firmar", enter, esc) {
+            match confirm_modal(ctx, p, tr("Confirmar la firma"), &message, tr("Firmar"), enter, esc) {
                 Some(b) => {
                     let _ = reply.send(b);
                 }
                 None => inbox.current = Some(UiRequest::ConfirmSignature { message, reply }),
             }
         }
-        UiRequest::Confirm { title, message, reply } => match confirm_modal(ctx, p, &title, &message, "Continuar", false, esc) {
+        UiRequest::Confirm { title, message, reply } => match confirm_modal(ctx, p, &title, &message, tr("Continuar"), false, esc) {
             Some(b) => {
                 let _ = reply.send(b);
             }
@@ -107,10 +108,10 @@ pub fn show_inbox(ctx: &egui::Context, p: &Palette, inbox: &mut UiInbox) {
                 r.request_focus();
                 ui.add_space(12.0);
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Primary, None, "Aceptar", true).clicked() || enter {
+                    if widgets::button(ui, p, ButtonKind::Primary, None, tr("Aceptar"), true).clicked() || enter {
                         done = Some(Some(inbox.secret.clone()));
                     }
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() || esc {
+                    if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() || esc {
                         done = Some(None);
                     }
                 });
@@ -145,7 +146,7 @@ pub fn confirm_modal(ctx: &egui::Context, p: &Palette, title: &str, message: &st
                 if widgets::button(ui, p, ButtonKind::Primary, None, yes, true).clicked() || enter {
                     out = Some(true);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() || esc {
+                if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() || esc {
                     out = Some(false);
                 }
             });

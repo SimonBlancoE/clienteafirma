@@ -7,6 +7,7 @@ use afirma_core::validity::{SignValidity, Validity};
 use chrono::{DateTime, Utc};
 use eframe::egui::{self, Align, CornerRadius, FontId, Frame, Layout, Margin, RichText, Stroke, Ui};
 
+use crate::i18n::{tr, trf};
 use crate::ui::icons;
 use crate::ui::model::fmt_datetime;
 use crate::ui::theme::{Palette, semibold};
@@ -89,10 +90,10 @@ pub struct VerifyPage {
 
 fn verdict_style(v: Validity, p: &Palette) -> (&'static str, egui::Color32, egui::Color32, &'static str) {
     match v {
-        Validity::Ok | Validity::Generated => (icons::SEAL_CHECK, p.success, p.success_soft, "Firma válida"),
-        Validity::Ko => (icons::X_CIRCLE, p.danger, p.danger_soft, "Firma no válida"),
-        Validity::Unknown => (icons::WARNING, p.warning, p.warning_soft, "Validación incompleta"),
-        Validity::PendingConfirmByUser => (icons::QUESTION, p.warning, p.warning_soft, "Validez a confirmar"),
+        Validity::Ok | Validity::Generated => (icons::SEAL_CHECK, p.success, p.success_soft, tr("Firma válida")),
+        Validity::Ko => (icons::X_CIRCLE, p.danger, p.danger_soft, tr("Firma no válida")),
+        Validity::Unknown => (icons::WARNING, p.warning, p.warning_soft, tr("Validación incompleta")),
+        Validity::PendingConfirmByUser => (icons::QUESTION, p.warning, p.warning_soft, tr("Validez a confirmar")),
     }
 }
 
@@ -100,7 +101,7 @@ impl VerifyPage {
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette, hovering: bool) -> Vec<VerifyAction> {
         let mut actions = Vec::new();
         if let Some(msg) = &self.loading {
-            widgets::page_header(ui, p, "Verificar firmas", None);
+            widgets::page_header(ui, p, tr("Verificar firmas"), None);
             widgets::card(ui, p, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(30.0);
@@ -115,17 +116,17 @@ impl VerifyPage {
             widgets::page_header(
                 ui,
                 p,
-                "Verificar firmas",
-                Some("Comprueba la validez de una firma electrónica y consulta quién firmó, cuándo y con qué certificado."),
+                tr("Verificar firmas"),
+                Some(tr("Comprueba la validez de una firma electrónica y consulta quién firmó, cuándo y con qué certificado.")),
             );
             let r = widgets::drop_zone(ui, p, 240.0, hovering, |ui| {
                 ui.add_space(26.0);
                 widgets::status_circle(ui, icons::SEAL_CHECK, 60.0, p.success, p.success_soft);
                 ui.add_space(10.0);
-                ui.label(RichText::new("Arrastra aquí una firma o un documento firmado").font(FontId::new(17.0, semibold())));
-                ui.label(RichText::new("PDF firmados, .csig, .xsig, .p7s, facturas electrónicas, ASiC…").size(13.0).color(p.text_muted));
+                ui.label(RichText::new(tr("Arrastra aquí una firma o un documento firmado")).font(FontId::new(17.0, semibold())));
+                ui.label(RichText::new(tr("PDF firmados, .csig, .xsig, .p7s, facturas electrónicas, ASiC…")).size(13.0).color(p.text_muted));
                 ui.add_space(12.0);
-                if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), "Seleccionar firma", true).clicked() {
+                if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FOLDER_OPEN), tr("Seleccionar firma"), true).clicked() {
                     actions.push(VerifyAction::PickFile);
                 }
             });
@@ -134,7 +135,7 @@ impl VerifyPage {
             }
             if let Some(e) = &self.error {
                 ui.add_space(14.0);
-                widgets::callout(ui, p, CalloutKind::Error, "No se ha podido verificar el fichero", Some(e));
+                widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido verificar el fichero"), Some(e));
             }
             return actions;
         };
@@ -151,8 +152,8 @@ impl VerifyPage {
                     let n = report.signatures.len();
                     let summary = match overall.error {
                         Some(e) => e.message().to_string(),
-                        None if n == 1 => "Contiene 1 firma correcta.".into(),
-                        None => format!("Contiene {n} firmas correctas."),
+                        None if n == 1 => tr("Contiene 1 firma correcta.").into(),
+                        None => trf("Contiene {0} firmas correctas.", &[&n]),
                     };
                     ui.label(RichText::new(summary).size(13.5).color(p.text_muted));
                     ui.add_space(4.0);
@@ -165,18 +166,18 @@ impl VerifyPage {
             ui.add_space(12.0);
             ui.horizontal_wrapped(|ui| {
                 if report.has_embedded_data
-                    && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::DOWNLOAD_SIMPLE), "Extraer documento", true).clicked()
+                    && widgets::button(ui, p, ButtonKind::Secondary, Some(icons::DOWNLOAD_SIMPLE), tr("Extraer documento"), true).clicked()
                 {
                     actions.push(VerifyAction::ExtractData);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::PLUS_CIRCLE), "Añadir mi firma", true).clicked() {
+                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::PLUS_CIRCLE), tr("Añadir mi firma"), true).clicked() {
                     actions.push(VerifyAction::Cosign);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::TREE_STRUCTURE), "Contrafirmar", true).clicked() {
+                if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::TREE_STRUCTURE), tr("Contrafirmar"), true).clicked() {
                     actions.push(VerifyAction::Countersign);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_COUNTER_CLOCKWISE), "Verificar otra", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_COUNTER_CLOCKWISE), tr("Verificar otra"), true).clicked() {
                         actions.push(VerifyAction::Clear);
                     }
                 });
@@ -188,7 +189,7 @@ impl VerifyPage {
         }
 
         ui.add_space(18.0);
-        widgets::section_title(ui, p, &format!("Firmantes ({})", report.signatures.len()));
+        widgets::section_title(ui, p, &trf("Firmantes ({0})", &[&report.signatures.len()]));
         ui.add_space(8.0);
         let expanded = self.expanded;
         let mut toggle = None;
@@ -213,11 +214,11 @@ impl VerifyPage {
 
         ui.add_space(10.0);
         widgets::card(ui, p, |ui| {
-            widgets::section_title(ui, p, "Datos firmados");
+            widgets::section_title(ui, p, tr("Datos firmados"));
             ui.add_space(6.0);
-            widgets::kv_row(ui, p, "Formato", &report.format);
+            widgets::kv_row(ui, p, tr("Formato"), &report.format);
             if let Some(l) = &report.data_location {
-                widgets::kv_row(ui, p, "Ubicación de los datos", l);
+                widgets::kv_row(ui, p, tr("Ubicación de los datos"), l);
             }
             for (desc, kind, enc) in &report.data_objects {
                 let mut v = kind.clone();
@@ -227,7 +228,7 @@ impl VerifyPage {
                 if !enc.is_empty() {
                     v = format!("{v} · {enc}");
                 }
-                widgets::kv_row(ui, p, "Documento", &v);
+                widgets::kv_row(ui, p, tr("Documento"), &v);
             }
         });
         actions
@@ -263,15 +264,15 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                     ui.horizontal(|ui| {
                         ui.label(RichText::new(&s.signer).font(FontId::new(15.0, semibold())).color(p.text));
                         if s.depth > 0 {
-                            widgets::chip(ui, "Contrafirma", p.info, p.info_soft);
+                            widgets::chip(ui, tr("Contrafirma"), p.info, p.info_soft);
                         }
                     });
                     let mut when = match s.signing_time {
-                        Some(t) => format!("Firmado el {}", fmt_datetime(t)),
-                        None => "Fecha de firma no declarada".into(),
+                        Some(t) => trf("Firmado el {0}", &[&fmt_datetime(t)]),
+                        None => tr("Fecha de firma no declarada").into(),
                     };
                     if let Some((tsa, t)) = s.timestamps.first() {
-                        when = format!("{when} · Sello de tiempo de {tsa} ({})", fmt_datetime(*t));
+                        when = format!("{when} · {}", trf("Sello de tiempo de {0} ({1})", &[tsa, &fmt_datetime(*t)]));
                     }
                     ui.label(RichText::new(when).size(12.5).color(p.text_muted));
                     ui.horizontal_wrapped(|ui| {
@@ -280,12 +281,12 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                             widgets::chip(ui, prof, p.text_muted, p.surface_alt);
                         }
                         if let Some(pol) = &s.policy {
-                            widgets::chip(ui, pol.name.as_deref().unwrap_or("Política de firma"), p.info, p.info_soft);
+                            widgets::chip(ui, pol.name.as_deref().unwrap_or(tr("Política de firma")), p.info, p.info_soft);
                         }
                     });
                 });
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.link(if expanded { "Ocultar detalles" } else { "Detalles" }).clicked() {
+                    if ui.link(if expanded { tr("Ocultar detalles") } else { tr("Detalles") }).clicked() {
                         toggled = true;
                     }
                 });
@@ -298,38 +299,38 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                 ui.add_space(8.0);
                 ui.separator();
                 ui.add_space(4.0);
-                widgets::kv_row(ui, p, "Certificado", &s.signer);
+                widgets::kv_row(ui, p, tr("Certificado"), &s.signer);
                 if let Some(id) = &s.signer_id {
-                    widgets::kv_row(ui, p, "Identificador", id);
+                    widgets::kv_row(ui, p, tr("Identificador"), id);
                 }
-                widgets::kv_row(ui, p, "Emitido por", &s.issuer);
+                widgets::kv_row(ui, p, tr("Emitido por"), &s.issuer);
                 if let Some(t) = s.cert_not_after {
-                    widgets::kv_row(ui, p, "Caduca", &fmt_datetime(t));
+                    widgets::kv_row(ui, p, tr("Caduca"), &fmt_datetime(t));
                 }
-                widgets::kv_row(ui, p, "Estado del certificado", &s.cert_status);
+                widgets::kv_row(ui, p, tr("Estado del certificado"), &s.cert_status);
                 if let Some(a) = &s.algorithm {
-                    widgets::kv_row(ui, p, "Algoritmo", a);
+                    widgets::kv_row(ui, p, tr("Algoritmo"), a);
                 }
                 if let Some(l) = s.certification_level {
                     let text = match l {
-                        1 => "Documento certificado: no se admiten cambios",
-                        2 => "Documento certificado: se permite rellenar formularios y firmar",
-                        _ => "Documento certificado: se permiten formularios, anotaciones y firmas",
+                        1 => tr("Documento certificado: no se admiten cambios"),
+                        2 => tr("Documento certificado: se permite rellenar formularios y firmar"),
+                        _ => tr("Documento certificado: se permiten formularios, anotaciones y firmas"),
                     };
-                    widgets::kv_row(ui, p, "Certificación", text);
+                    widgets::kv_row(ui, p, tr("Certificación"), text);
                 }
                 if let Some(pol) = &s.policy {
-                    widgets::kv_row(ui, p, "Política", pol.name.as_deref().unwrap_or(&pol.identifier));
+                    widgets::kv_row(ui, p, tr("Política"), pol.name.as_deref().unwrap_or(&pol.identifier));
                     if pol.name.is_none() {
                         if let Some(h) = &pol.hash {
                             let text = match &pol.hash_algorithm {
                                 Some(a) => format!("{h} ({a})"),
                                 None => h.clone(),
                             };
-                            widgets::kv_row(ui, p, "Huella de la política", &text);
+                            widgets::kv_row(ui, p, tr("Huella de la política"), &text);
                         }
                         if let Some(q) = &pol.qualifier {
-                            widgets::kv_row(ui, p, "Calificador", q);
+                            widgets::kv_row(ui, p, tr("Calificador"), q);
                         }
                     }
                 }
@@ -337,11 +338,11 @@ fn signature_card(ui: &mut Ui, p: &Palette, s: &SignatureDetail, expanded: bool,
                     widgets::kv_row(ui, p, k, v);
                 }
                 for (tsa, t) in &s.timestamps {
-                    widgets::kv_row(ui, p, "Sello de tiempo", &format!("{tsa} · {}", fmt_datetime(*t)));
+                    widgets::kv_row(ui, p, tr("Sello de tiempo"), &format!("{tsa} · {}", fmt_datetime(*t)));
                 }
                 ui.add_space(6.0);
                 if !s.cert_der.is_empty()
-                    && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EXPORT), "Exportar certificado", true).clicked()
+                    && widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EXPORT), tr("Exportar certificado"), true).clicked()
                 {
                     actions.push(VerifyAction::ExportCertificate(idx));
                 }

@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 use eframe::egui::{self, Align, CornerRadius, FontId, Frame, Layout, Margin, RichText, Stroke, Ui};
 
+use crate::i18n::{LANGUAGES, tr, trf};
 use crate::ui::icons;
 use crate::ui::theme::{Palette, semibold};
 use crate::ui::widgets::{self, ButtonKind, CalloutKind};
@@ -25,15 +26,15 @@ pub trait PrefStore {
     fn is_locked(&self, key: &str) -> bool;
     /// Configuración efectiva como fichero `.afconfig`.
     fn export_config(&self) -> Result<String, String> {
-        Err("La exportación no está disponible en este modo".into())
+        Err(tr("La exportación no está disponible en este modo").into())
     }
     /// Analiza un `.afconfig` y comprueba su firma (sin aplicarlo todavía).
     fn prepare_import(&self, _data: &[u8]) -> Result<afirma_system::prefs::PreparedImport, String> {
-        Err("La importación no está disponible en este modo".into())
+        Err(tr("La importación no está disponible en este modo").into())
     }
     /// Aplica una importación confirmada; devuelve un resumen.
     fn apply_import(&mut self, _prepared: &afirma_system::prefs::PreparedImport) -> Result<String, String> {
-        Err("La importación no está disponible en este modo".into())
+        Err(tr("La importación no está disponible en este modo").into())
     }
     /// Vuelve a los valores de fábrica (borra los del usuario; las tarjetas
     /// añadidas se conservan).
@@ -162,14 +163,14 @@ impl Section {
 
     fn label(self) -> &'static str {
         match self {
-            Section::General => "General",
-            Section::Signature => "Firma",
+            Section::General => tr("General"),
+            Section::Signature => tr("Firma"),
             Section::Pdf => "PDF (PAdES)",
             Section::Xml => "XML (XAdES)",
-            Section::Binary => "Otros ficheros (CAdES)",
-            Section::Invoice => "Factura electrónica",
-            Section::Certificates => "Certificados",
-            Section::Network => "Red y proxy",
+            Section::Binary => tr("Otros ficheros (CAdES)"),
+            Section::Invoice => tr("Factura electrónica"),
+            Section::Certificates => tr("Certificados"),
+            Section::Network => tr("Red y proxy"),
         }
     }
 
@@ -247,15 +248,27 @@ impl Ctx<'_> {
 fn row_label(ui: &mut Ui, c: &Ctx, key: &str, title: &str, desc: Option<&str>) {
     ui.vertical(|ui| {
         ui.horizontal(|ui| {
-            ui.label(RichText::new(title).font(FontId::new(14.0, semibold())).color(c.p.text));
+            // Con ajuste de línea: en otros idiomas los textos son más largos.
+            ui.add(egui::Label::new(RichText::new(title).font(FontId::new(14.0, semibold())).color(c.p.text)).wrap());
             if c.locked(key) {
                 ui.label(widgets::icon_text(icons::LOCK_SIMPLE, 14.0, c.p.text_faint))
-                    .on_hover_text("Tu organización ha fijado este valor");
+                    .on_hover_text(tr("Tu organización ha fijado este valor"));
             }
         });
         if let Some(d) = desc {
             ui.add(egui::Label::new(RichText::new(d).size(12.5).color(c.p.text_muted)).wrap());
         }
+    });
+}
+
+/// Etiqueta de una fila con un desplegable a la derecha: ocupa solo el ancho
+/// que deja libre el desplegable, para que los textos largos pasen a la línea
+/// siguiente en lugar de quedar debajo de él.
+fn combo_label(ui: &mut Ui, c: &Ctx, key: &str, title: &str, desc: Option<&str>) {
+    let width = (ui.available_width() - 230.0 - 24.0).max(140.0);
+    ui.vertical(|ui| {
+        ui.set_max_width(width);
+        row_label(ui, c, key, title, desc);
     });
 }
 
@@ -275,7 +288,7 @@ fn bool_row(ui: &mut Ui, c: &mut Ctx, key: &str, title: &str, desc: Option<&str>
 
 fn combo_row(ui: &mut Ui, c: &mut Ctx, key: &str, title: &str, desc: Option<&str>, options: &[(&str, &str)]) {
     ui.horizontal(|ui| {
-        row_label(ui, c, key, title, desc);
+        combo_label(ui, c, key, title, desc);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let current = c.value(key).unwrap_or_default();
             let label = options.iter().find(|(v, _)| *v == current).map(|(_, l)| *l).unwrap_or(current.as_str()).to_string();
@@ -340,14 +353,15 @@ fn policy_group(ui: &mut Ui, c: &mut Ctx, prefix: &str, xades: bool) {
     let locked = c.locked(&id_key);
     let mut selected = kind;
     ui.horizontal(|ui| {
-        row_label(ui, c, &id_key, "Política de firma", Some("Algunas administraciones exigen firmar conforme a una política concreta."));
+        combo_label(ui, c, &id_key, tr("Política de firma"), Some(tr("Algunas administraciones exigen firmar conforme a una política concreta.")));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let labels = [tr("Ninguna"), tr("Política de la AGE 1.9"), tr("Política a medida")];
             ui.add_enabled_ui(!locked, |ui| {
                 egui::ComboBox::from_id_salt(("policy", prefix))
-                    .selected_text(["Ninguna", "Política de la AGE 1.9", "Política a medida"][kind])
+                    .selected_text(labels[kind])
                     .width(230.0)
                     .show_ui(ui, |ui| {
-                        for (i, l) in ["Ninguna", "Política de la AGE 1.9", "Política a medida"].iter().enumerate() {
+                        for (i, l) in labels.iter().enumerate() {
                             ui.selectable_value(&mut selected, i, *l);
                         }
                     });
@@ -376,28 +390,28 @@ fn policy_group(ui: &mut Ui, c: &mut Ctx, prefix: &str, xades: bool) {
     if selected == 2 {
         ui.add_space(6.0);
         let id_hint = if xades { "urn:oid:1.2.3… (URI)" } else { "1.2.3… (OID)" };
-        text_row(ui, c, &id_key, "Identificador", id_hint);
-        text_row(ui, c, &hash_key, "Huella digital del documento de política (Base64)", "Vacío = se descarga y se calcula");
+        text_row(ui, c, &id_key, tr("Identificador"), id_hint);
+        text_row(ui, c, &hash_key, tr("Huella digital del documento de política (Base64)"), tr("Vacío: se descarga y se calcula"));
         let key = alg_key.clone();
-        combo_row(ui, c, &key, "Algoritmo de la huella", None, &[("SHA1", "SHA-1"), ("SHA-256", "SHA-256"), ("SHA-384", "SHA-384"), ("SHA-512", "SHA-512")]);
-        text_row(ui, c, &qual_key, "Calificador (URL del documento)", "https://…");
+        combo_row(ui, c, &key, tr("Algoritmo de la huella"), None, &[("SHA1", "SHA-1"), ("SHA-256", "SHA-256"), ("SHA-384", "SHA-384"), ("SHA-512", "SHA-512")]);
+        text_row(ui, c, &qual_key, tr("Calificador (URL del documento)"), "https://…");
     }
     ui.add_space(6.0);
 }
 
 fn place_group(ui: &mut Ui, c: &mut Ctx, prefix: &str) {
     ui.columns(2, |cols| {
-        text_row(&mut cols[0], c, &format!("{prefix}SignatureProductionCity"), "Ciudad", "Madrid");
-        text_row(&mut cols[1], c, &format!("{prefix}SignatureProductionProvince"), "Provincia", "Madrid");
-        text_row(&mut cols[0], c, &format!("{prefix}SignatureProductionPostalCode"), "Código postal", "28001");
-        text_row(&mut cols[1], c, &format!("{prefix}SignatureProductionCountry"), "País", "España");
+        text_row(&mut cols[0], c, &format!("{prefix}SignatureProductionCity"), tr("Ciudad"), "Madrid");
+        text_row(&mut cols[1], c, &format!("{prefix}SignatureProductionProvince"), tr("Provincia"), "Madrid");
+        text_row(&mut cols[0], c, &format!("{prefix}SignatureProductionPostalCode"), tr("Código postal"), "28001");
+        text_row(&mut cols[1], c, &format!("{prefix}SignatureProductionCountry"), tr("País"), tr("España"));
     });
 }
 
 impl SettingsPage {
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette, store: &dyn PrefStore) -> Vec<SettingsAction> {
         let mut actions = Vec::new();
-        widgets::page_header(ui, p, "Preferencias", Some("Ajusta cómo firma AutoFirma. Los cambios se aplican al pulsar Guardar."));
+        widgets::page_header(ui, p, tr("Preferencias"), Some(tr("Ajusta cómo firma AutoFirma. Los cambios se aplican al pulsar Guardar.")));
         ui.horizontal_top(|ui| {
             // Índice de secciones.
             ui.allocate_ui_with_layout(egui::vec2(200.0, 400.0), Layout::top_down(Align::Min), |ui| {
@@ -425,12 +439,13 @@ impl SettingsPage {
         let mut actions = Vec::new();
         ui.horizontal(|ui| {
             let n = self.pending.len();
-            ui.label(widgets::icon_job(icons::INFO, &format!("Tienes {n} cambio{} sin guardar", if n == 1 { "" } else { "s" }), 14.0, p.primary, p.text));
+            let text = if n == 1 { tr("Tienes 1 cambio sin guardar").to_string() } else { trf("Tienes {0} cambios sin guardar", &[&n]) };
+            ui.label(widgets::icon_job(icons::INFO, &text, 14.0, p.primary, p.text));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FLOPPY_DISK), "Guardar", true).clicked() {
+                if widgets::button(ui, p, ButtonKind::Primary, Some(icons::FLOPPY_DISK), tr("Guardar"), true).clicked() {
                     actions.push(SettingsAction::Save);
                 }
-                if widgets::button(ui, p, ButtonKind::Secondary, None, "Descartar", true).clicked() {
+                if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Descartar"), true).clicked() {
                     actions.push(SettingsAction::Discard);
                 }
             });
@@ -443,160 +458,153 @@ fn section_ui(ui: &mut Ui, c: &mut Ctx, section: Section, actions: &mut Vec<Sett
     let p = c.p;
     match section {
         Section::General => {
-            group(ui, p, "Apariencia", |ui| {
-                combo_row(ui, c, "uiTheme", "Tema", None, &[("system", "Como el sistema"), ("light", "Claro"), ("dark", "Oscuro"), ("contrast", "Alto contraste")]);
-                combo_row(ui, c, "uiScale", "Tamaño de la interfaz", None, &[("0.9", "Pequeño"), ("1.0", "Normal"), ("1.15", "Grande"), ("1.3", "Muy grande")]);
-                combo_row(
-                    ui,
-                    c,
-                    "default.locale",
-                    "Idioma",
-                    Some("Se aplica al reiniciar la aplicación."),
-                    &[("es_ES", "Español"), ("ca_ES", "Català"), ("gl_ES", "Galego"), ("eu_ES", "Euskara"), ("va_ES", "Valencià"), ("en_US", "English")],
-                );
+            group(ui, p, tr("Apariencia"), |ui| {
+                combo_row(ui, c, "uiTheme", tr("Tema"), None, &[("system", tr("Como el sistema")), ("light", tr("Claro")), ("dark", tr("Oscuro")), ("contrast", tr("Alto contraste"))]);
+                combo_row(ui, c, "uiScale", tr("Tamaño de la interfaz"), None, &[("0.9", tr("Pequeño")), ("1.0", tr("Normal")), ("1.15", tr("Grande")), ("1.3", tr("Muy grande"))]);
+                combo_row(ui, c, "default.locale", tr("Idioma"), Some(tr("Se aplica al reiniciar la aplicación.")), &LANGUAGES);
             });
-            group(ui, p, "Comportamiento", |ui| {
-                bool_row(ui, c, "omitAskOnClose", "No pedir confirmación al cerrar", None);
-                bool_row(ui, c, "checkForUpdates", "Buscar actualizaciones al iniciar", None);
-                bool_row(ui, c, "enableProgressDialog", "Mostrar el progreso en las firmas desde el navegador", None);
+            group(ui, p, tr("Comportamiento"), |ui| {
+                bool_row(ui, c, "omitAskOnClose", tr("No pedir confirmación al cerrar"), None);
+                bool_row(ui, c, "checkForUpdates", tr("Buscar actualizaciones al iniciar"), None);
+                bool_row(ui, c, "enableProgressDialog", tr("Mostrar el progreso en las firmas desde el navegador"), None);
                 if cfg!(windows) {
-                    bool_row(ui, c, "vdiOptimization", "Optimizar para escritorios virtuales (VDI)", Some("No recomendado en otros entornos."));
+                    bool_row(ui, c, "vdiOptimization", tr("Optimizar para escritorios virtuales (VDI)"), Some(tr("No recomendado en otros entornos.")));
                 }
             });
-            group(ui, p, "Configuración", |ui| {
-                ui.label(RichText::new("Comparte tu configuración con otros equipos o vuelve a la de fábrica.").size(12.5).color(p.text_muted));
+            group(ui, p, tr("Configuración"), |ui| {
+                ui.label(RichText::new(tr("Comparte tu configuración con otros equipos o vuelve a la de fábrica.")).size(12.5).color(p.text_muted));
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::UPLOAD_SIMPLE), "Importar…", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::UPLOAD_SIMPLE), tr("Importar…"), true).clicked() {
                         actions.push(SettingsAction::Import);
                     }
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::DOWNLOAD_SIMPLE), "Exportar…", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::DOWNLOAD_SIMPLE), tr("Exportar…"), true).clicked() {
                         actions.push(SettingsAction::Export);
                     }
-                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_COUNTER_CLOCKWISE), "Restaurar valores de fábrica", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::ARROW_COUNTER_CLOCKWISE), tr("Restaurar valores de fábrica"), true).clicked() {
                         actions.push(SettingsAction::RestoreDefaults);
                     }
                 });
             });
         }
         Section::Signature => {
-            group(ui, p, "General", |ui| {
+            group(ui, p, tr("General"), |ui| {
                 combo_row(
                     ui,
                     c,
                     "signatureHashAlgorithm",
-                    "Algoritmo de huella",
-                    Some("SHA-256 es el recomendado. SHA-1 ya no se considera seguro."),
-                    &[("SHA256", "SHA-256"), ("SHA384", "SHA-384"), ("SHA512", "SHA-512"), ("SHA1", "SHA-1 (no recomendado)")],
+                    tr("Algoritmo de huella"),
+                    Some(tr("SHA-256 es el recomendado. SHA-1 ya no se considera seguro.")),
+                    &[("SHA256", "SHA-256"), ("SHA384", "SHA-384"), ("SHA512", "SHA-512"), ("SHA1", tr("SHA-1 (no recomendado)"))],
                 );
-                bool_row(ui, c, "confirmToSign", "Pedir confirmación antes de firmar", None);
-                bool_row(ui, c, "allowInvalidSignatures", "Permitir añadir firmas a documentos con firmas no válidas", None);
-                bool_row(ui, c, "massiveOverride", "Sobrescribir ficheros existentes al firmar varios documentos", Some("Si no, se añade (1), (2)… al nombre."));
+                bool_row(ui, c, "confirmToSign", tr("Pedir confirmación antes de firmar"), None);
+                bool_row(ui, c, "allowInvalidSignatures", tr("Permitir añadir firmas a documentos con firmas no válidas"), None);
+                bool_row(ui, c, "massiveOverride", tr("Sobrescribir ficheros existentes al firmar varios documentos"), Some(tr("Si no, se añade (1), (2)… al nombre.")));
             });
-            group(ui, p, "Formato según el tipo de documento", |ui| {
-                combo_row(ui, c, "defaultSignatureFormatPdf", "Documentos PDF", None, &[("PAdES", "PAdES"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
-                combo_row(ui, c, "defaultSignatureFormatFacturae", "Facturas electrónicas", None, &[("FacturaE", "FacturaE"), ("XAdES", "XAdES"), ("CAdES", "CAdES")]);
-                combo_row(ui, c, "defaultSignatureFormatOoxml", "Microsoft Office (docx, xlsx…)", None, &[("OOXML (Office Open XML)", "OOXML"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
-                combo_row(ui, c, "defaultSignatureFormatOdf", "LibreOffice (odt, ods…)", None, &[("ODF (Open Document Format)", "ODF"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
-                combo_row(ui, c, "defaultSignatureFormatXml", "Otros XML", None, &[("XAdES", "XAdES"), ("CAdES", "CAdES")]);
-                combo_row(ui, c, "defaultSignatureFormatBin", "Resto de ficheros", None, &[("CAdES", "CAdES"), ("XAdES", "XAdES")]);
+            group(ui, p, tr("Formato según el tipo de documento"), |ui| {
+                combo_row(ui, c, "defaultSignatureFormatPdf", tr("Documentos PDF"), None, &[("PAdES", "PAdES"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
+                combo_row(ui, c, "defaultSignatureFormatFacturae", tr("Facturas electrónicas"), None, &[("FacturaE", "FacturaE"), ("XAdES", "XAdES"), ("CAdES", "CAdES")]);
+                combo_row(ui, c, "defaultSignatureFormatOoxml", tr("Microsoft Office (docx, xlsx…)"), None, &[("OOXML (Office Open XML)", "OOXML"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
+                combo_row(ui, c, "defaultSignatureFormatOdf", tr("LibreOffice (odt, ods…)"), None, &[("ODF (Open Document Format)", "ODF"), ("CAdES", "CAdES"), ("XAdES", "XAdES")]);
+                combo_row(ui, c, "defaultSignatureFormatXml", tr("Otros XML"), None, &[("XAdES", "XAdES"), ("CAdES", "CAdES")]);
+                combo_row(ui, c, "defaultSignatureFormatBin", tr("Resto de ficheros"), None, &[("CAdES", "CAdES"), ("XAdES", "XAdES")]);
             });
         }
         Section::Pdf => {
-            group(ui, p, "Firma de PDF", |ui| {
+            group(ui, p, tr("Firma de PDF"), |ui| {
                 policy_group(ui, c, "pades", false);
                 combo_row(
                     ui,
                     c,
                     "padesBasicFormat",
-                    "Formato",
+                    tr("Formato"),
                     None,
-                    &[("ETSI.CAdES.detached", "PAdES-BES (recomendado)"), ("adbe.pkcs7.detached", "PAdES básico")],
+                    &[("ETSI.CAdES.detached", tr("PAdES-BES (recomendado)")), ("adbe.pkcs7.detached", tr("PAdES básico"))],
                 );
-                bool_row(ui, c, "padesVisibleSignature", "Firma visible por defecto", None);
-                bool_row(ui, c, "padesObfuscateCertInfo", "Ocultar parte del DNI en la firma visible", Some("Muestra, p. ej., ***4567** en lugar del número completo."));
-                bool_row(ui, c, "padesVisibleStamp", "Añadir una marca (imagen) por defecto", None);
-                bool_row(ui, c, "allowShadowAttack", "Comprobar ataques de sombra al verificar PDF", Some("Detecta modificaciones ocultas; la verificación es más lenta."));
-                bool_row(ui, c, "allowCertifiedPDF", "Permitir generar PDF certificados", None);
+                bool_row(ui, c, "padesVisibleSignature", tr("Firma visible por defecto"), None);
+                bool_row(ui, c, "padesObfuscateCertInfo", tr("Ocultar parte del DNI en la firma visible"), Some(tr("Muestra, p. ej., ***4567** en lugar del número completo.")));
+                bool_row(ui, c, "padesVisibleStamp", tr("Añadir una marca (imagen) por defecto"), None);
+                bool_row(ui, c, "allowShadowAttack", tr("Comprobar ataques de sombra al verificar PDF"), Some(tr("Detecta modificaciones ocultas; la verificación es más lenta.")));
+                bool_row(ui, c, "allowCertifiedPDF", tr("Permitir generar PDF certificados"), None);
                 if c.bool("allowCertifiedPDF") {
                     combo_row(
                         ui,
                         c,
                         "padesCertificationLevel",
-                        "Tipo de certificación",
+                        tr("Tipo de certificación"),
                         None,
-                        &[("0", "Sin certificar"), ("1", "Certificado de autor"), ("2", "Autor, para formularios"), ("3", "Certificado común")],
+                        &[("0", tr("Sin certificar")), ("1", tr("Certificado de autor")), ("2", tr("Autor, para formularios")), ("3", tr("Certificado común"))],
                     );
                 }
             });
-            group(ui, p, "Datos de la firma", |ui| {
-                text_row(ui, c, "padesSignReason", "Motivo de la firma", "Conformidad");
-                text_row(ui, c, "padesSignProductionCity", "Lugar", "Madrid");
-                text_row(ui, c, "padesSignerContact", "Contacto del firmante", "correo@ejemplo.es");
+            group(ui, p, tr("Datos de la firma"), |ui| {
+                text_row(ui, c, "padesSignReason", tr("Motivo de la firma"), tr("Conformidad"));
+                text_row(ui, c, "padesSignProductionCity", tr("Lugar"), "Madrid");
+                text_row(ui, c, "padesSignerContact", tr("Contacto del firmante"), tr("correo@ejemplo.es"));
             });
         }
         Section::Xml => {
-            group(ui, p, "Firma XML", |ui| {
+            group(ui, p, tr("Firma XML"), |ui| {
                 policy_group(ui, c, "xades", true);
                 combo_row(
                     ui,
                     c,
                     "xadesSignFormat",
-                    "Tipo de firma",
-                    Some("Enveloped inserta la firma dentro del propio XML."),
-                    &[("XAdES Detached", "Detached (separada)"), ("XAdES Enveloped", "Enveloped (dentro del XML)"), ("XAdES Enveloping", "Enveloping (envolvente)")],
+                    tr("Tipo de firma"),
+                    Some(tr("Enveloped inserta la firma dentro del propio XML.")),
+                    &[("XAdES Detached", tr("Detached (separada)")), ("XAdES Enveloped", tr("Enveloped (dentro del XML)")), ("XAdES Enveloping", tr("Enveloping (envolvente)"))],
                 );
-                combo_row(ui, c, "xadesMultisign", "Si el fichero ya está firmado", None, MULTISIGN);
+                combo_row(ui, c, "xadesMultisign", tr("Si el fichero ya está firmado"), None, &multisign());
             });
-            group(ui, p, "Datos de la firma", |ui| {
+            group(ui, p, tr("Datos de la firma"), |ui| {
                 place_group(ui, c, "xades");
-                text_row(ui, c, "xadesSignerClaimedRole", "Cargo del firmante", "Director/a");
+                text_row(ui, c, "xadesSignerClaimedRole", tr("Cargo del firmante"), tr("Director/a"));
             });
         }
         Section::Binary => {
-            group(ui, p, "Firma CAdES", |ui| {
+            group(ui, p, tr("Firma CAdES"), |ui| {
                 policy_group(ui, c, "cades", false);
-                bool_row(ui, c, "cadesImplicitMode", "Incluir una copia del documento en la firma", Some("Así la firma (.csig) contiene el documento y se puede verificar sola."));
-                combo_row(ui, c, "cadesMultisign", "Si el fichero ya está firmado", None, MULTISIGN);
+                bool_row(ui, c, "cadesImplicitMode", tr("Incluir una copia del documento en la firma"), Some(tr("Así la firma (.csig) contiene el documento y se puede verificar sola.")));
+                combo_row(ui, c, "cadesMultisign", tr("Si el fichero ya está firmado"), None, &multisign());
             });
         }
         Section::Invoice => {
-            group(ui, p, "Factura electrónica", |ui| {
-                combo_row(ui, c, "facturaEPolicy", "Política", None, &[("3.1", "Factura electrónica 3.1"), ("3.0", "Factura electrónica 3.0")]);
-                combo_row(ui, c, "facturaeSignerRole", "Papel del firmante", None, &[("Emisor", "Emisor"), ("Receptor", "Receptor"), ("Tercero", "Tercero")]);
+            group(ui, p, tr("Factura electrónica"), |ui| {
+                combo_row(ui, c, "facturaEPolicy", tr("Política"), None, &[("3.1", tr("Factura electrónica 3.1")), ("3.0", tr("Factura electrónica 3.0"))]);
+                combo_row(ui, c, "facturaeSignerRole", tr("Papel del firmante"), None, &[("Emisor", tr("Emisor")), ("Receptor", tr("Receptor")), ("Tercero", tr("Tercero"))]);
                 place_group(ui, c, "facturae");
             });
         }
         Section::Certificates => {
-            group(ui, p, "Almacén de certificados", |ui| {
+            group(ui, p, tr("Almacén de certificados"), |ui| {
                 combo_row(
                     ui,
                     c,
                     "defaultKeystore",
-                    "Almacén por defecto",
+                    tr("Almacén por defecto"),
                     None,
-                    &[("default", "El del sistema"), ("Mozilla / Firefox (unificado)", "Firefox"), ("PKCS#12 / PFX", "Fichero PKCS#12"), ("DNIe y tarjetas FNMT-TIF", "DNIe y tarjetas")],
+                    &[("default", tr("El del sistema")), ("Mozilla / Firefox (unificado)", "Firefox"), ("PKCS#12 / PFX", tr("Fichero PKCS#12")), ("DNIe y tarjetas FNMT-TIF", tr("DNIe y tarjetas"))],
                 );
-                bool_row(ui, c, "useDefaultStoreInBrowserCalls", "Usarlo también en las firmas desde el navegador", None);
-                bool_row(ui, c, "hideDnieStartScreen", "No mostrar la pantalla de inicio del DNIe", None);
+                bool_row(ui, c, "useDefaultStoreInBrowserCalls", tr("Usarlo también en las firmas desde el navegador"), None);
+                bool_row(ui, c, "hideDnieStartScreen", tr("No mostrar la pantalla de inicio del DNIe"), None);
             });
-            group(ui, p, "Qué certificados mostrar", |ui| {
-                bool_row(ui, c, "showExpiredCerts", "Permitir certificados caducados", None);
-                bool_row(ui, c, "useOnlySignatureCertificates", "Solo certificados de firma (no repudio)", None);
-                bool_row(ui, c, "useOnlyAliasCertificates", "Solo certificados de seudónimo", None);
-                bool_row(ui, c, "skipAuthCertDnie", "Ocultar el certificado de autenticación del DNIe", None);
+            group(ui, p, tr("Qué certificados mostrar"), |ui| {
+                bool_row(ui, c, "showExpiredCerts", tr("Permitir certificados caducados"), None);
+                bool_row(ui, c, "useOnlySignatureCertificates", tr("Solo certificados de firma (no repudio)"), None);
+                bool_row(ui, c, "useOnlyAliasCertificates", tr("Solo certificados de seudónimo"), None);
+                bool_row(ui, c, "skipAuthCertDnie", tr("Ocultar el certificado de autenticación del DNIe"), None);
             });
         }
         Section::Network => {
-            group(ui, p, "Seguridad", |ui| {
+            group(ui, p, tr("Seguridad"), |ui| {
                 bool_row(
                     ui,
                     c,
                     "secureConnections",
-                    "Aceptar solo conexiones seguras (recomendado)",
-                    Some("Se comprueba el certificado de los servidores con el almacén de confianza del sistema."),
+                    tr("Aceptar solo conexiones seguras (recomendado)"),
+                    Some(tr("Se comprueba el certificado de los servidores con el almacén de confianza del sistema.")),
                 );
-                ui.label(RichText::new("Dominios de confianza adicionales (separados por comas)").size(13.0).color(p.text_muted));
+                ui.label(RichText::new(tr("Dominios de confianza adicionales (separados por comas)")).size(13.0).color(p.text_muted));
                 let mut v = c.value("secureDomainsList").unwrap_or_default();
                 if ui
                     .add_enabled(!c.locked("secureDomainsList"), egui::TextEdit::multiline(&mut v).desired_rows(2).desired_width(f32::INFINITY).hint_text("*.miempresa.es, intranet*"))
@@ -605,24 +613,24 @@ fn section_ui(ui: &mut Ui, c: &mut Ctx, section: Section, actions: &mut Vec<Sett
                     c.put("secureDomainsList", if v.trim().is_empty() { None } else { Some(v) });
                 }
             });
-            group(ui, p, "Proxy", |ui| {
+            group(ui, p, tr("Proxy"), |ui| {
                 combo_row(
                     ui,
                     c,
                     "proxyType",
-                    "Conexión",
+                    tr("Conexión"),
                     None,
-                    &[("NONE", "Sin proxy"), ("SYSTEM", "Proxy del sistema"), ("CUSTOM", "Proxy manual")],
+                    &[("NONE", tr("Sin proxy")), ("SYSTEM", tr("Proxy del sistema")), ("CUSTOM", tr("Proxy manual"))],
                 );
                 if c.value("proxyType").as_deref() == Some("CUSTOM") {
                     ui.columns(2, |cols| {
-                        text_row(&mut cols[0], c, "proxyHost", "Servidor", "proxy.miempresa.es");
-                        text_row(&mut cols[1], c, "proxyPort", "Puerto", "8080");
-                        text_row(&mut cols[0], c, "proxyUsername", "Usuario", "");
-                        text_row(&mut cols[1], c, "proxyPassword", "Contraseña", "");
+                        text_row(&mut cols[0], c, "proxyHost", tr("Servidor"), "proxy.miempresa.es");
+                        text_row(&mut cols[1], c, "proxyPort", tr("Puerto"), "8080");
+                        text_row(&mut cols[0], c, "proxyUsername", tr("Usuario"), "");
+                        text_row(&mut cols[1], c, "proxyPassword", tr("Contraseña"), "");
                     });
-                    text_row(ui, c, "proxyExcludedUrls", "Sin proxy para (separados por comas)", "localhost, *.intranet");
-                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::PLUGS_CONNECTED), "Probar conexión", true).clicked() {
+                    text_row(ui, c, "proxyExcludedUrls", tr("Sin proxy para (separados por comas)"), "localhost, *.intranet");
+                    if widgets::button(ui, p, ButtonKind::Secondary, Some(icons::PLUGS_CONNECTED), tr("Probar conexión"), true).clicked() {
                         actions.push(SettingsAction::TestProxy);
                     }
                 }
@@ -631,11 +639,14 @@ fn section_ui(ui: &mut Ui, c: &mut Ctx, section: Section, actions: &mut Vec<Sett
     }
 }
 
-const MULTISIGN: &[(&str, &str)] = &[
-    ("cosign", "Añadir mi firma (cofirma)"),
-    ("countersignLeafs", "Contrafirmar las últimas firmas"),
-    ("countersignTree", "Contrafirmar todas las firmas"),
-];
+/// Opciones de `cadesMultisign` y `xadesMultisign`.
+fn multisign() -> [(&'static str, &'static str); 3] {
+    [
+        ("cosign", tr("Añadir mi firma (cofirma)")),
+        ("countersignLeafs", tr("Contrafirmar las últimas firmas")),
+        ("countersignTree", tr("Contrafirmar todas las firmas")),
+    ]
+}
 
 #[allow(dead_code)]
 fn _unused(_: CalloutKind) {}

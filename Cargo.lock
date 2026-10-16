@@ -154,6 +154,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "afirma-certval"
+version = "2.0.0-alpha.1"
+dependencies = [
+ "afirma-cms",
+ "afirma-core",
+ "base64 0.22.1",
+ "chrono",
+ "hex",
+ "rsa",
+ "sha1 0.10.7",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing",
+ "url",
+ "x509-parser",
+]
+
+[[package]]
 name = "afirma-cli"
 version = "2.0.0-alpha.1"
 dependencies = [
@@ -774,6 +793,7 @@ dependencies = [
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
+ "rand 0.9.5",
  "rfd",
  "rpassword",
  "serde",

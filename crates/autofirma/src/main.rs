@@ -28,7 +28,20 @@ fn main() {
         services::network::install(&|k| prefs.get(k));
     }
     let code = match launch::classify(&args) {
-        Launch::Gui(start) => run_gui(start),
+        Launch::Gui(start) => {
+            // Ventana principal única: una segunda ejecución entrega sus
+            // ficheros a la ventana abierta.
+            let _instance = if std::env::var_os("AF_DEMO").is_none() {
+                match services::instance::acquire(&start.sign_files) {
+                    services::instance::Instance::Forwarded => std::process::exit(0),
+                    services::instance::Instance::Primary(guard) => Some(guard),
+                    services::instance::Instance::Unknown => None,
+                }
+            } else {
+                None
+            };
+            run_gui(start)
+        }
         Launch::Protocol(url) => {
             let code = run_gui(GuiStart { protocol_url: Some(url), ..Default::default() });
             if code == 0 { ui::protocol_flow::EXIT_CODE.load(std::sync::atomic::Ordering::SeqCst) } else { code }

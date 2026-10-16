@@ -4,6 +4,7 @@
 use afirma_system::prefs::{PreparedImport, Preferences, ResolutionMode};
 use afirma_system::{AppIdentity, Context};
 
+use crate::i18n::trf;
 use crate::ui::pages::settings::{MemoryPrefs, PrefStore, default_values};
 
 /// Nodo propio para las preferencias de la interfaz nueva (tema, tamaño...).
@@ -61,12 +62,14 @@ impl PrefStore for SystemPrefStore {
 
     fn apply_import(&mut self, prepared: &PreparedImport) -> Result<String, String> {
         let rep = self.prefs.apply_import(prepared).map_err(|e| e.to_string())?;
-        let mut text = format!("Se han importado {} preferencias", rep.applied.len());
-        if !rep.cards_added.is_empty() {
-            text.push_str(&format!(" y {} tarjetas", rep.cards_added.len()));
-        }
+        let mut text = if rep.cards_added.is_empty() {
+            trf("Se han importado {0} preferencias", &[&rep.applied.len()])
+        } else {
+            trf("Se han importado {0} preferencias y {1} tarjetas", &[&rep.applied.len(), &rep.cards_added.len()])
+        };
         if !rep.skipped.is_empty() {
-            text.push_str(&format!(". {} no se han aplicado (bloqueadas o no válidas)", rep.skipped.len()));
+            text.push_str(". ");
+            text.push_str(&trf("{0} no se han aplicado (bloqueadas o no válidas)", &[&rep.skipped.len()]));
         }
         Ok(text)
     }

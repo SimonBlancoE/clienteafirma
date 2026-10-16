@@ -7,34 +7,20 @@
 //! aplicación) y otra vez al crearla, por si AppKit lo hubiera sustituido.
 
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
-use eframe::egui;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, ProtocolObject};
 use objc2::{MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
 use objc2_app_kit::{NSApplication, NSApplicationDelegate};
 use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventManager, NSArray, NSObjectProtocol, NSURL};
 
-use super::Opened;
+use super::{Opened, push};
 
 /// `kInternetEventClass` y `kAEGetURL` ('GURL').
 const GURL: u32 = u32::from_be_bytes(*b"GURL");
 /// `keyDirectObject` ('----').
 const KEY_DIRECT_OBJECT: u32 = u32::from_be_bytes(*b"----");
-
-static QUEUE: Mutex<Vec<Opened>> = Mutex::new(Vec::new());
-static CTX: OnceLock<egui::Context> = OnceLock::new();
-
-fn push(item: Opened) {
-    tracing::info!("macOS pide abrir {item:?}");
-    if let Ok(mut q) = QUEUE.lock() {
-        q.push(item);
-    }
-    if let Some(ctx) = CTX.get() {
-        ctx.request_repaint();
-    }
-}
 
 fn push_url(url: &NSURL) {
     if url.isFileURL() {
@@ -44,10 +30,6 @@ fn push_url(url: &NSURL) {
     } else if let Some(s) = url.absoluteString() {
         push(Opened::Url(s.to_string()));
     }
-}
-
-pub fn take() -> Vec<Opened> {
-    QUEUE.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default()
 }
 
 define_class!(
@@ -113,8 +95,7 @@ pub fn install_url_handler() {
 
 /// Con la aplicación ya creada: delegado (`application:openURLs:`) y de nuevo
 /// el manejador de URL.
-pub fn install(ctx: &egui::Context) {
-    let _ = CTX.set(ctx.clone());
+pub fn install() {
     let Some(mtm) = MainThreadMarker::new() else { return };
     let app = NSApplication::sharedApplication(mtm);
     app.setDelegate(Some(ProtocolObject::from_ref(delegate(mtm))));

@@ -244,7 +244,9 @@ pub fn kv_row(ui: &mut Ui, p: &Palette, key: &str, value: &str) {
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(Vec2::new(150.0, 18.0), egui::Layout::left_to_right(egui::Align::Min), |ui| {
             ui.set_min_width(150.0);
-            ui.label(RichText::new(key).color(p.text_muted).size(13.0));
+            ui.set_max_width(150.0);
+            // Con ajuste de línea para no desplazar el valor si la etiqueta es larga.
+            ui.add(egui::Label::new(RichText::new(key).color(p.text_muted).size(13.0)).wrap());
         });
         ui.add(egui::Label::new(RichText::new(value).color(p.text).size(13.5)).wrap().selectable(true));
     });

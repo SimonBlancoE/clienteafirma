@@ -264,13 +264,16 @@ La instalación configura las bases NSS de Firefox y Chrome/Chromium **existente
 usuario crea su perfil de Firefox después (o es un usuario nuevo), basta con que ejecute
 `autofirma restore-config` (equivalente a «Restaurar instalación» de la versión Java). En
 Linux, Firefox no usa el almacén del sistema (`ImportEnterpriseRoots` solo funciona en
-Windows y macOS); para que cualquier perfil nuevo confíe en la CA local sin intervención,
-añada a `/etc/firefox/policies/policies.json` la directiva `Certificates.Install` con la
-ruta de la CA:
+Windows y macOS); por eso, con `BROWSER_POLICIES=1` o `FIREFOX_SECURITY_ROOTS=1`
+(`--browser-policies`, `--firefox-roots`), `install --system` añade también a `/etc/firefox/policies/policies.json`
+la directiva `Certificates.Install` con la ruta de la CA local, y cualquier perfil nuevo
+confía en ella sin intervención:
 
 ```json
 { "policies": { "Certificates": { "Install": ["/usr/lib/autofirma-rs/Autofirma_ROOT.cer"] } } }
 ```
+
+Al desinstalar se retira solo esa entrada; las que haya añadido el administrador se conservan.
 
 Chrome y Chromium en Linux usan su propia base NSS (`~/.pki/nssdb`), que se crea al
 abrirlos por primera vez: los usuarios que los abran después de instalar AutoFirma deben
@@ -407,8 +410,8 @@ Compruebe el resultado en `chrome://policy` o `edge://policy`.
 
 En Windows y macOS, `ImportEnterpriseRoots` hace que Firefox confíe en la CA local
 instalada en el almacén del sistema, aunque el perfil del usuario se cree después de
-instalar AutoFirma. En Linux esa directiva no tiene efecto: use `Certificates.Install`
-(sección 4.3). Compruebe el resultado en `about:policies`.
+instalar AutoFirma. En Linux esa directiva no tiene efecto y AutoFirma añade
+`Certificates.Install` (sección 4.3). Compruebe el resultado en `about:policies`.
 
 ### 6.3 Perfil de configuración de macOS (ejemplo)
 
@@ -520,7 +523,8 @@ Windows Registry Editor Version 5.00
 
 Preferencias gestionadas del dominio `io.github.autofirma-rs.AutoFirma`
 (`/Library/Managed Preferences/io.github.autofirma-rs.AutoFirma.plist`, o la carpeta del
-usuario para perfiles de usuario). Las claves de primer nivel son obligatorias; el
+usuario para perfiles de usuario). Los perfiles ya desplegados para la versión Java
+(dominio `es.gob.afirma.simpleafirma.osx`) se siguen leyendo, con menor prioridad. Las claves de primer nivel son obligatorias; el
 diccionario `Recommended` contiene las recomendadas y `SmartCards` las tarjetas. En Jamf o
 Intune, use «Application & Custom Settings» / «Preference file» con ese dominio, o una
 carga del perfil con `PayloadType` = `io.github.autofirma-rs.AutoFirma`:

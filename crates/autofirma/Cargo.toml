@@ -35,6 +35,7 @@ afirma-system.workspace = true
 afirma-hash.workspace = true
 afirma-cli = { workspace = true, features = ["afirma-system"] }
 rpassword = "7"
+rand.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }

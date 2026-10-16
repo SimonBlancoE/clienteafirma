@@ -9,6 +9,7 @@ use eframe::egui::{self, Align, CornerRadius, FontId, Frame, Layout, Margin, Ric
 
 use super::cert_picker::{CertPicker, PickerEvent};
 use super::icons;
+use crate::i18n::{tr, trf};
 use super::model::fmt_size;
 use super::theme::{Palette, semibold};
 use super::widgets::{self, ButtonKind, CalloutKind};
@@ -29,21 +30,21 @@ pub enum RequestOp {
 impl RequestOp {
     pub fn verb(self) -> &'static str {
         match self {
-            RequestOp::Sign | RequestOp::SignAndSave => "solicita tu firma electrónica",
-            RequestOp::Cosign => "solicita que añadas tu firma",
-            RequestOp::Countersign => "solicita tu contrafirma",
-            RequestOp::Batch => "solicita que firmes un lote de documentos",
-            RequestOp::SelectCert => "solicita que te identifiques con tu certificado",
-            RequestOp::Save => "quiere guardar un fichero en tu equipo",
-            RequestOp::Load => "quiere que elijas un fichero de tu equipo",
+            RequestOp::Sign | RequestOp::SignAndSave => tr("solicita tu firma electrónica"),
+            RequestOp::Cosign => tr("solicita que añadas tu firma"),
+            RequestOp::Countersign => tr("solicita tu contrafirma"),
+            RequestOp::Batch => tr("solicita que firmes un lote de documentos"),
+            RequestOp::SelectCert => tr("solicita que te identifiques con tu certificado"),
+            RequestOp::Save => tr("quiere guardar un fichero en tu equipo"),
+            RequestOp::Load => tr("quiere que elijas un fichero de tu equipo"),
         }
     }
 
     pub fn action_label(self) -> &'static str {
         match self {
-            RequestOp::SelectCert => "Usar este certificado",
-            RequestOp::Batch => "Firmar el lote",
-            _ => "Firmar",
+            RequestOp::SelectCert => tr("Usar este certificado"),
+            RequestOp::Batch => tr("Firmar el lote"),
+            _ => tr("Firmar"),
         }
     }
 }
@@ -94,7 +95,7 @@ impl RequestView {
 
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette) -> RequestEvent {
         let mut ev = RequestEvent::None;
-        let origin = self.info.origin.clone().unwrap_or_else(|| "Una página web".into());
+        let origin = self.info.origin.clone().unwrap_or_else(|| tr("Una página web").into());
         // Cabecera: quién lo pide.
         ui.horizontal(|ui| {
             widgets::status_circle(ui, icons::GLOBE_HEMISPHERE_WEST, 46.0, p.primary, p.primary_soft);
@@ -123,9 +124,9 @@ impl RequestView {
                         widgets::status_circle(ui, icon, 38.0, p.text_muted, p.surface);
                         ui.vertical(|ui| {
                             let title = match (self.info.batch_count, &self.info.file_name) {
-                                (Some(n), _) => format!("{n} documentos"),
+                                (Some(n), _) => trf("{0} documentos", &[&n]),
                                 (None, Some(f)) => f.clone(),
-                                (None, None) => self.info.doc_kind.clone().unwrap_or_else(|| "Documento".into()),
+                                (None, None) => self.info.doc_kind.clone().unwrap_or_else(|| tr("Documento").into()),
                             };
                             ui.label(RichText::new(title).font(FontId::new(14.5, semibold())));
                             let mut meta = Vec::new();
@@ -136,13 +137,13 @@ impl RequestView {
                                 meta.push(fmt_size(n as u64));
                             }
                             if let Some(f) = &self.info.format {
-                                meta.push(format!("Firma {f}"));
+                                meta.push(trf("Firma {0}", &[f]));
                             }
                             ui.label(RichText::new(meta.join(" · ")).size(12.5).color(p.text_muted));
                         });
                         if self.info.data_len.is_some() && self.info.batch_count.is_none() {
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EYE), "Ver", true).clicked() {
+                                if widgets::button(ui, p, ButtonKind::Ghost, Some(icons::EYE), tr("Ver"), true).clicked() {
                                     ev = RequestEvent::Preview;
                                 }
                             });
@@ -154,7 +155,7 @@ impl RequestView {
 
         match self.stage.clone() {
             RequestStage::ChooseCertificate => {
-                ui.label(RichText::new("Elige tu certificado").font(FontId::new(15.5, semibold())));
+                ui.label(RichText::new(tr("Elige tu certificado")).font(FontId::new(15.5, semibold())));
                 ui.add_space(6.0);
                 let max_h = (ui.available_height() - 96.0).max(150.0);
                 let pe = self.picker.show_embedded(ui, p, max_h);
@@ -167,14 +168,14 @@ impl RequestView {
                 }
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.picker.remember, RichText::new("Recordar durante la sesión").size(13.0));
+                    ui.checkbox(&mut self.picker.remember, RichText::new(tr("Recordar durante la sesión")).size(13.0));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let can = self.picker.selected.is_some() && !self.picker.loading;
                         if widgets::button(ui, p, ButtonKind::Primary, Some(icons::PEN_NIB), self.info.op.action_label(), can).clicked()
                             && let Some(i) = self.picker.selected {
                                 ev = RequestEvent::Accept(i);
                             }
-                        if widgets::button(ui, p, ButtonKind::Secondary, None, "Cancelar", true).clicked() {
+                        if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() {
                             ev = RequestEvent::Cancel;
                         }
                     });
@@ -186,7 +187,7 @@ impl RequestView {
                     ui.add(egui::Spinner::new().size(36.0).color(p.primary));
                     ui.add_space(12.0);
                     ui.label(RichText::new(msg).size(15.0));
-                    ui.label(RichText::new("Si se solicita, introduce el PIN de tu tarjeta.").size(12.5).color(p.text_muted));
+                    ui.label(RichText::new(tr("Si se solicita, introduce el PIN de tu tarjeta.")).size(12.5).color(p.text_muted));
                 });
             }
             RequestStage::Done(msg) => {
@@ -195,18 +196,18 @@ impl RequestView {
                     widgets::status_circle(ui, icons::CHECK_CIRCLE, 68.0, p.success, p.success_soft);
                     ui.add_space(10.0);
                     ui.label(RichText::new(msg).font(FontId::new(18.0, semibold())));
-                    ui.label(RichText::new("Ya puedes volver a la página web.").color(p.text_muted));
+                    ui.label(RichText::new(tr("Ya puedes volver a la página web.")).color(p.text_muted));
                     ui.add_space(14.0);
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Cerrar", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cerrar"), true).clicked() {
                         ev = RequestEvent::Close;
                     }
                 });
             }
             RequestStage::Failed(msg) => {
-                widgets::callout(ui, p, CalloutKind::Error, "No se ha podido completar la operación", Some(&msg));
+                widgets::callout(ui, p, CalloutKind::Error, tr("No se ha podido completar la operación"), Some(&msg));
                 ui.add_space(12.0);
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if widgets::button(ui, p, ButtonKind::Secondary, None, "Cerrar", true).clicked() {
+                    if widgets::button(ui, p, ButtonKind::Secondary, None, tr("Cerrar"), true).clicked() {
                         ev = RequestEvent::Close;
                     }
                 });

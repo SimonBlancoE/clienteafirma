@@ -139,11 +139,11 @@ impl CertificateChooser for GuiChooser {
             .collect();
         let result: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
         let out = result.clone();
-        let mut picker = crate::ui::cert_picker::CertPicker { accept_label: "Seleccionar".into(), ..Default::default() };
-        picker.open_with("Almacén indicado en -store", items);
+        let mut picker = crate::ui::cert_picker::CertPicker { accept_label: crate::i18n::tr("Seleccionar").into(), ..Default::default() };
+        picker.open_with(crate::i18n::tr("Almacén indicado en -store"), items);
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
-                .with_title("Selección de certificado")
+                .with_title(crate::i18n::tr("Selección de certificado"))
                 .with_inner_size([620.0, 560.0])
                 .with_app_id("autofirma"),
             persist_window: false,
@@ -172,6 +172,7 @@ struct ChooserApp {
 impl eframe::App for ChooserApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         use crate::ui::cert_picker::PickerEvent;
+        use crate::i18n::tr;
         use crate::ui::widgets::{self, ButtonKind};
         let ctx = ui.ctx().clone();
         let p = crate::ui::theme::ThemeChoice::System.palette(ctx.system_theme() == Some(egui::Theme::Dark));
@@ -183,7 +184,7 @@ impl eframe::App for ChooserApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg).inner_margin(egui::Margin::same(18)))
             .show(ui, |ui| {
-                ui.label(egui::RichText::new("Elige el certificado de firma").font(egui::FontId::new(18.0, crate::ui::theme::semibold())));
+                ui.label(egui::RichText::new(tr("Elige el certificado de firma")).font(egui::FontId::new(18.0, crate::ui::theme::semibold())));
                 ui.add_space(10.0);
                 let h = ui.available_height() - 56.0;
                 match self.picker.show_embedded(ui, &p, h) {
@@ -199,13 +200,13 @@ impl eframe::App for ChooserApp {
                 ui.add_space(10.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let can = self.picker.selected.is_some();
-                    if widgets::button(ui, &p, ButtonKind::Primary, None, "Seleccionar", can).clicked() {
+                    if widgets::button(ui, &p, ButtonKind::Primary, None, tr("Seleccionar"), can).clicked() {
                         if let (Some(c), Ok(mut out)) = (self.picker.selected.and_then(|i| self.picker.certs.get(i)), self.out.lock()) {
                             *out = Some(c.alias.clone());
                         }
                         close = true;
                     }
-                    if widgets::button(ui, &p, ButtonKind::Secondary, None, "Cancelar", true).clicked() {
+                    if widgets::button(ui, &p, ButtonKind::Secondary, None, tr("Cancelar"), true).clicked() {
                         close = true;
                     }
                 });
