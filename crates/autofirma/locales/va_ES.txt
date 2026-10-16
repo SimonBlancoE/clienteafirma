@@ -637,3 +637,21 @@ Se desconoce el estado del certificado. = Es desconeix l'estat del certificat.
 Validando certificado… = S'està validant el certificat…
 Validar certificado de firma = Valida el certificat de signatura
 Validar el certificado con el que se ha realizado la firma = Valida el certificat amb què s'ha fet la signatura
+
+# Certificados de confianza personales (Preferencias > Red, services/network.rs)
+Certificados de confianza = Certificats de confiança
+Certificados de servidores o autoridades en los que confías además de los del sistema (p. ej., de la intranet). = Certificats de servidors o autoritats en què confies a més dels del sistema (p. ex., de la intranet).
+Eliminar = Elimina
+Eliminar certificado = Elimina el certificat
+Emitido por {0} · Caduca el {1} = Emés per {0} · Caduca el {1}
+Importar certificados de confianza = Importa certificats de confiança
+Importar fichero… = Importa un fitxer…
+Los certificados ya estaban en el almacén de confianza = Els certificats ja eren en el magatzem de confiança
+No has importado ningún certificado. = No has importat cap certificat.
+No se ha encontrado ningún certificado = No s'ha trobat cap certificat
+No se han podido obtener los certificados del servidor: {0} = No s'han pogut obtindre els certificats del servidor: {0}
+Obtener del servidor = Obtín del servidor
+Se ha intentado conectar con {0}, que presenta un certificado SSL que no es de confianza. ¿Quieres importar este certificado a tu almacén de confianza? = S'ha intentat connectar amb {0}, que presenta un certificat SSL que no és de confiança. Vols importar este certificat al teu magatzem de confiança?
+Se han importado {0} certificados de confianza = S'han importat {0} certificats de confiança
+Verificación de dominio = Verificació de domini
+¿Seguro que quieres eliminar el certificado «{0}»? = Segur que vols eliminar el certificat «{0}»?

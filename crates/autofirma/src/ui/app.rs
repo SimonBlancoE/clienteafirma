@@ -77,6 +77,8 @@ pub struct AutoFirmaApp {
     pending_import: Option<afirma_system::prefs::PreparedImport>,
     confirm_restore: bool,
     proxy_job: Option<crate::services::task::Job<(), Result<(), String>>>,
+    trusted_job: Option<crate::services::task::Job<(), Result<String, String>>>,
+    confirm_trusted_remove: Option<String>,
     /// macOS: ventana aún oculta a la espera de eventos de apertura del sistema.
     launch_grace: Option<std::time::Instant>,
     dont_ask_close: bool,
@@ -128,6 +130,8 @@ impl AutoFirmaApp {
             pending_import: None,
             confirm_restore: false,
             proxy_job: None,
+            trusted_job: None,
+            confirm_trusted_remove: None,
             launch_grace: None,
             dont_ask_close: false,
             prefs,
@@ -137,6 +141,10 @@ impl AutoFirmaApp {
         {
             let prefs = &app.prefs;
             app.rt.store_spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
+            // Con la interfaz ya creada se puede preguntar por los certificados
+            // TLS no reconocidos.
+            crate::services::network::set_trust_prompt(app.rt.bridge.clone());
+            crate::services::network::install(&|k| prefs.get(k));
         }
         tracing::debug!("arranque: almacén por defecto {:?}", app.rt.store_spec);
         if let Some(scale) = app.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
@@ -261,6 +269,49 @@ impl AutoFirmaApp {
                     }
                 }
                 SettingsAction::RestoreDefaults => self.confirm_restore = true,
+                SettingsAction::TrustedReload => self.settings.trusted = Some(load_trusted_rows()),
+                SettingsAction::TrustedRemove(alias) => self.confirm_trusted_remove = Some(alias),
+                SettingsAction::TrustedImportFile => {
+                    let Some(files) = crate::services::desktop::file_dialog()
+                        .set_title(tr("Importar certificados de confianza"))
+                        .add_filter(tr("Certificados"), &["cer", "cert", "crt", "pem", "der"])
+                        .pick_files()
+                    else {
+                        continue;
+                    };
+                    let mut certs = Vec::new();
+                    let mut errors = Vec::new();
+                    for f in &files {
+                        match std::fs::read(f)
+                            .map_err(|e| e.to_string())
+                            .and_then(|d| afirma_keystores::jks::parse_certificate_file(&d).map_err(|e| e.to_string()))
+                        {
+                            Ok(mut c) => certs.append(&mut c),
+                            Err(e) => errors.push(format!("{}: {e}", f.display())),
+                        }
+                    }
+                    let result = import_trusted(&certs);
+                    self.settings.message = Some(match (result, errors.is_empty()) {
+                        (Ok(text), true) => (widgets::CalloutKind::Success, text),
+                        (Ok(text), false) => (widgets::CalloutKind::Warning, format!("{text}\n{}", errors.join("\n"))),
+                        (Err(e), _) => (widgets::CalloutKind::Error, e),
+                    });
+                    self.after_trusted_changed();
+                }
+                SettingsAction::TrustedImportUrl(url) => {
+                    let prefs = &self.prefs;
+                    let proxy = crate::services::network::settings_from(&|k| prefs.get(k)).proxy;
+                    self.settings.trusted_busy = true;
+                    self.trusted_job = Some(crate::services::task::Job::spawn(ctx, "confianza", move |_| {
+                        let chain = afirma_keystores::jks::fetch_server_chain(
+                            &url,
+                            &proxy,
+                            Some(std::time::Duration::from_secs(20)),
+                        )
+                        .map_err(|e| trf("No se han podido obtener los certificados del servidor: {0}", &[&e]))?;
+                        import_trusted(&chain)
+                    }));
+                }
                 SettingsAction::TestProxy => {
                     // Con los valores en pantalla, aunque no se hayan guardado.
                     let mut values = std::collections::HashMap::new();
@@ -311,10 +362,64 @@ impl AutoFirmaApp {
         crate::services::network::install(&|k| prefs.get(k));
     }
 
+    /// Tras cambiar los certificados de confianza: se recarga la lista y el
+    /// cliente HTTP para que se usen en las siguientes conexiones.
+    fn after_trusted_changed(&mut self) {
+        self.settings.trusted = Some(load_trusted_rows());
+        let prefs = &self.prefs;
+        crate::services::network::install(&|k| prefs.get(k));
+    }
+
     /// Diálogos de Preferencias: confirmación de importación y de restauración,
     /// y resultado de la comprobación del proxy.
     fn settings_dialogs(&mut self, ctx: &egui::Context) {
         let p = self.palette;
+        if let Some(job) = &mut self.trusted_job {
+            for ev in job.poll() {
+                if let crate::services::task::JobEvent::Done(r) = ev {
+                    self.settings.message = Some(match r {
+                        Ok(text) => (widgets::CalloutKind::Success, text),
+                        Err(e) => (widgets::CalloutKind::Error, e),
+                    });
+                }
+            }
+            if job.is_finished() {
+                self.trusted_job = None;
+                self.settings.trusted_busy = false;
+                self.settings.trusted_url.clear();
+                self.after_trusted_changed();
+            }
+        }
+        if let Some(alias) = self.confirm_trusted_remove.clone() {
+            let name = self
+                .settings
+                .trusted
+                .as_ref()
+                .and_then(|rows| rows.iter().find(|r| r.alias == alias))
+                .map(|r| r.name.clone())
+                .unwrap_or_else(|| alias.clone());
+            let text = trf("¿Seguro que quieres eliminar el certificado «{0}»?", &[&name]);
+            if let Some(yes) =
+                super::dialogs::confirm_modal(ctx, &p, tr("Eliminar certificado"), &text, tr("Eliminar"), false, false)
+            {
+                self.confirm_trusted_remove = None;
+                if yes {
+                    let removed = afirma_keystores::jks::TrustStore::open_default()
+                        .map_err(|e| e.to_string())
+                        .and_then(|mut ts| {
+                            if ts.remove(&alias) {
+                                ts.save().map_err(|e| e.to_string())
+                            } else {
+                                Ok(())
+                            }
+                        });
+                    if let Err(e) = removed {
+                        self.settings.message = Some((widgets::CalloutKind::Error, e));
+                    }
+                    self.after_trusted_changed();
+                }
+            }
+        }
         if let Some(job) = &mut self.proxy_job {
             for ev in job.poll() {
                 if let crate::services::task::JobEvent::Done(r) = ev {
@@ -751,4 +856,44 @@ fn theme_from_pref(v: Option<&str>) -> ThemeChoice {
         Some("contrast") => ThemeChoice::HighContrast,
         _ => ThemeChoice::System,
     }
+}
+
+/// Certificados del almacén de confianza personal para Preferencias.
+fn load_trusted_rows() -> Vec<super::pages::settings::TrustedRow> {
+    let Ok(ts) = afirma_keystores::jks::TrustStore::open_default() else {
+        return Vec::new();
+    };
+    ts.certificates()
+        .into_iter()
+        .map(|c| {
+            let item = super::model::CertItem::from_der(c.alias.clone(), c.der.clone());
+            super::pages::settings::TrustedRow {
+                name: item
+                    .as_ref()
+                    .map(|i| i.info.subject_cn.clone())
+                    .unwrap_or_else(|| c.alias.clone()),
+                issuer: item.as_ref().map(|i| i.info.issuer_cn.clone()).unwrap_or_default(),
+                expires: item
+                    .as_ref()
+                    .map(|i| super::model::fmt_date(i.info.not_after))
+                    .unwrap_or_default(),
+                alias: c.alias,
+            }
+        })
+        .collect()
+}
+
+/// Añade certificados al almacén de confianza personal; devuelve un resumen.
+fn import_trusted(certs: &[Vec<u8>]) -> Result<String, String> {
+    if certs.is_empty() {
+        return Err(tr("No se ha encontrado ningún certificado").into());
+    }
+    let added = afirma_keystores::jks::TrustStore::open_default()
+        .and_then(|mut ts| ts.import(certs))
+        .map_err(|e| e.to_string())?;
+    Ok(if added == 0 {
+        tr("Los certificados ya estaban en el almacén de confianza").to_string()
+    } else {
+        trf("Se han importado {0} certificados de confianza", &[&added])
+    })
 }

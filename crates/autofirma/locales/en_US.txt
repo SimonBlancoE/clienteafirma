@@ -637,3 +637,21 @@ Se desconoce el estado del certificado. = The status of the certificate is unkno
 Validando certificado… = Validating certificate…
 Validar certificado de firma = Validate signing certificate
 Validar el certificado con el que se ha realizado la firma = Validate the certificate used to sign
+
+# Certificados de confianza personales (Preferencias > Red, services/network.rs)
+Certificados de confianza = Trusted certificates
+Certificados de servidores o autoridades en los que confías además de los del sistema (p. ej., de la intranet). = Certificates of servers or authorities you trust in addition to the system ones (e.g. from the intranet).
+Eliminar = Remove
+Eliminar certificado = Remove certificate
+Emitido por {0} · Caduca el {1} = Issued by {0} · Expires on {1}
+Importar certificados de confianza = Import trusted certificates
+Importar fichero… = Import file…
+Los certificados ya estaban en el almacén de confianza = The certificates were already in the trust store
+No has importado ningún certificado. = You have not imported any certificate.
+No se ha encontrado ningún certificado = No certificate was found
+No se han podido obtener los certificados del servidor: {0} = Could not get the certificates from the server: {0}
+Obtener del servidor = Get from server
+Se ha intentado conectar con {0}, que presenta un certificado SSL que no es de confianza. ¿Quieres importar este certificado a tu almacén de confianza? = A connection was attempted to {0}, which presents an untrusted SSL certificate. Do you want to import this certificate into your trust store?
+Se han importado {0} certificados de confianza = {0} trusted certificates imported
+Verificación de dominio = Domain verification
+¿Seguro que quieres eliminar el certificado «{0}»? = Are you sure you want to remove the certificate «{0}»?

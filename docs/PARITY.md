@@ -85,7 +85,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Configuración remota al instalar y actualización diaria | ➕ | Firma verificada también al instalar (Java no la comprobaba) |
 | Proxy (ninguno, sistema, manual con autenticación) y contraseña cifrada | ✅ | Botón «Comprobar» |
 | Conexiones seguras y dominios sin comprobación TLS | ✅ | |
-| Certificados de confianza personales (`TrustedCertsKeystore.jks`) | ⚠️ | En desarrollo |
+| Certificados de confianza personales (`TrustedCertsKeystore.jks`) | ✅ | Importar desde fichero o servidor, eliminar, y aviso «Verificación de dominio» ante certificados TLS no reconocidos |
 
 ## Línea de comandos
 

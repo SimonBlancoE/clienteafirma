@@ -258,6 +258,20 @@ pub enum SettingsAction {
     Export,
     RestoreDefaults,
     TestProxy,
+    /// Certificados de confianza personales (`TrustedCertsKeystore.jks`).
+    TrustedReload,
+    TrustedImportFile,
+    TrustedImportUrl(String),
+    TrustedRemove(String),
+}
+
+/// Certificado del almacén de confianza personal.
+#[derive(Debug, Clone)]
+pub struct TrustedRow {
+    pub alias: String,
+    pub name: String,
+    pub issuer: String,
+    pub expires: String,
 }
 
 /// Página de preferencias: trabaja sobre una copia que se guarda al pulsar
@@ -268,6 +282,10 @@ pub struct SettingsPage {
     /// Cambios pendientes: clave -> nuevo valor (`None` = borrar).
     pub pending: BTreeMap<String, Option<String>>,
     pub message: Option<(CalloutKind, String)>,
+    /// Certificados de confianza personales (`None` = sin cargar).
+    pub trusted: Option<Vec<TrustedRow>>,
+    pub trusted_url: String,
+    pub trusted_busy: bool,
 }
 
 impl Default for SettingsPage {
@@ -276,6 +294,9 @@ impl Default for SettingsPage {
             section: Section::General,
             pending: BTreeMap::new(),
             message: None,
+            trusted: None,
+            trusted_url: String::new(),
+            trusted_busy: false,
         }
     }
 }
@@ -570,12 +591,101 @@ impl SettingsPage {
                     pending: &mut self.pending,
                 };
                 section_ui(ui, &mut c, self.section, &mut actions);
+                let allowed = store.get("allowPersonalTruststore").as_deref() != Some("false")
+                    && store.get("secureConnections").as_deref() != Some("false");
+                if self.section == Section::Network && allowed {
+                    self.trusted_group(ui, p, &mut actions);
+                }
             });
         });
         if let Some((kind, msg)) = &self.message {
             widgets::callout(ui, p, *kind, msg, None);
         }
         actions
+    }
+
+    /// Certificados de confianza personales («Certificados de confianza» de AutoFirma).
+    fn trusted_group(&mut self, ui: &mut Ui, p: &Palette, actions: &mut Vec<SettingsAction>) {
+        if self.trusted.is_none() && !self.trusted_busy {
+            actions.push(SettingsAction::TrustedReload);
+        }
+        group(ui, p, tr("Certificados de confianza"), |ui| {
+            ui.label(
+                RichText::new(tr(
+                    "Certificados de servidores o autoridades en los que confías además de los del sistema (p. ej., de la intranet).",
+                ))
+                .size(12.5)
+                .color(p.text_muted),
+            );
+            ui.add_space(4.0);
+            match &self.trusted {
+                Some(rows) if rows.is_empty() => {
+                    ui.label(RichText::new(tr("No has importado ningún certificado.")).color(p.text_faint));
+                }
+                Some(rows) => {
+                    for r in rows {
+                        ui.horizontal(|ui| {
+                            ui.vertical(|ui| {
+                                ui.label(RichText::new(&r.name).font(FontId::new(13.5, semibold())));
+                                ui.label(
+                                    RichText::new(trf("Emitido por {0} · Caduca el {1}", &[&r.issuer, &r.expires]))
+                                        .size(12.0)
+                                        .color(p.text_muted),
+                                );
+                            });
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                if ui.link(tr("Eliminar")).clicked() {
+                                    actions.push(SettingsAction::TrustedRemove(r.alias.clone()));
+                                }
+                            });
+                        });
+                        ui.add_space(4.0);
+                    }
+                }
+                None => {
+                    ui.spinner();
+                }
+            }
+            ui.add_space(6.0);
+            if widgets::button(
+                ui,
+                p,
+                ButtonKind::Secondary,
+                Some(icons::FILE_PLUS),
+                tr("Importar fichero…"),
+                !self.trusted_busy,
+            )
+            .clicked()
+            {
+                actions.push(SettingsAction::TrustedImportFile);
+            }
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                let can = !self.trusted_busy && !self.trusted_url.trim().is_empty();
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if self.trusted_busy {
+                        ui.spinner();
+                    }
+                    if widgets::button(
+                        ui,
+                        p,
+                        ButtonKind::Secondary,
+                        Some(icons::GLOBE),
+                        tr("Obtener del servidor"),
+                        can,
+                    )
+                    .clicked()
+                    {
+                        actions.push(SettingsAction::TrustedImportUrl(self.trusted_url.trim().to_string()));
+                    }
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.trusted_url)
+                            .hint_text("https://intranet.miempresa.es")
+                            .desired_width(ui.available_width()),
+                    );
+                });
+            });
+        });
     }
 
     /// Barra fija de cambios pendientes (se muestra en la parte inferior).

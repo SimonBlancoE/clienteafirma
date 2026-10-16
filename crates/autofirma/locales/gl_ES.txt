@@ -637,3 +637,21 @@ Se desconoce el estado del certificado. = Descoñécese o estado do certificado.
 Validando certificado… = Validando o certificado…
 Validar certificado de firma = Validar o certificado de sinatura
 Validar el certificado con el que se ha realizado la firma = Validar o certificado co que se fixo a sinatura
+
+# Certificados de confianza personales (Preferencias > Red, services/network.rs)
+Certificados de confianza = Certificados de confianza
+Certificados de servidores o autoridades en los que confías además de los del sistema (p. ej., de la intranet). = Certificados de servidores ou autoridades nos que confías ademais dos do sistema (p. ex., da intranet).
+Eliminar = Eliminar
+Eliminar certificado = Eliminar certificado
+Emitido por {0} · Caduca el {1} = Emitido por {0} · Caduca o {1}
+Importar certificados de confianza = Importar certificados de confianza
+Importar fichero… = Importar ficheiro…
+Los certificados ya estaban en el almacén de confianza = Os certificados xa estaban no almacén de confianza
+No has importado ningún certificado. = Non importaches ningún certificado.
+No se ha encontrado ningún certificado = Non se atopou ningún certificado
+No se han podido obtener los certificados del servidor: {0} = Non se puideron obter os certificados do servidor: {0}
+Obtener del servidor = Obter do servidor
+Se ha intentado conectar con {0}, que presenta un certificado SSL que no es de confianza. ¿Quieres importar este certificado a tu almacén de confianza? = Intentouse conectar con {0}, que presenta un certificado SSL que non é de confianza. Queres importar este certificado ao teu almacén de confianza?
+Se han importado {0} certificados de confianza = Importáronse {0} certificados de confianza
+Verificación de dominio = Verificación de dominio
+¿Seguro que quieres eliminar el certificado «{0}»? = Seguro que queres eliminar o certificado «{0}»?

@@ -637,3 +637,21 @@ Se desconoce el estado del certificado. = Ziurtagiriaren egoera ezezaguna da.
 Validando certificado… = Ziurtagiria baliozkotzen…
 Validar certificado de firma = Baliozkotu sinadura-ziurtagiria
 Validar el certificado con el que se ha realizado la firma = Baliozkotu sinatzeko erabili den ziurtagiria
+
+# Certificados de confianza personales (Preferencias > Red, services/network.rs)
+Certificados de confianza = Konfiantzazko ziurtagiriak
+Certificados de servidores o autoridades en los que confías además de los del sistema (p. ej., de la intranet). = Sistemakoez gain konfiantza duzun zerbitzari edo agintaritzen ziurtagiriak (adib., intranetekoak).
+Eliminar = Ezabatu
+Eliminar certificado = Ezabatu ziurtagiria
+Emitido por {0} · Caduca el {1} = Jaulkitzailea: {0} · Iraungitze-data: {1}
+Importar certificados de confianza = Inportatu konfiantzazko ziurtagiriak
+Importar fichero… = Inportatu fitxategia…
+Los certificados ya estaban en el almacén de confianza = Ziurtagiriak lehendik zeuden konfiantza-biltegian
+No has importado ningún certificado. = Ez duzu ziurtagiririk inportatu.
+No se ha encontrado ningún certificado = Ez da ziurtagiririk aurkitu
+No se han podido obtener los certificados del servidor: {0} = Ezin izan dira zerbitzariaren ziurtagiriak lortu: {0}
+Obtener del servidor = Lortu zerbitzaritik
+Se ha intentado conectar con {0}, que presenta un certificado SSL que no es de confianza. ¿Quieres importar este certificado a tu almacén de confianza? = {0} zerbitzariarekin konektatzen saiatu da, eta konfiantzazkoa ez den SSL ziurtagiri bat aurkezten du. Ziurtagiri hau zure konfiantza-biltegira inportatu nahi duzu?
+Se han importado {0} certificados de confianza = {0} konfiantzazko ziurtagiri inportatu dira
+Verificación de dominio = Domeinuaren egiaztapena
+¿Seguro que quieres eliminar el certificado «{0}»? = Ziur zaude «{0}» ziurtagiria ezabatu nahi duzula?
