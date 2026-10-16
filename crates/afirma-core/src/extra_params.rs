@@ -39,7 +39,7 @@ impl ExtraParams {
 
     /// Interpreta un `.properties` codificado en Base64 (normal o URL-safe,
     /// con o sin relleno, tolerando saltos de línea).
-    pub fn from_base64(b64: &str) -> Result<Self, base64::DecodeError> {
+    pub fn from_base64(b64: &str) -> std::result::Result<Self, base64::DecodeError> {
         Ok(Self::parse_bytes(&crate::base64_decode_lenient(b64)?))
     }
 

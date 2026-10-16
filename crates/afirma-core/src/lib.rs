@@ -2,22 +2,28 @@
 //!
 //! Contiene los tipos compartidos por todos los módulos: algoritmos, la
 //! abstracción de clave de firma, los parámetros adicionales de las
-//! operaciones (`extraParams`) y utilidades comunes.
+//! operaciones (`extraParams`), la interfaz de los firmadores, los códigos de
+//! error de AutoFirma y utilidades comunes.
 
 pub mod algorithms;
+pub mod cert;
+pub mod error;
 pub mod extra_params;
 pub mod key;
+pub mod signer;
+pub mod validity;
 
 pub use algorithms::{DigestAlgorithm, KeyAlgorithm, SignatureAlgorithm};
+pub use error::{AfirmaError, ErrorCode, ErrorKind, Result};
 pub use extra_params::ExtraParams;
 pub use key::{KeyError, SigningKey};
-
+pub use signer::{CounterSignTarget, SignInfo, Signer, SignerNode, SignersTree, SimpleSignInfo};
 use base64::Engine;
 
 /// Decodifica Base64 de forma tolerante: alfabeto estándar o URL-safe, con o
 /// sin relleno, ignorando espacios y saltos de línea (como hace AutoFirma con
 /// los datos recibidos desde la web).
-pub fn base64_decode_lenient(input: &str) -> Result<Vec<u8>, base64::DecodeError> {
+pub fn base64_decode_lenient(input: &str) -> std::result::Result<Vec<u8>, base64::DecodeError> {
     let cleaned: String = input
         .chars()
         .filter(|c| !c.is_whitespace())

@@ -367,3 +367,73 @@ mod tests {
         }
     }
 }
+
+/// Normaliza un nombre de algoritmo de huella como
+/// `AOSignConstants.getDigestAlgorithmName` (devuelve `SHA1`, `SHA-256`,
+/// `SHA-384`, `SHA-512`, `RIPEMD160` o el nombre original si no se reconoce).
+pub fn java_digest_algorithm_name(pseudo_name: &str) -> String {
+    let u = pseudo_name.to_uppercase();
+    if u == "SHA" || u == "HTTP://WWW.W3.ORG/2000/09/XMLDSIG#SHA1" || u == "1.3.14.3.2.26" || u.starts_with("SHA1") || u.starts_with("SHA-1") {
+        return "SHA1".into();
+    }
+    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA256" || u == "2.16.840.1.101.3.4.2.1" || u.starts_with("SHA256") || u.starts_with("SHA-256") {
+        return "SHA-256".into();
+    }
+    if u.starts_with("SHA384") || u == "2.16.840.1.101.3.4.2.2" || u.starts_with("SHA-384") {
+        return "SHA-384".into();
+    }
+    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#SHA512" || u == "2.16.840.1.101.3.4.2.3" || u.starts_with("SHA512") || u.starts_with("SHA-512") {
+        return "SHA-512".into();
+    }
+    if u == "HTTP://WWW.W3.ORG/2001/04/XMLENC#RIPEMD160" || u.starts_with("RIPEMD160") || u.starts_with("RIPEMD-160") {
+        return "RIPEMD160".into();
+    }
+    if let Some(idx) = pseudo_name.find("with") {
+        return java_digest_algorithm_name(&pseudo_name[..idx]);
+    }
+    for prefix in [
+        "http://www.w3.org/2001/04/xmldsig-more#",
+        "http://www.w3.org/2000/09/xmldsig#",
+        "http://www.w3.org/2009/xmldsig11#",
+    ] {
+        if pseudo_name.starts_with(prefix) {
+            if let Some(idx) = pseudo_name.rfind('-') {
+                return java_digest_algorithm_name(&pseudo_name[idx + 1..]);
+            }
+        }
+    }
+    pseudo_name.to_string()
+}
+
+/// Compone el algoritmo de firma a partir del nombre recibido y del tipo de
+/// clave (`AOSignConstants.composeSignatureAlgorithmName`). Admite nombres de
+/// huella (`SHA256`), de firma (`SHA512withRSA`, que con una clave EC pasa a
+/// `SHA512withECDSA`) y URI XMLDSig.
+pub fn compose_signature_algorithm(algorithm: &str, key: KeyAlgorithm) -> crate::error::Result<SignatureAlgorithm> {
+    let digest_name = java_digest_algorithm_name(algorithm).replace('-', "");
+    let digest: DigestAlgorithm = digest_name.parse().map_err(|_| {
+        crate::error::AfirmaError::new(
+            crate::error::codes::UNSUPPORTED_SIGNATURE_ALGORITHM,
+            format!("No se soporta el algoritmo de firma: {algorithm}"),
+        )
+    })?;
+    Ok(SignatureAlgorithm::new(digest, key))
+}
+
+#[cfg(test)]
+mod java_name_tests {
+    use super::*;
+
+    #[test]
+    fn java_normalisation() {
+        assert_eq!(java_digest_algorithm_name("SHA512withRSA"), "SHA-512");
+        assert_eq!(java_digest_algorithm_name("sha-256"), "SHA-256");
+        assert_eq!(java_digest_algorithm_name("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"), "SHA-256");
+        assert_eq!(java_digest_algorithm_name("SHA1"), "SHA1");
+        assert_eq!(java_digest_algorithm_name("MD5withRSA"), "MD5");
+        let a = compose_signature_algorithm("SHA512withRSA", KeyAlgorithm::Ec).unwrap();
+        assert_eq!(a.java_name(), "SHA512withECDSA");
+        assert_eq!(compose_signature_algorithm("SHA-256", KeyAlgorithm::Rsa).unwrap().java_name(), "SHA256withRSA");
+        assert!(compose_signature_algorithm("MD5withRSA", KeyAlgorithm::Rsa).is_err());
+    }
+}
