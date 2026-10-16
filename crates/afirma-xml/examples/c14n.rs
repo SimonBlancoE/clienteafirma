@@ -18,5 +18,7 @@ fn main() {
         Some(id) => doc.find_by_id(id).expect("Id no encontrado"),
     };
     use std::io::Write;
-    std::io::stdout().write_all(&method.canonicalize(&doc, node, &[])).unwrap();
+    std::io::stdout()
+        .write_all(&method.canonicalize(&doc, node, &[]))
+        .unwrap();
 }

@@ -1,0 +1,116 @@
+afirma-crypto-xades/src/test/resources/78353__XAdES_A_Detached.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/78353__XAdES_A_Enveloping.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/external-style.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/facturae_32v1.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/factura_sinFirmar.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/firma_cofirma_xades_longeva2.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/firma_cofirma_xades_longeva.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/firmaIgae.xsig.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/internally_detached_node_sibling.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-class-attributes.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-embedded-style.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-encoding-UTF-8.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-facturae-firmada.xsig.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/sample-facturae.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-factura-firmada-30.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/sample-factura-firmada-31.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/sample-factura-firmada-32v1.xsig.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/sample-internal-dtd.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/sample-namespace-encoding-us-ascii.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/SimpleXmlWithNamespace.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/singlenodetbs.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/xades_122_facturae.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/xades_122_igae.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/xades_132_afirma.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-Detached-SHA1withRSA-B64.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-Detached-SHA1withRSA-XML.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-Enveloped-SHA1withRSA-XML.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-Enveloping-SHA1withRSA-B64.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-Enveloping-SHA1withRSA-XML.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-XL_con_sello_binario.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/XAdES-XL_con_sello_xml.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED;UNKNOWN UNKOWN_ERROR
+afirma-crypto-xades/src/test/resources/xml_with_ids.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/xmlwithremotestyle.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/xpathnodenvelopedwithns.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/xpathnodenveloped.xml	KO NO_SIGN
+afirma-crypto-xades/src/test/resources/externally_detached.xsig	KO BAD_BUILD_SIGN
+afirma-crypto-xades/src/test/resources/firmaAfirma.xsig	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/firmaIgae.xsig	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/firmaMinetad.xsig	KO CERTIFICATE_EXPIRED
+afirma-crypto-xades/src/test/resources/xades_con_manifest.xsig	KO CERTIFICATE_EXPIRED
+afirma-crypto-validation/src/test/resources/xades_epes_detached.xsig	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/cofirma-xades-detached.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/cofirma-xades-enveloped.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/cofirma-xades-enveloping.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/cofirma.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/contrafirma-xades-detached-xl.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED;UNKNOWN SIGN_PROFILE_NOT_CHECKED;KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/contrafirma-xades-detached.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/contrafirma-xades-enveloped.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/contrafirma-xades-enveloping.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/factura_sinFirmar.xml	KO NO_SIGN
+afirma-crypto-xadestri-client/src/test/resources/firma-xades-detached.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/firma-xades-enveloped.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/firma-xades-enveloping.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/firma.xml	KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/xades-5764226691627180206.xml	KO NO_MATCH_DATA;KO NO_MATCH_DATA;KO NO_MATCH_DATA;KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/xades-7914107945663569970.xml	KO NO_MATCH_DATA;KO NO_MATCH_DATA;KO NO_MATCH_DATA;KO CERTIFICATE_EXPIRED
+afirma-crypto-xadestri-client/src/test/resources/xml_with_ids.xml	KO NO_SIGN
+testdata/xades/java/facturae-30.xml	OK null
+testdata/xades/java/facturae.xml	OK null
+testdata/xades/java/xades-asic-root.xml	OK null
+testdata/xades/java/xades-baseline-policy.xml	OK null
+testdata/xades/java/xades-cosign-baseline.xml	OK null
+testdata/xades/java/xades-cosign-detached-bin.xml	OK null
+testdata/xades/java/xades-cosign-detached-xml.xml	OK null
+testdata/xades/java/xades-cosign-enveloped-ids.xml	OK null
+testdata/xades/java/xades-cosign-enveloped.xml	OK null
+testdata/xades/java/xades-cosign-enveloping-bin.xml	OK null
+testdata/xades/java/xades-cosign-enveloping-xml.xml	OK null
+testdata/xades/java/xades-cosign-manifest.xml	OK null
+testdata/xades/java/xades-cosign-noxpath.xml	KO NO_MATCH_DATA;KO NO_MATCH_DATA
+testdata/xades/java/xades-countersign-baseline.xml	OK null
+testdata/xades/java/xades-countersign-detached.xml	OK null
+testdata/xades/java/xades-countersign-leafs.xml	OK null
+testdata/xades/java/xades-countersign-tree-enveloped.xml	OK null
+testdata/xades/java/xades-countersign-tree.xml	OK null
+testdata/xades/java/xades-detached-bin.xml	OK null
+testdata/xades/java/xades-detached-noderoot.xml	OK null
+testdata/xades/java/xades-detached-node.xml	OK null
+testdata/xades/java/xades-detached-xml.xml	OK null
+testdata/xades/java/xades-dtd.xml	OK null
+testdata/xades/java/xades-ec.xml	OK null
+testdata/xades/java/xades-enveloped-ids.xml	OK null
+testdata/xades/java/xades-enveloped-latin1.xml	OK null
+testdata/xades/java/xades-enveloped-node.xml	OK null
+testdata/xades/java/xades-enveloped-noxpath.xml	OK null
+testdata/xades/java/xades-enveloped.xml	OK null
+testdata/xades/java/xades-enveloped-xpathns.xml	OK null
+testdata/xades/java/xades-enveloped-xpath.xml	OK null
+testdata/xades/java/xades-enveloping-avoidb64.xml	OK null
+testdata/xades/java/xades-enveloping-b64.xml	OK null
+testdata/xades/java/xades-enveloping-bin.xml	OK null
+testdata/xades/java/xades-enveloping-xml.xml	OK null
+testdata/xades/java/xades-epes-full.xml	OK null
+testdata/xades/java/xades-exc-sha1.xml	OK null
+testdata/xades/java/xades-extdet.xml	KO BAD_BUILD_SIGN
+testdata/xades/java/xades-manifest.xml	OK null
+testdata/xades/java/xades-t.xml	UNKNOWN SIGN_PROFILE_NOT_CHECKED
+testdata/xades/java/xades-xpath2.xml	OK null
+testdata/xmldsig/java/xmldsig-cosign-detached.xml	OK null
+testdata/xmldsig/java/xmldsig-cosign-enveloped.xml	OK null
+testdata/xmldsig/java/xmldsig-cosign-enveloping.xml	OK null
+testdata/xmldsig/java/xmldsig-countersign-leafs.xml	OK null
+testdata/xmldsig/java/xmldsig-countersign-tree.xml	OK null
+testdata/xmldsig/java/xmldsig-detached-bin.xml	OK null
+testdata/xmldsig/java/xmldsig-detached-xml.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloped-dsig.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloped-latin1.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloped.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloping-b64.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloping-bin.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloping-explicit.xml	OK null
+testdata/xmldsig/java/xmldsig-enveloping-xml.xml	OK null
+testdata/xmldsig/java/xmldsig-extdet-hash.xml	KO NO_MATCH_DATA;KO NO_MATCH_DATA
+testdata/xmldsig/java/xmldsig-xpath2.xml	OK null
+testdata/xades/validation/digest-ripemd160.xml	KO NO_MATCH_DATA;KO BAD_BUILD_SIGN
+testdata/xades/validation/digest-unknown.xml	UNKNOWN UNKOWN_ERROR

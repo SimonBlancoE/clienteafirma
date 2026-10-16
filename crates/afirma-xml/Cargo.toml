@@ -8,5 +8,26 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+afirma-core.workspace = true
+afirma-cms.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 encoding_rs = "0.8"
+base64.workspace = true
+hex.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+digest.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+x509-parser.workspace = true
+rsa.workspace = true
+p256.workspace = true
+p384.workspace = true
+p521.workspace = true
+ecdsa.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+afirma-keystores.workspace = true

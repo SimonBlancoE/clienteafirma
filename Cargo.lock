@@ -277,7 +277,6 @@ version = "2.0.0-alpha.1"
 dependencies = [
  "afirma-cms",
  "afirma-core",
- "base64 0.22.1",
  "chrono",
  "ecdsa",
  "flate2",
@@ -288,8 +287,6 @@ dependencies = [
  "lopdf",
  "md-5 0.10.6",
  "p256",
- "p384",
- "p521",
  "rsa",
  "sha1 0.10.7",
  "sha2 0.10.9",

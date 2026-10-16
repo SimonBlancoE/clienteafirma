@@ -72,7 +72,10 @@ impl Element {
 
     /// Valor de un atributo sin espacio de nombres.
     pub fn attr(&self, local: &str) -> Option<&str> {
-        self.attrs.iter().find(|a| a.ns.is_none() && a.local == local).map(|a| a.value.as_str())
+        self.attrs
+            .iter()
+            .find(|a| a.ns.is_none() && a.local == local)
+            .map(|a| a.value.as_str())
     }
 
     /// Valor de un atributo con espacio de nombres.
@@ -128,13 +131,20 @@ pub fn decode(bytes: &[u8]) -> Result<(String, &'static Encoding)> {
     if let Some((enc, bom_len)) = Encoding::for_bom(bytes) {
         let (text, had_errors) = enc.decode_without_bom_handling(&bytes[bom_len..]);
         if had_errors {
-            return Err(XmlError::Encoding(format!("datos no válidos en {}", enc.name())));
+            return Err(XmlError::Encoding(format!(
+                "datos no válidos en {}",
+                enc.name()
+            )));
         }
         return Ok((text.into_owned(), enc));
     }
     // Sin BOM: la declaración XML está en ASCII.
     let head = &bytes[..bytes.len().min(256)];
-    let head_str: String = head.iter().take_while(|&&b| b != b'>').map(|&b| b as char).collect();
+    let head_str: String = head
+        .iter()
+        .take_while(|&&b| b != b'>')
+        .map(|&b| b as char)
+        .collect();
     let mut enc = encoding_rs::UTF_8;
     if head_str.starts_with("<?xml") {
         if let Some(label) = pseudo_attr(&head_str, "encoding") {
@@ -145,7 +155,10 @@ pub fn decode(bytes: &[u8]) -> Result<(String, &'static Encoding)> {
     }
     let (text, had_errors) = enc.decode_without_bom_handling(bytes);
     if had_errors {
-        return Err(XmlError::Encoding(format!("datos no válidos en {}", enc.name())));
+        return Err(XmlError::Encoding(format!(
+            "datos no válidos en {}",
+            enc.name()
+        )));
     }
     Ok((text.into_owned(), enc))
 }
@@ -225,6 +238,18 @@ impl Document {
         &self.source
     }
 
+    /// Número de nodos (documento, elementos, textos, comentarios e
+    /// instrucciones de proceso). Los `NodeId` van de 0 a `len() - 1` en
+    /// orden de documento.
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Un documento analizado nunca está vacío (tiene al menos el elemento raíz).
+    pub fn is_empty(&self) -> bool {
+        self.nodes.len() <= 1
+    }
+
     /// Nodo documento.
     pub fn root(&self) -> NodeId {
         NodeId(0)
@@ -232,7 +257,10 @@ impl Document {
 
     /// Elemento raíz.
     pub fn document_element(&self) -> Option<NodeId> {
-        self.children(self.root()).iter().copied().find(|&c| self.element(c).is_some())
+        self.children(self.root())
+            .iter()
+            .copied()
+            .find(|&c| self.element(c).is_some())
     }
 
     pub fn kind(&self, id: NodeId) -> &NodeKind {
@@ -284,12 +312,16 @@ impl Document {
 
     /// Hijos que son elementos.
     pub fn child_elements(&self, id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        self.children(id).iter().copied().filter(|&c| self.element(c).is_some())
+        self.children(id)
+            .iter()
+            .copied()
+            .filter(|&c| self.element(c).is_some())
     }
 
     /// Primer hijo elemento con el espacio de nombres y nombre local dados.
     pub fn find_child(&self, id: NodeId, ns: &str, local: &str) -> Option<NodeId> {
-        self.child_elements(id).find(|&c| self.element(c).is_some_and(|e| e.is(ns, local)))
+        self.child_elements(id)
+            .find(|&c| self.element(c).is_some_and(|e| e.is(ns, local)))
     }
 
     /// Descendientes (sin incluir el propio nodo) con el nombre dado.
@@ -365,7 +397,12 @@ impl Document {
             .filter(|(p, u)| u.as_str() == uri && !p.is_empty())
             .map(|(p, _)| p.clone())
             .next()
-            .or_else(|| scope.get("").filter(|u| u.as_str() == uri).map(|_| String::new()))
+            .or_else(|| {
+                scope
+                    .get("")
+                    .filter(|u| u.as_str() == uri)
+                    .map(|_| String::new())
+            })
     }
 }
 
@@ -385,7 +422,11 @@ fn is_ws(c: u8) -> bool {
 }
 
 fn is_name_delim(c: u8) -> bool {
-    is_ws(c) || matches!(c, b'/' | b'>' | b'=' | b'<' | b'"' | b'\'' | b'[' | b']' | b';' | b'&' | b'?')
+    is_ws(c)
+        || matches!(
+            c,
+            b'/' | b'>' | b'=' | b'<' | b'"' | b'\'' | b'[' | b']' | b';' | b'&' | b'?'
+        )
 }
 
 impl Parser {
@@ -394,7 +435,12 @@ impl Parser {
             s,
             pos: 0,
             entities: HashMap::new(),
-            nodes: vec![NodeData { kind: NodeKind::Document, parent: None, children: vec![], range: 0..0 }],
+            nodes: vec![NodeData {
+                kind: NodeKind::Document,
+                parent: None,
+                children: vec![],
+                range: 0..0,
+            }],
             stack: vec![NodeId(0)],
             scopes: vec![HashMap::new()],
             xml_decl: None,
@@ -403,7 +449,10 @@ impl Parser {
     }
 
     fn err<T>(&self, msg: impl Into<String>) -> Result<T> {
-        Err(XmlError::Malformed { pos: self.pos, msg: msg.into() })
+        Err(XmlError::Malformed {
+            pos: self.pos,
+            msg: msg.into(),
+        })
     }
 
     fn bytes(&self) -> &[u8] {
@@ -439,7 +488,12 @@ impl Parser {
     fn add_node(&mut self, kind: NodeKind, range: Range<usize>) -> NodeId {
         let id = NodeId(self.nodes.len());
         let parent = *self.stack.last().expect("pila no vacía");
-        self.nodes.push(NodeData { kind, parent: Some(parent), children: vec![], range });
+        self.nodes.push(NodeData {
+            kind,
+            parent: Some(parent),
+            children: vec![],
+            range,
+        });
         self.nodes[parent.0].children.push(id);
         id
     }
@@ -503,7 +557,12 @@ impl Parser {
         }
         let len = self.s.len();
         self.nodes[0].range = 0..len;
-        Ok(Document { source: self.s, nodes: self.nodes, xml_decl: self.xml_decl, doctype: self.doctype })
+        Ok(Document {
+            source: self.s,
+            nodes: self.nodes,
+            xml_decl: self.xml_decl,
+            doctype: self.doctype,
+        })
     }
 
     fn parse_comment(&mut self) -> Result<()> {
@@ -541,7 +600,9 @@ impl Parser {
             Some(e) => e,
             None => return self.err("instrucción de proceso sin cerrar"),
         };
-        let data = self.s[self.pos..end].trim_start_matches([' ', '\t', '\n']).to_string();
+        let data = self.s[self.pos..end]
+            .trim_start_matches([' ', '\t', '\n'])
+            .to_string();
         self.pos = end + 2;
         self.add_node(NodeKind::Pi { target, data }, start..self.pos);
         Ok(())
@@ -670,7 +731,9 @@ impl Parser {
         }
         let mut out = String::with_capacity(raw.len());
         let mut rest = raw;
-        while let Some(i) = rest.find(|c: char| c == '&' || (attr && matches!(c, '\t' | '\n' | '\r'))) {
+        while let Some(i) =
+            rest.find(|c: char| c == '&' || (attr && matches!(c, '\t' | '\n' | '\r')))
+        {
             out.push_str(&rest[..i]);
             let c = rest.as_bytes()[i];
             if c != b'&' {
@@ -706,7 +769,9 @@ impl Parser {
                             None => return self.err(format!("entidad no declarada: &{name};")),
                         };
                         if value.contains('<') {
-                            return self.err(format!("la entidad &{name}; contiene marcado (no soportado)"));
+                            return self.err(format!(
+                                "la entidad &{name}; contiene marcado (no soportado)"
+                            ));
                         }
                         let expanded = self.expand(value, attr, depth + 1, budget)?;
                         *budget += expanded.len();
@@ -804,14 +869,27 @@ impl Parser {
         for (name, raw_value, _) in &raw_attrs {
             let value = self.expand(raw_value, true, 0, &mut 0)?;
             if name == "xmlns" {
-                scope.insert(String::new(), if value.is_empty() { None } else { Some(value.clone()) });
-                ns_decls.push(NsDecl { prefix: None, uri: value });
+                scope.insert(
+                    String::new(),
+                    if value.is_empty() {
+                        None
+                    } else {
+                        Some(value.clone())
+                    },
+                );
+                ns_decls.push(NsDecl {
+                    prefix: None,
+                    uri: value,
+                });
             } else if let Some(p) = name.strip_prefix("xmlns:") {
                 if value.is_empty() {
                     return self.err(format!("el prefijo {p} no puede declararse vacío"));
                 }
                 scope.insert(p.to_string(), Some(value.clone()));
-                ns_decls.push(NsDecl { prefix: Some(p.to_string()), uri: value });
+                ns_decls.push(NsDecl {
+                    prefix: Some(p.to_string()),
+                    uri: value,
+                });
             }
         }
         self.scopes.push(scope);
@@ -831,11 +909,20 @@ impl Parser {
             }
             let (ap, al) = split(&name);
             let ans = self.resolve(ap.as_deref(), true)?;
-            if attrs.iter().any(|a: &Attribute| a.local == al && a.ns == ans) {
+            if attrs
+                .iter()
+                .any(|a: &Attribute| a.local == al && a.ns == ans)
+            {
                 return self.err(format!("atributo duplicado: {name}"));
             }
             let value = self.expand(&raw_value, true, 0, &mut 0)?;
-            attrs.push(Attribute { prefix: ap, local: al, ns: ans, value, range });
+            attrs.push(Attribute {
+                prefix: ap,
+                local: al,
+                ns: ans,
+                value,
+                range,
+            });
         }
         let element = Element {
             prefix,
@@ -904,7 +991,10 @@ mod tests {
         let ce = doc.element(child).unwrap();
         assert_eq!(ce.attr_ns("urn:a", "attr"), Some("v\tw z"));
         assert_eq!(doc.text_content(child), "t<x<raw>");
-        assert_eq!(doc.node_source(child), "<child a:attr=\"v&#x9;w\tz\">t&lt;x<![CDATA[<raw>]]></child>");
+        assert_eq!(
+            doc.node_source(child),
+            "<child a:attr=\"v&#x9;w\tz\">t&lt;x<![CDATA[<raw>]]></child>"
+        );
         let ns = doc.in_scope_namespaces(child);
         assert_eq!(ns.get("a").map(String::as_str), Some("urn:a"));
         assert_eq!(ns.get("").map(String::as_str), Some("urn:d"));
@@ -913,18 +1003,33 @@ mod tests {
 
     #[test]
     fn internal_entities_and_limits() {
-        let doc = Document::parse("<!DOCTYPE r [<!ENTITY e \"hola &amp; adios\">]><r>&e;</r>").unwrap();
-        assert_eq!(doc.text_content(doc.document_element().unwrap()), "hola & adios");
+        let doc =
+            Document::parse("<!DOCTYPE r [<!ENTITY e \"hola &amp; adios\">]><r>&e;</r>").unwrap();
+        assert_eq!(
+            doc.text_content(doc.document_element().unwrap()),
+            "hola & adios"
+        );
         let bomb = "<!DOCTYPE r [<!ENTITY a \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\">\
 <!ENTITY b \"&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;\"><!ENTITY c \"&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;\"><!ENTITY d \"&c;&c;&c;&c;&c;&c;&c;&c;&c;&c;\">\
 <!ENTITY e \"&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;\"><!ENTITY f \"&e;&e;&e;&e;&e;&e;&e;&e;&e;&e;\">]><r>&f;</r>";
         assert!(Document::parse(bomb).is_err());
-        assert!(Document::parse("<!DOCTYPE r [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><r>&x;</r>").is_err());
+        assert!(
+            Document::parse("<!DOCTYPE r [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><r>&x;</r>")
+                .is_err()
+        );
     }
 
     #[test]
     fn rejects_malformed() {
-        for bad in ["<a>", "<a></b>", "<a x='1' x='2'/>", "<p:a/>", "<a/><b/>", "text<a/>", "<a>&nope;</a>"] {
+        for bad in [
+            "<a>",
+            "<a></b>",
+            "<a x='1' x='2'/>",
+            "<p:a/>",
+            "<a/><b/>",
+            "text<a/>",
+            "<a>&nope;</a>",
+        ] {
             assert!(Document::parse(bad).is_err(), "{bad}");
         }
     }
