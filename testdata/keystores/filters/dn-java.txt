@@ -1,0 +1,434 @@
+autenticacion.crt	subject.toString	CN=ESPAÑOL ESPAÑOL JUAN (AUTENTICACIÓN), SERIALNUMBER=IDCES-00000000T, C=ES
+autenticacion.crt	subject.rfc2253	CN=ESPAÑOL ESPAÑOL JUAN (AUTENTICACIÓN),2.5.4.5=#130f49444345532d303030303030303054,C=ES
+autenticacion.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+autenticacion.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+autenticacion.crt	subjectDN	CN=ESPAÑOL ESPAÑOL JUAN (AUTENTICACIÓN), SERIALNUMBER=IDCES-00000000T, C=ES
+autenticacion.crt	getCN	ESPAÑOL ESPAÑOL JUAN (AUTENTICACIÓN)
+autenticacion.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+autenticacion.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+autenticacion.crt	subjectSN	#130f49444345532d303030303030303054
+autenticacion.crt	pseudonym	false
+autenticacion.crt	keyusage.text	Autenticación
+autenticacion.crt	serial.hex	00F05873C214979A9CCD3BD5BF
+autenticacion.crt	ldap.subject	C=str:ES | SERIALNUMBER=str:IDCES-00000000T | CN=str:ESPAÑOL ESPAÑOL JUAN (AUTENTICACIÓN)
+autenticacion.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+ca.crt	subject.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+ca.crt	subject.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+ca.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+ca.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+ca.crt	subjectDN	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+ca.crt	getCN	AC Raiz de Pruebas AutoFirma-rs
+ca.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+ca.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+ca.crt	subjectSN	<null>
+ca.crt	pseudonym	false
+ca.crt	keyusage.text	Otros
+ca.crt	serial.hex	18043CDD1640AE3EC7D78F7450EABF7ED375AB24
+ca.crt	ldap.subject	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+ca.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+caducado.crt	subject.toString	CN=CERTIFICADO CADUCADO, C=ES
+caducado.crt	subject.rfc2253	CN=CERTIFICADO CADUCADO,C=ES
+caducado.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+caducado.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+caducado.crt	subjectDN	CN=CERTIFICADO CADUCADO, C=ES
+caducado.crt	getCN	CERTIFICADO CADUCADO
+caducado.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+caducado.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+caducado.crt	subjectSN	<null>
+caducado.crt	pseudonym	false
+caducado.crt	keyusage.text	Firma y autenticación
+caducado.crt	serial.hex	0BADC0DE
+caducado.crt	ldap.subject	C=str:ES | CN=str:CERTIFICADO CADUCADO
+caducado.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+firmante-ec.crt	subject.toString	CN=PRUEBA MARIA - 99999999R, SURNAME=PRUEBA, GIVENNAME=MARIA, SERIALNUMBER=IDCES-99999999R, C=ES
+firmante-ec.crt	subject.rfc2253	CN=PRUEBA MARIA - 99999999R,2.5.4.4=#0c06505255454241,2.5.4.42=#0c054d41524941,2.5.4.5=#130f49444345532d393939393939393952,C=ES
+firmante-ec.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+firmante-ec.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+firmante-ec.crt	subjectDN	CN=PRUEBA MARIA - 99999999R, SURNAME=PRUEBA, GIVENNAME=MARIA, SERIALNUMBER=IDCES-99999999R, C=ES
+firmante-ec.crt	getCN	PRUEBA MARIA - 99999999R
+firmante-ec.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+firmante-ec.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+firmante-ec.crt	subjectSN	#130f49444345532d393939393939393952
+firmante-ec.crt	pseudonym	false
+firmante-ec.crt	keyusage.text	Firma y autenticación
+firmante-ec.crt	serial.hex	088DD06453C7C95EE7028864
+firmante-ec.crt	ldap.subject	C=str:ES | SERIALNUMBER=str:IDCES-99999999R | GIVENNAME=str:MARIA | SURNAME=str:PRUEBA | CN=str:PRUEBA MARIA - 99999999R
+firmante-ec.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+firmante-rsa.crt	subject.toString	CN=ESPAÑOL ESPAÑOL JUAN - 00000000T, SURNAME=ESPAÑOL ESPAÑOL, GIVENNAME=JUAN, SERIALNUMBER=IDCES-00000000T, C=ES
+firmante-rsa.crt	subject.rfc2253	CN=ESPAÑOL ESPAÑOL JUAN - 00000000T,2.5.4.4=#0c1145535041c3914f4c2045535041c3914f4c,2.5.4.42=#0c044a55414e,2.5.4.5=#130f49444345532d303030303030303054,C=ES
+firmante-rsa.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+firmante-rsa.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+firmante-rsa.crt	subjectDN	CN=ESPAÑOL ESPAÑOL JUAN - 00000000T, SURNAME=ESPAÑOL ESPAÑOL, GIVENNAME=JUAN, SERIALNUMBER=IDCES-00000000T, C=ES
+firmante-rsa.crt	getCN	ESPAÑOL ESPAÑOL JUAN - 00000000T
+firmante-rsa.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+firmante-rsa.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+firmante-rsa.crt	subjectSN	#130f49444345532d303030303030303054
+firmante-rsa.crt	pseudonym	false
+firmante-rsa.crt	keyusage.text	Firma y autenticación
+firmante-rsa.crt	serial.hex	009F981367A72754E62C312E18
+firmante-rsa.crt	ldap.subject	C=str:ES | SERIALNUMBER=str:IDCES-00000000T | GIVENNAME=str:JUAN | SURNAME=str:ESPAÑOL ESPAÑOL | CN=str:ESPAÑOL ESPAÑOL JUAN - 00000000T
+firmante-rsa.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+tsa.crt	subject.toString	CN=TSA de Pruebas, O=AutoFirma-rs Pruebas, C=ES
+tsa.crt	subject.rfc2253	CN=TSA de Pruebas,O=AutoFirma-rs Pruebas,C=ES
+tsa.crt	issuer.toString	CN=AC Raiz de Pruebas AutoFirma-rs, O=AutoFirma-rs Pruebas, C=ES
+tsa.crt	issuer.rfc2253	CN=AC Raiz de Pruebas AutoFirma-rs,O=AutoFirma-rs Pruebas,C=ES
+tsa.crt	subjectDN	CN=TSA de Pruebas, O=AutoFirma-rs Pruebas, C=ES
+tsa.crt	getCN	TSA de Pruebas
+tsa.crt	getCN.issuer.rfc2253	AC Raiz de Pruebas AutoFirma-rs
+tsa.crt	getCN.issuer.toString	AC Raiz de Pruebas AutoFirma-rs
+tsa.crt	subjectSN	<null>
+tsa.crt	pseudonym	false
+tsa.crt	keyusage.text	Firma y autenticación
+tsa.crt	serial.hex	08615ECE0A5470A206944942
+tsa.crt	ldap.subject	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:TSA de Pruebas
+tsa.crt	ldap.issuer	C=str:ES | O=str:AutoFirma-rs Pruebas | CN=str:AC Raiz de Pruebas AutoFirma-rs
+accv-auth.der	subject.toString	CN=PERSONA ACCV AUTH, SERIALNUMBER=11111111H, C=ES
+accv-auth.der	subject.rfc2253	CN=PERSONA ACCV AUTH,2.5.4.5=#1309313131313131313148,C=ES
+accv-auth.der	issuer.toString	C=ES, O=Generalitat Valenciana, OU=PKIGVA, CN=ACCV-CA2
+accv-auth.der	issuer.rfc2253	C=ES,O=Generalitat Valenciana,OU=PKIGVA,CN=ACCV-CA2
+accv-auth.der	subjectDN	CN=PERSONA ACCV AUTH, SERIALNUMBER=11111111H, C=ES
+accv-auth.der	getCN	PERSONA ACCV AUTH
+accv-auth.der	getCN.issuer.rfc2253	ACCV-CA2
+accv-auth.der	getCN.issuer.toString	ACCV-CA2
+accv-auth.der	subjectSN	#1309313131313131313148
+accv-auth.der	pseudonym	false
+accv-auth.der	keyusage.text	Autenticación
+accv-auth.der	serial.hex	0A02
+accv-auth.der	ldap.subject	C=str:ES | SERIALNUMBER=str:11111111H | CN=str:PERSONA ACCV AUTH
+accv-auth.der	ldap.issuer	CN=str:ACCV-CA2 | OU=str:PKIGVA | O=str:Generalitat Valenciana | C=str:ES
+accv-firma.der	subject.toString	CN=PERSONA ACCV FIRMA, SERIALNUMBER=11111111H, C=ES
+accv-firma.der	subject.rfc2253	CN=PERSONA ACCV FIRMA,2.5.4.5=#1309313131313131313148,C=ES
+accv-firma.der	issuer.toString	C=ES, O=Generalitat Valenciana, OU=PKIGVA, CN=ACCV-CA2
+accv-firma.der	issuer.rfc2253	C=ES,O=Generalitat Valenciana,OU=PKIGVA,CN=ACCV-CA2
+accv-firma.der	subjectDN	CN=PERSONA ACCV FIRMA, SERIALNUMBER=11111111H, C=ES
+accv-firma.der	getCN	PERSONA ACCV FIRMA
+accv-firma.der	getCN.issuer.rfc2253	ACCV-CA2
+accv-firma.der	getCN.issuer.toString	ACCV-CA2
+accv-firma.der	subjectSN	#1309313131313131313148
+accv-firma.der	pseudonym	false
+accv-firma.der	keyusage.text	Autenticación
+accv-firma.der	serial.hex	0A01
+accv-firma.der	ldap.subject	C=str:ES | SERIALNUMBER=str:11111111H | CN=str:PERSONA ACCV FIRMA
+accv-firma.der	ldap.issuer	CN=str:ACCV-CA2 | OU=str:PKIGVA | O=str:Generalitat Valenciana | C=str:ES
+cnp.der	subject.toString	CN=AGENTE CNP, C=ES
+cnp.der	subject.rfc2253	CN=AGENTE CNP,C=ES
+cnp.der	issuer.toString	CN=AC CNP 001, OU=CNP, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+cnp.der	issuer.rfc2253	CN=AC CNP 001,OU=CNP,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+cnp.der	subjectDN	CN=AGENTE CNP, C=ES
+cnp.der	getCN	AGENTE CNP
+cnp.der	getCN.issuer.rfc2253	AC CNP 001
+cnp.der	getCN.issuer.toString	AC CNP 001
+cnp.der	subjectSN	<null>
+cnp.der	pseudonym	false
+cnp.der	keyusage.text	Firma
+cnp.der	serial.hex	6001
+cnp.der	ldap.subject	C=str:ES | CN=str:AGENTE CNP
+cnp.der	ldap.issuer	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:CNP | CN=str:AC CNP 001
+cn-repetido.der	subject.toString	CN=CN Segundo, OU=OU Segunda, OU=OU Primera, CN=CN Primero, C=ES
+cn-repetido.der	subject.rfc2253	CN=CN Segundo,OU=OU Segunda,OU=OU Primera,CN=CN Primero,C=ES
+cn-repetido.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+cn-repetido.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+cn-repetido.der	subjectDN	CN=CN Segundo, OU=OU Segunda, OU=OU Primera, CN=CN Primero, C=ES
+cn-repetido.der	getCN	CN Segundo
+cn-repetido.der	getCN.issuer.rfc2253	CA Generica
+cn-repetido.der	getCN.issuer.toString	CA Generica
+cn-repetido.der	subjectSN	<null>
+cn-repetido.der	pseudonym	false
+cn-repetido.der	keyusage.text	Firma
+cn-repetido.der	serial.hex	7013
+cn-repetido.der	ldap.subject	C=str:ES | CN=str:CN Primero | OU=str:OU Primera | OU=str:OU Segunda | CN=str:CN Segundo
+cn-repetido.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+dnie-auth.der	subject.toString	CN="ESPAÑOL ESPAÑOL, JUAN (AUTENTICACIÓN)", GIVENNAME=JUAN, SURNAME=ESPAÑOL ESPAÑOL, SERIALNUMBER=12345678Z, C=ES
+dnie-auth.der	subject.rfc2253	CN=ESPAÑOL ESPAÑOL\\, JUAN (AUTENTICACIÓN),2.5.4.42=#0c044a55414e,2.5.4.4=#0c1145535041c3914f4c2045535041c3914f4c,2.5.4.5=#130931323334353637385a,C=ES
+dnie-auth.der	issuer.toString	CN=AC DNIE 004, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-auth.der	issuer.rfc2253	CN=AC DNIE 004,OU=DNIE,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+dnie-auth.der	subjectDN	CN="ESPAÑOL ESPAÑOL, JUAN (AUTENTICACIÓN)", GIVENNAME=JUAN, SURNAME=ESPAÑOL ESPAÑOL, SERIALNUMBER=12345678Z, C=ES
+dnie-auth.der	getCN	ESPAÑOL ESPAÑOL, JUAN (AUTENTICACIÓN)
+dnie-auth.der	getCN.issuer.rfc2253	AC DNIE 004
+dnie-auth.der	getCN.issuer.toString	AC DNIE 004
+dnie-auth.der	subjectSN	#130931323334353637385a
+dnie-auth.der	pseudonym	false
+dnie-auth.der	keyusage.text	Autenticación
+dnie-auth.der	serial.hex	0080AB12
+dnie-auth.der	ldap.subject	C=str:ES | SERIALNUMBER=str:12345678Z | SURNAME=str:ESPAÑOL ESPAÑOL | GIVENNAME=str:JUAN | CN=str:ESPAÑOL ESPAÑOL, JUAN (AUTENTICACIÓN)
+dnie-auth.der	ldap.issuer	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:DNIE | CN=str:AC DNIE 004
+dnie-auth-otro.der	subject.toString	CN=OTRA PERSONA (AUTENTICACIÓN), SERIALNUMBER=87654321X, C=ES
+dnie-auth-otro.der	subject.rfc2253	CN=OTRA PERSONA (AUTENTICACIÓN),2.5.4.5=#1309383736353433323158,C=ES
+dnie-auth-otro.der	issuer.toString	CN=AC DNIE 004, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-auth-otro.der	issuer.rfc2253	CN=AC DNIE 004,OU=DNIE,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+dnie-auth-otro.der	subjectDN	CN=OTRA PERSONA (AUTENTICACIÓN), SERIALNUMBER=87654321X, C=ES
+dnie-auth-otro.der	getCN	OTRA PERSONA (AUTENTICACIÓN)
+dnie-auth-otro.der	getCN.issuer.rfc2253	AC DNIE 004
+dnie-auth-otro.der	getCN.issuer.toString	AC DNIE 004
+dnie-auth-otro.der	subjectSN	#1309383736353433323158
+dnie-auth-otro.der	pseudonym	false
+dnie-auth-otro.der	keyusage.text	Autenticación
+dnie-auth-otro.der	serial.hex	0777
+dnie-auth-otro.der	ldap.subject	C=str:ES | SERIALNUMBER=str:87654321X | CN=str:OTRA PERSONA (AUTENTICACIÓN)
+dnie-auth-otro.der	ldap.issuer	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:DNIE | CN=str:AC DNIE 004
+dnie-ca.der	subject.toString	CN=AC DNIE 004, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-ca.der	subject.rfc2253	CN=AC DNIE 004,OU=DNIE,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+dnie-ca.der	issuer.toString	CN=AC RAIZ DNIE 2, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-ca.der	issuer.rfc2253	CN=AC RAIZ DNIE 2,OU=DNIE,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+dnie-ca.der	subjectDN	CN=AC DNIE 004, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-ca.der	getCN	AC DNIE 004
+dnie-ca.der	getCN.issuer.rfc2253	AC RAIZ DNIE 2
+dnie-ca.der	getCN.issuer.toString	AC RAIZ DNIE 2
+dnie-ca.der	subjectSN	<null>
+dnie-ca.der	pseudonym	false
+dnie-ca.der	keyusage.text	Otros
+dnie-ca.der	serial.hex	10
+dnie-ca.der	ldap.subject	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:DNIE | CN=str:AC DNIE 004
+dnie-ca.der	ldap.issuer	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:DNIE | CN=str:AC RAIZ DNIE 2
+dnie-firma.der	subject.toString	CN="ESPAÑOL ESPAÑOL, JUAN (FIRMA)", GIVENNAME=JUAN, SURNAME=ESPAÑOL ESPAÑOL, SERIALNUMBER=12345678Z, C=ES
+dnie-firma.der	subject.rfc2253	CN=ESPAÑOL ESPAÑOL\\, JUAN (FIRMA),2.5.4.42=#0c044a55414e,2.5.4.4=#0c1145535041c3914f4c2045535041c3914f4c,2.5.4.5=#130931323334353637385a,C=ES
+dnie-firma.der	issuer.toString	CN=AC DNIE 004, OU=DNIE, O=DIRECCION GENERAL DE LA POLICIA, C=ES
+dnie-firma.der	issuer.rfc2253	CN=AC DNIE 004,OU=DNIE,O=DIRECCION GENERAL DE LA POLICIA,C=ES
+dnie-firma.der	subjectDN	CN="ESPAÑOL ESPAÑOL, JUAN (FIRMA)", GIVENNAME=JUAN, SURNAME=ESPAÑOL ESPAÑOL, SERIALNUMBER=12345678Z, C=ES
+dnie-firma.der	getCN	ESPAÑOL ESPAÑOL, JUAN (FIRMA)
+dnie-firma.der	getCN.issuer.rfc2253	AC DNIE 004
+dnie-firma.der	getCN.issuer.toString	AC DNIE 004
+dnie-firma.der	subjectSN	#130931323334353637385a
+dnie-firma.der	pseudonym	false
+dnie-firma.der	keyusage.text	Firma
+dnie-firma.der	serial.hex	1122
+dnie-firma.der	ldap.subject	C=str:ES | SERIALNUMBER=str:12345678Z | SURNAME=str:ESPAÑOL ESPAÑOL | GIVENNAME=str:JUAN | CN=str:ESPAÑOL ESPAÑOL, JUAN (FIRMA)
+dnie-firma.der	ldap.issuer	C=str:ES | O=str:DIRECCION GENERAL DE LA POLICIA | OU=str:DNIE | CN=str:AC DNIE 004
+escapes.der	subject.toString	CN="CN con, coma", OID.2.5.4.13=retorno\rcarro, T="salto\nde linea", STREET="Ya entre comillas", ST="#almohadilla", L="comillas \\"dobles\\" y \\\\barra", OU="a+b,c=d;e<f>g", OU="dos  espacios", O="espacios al final  ", O="  espacios al inicio", C=ES
+escapes.der	subject.rfc2253	CN=CN con\\, coma,2.5.4.13=#0c0d7265746f726e6f0d636172726f,2.5.4.12=#0c0e73616c746f0a6465206c696e6561,STREET=\\"Ya entre comillas\\",ST=\\#almohadilla,L=comillas \\"dobles\\" y \\\\barra,OU=a\\+b\\,c\\=d\\;e\\<f\\>g,OU=dos  espacios,O=espacios al final\\ \\ ,O=\\ \\ espacios al inicio,C=ES
+escapes.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+escapes.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+escapes.der	subjectDN	CN="CN con, coma", OID.2.5.4.13=retorno\rcarro, T="salto\nde linea", STREET="Ya entre comillas", ST="#almohadilla", L="comillas \\"dobles\\" y \\\\barra", OU="a+b,c=d;e<f>g", OU="dos  espacios", O="espacios al final  ", O="  espacios al inicio", C=ES
+escapes.der	getCN	CN con, coma
+escapes.der	getCN.issuer.rfc2253	CA Generica
+escapes.der	getCN.issuer.toString	CA Generica
+escapes.der	subjectSN	<null>
+escapes.der	pseudonym	false
+escapes.der	keyusage.text	Firma
+escapes.der	serial.hex	7011
+escapes.der	ldap.subject	C=str:ES | O=str:  espacios al inicio | O=str:espacios al final  | OU=str:dos  espacios | OU=str:a+b,c=d;e<f>g | L=str:comillas "dobles" y \\\\barra | ST=str:#almohadilla | STREET=str:Ya entre comillas | T=str:salto\\nde linea | OID.2.5.4.13=str:retorno\\rcarro | CN=str:CN con, coma
+escapes.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+fnmt-otro.der	subject.toString	CN=EMPLEADO PUBLICO OTRO, SERIALNUMBER=33333333P, C=ES
+fnmt-otro.der	subject.rfc2253	CN=EMPLEADO PUBLICO OTRO,2.5.4.5=#1309333333333333333350,C=ES
+fnmt-otro.der	issuer.toString	CN=AC Sector Público, OU=CERES, O=FNMT-RCM, C=ES
+fnmt-otro.der	issuer.rfc2253	CN=AC Sector Público,OU=CERES,O=FNMT-RCM,C=ES
+fnmt-otro.der	subjectDN	CN=EMPLEADO PUBLICO OTRO, SERIALNUMBER=33333333P, C=ES
+fnmt-otro.der	getCN	EMPLEADO PUBLICO OTRO
+fnmt-otro.der	getCN.issuer.rfc2253	AC Sector Público
+fnmt-otro.der	getCN.issuer.toString	AC Sector Público
+fnmt-otro.der	subjectSN	#1309333333333333333350
+fnmt-otro.der	pseudonym	false
+fnmt-otro.der	keyusage.text	Firma y autenticación
+fnmt-otro.der	serial.hex	5003
+fnmt-otro.der	ldap.subject	C=str:ES | SERIALNUMBER=str:33333333P | CN=str:EMPLEADO PUBLICO OTRO
+fnmt-otro.der	ldap.issuer	C=str:ES | O=str:FNMT-RCM | OU=str:CERES | CN=str:AC Sector Público
+futuro.der	subject.toString	CN=AUN NO VALIDO
+futuro.der	subject.rfc2253	CN=AUN NO VALIDO
+futuro.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+futuro.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+futuro.der	subjectDN	CN=AUN NO VALIDO
+futuro.der	getCN	AUN NO VALIDO
+futuro.der	getCN.issuer.rfc2253	CA Generica
+futuro.der	getCN.issuer.toString	CA Generica
+futuro.der	subjectSN	<null>
+futuro.der	pseudonym	false
+futuro.der	keyusage.text	Firma
+futuro.der	serial.hex	7007
+futuro.der	ldap.subject	CN=str:AUN NO VALIDO
+futuro.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+ku-agreement.der	subject.toString	CN=KU AGREEMENT
+ku-agreement.der	subject.rfc2253	CN=KU AGREEMENT
+ku-agreement.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+ku-agreement.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+ku-agreement.der	subjectDN	CN=KU AGREEMENT
+ku-agreement.der	getCN	KU AGREEMENT
+ku-agreement.der	getCN.issuer.rfc2253	CA Generica
+ku-agreement.der	getCN.issuer.toString	CA Generica
+ku-agreement.der	subjectSN	<null>
+ku-agreement.der	pseudonym	false
+ku-agreement.der	keyusage.text	Otros
+ku-agreement.der	serial.hex	7004
+ku-agreement.der	ldap.subject	CN=str:KU AGREEMENT
+ku-agreement.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+ku-cifrado.der	subject.toString	CN=KU CIFRADO
+ku-cifrado.der	subject.rfc2253	CN=KU CIFRADO
+ku-cifrado.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+ku-cifrado.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+ku-cifrado.der	subjectDN	CN=KU CIFRADO
+ku-cifrado.der	getCN	KU CIFRADO
+ku-cifrado.der	getCN.issuer.rfc2253	CA Generica
+ku-cifrado.der	getCN.issuer.toString	CA Generica
+ku-cifrado.der	subjectSN	<null>
+ku-cifrado.der	pseudonym	false
+ku-cifrado.der	keyusage.text	Cifrado
+ku-cifrado.der	serial.hex	7003
+ku-cifrado.der	ldap.subject	CN=str:KU CIFRADO
+ku-cifrado.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+ku-todos.der	subject.toString	CN=KU TODOS
+ku-todos.der	subject.rfc2253	CN=KU TODOS
+ku-todos.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+ku-todos.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+ku-todos.der	subjectDN	CN=KU TODOS
+ku-todos.der	getCN	KU TODOS
+ku-todos.der	getCN.issuer.rfc2253	CA Generica
+ku-todos.der	getCN.issuer.toString	CA Generica
+ku-todos.der	subjectSN	<null>
+ku-todos.der	pseudonym	false
+ku-todos.der	keyusage.text	Firma, autenticación y cifrado
+ku-todos.der	serial.hex	7002
+ku-todos.der	ldap.subject	CN=str:KU TODOS
+ku-todos.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+multivalor.der	subject.toString	GIVENNAME=MARIA + SERIALNUMBER=99999999R, CN=Nombre A + OU=Unidad B, C=ES
+multivalor.der	subject.rfc2253	2.5.4.42=#0c054d41524941+2.5.4.5=#1309393939393939393952,CN=Nombre A+OU=Unidad B,C=ES
+multivalor.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+multivalor.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+multivalor.der	subjectDN	GIVENNAME=MARIA + SERIALNUMBER=99999999R, CN=Nombre A + OU=Unidad B, C=ES
+multivalor.der	getCN	Nombre A + OU=Unidad B
+multivalor.der	getCN.issuer.rfc2253	CA Generica
+multivalor.der	getCN.issuer.toString	CA Generica
+multivalor.der	subjectSN	<null>
+multivalor.der	pseudonym	false
+multivalor.der	keyusage.text	Firma
+multivalor.der	serial.hex	7012
+multivalor.der	ldap.subject	C=str:ES | CN=str:Nombre A | GIVENNAME=str:MARIA
+multivalor.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+politicas.der	subject.toString	CN=POLITICAS VARIAS
+politicas.der	subject.rfc2253	CN=POLITICAS VARIAS
+politicas.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+politicas.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+politicas.der	subjectDN	CN=POLITICAS VARIAS
+politicas.der	getCN	POLITICAS VARIAS
+politicas.der	getCN.issuer.rfc2253	CA Generica
+politicas.der	getCN.issuer.toString	CA Generica
+politicas.der	subjectSN	<null>
+politicas.der	pseudonym	false
+politicas.der	keyusage.text	Firma
+politicas.der	serial.hex	7005
+politicas.der	ldap.subject	CN=str:POLITICAS VARIAS
+politicas.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+pseudonimo.der	subject.toString	CN=SEUDONIMO PSEUDO-0001, OID.2.5.4.65=PSEUDO-0001, T=JEFE DE SERVICIO, OU=UNIDAD DE PRUEBAS, O=MINISTERIO DE PRUEBAS, C=ES
+pseudonimo.der	subject.rfc2253	CN=SEUDONIMO PSEUDO-0001,2.5.4.65=#0c0b50534555444f2d30303031,2.5.4.12=#0c104a45464520444520534552564943494f,OU=UNIDAD DE PRUEBAS,O=MINISTERIO DE PRUEBAS,C=ES
+pseudonimo.der	issuer.toString	CN=AC Sector Público, OU=CERES, O=FNMT-RCM, C=ES
+pseudonimo.der	issuer.rfc2253	CN=AC Sector Público,OU=CERES,O=FNMT-RCM,C=ES
+pseudonimo.der	subjectDN	CN=SEUDONIMO PSEUDO-0001, OID.2.5.4.65=PSEUDO-0001, T=JEFE DE SERVICIO, OU=UNIDAD DE PRUEBAS, O=MINISTERIO DE PRUEBAS, C=ES
+pseudonimo.der	getCN	SEUDONIMO PSEUDO-0001
+pseudonimo.der	getCN.issuer.rfc2253	AC Sector Público
+pseudonimo.der	getCN.issuer.toString	AC Sector Público
+pseudonimo.der	subjectSN	<null>
+pseudonimo.der	pseudonym	true
+pseudonimo.der	keyusage.text	Firma y autenticación
+pseudonimo.der	serial.hex	5001
+pseudonimo.der	ldap.subject	C=str:ES | O=str:MINISTERIO DE PRUEBAS | OU=str:UNIDAD DE PRUEBAS | T=str:JEFE DE SERVICIO | OID.2.5.4.65=str:PSEUDO-0001 | CN=str:SEUDONIMO PSEUDO-0001
+pseudonimo.der	ldap.issuer	C=str:ES | O=str:FNMT-RCM | OU=str:CERES | CN=str:AC Sector Público
+pseudonimo-gemelo.der	subject.toString	CN=EMPLEADO PUBLICO GEMELO, SERIALNUMBER=22222222J, C=ES
+pseudonimo-gemelo.der	subject.rfc2253	CN=EMPLEADO PUBLICO GEMELO,2.5.4.5=#130932323232323232324a,C=ES
+pseudonimo-gemelo.der	issuer.toString	CN=AC Sector Público, OU=CERES, O=FNMT-RCM, C=ES
+pseudonimo-gemelo.der	issuer.rfc2253	CN=AC Sector Público,OU=CERES,O=FNMT-RCM,C=ES
+pseudonimo-gemelo.der	subjectDN	CN=EMPLEADO PUBLICO GEMELO, SERIALNUMBER=22222222J, C=ES
+pseudonimo-gemelo.der	getCN	EMPLEADO PUBLICO GEMELO
+pseudonimo-gemelo.der	getCN.issuer.rfc2253	AC Sector Público
+pseudonimo-gemelo.der	getCN.issuer.toString	AC Sector Público
+pseudonimo-gemelo.der	subjectSN	#130932323232323232324a
+pseudonimo-gemelo.der	pseudonym	false
+pseudonimo-gemelo.der	keyusage.text	Firma y autenticación
+pseudonimo-gemelo.der	serial.hex	5002
+pseudonimo-gemelo.der	ldap.subject	C=str:ES | SERIALNUMBER=str:22222222J | CN=str:EMPLEADO PUBLICO GEMELO
+pseudonimo-gemelo.der	ldap.issuer	C=str:ES | O=str:FNMT-RCM | OU=str:CERES | CN=str:AC Sector Público
+qc-sin-sscd.der	subject.toString	CN=QC SIN SSCD
+qc-sin-sscd.der	subject.rfc2253	CN=QC SIN SSCD
+qc-sin-sscd.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+qc-sin-sscd.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+qc-sin-sscd.der	subjectDN	CN=QC SIN SSCD
+qc-sin-sscd.der	getCN	QC SIN SSCD
+qc-sin-sscd.der	getCN.issuer.rfc2253	CA Generica
+qc-sin-sscd.der	getCN.issuer.toString	CA Generica
+qc-sin-sscd.der	subjectSN	<null>
+qc-sin-sscd.der	pseudonym	false
+qc-sin-sscd.der	keyusage.text	Firma
+qc-sin-sscd.der	serial.hex	7006
+qc-sin-sscd.der	ldap.subject	CN=str:QC SIN SSCD
+qc-sin-sscd.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+representante.der	subject.toString	CN=44444444A JUAN PRUEBA (R: B12345678), SERIALNUMBER=IDCES-44444444A, O="EMPRESA DE PRUEBAS, S.L.", OID.2.5.4.97=VATES-B12345678, C=ES
+representante.der	subject.rfc2253	CN=44444444A JUAN PRUEBA (R: B12345678),2.5.4.5=#130f49444345532d343434343434343441,O=EMPRESA DE PRUEBAS\\, S.L.,2.5.4.97=#0c0f56415445532d423132333435363738,C=ES
+representante.der	issuer.toString	CN=AC Sector Público, OU=CERES, O=FNMT-RCM, C=ES
+representante.der	issuer.rfc2253	CN=AC Sector Público,OU=CERES,O=FNMT-RCM,C=ES
+representante.der	subjectDN	CN=44444444A JUAN PRUEBA (R: B12345678), SERIALNUMBER=IDCES-44444444A, O="EMPRESA DE PRUEBAS, S.L.", OID.2.5.4.97=VATES-B12345678, C=ES
+representante.der	getCN	44444444A JUAN PRUEBA (R: B12345678)
+representante.der	getCN.issuer.rfc2253	AC Sector Público
+representante.der	getCN.issuer.toString	AC Sector Público
+representante.der	subjectSN	#130f49444345532d343434343434343441
+representante.der	pseudonym	false
+representante.der	keyusage.text	Firma y autenticación
+representante.der	serial.hex	5004
+representante.der	ldap.subject	C=str:ES | OID.2.5.4.97=str:VATES-B12345678 | O=str:EMPRESA DE PRUEBAS, S.L. | SERIALNUMBER=str:IDCES-44444444A | CN=str:44444444A JUAN PRUEBA (R: B12345678)
+representante.der	ldap.issuer	C=str:ES | O=str:FNMT-RCM | OU=str:CERES | CN=str:AC Sector Público
+sin-keyusage.der	subject.toString	CN=SIN KEYUSAGE
+sin-keyusage.der	subject.rfc2253	CN=SIN KEYUSAGE
+sin-keyusage.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+sin-keyusage.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+sin-keyusage.der	subjectDN	CN=SIN KEYUSAGE
+sin-keyusage.der	getCN	SIN KEYUSAGE
+sin-keyusage.der	getCN.issuer.rfc2253	CA Generica
+sin-keyusage.der	getCN.issuer.toString	CA Generica
+sin-keyusage.der	subjectSN	<null>
+sin-keyusage.der	pseudonym	false
+sin-keyusage.der	keyusage.text	Desconocido
+sin-keyusage.der	serial.hex	7001
+sin-keyusage.der	ldap.subject	CN=str:SIN KEYUSAGE
+sin-keyusage.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+solo-o.der	subject.toString	O=ORGANIZACION SIN CN, C=ES
+solo-o.der	subject.rfc2253	O=ORGANIZACION SIN CN,C=ES
+solo-o.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+solo-o.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+solo-o.der	subjectDN	O=ORGANIZACION SIN CN, C=ES
+solo-o.der	getCN	ORGANIZACION SIN CN
+solo-o.der	getCN.issuer.rfc2253	CA Generica
+solo-o.der	getCN.issuer.toString	CA Generica
+solo-o.der	subjectSN	<null>
+solo-o.der	pseudonym	false
+solo-o.der	keyusage.text	Firma
+solo-o.der	serial.hex	700A
+solo-o.der	ldap.subject	C=str:ES | O=str:ORGANIZACION SIN CN
+solo-o.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+solo-ou.der	subject.toString	OU=UNIDAD SIN CN, C=ES
+solo-ou.der	subject.rfc2253	OU=UNIDAD SIN CN,C=ES
+solo-ou.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+solo-ou.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+solo-ou.der	subjectDN	OU=UNIDAD SIN CN, C=ES
+solo-ou.der	getCN	UNIDAD SIN CN
+solo-ou.der	getCN.issuer.rfc2253	CA Generica
+solo-ou.der	getCN.issuer.toString	CA Generica
+solo-ou.der	subjectSN	<null>
+solo-ou.der	pseudonym	false
+solo-ou.der	keyusage.text	Firma
+solo-ou.der	serial.hex	7009
+solo-ou.der	ldap.subject	C=str:ES | OU=str:UNIDAD SIN CN
+solo-ou.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+sujeto-vacio.der	subject.toString	
+sujeto-vacio.der	subject.rfc2253	
+sujeto-vacio.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+sujeto-vacio.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+sujeto-vacio.der	subjectDN	
+sujeto-vacio.der	getCN	
+sujeto-vacio.der	getCN.issuer.rfc2253	CA Generica
+sujeto-vacio.der	getCN.issuer.toString	CA Generica
+sujeto-vacio.der	subjectSN	<null>
+sujeto-vacio.der	pseudonym	false
+sujeto-vacio.der	keyusage.text	Firma
+sujeto-vacio.der	serial.hex	7008
+sujeto-vacio.der	ldap.subject	
+sujeto-vacio.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica
+tipos-cadena.der	subject.toString	CN=Tipos de cadena, OID.1.2.3.4.5=atributo desconocido, IP=10.0.0.1, GENERATION=III, INITIALS=JP, DNQ=dnq, STREET=Calle Mayor 1, UID=uid01, DC=example, EMAILADDRESS=correo@example.com, OID.2.5.4.17=#12053238303031, ST=#1a0756697369626c65, L=Localidad Universal ç, OU=Unidad BMP ñ€, O=OrganizaciÃ³n T61, C=ES
+tipos-cadena.der	subject.rfc2253	CN=Tipos de cadena,1.2.3.4.5=#0c14617472696275746f20646573636f6e6f6369646f,1.3.6.1.4.1.42.2.11.2.1=#0c0831302e302e302e31,2.5.4.44=#0c03494949,2.5.4.43=#0c024a50,2.5.4.46=#1303646e71,STREET=Calle Mayor 1,UID=uid01,DC=example,1.2.840.113549.1.9.1=#1612636f7272656f406578616d706c652e636f6d,2.5.4.17=#12053238303031,ST=#1a0756697369626c65,L=#1c540000004c0000006f00000063000000610000006c0000006900000064000000610000006400000020000000550000006e0000006900000076000000650000007200000073000000610000006c00000020000000e7,OU=Unidad BMP ñ€,O=OrganizaciÃ³n T61,C=ES
+tipos-cadena.der	issuer.toString	CN=CA Generica, O=Pruebas Genericas, C=ES
+tipos-cadena.der	issuer.rfc2253	CN=CA Generica,O=Pruebas Genericas,C=ES
+tipos-cadena.der	subjectDN	CN=Tipos de cadena, OID.1.2.3.4.5=atributo desconocido, IP=10.0.0.1, GENERATION=III, INITIALS=JP, DNQ=dnq, STREET=Calle Mayor 1, UID=uid01, DC=example, EMAILADDRESS=correo@example.com, OID.2.5.4.17=#12053238303031, ST=#1a0756697369626c65, L=Localidad Universal ç, OU=Unidad BMP ñ€, O=OrganizaciÃ³n T61, C=ES
+tipos-cadena.der	getCN	Tipos de cadena
+tipos-cadena.der	getCN.issuer.rfc2253	CA Generica
+tipos-cadena.der	getCN.issuer.toString	CA Generica
+tipos-cadena.der	subjectSN	<null>
+tipos-cadena.der	pseudonym	false
+tipos-cadena.der	keyusage.text	Firma
+tipos-cadena.der	serial.hex	7010
+tipos-cadena.der	ldap.subject	C=str:ES | O=str:OrganizaciÃ³n T61 | OU=str:Unidad BMP ñ€ | L=str:Localidad Universal ç | ST=bin:1a0756697369626c65 | OID.2.5.4.17=bin:12053238303031 | EMAILADDRESS=str:correo@example.com | DC=str:example | UID=str:uid01 | STREET=str:Calle Mayor 1 | DNQ=str:dnq | INITIALS=str:JP | GENERATION=str:III | IP=str:10.0.0.1 | OID.1.2.3.4.5=str:atributo desconocido | CN=str:Tipos de cadena
+tipos-cadena.der	ldap.issuer	C=str:ES | O=str:Pruebas Genericas | CN=str:CA Generica

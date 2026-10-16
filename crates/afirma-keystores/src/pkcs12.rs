@@ -37,55 +37,72 @@ impl Pkcs12Entry {
         &self.chain[0]
     }
 
+    #[cfg(test)]
+    pub(crate) fn pkcs8_for_tests(&self) -> &[u8] {
+        &self.pkcs8
+    }
+
     pub fn signing_key(&self) -> Result<SoftwareKey, KeyError> {
         SoftwareKey::from_pkcs8(&self.pkcs8, self.chain.clone(), Some(self.alias.clone()))
     }
 }
 
-/// Abre un PKCS#12 y devuelve sus entradas con clave privada.
+/// Abre un PKCS#12 y devuelve sus entradas con clave privada (error si no
+/// tiene ninguna).
 pub fn open(data: &[u8], password: &str) -> Result<Vec<Pkcs12Entry>, Pkcs12Error> {
-    let archive = p12_keystore::Pkcs12Archive::from_pkcs12(data, password).map_err(|e| match e {
-        p12_keystore::error::Error::MacError(_) => Pkcs12Error::WrongPassword,
-        p12_keystore::error::Error::UnpadError => Pkcs12Error::WrongPassword,
-        other => Pkcs12Error::Invalid(other.to_string()),
-    })?;
-    let certs: Vec<(Option<Vec<u8>>, Option<String>, Vec<u8>)> = archive
-        .certs
-        .iter()
-        .map(|c| (c.local_key_id.clone(), c.friendly_name.clone(), c.cert.as_der().to_vec()))
-        .collect();
-    let mut out = Vec::new();
-    for key in archive.keys {
-        let pkcs8 = key.key.as_der().to_vec();
-        // 1) Por localKeyId; 2) por coincidencia de clave pública.
-        let by_id = key.local_key_id.as_ref().and_then(|id| {
-            certs.iter().find(|(cid, _, _)| cid.as_deref() == Some(id.0.as_slice())).map(|(_, _, der)| der.clone())
-        });
-        let leaf = by_id.or_else(|| {
-            let spki = public_key_of_pkcs8(&pkcs8)?;
-            certs.iter().find(|(_, _, der)| cert_spki_key(der).as_deref() == Some(spki.as_slice())).map(|(_, _, d)| d.clone())
-        });
-        let Some(leaf) = leaf else { continue };
-        let chain = build_chain(&leaf, certs.iter().map(|(_, _, d)| d.as_slice()));
-        let alias = key
-            .friendly_name
-            .clone()
-            .or_else(|| certs.iter().find(|(_, _, d)| *d == leaf).and_then(|(_, n, _)| n.clone()))
-            .unwrap_or_else(|| subject_cn(&leaf).unwrap_or_else(|| "certificado".into()));
-        let alias = unique_alias(&out, alias);
-        out.push(Pkcs12Entry { alias, pkcs8, chain });
-    }
+    let out = open_entries(data, password)?;
     if out.is_empty() {
         return Err(Pkcs12Error::Invalid("no contiene ninguna clave privada con certificado".into()));
     }
     Ok(out)
 }
 
-fn unique_alias(existing: &[Pkcs12Entry], alias: String) -> String {
-    if !existing.iter().any(|e| e.alias == alias) {
-        return alias;
+/// Abre un PKCS#12 y devuelve sus entradas con clave privada (posiblemente
+/// ninguna).
+///
+/// Alias como el `PKCS12KeyStore` de Java: el `friendlyName` de la bolsa de
+/// la clave **en minúsculas** (Java indexa las entradas con
+/// `alias.toLowerCase(Locale.ENGLISH)` y `aliases()` devuelve esas claves);
+/// si no tiene, `"1"`, `"2"`… por orden de las claves sin nombre. A
+/// diferencia de Java (que sobrescribe la entrada anterior), los alias
+/// repetidos se conservan añadiendo `" (1)"`, `" (2)"`…
+pub fn open_entries(data: &[u8], password: &str) -> Result<Vec<Pkcs12Entry>, Pkcs12Error> {
+    let archive = p12_keystore::Pkcs12Archive::from_pkcs12(data, password).map_err(|e| match e {
+        p12_keystore::error::Error::MacError(_) => Pkcs12Error::WrongPassword,
+        p12_keystore::error::Error::UnpadError => Pkcs12Error::WrongPassword,
+        other => Pkcs12Error::Invalid(other.to_string()),
+    })?;
+    let certs: Vec<(Option<Vec<u8>>, Vec<u8>)> =
+        archive.certs.iter().map(|c| (c.local_key_id.clone(), c.cert.as_der().to_vec())).collect();
+    let single_key = archive.keys.len() == 1;
+    let mut out = Vec::new();
+    let mut aliases = crate::store::AliasSet::new();
+    let mut unfriendly = 0u32;
+    for key in archive.keys {
+        let pkcs8 = key.key.as_der().to_vec();
+        // 1) Por localKeyId; 2) si solo hay una clave, el primer certificado
+        // (rodeo de Java para PKCS#12 sin localKeyId); 3) por clave pública.
+        let by_id = key.local_key_id.as_ref().and_then(|id| {
+            certs.iter().find(|(cid, _)| cid.as_deref() == Some(id.0.as_slice())).map(|(_, der)| der.clone())
+        });
+        let leaf = by_id.or_else(|| {
+            let spki = public_key_of_pkcs8(&pkcs8)?;
+            certs.iter().find(|(_, der)| cert_spki_key(der).as_deref() == Some(spki.as_slice())).map(|(_, d)| d.clone())
+        });
+        let leaf = leaf.or_else(|| if single_key && key.local_key_id.is_none() { certs.first().map(|(_, d)| d.clone()) } else { None });
+        let Some(leaf) = leaf else { continue };
+        let chain = build_chain(&leaf, certs.iter().map(|(_, d)| d.as_slice()));
+        let alias = match key.friendly_name.as_deref() {
+            Some(n) => n.to_lowercase(),
+            None => {
+                unfriendly += 1;
+                unfriendly.to_string()
+            }
+        };
+        let alias = aliases.unique(&alias);
+        out.push(Pkcs12Entry { alias, pkcs8, chain });
     }
-    (2..).map(|n| format!("{alias} ({n})")).find(|a| !existing.iter().any(|e| &e.alias == a)).unwrap()
+    Ok(out)
 }
 
 /// Construye la cadena a partir del certificado final usando los
@@ -113,11 +130,6 @@ pub fn build_chain<'a>(leaf: &[u8], pool: impl Iterator<Item = &'a [u8]> + Clone
         }
     }
     chain
-}
-
-fn subject_cn(der: &[u8]) -> Option<String> {
-    let (_, cert) = X509Certificate::from_der(der).ok()?;
-    cert.subject().iter_common_name().next()?.as_str().ok().map(str::to_string)
 }
 
 fn cert_spki_key(der: &[u8]) -> Option<Vec<u8>> {

@@ -1,0 +1,5 @@
+# Salida de `autofirma.jar listaliases -store pkcs11:libsofthsm2.so -password 1234`
+# (oráculo Java, SunPKCS11) sobre el token "afirma" que preparan las pruebas
+# PKCS#11 de afirma-keystores (tools/oracle/keystores-softhsm.sh).
+firmante-ec
+firmante-rsa

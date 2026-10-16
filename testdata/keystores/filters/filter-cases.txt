@@ -1,0 +1,115 @@
+# Casos de filtros: nombre<TAB>propiedades (extraParams, <NL> = salto de línea).
+# Resultado de Java en filter-java.txt (tools/oracle/FiltersApplyOracle.java).
+default	
+dnie	filters=dnie:
+dnie_upper	filters=DNIE:cualquiercosa
+signingcert	filters=signingcert:
+signingcert_nocolon	filters=signingcert
+authcert	filters=authcert:
+ssl_auth	filters=ssl:0080AB12
+ssl_lower	filters=ssl:80ab12
+ssl_spaces	filters=ssl: # 00 80 AB 12 
+ssl_otro	filters=ssl:0777
+ssl_firma	filters=ssl:1122
+ssl_none	filters=ssl:FFFF
+ssl_generic	filters=ssl:7002
+qualified_dnie_auth	filters=qualified:0080AB12
+qualified_dnie_firma	filters=qualified:1122
+qualified_otro	filters=qualified:777
+qualified_accv_auth	filters=qualified:0A02
+qualified_accv_firma	filters=qualified:a01
+nonexpired	filters=nonexpired:
+nonexpired_upper	filters=NONEXPIRED:
+nonexpired_true	filters=nonexpired:true
+nonexpired_false	filters=nonexpired:false
+nonexpired_other	filters=nonexpired:quizas
+sscd	filters=sscd:
+policy_exact	filters=policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10.1
+policy_subset	filters=policyid:2.16.724.1.3.5.7.1
+policy_pki	filters=policyid:2.16.724.1.3.5.7.1,1.3.6.1.4.1.5734.3.10
+policy_space	filters=policyid:2.16.724.1.3.5.7.1, 1.3.6.1.4.1.5734.3.10.1
+policy_dnie	filters=policyid:2.16.724.1.2.2.2.3,2.16.724.1.2.2.2.4
+policy_empty	filters=policyid:
+policy_comma	filters=policyid:,
+ku_nr	filters=keyusage.nonrepudiation:true
+ku_null	filters=keyusage.digitalsignature:null
+ku_ds_not_nr	filters=keyusage.digitalsignature:true;keyusage.nonrepudiation:false
+ku_agreement	filters=keyusage.keyagreement:true;keyusage.encipheronly:true
+ku_data	filters=keyusage.dataencipherment:true
+ku_ca	filters=keyusage.keycertsign:true;keyusage.crlsign:true
+ku_yes	filters=keyusage.keycertsign:yes
+ku_upper	filters=KeyUsage.digitalsignature:true;KeyUsage.nonrepudiation:true
+ku_mixed	filters=keyusage.nonrepudiation:true;keyusage.digitalsignature:YES;keyusage.keyagreement:null
+rfc_cn_prefix	filters=subject.rfc2254:(cn=PRUEBA*)
+rfc_noparen	filters=subject.rfc2254:cn=prueba maria*
+rfc_leading_space	filters=subject.rfc2254:  cn=PRUEBA*
+rfc_serial	filters=subject.rfc2254:(serialnumber=IDCES-*)
+rfc_pseudo	filters=subject.rfc2254:(OID.2.5.4.65=*)
+rfc_issuer_or	filters=issuer.rfc2254:(|(o=FNMT-RCM)(o=DIRECCION GENERAL DE LA POLICIA))
+rfc_cn_second	filters=subject.rfc2254:(cn=CN Segundo)
+rfc_cn_first	filters=subject.rfc2254:(cn=CN Primero)
+rfc_multivalued	filters=subject.rfc2254:(&(cn=Nombre A)(givenname=MARIA))
+rfc_multivalued_ou	filters=subject.rfc2254:(ou=Unidad B)
+rfc_binary_presence	filters=subject.rfc2254:(st=*)
+rfc_binary_value	filters=subject.rfc2254:(st=Visible)
+rfc_quoted	filters=subject.rfc2254:(street=Ya entre comillas)
+rfc_backslash	filters=subject.rfc2254:(l=comillas "dobles" y \\\\barra)
+rfc_backslash_single	filters=subject.rfc2254:(l=comillas "dobles" y \\barra)
+rfc_spaces_value	filters=subject.rfc2254:(o=  espacios al inicio)
+rfc_extensible	filters=subject.rfc2254:(cn:=x)
+rfc_presence_cn	filters=subject.rfc2254:(cn=*)
+rfc_ge	filters=subject.rfc2254:(c>=ER)
+rfc_le	filters=subject.rfc2254:(cn<=B)
+rfc_not	filters=issuer.rfc2254:(!(o=FNMT-RCM))
+rfc_wildcard_quirk	filters=subject.rfc2254:(cn=KU TODOS*S)
+rfc_wildcard_inner	filters=subject.rfc2254:(cn=*PERSONA*FIRMA)
+rfc_t61	filters=subject.rfc2254:(o=Organizaci*)
+rfc_bmp	filters=subject.rfc2254:(ou=Unidad BMP*)
+rfc_unknown_oid	filters=subject.rfc2254:(OID.1.2.3.4.5=atributo desconocido)
+rfc_email	filters=subject.rfc2254:(emailaddress=correo@example.com)
+rfc_recurse_ca	filters=issuer.rfc2254.recurse:(cn=AC DNIE 004)
+rfc_recurse_root	filters=issuer.rfc2254.recurse:(cn=AC RAIZ DNIE 2)
+rfc_recurse_self	filters=issuer.rfc2254.recurse:(cn=PRUEBA MARIA*)
+rfc_empty	filters=subject.rfc2254:
+rfc_recurse_empty	filters=dnie:;issuer.rfc2254.recurse:
+contains_subject	filters=subject.contains:12345678z
+contains_issuer	filters=issuer.contains:O=FNMT
+contains_empty	filters=subject.contains:
+contains_oid	filters=Subject.Contains:OID.2.5.4.97=VATES
+contains_quoted	filters=subject.contains:CN="CN con, coma"
+thumb_sha256	filters=thumbprint:SHA-256:fc 46 96 42 af 0a 9b f3 d2 a0 e9 15 91 64 af 2a 21 f0 67 f8 d0 3a 92 77 06 66 28 95 1e 70 70 6a
+thumb_sha256_upper	filters=thumbprint:sha256:FC469642AF0A9BF3D2A0E9159164AF2A21F067F8D03A9277066628951E70706A
+thumb_sha1	filters=thumbprint:SHA1:7a1881dba7c3a920254c88e1f27308d49788ae3b
+thumb_sha	filters=thumbprint:SHA:7A1881DBA7C3A920254C88E1F27308D49788AE3B
+thumb_md5	filters=thumbprint:MD5:b396091ef15b3aca1ea95f0a4bf2ffad
+thumb_sha512	filters=thumbprint:SHA-512:aada671629d0130043b174e623ef4511b7cc1763cf38395f9f32c74f480aadeb795aeb4a1c1062890241d93f14324f8ce191a53c24b5db53e7a1aa048d4720de
+thumb_unknown	filters=thumbprint:NOEXISTE:b396091ef15b3aca1ea95f0a4bf2ffad
+thumb_one_param	filters=thumbprint:SHA1
+thumb_trailing	filters=thumbprint:SHA1:
+thumb_three	filters=thumbprint:a:b:c
+pseudo_only	filters=pseudonym:only
+pseudo_only_upper	filters=pseudonym:ONLY
+pseudo_default	filters=pseudonym:
+pseudo_andothers	filters=pseudonym:andothers
+pseudo_other	filters=pseudonym:otracosa
+encoded	filters=encodedcert:MIIB6jCCAZCgAwIBAgICUAEwCgYIKoZIzj0EAwIwTTELMAkGA1UEBhMCRVMxETAPBgNVBAoMCEZOTVQtUkNNMQ4wDAYDVQQLDAVDRVJFUzEbMBkGA1UEAwwSQUMgU2VjdG9yIFDDumJsaWNvMB4XDTIwMDEwMTAwMDAwMFoXDTM0MDEwMTAwMDAwMFowgZoxCzAJBgNVBAYTAkVTMR4wHAYDVQQKDBVNSU5JU1RFUklPIERFIFBSVUVCQVMxGjAYBgNVBAsMEVVOSURBRCBERSBQUlVFQkFTMRkwFwYDVQQMDBBKRUZFIERFIFNFUlZJQ0lPMRQwEgYDVQRBDAtQU0VVRE8tMDAwMTEeMBwGA1UEAwwVU0VVRE9OSU1PIFBTRVVETy0wMDAxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/gzOwozJo7CECOlg3ayEHzhnKXPYX2912FCntM7r/8y31pbTIOsImTNkgV1yQyW1RJ1fASFf+gqLd8mAXk/yDqMSMBAwDgYDVR0PAQH/BAQDAgbAMAoGCCqGSM49BAMCA0gAMEUCIQCen+W0z4TN+b/G3WX3eaWiDP69BLyvUzbnhzDCP7XBPQIgRt8N+f3A4JiN7rVoJWHedRekR9rE93Kw1YbhFBcZSl0=
+encoded_empty	filters=encodedcert:
+empty_value	filters=
+unknown	filters=desconocido:x;otro
+precedence_filter	filter=dnie:<NL>filters=sscd:<NL>filters.1=authcert:
+precedence_filters	filters=sscd:<NL>filters.1=authcert:
+gap	filters.1=dnie:<NL>filters.2=sscd:<NL>filters.4=authcert:
+gap_start	filters.2=sscd:
+or_union	filters.1=dnie:<NL>filters.2=issuer.contains:O=FNMT-RCM;nonexpired:
+or_remaining	filters.1=keyusage.nonrepudiation:true;subject.contains:12345678Z<NL>filters.2=ssl:80AB12
+or_remaining2	filters.1=subject.contains:OTRA PERSONA<NL>filters.2=ssl:80AB12
+or_pseudo	filters.1=subject.contains:GEMELO<NL>filters.2=pseudonym:
+headless	headless=TRUE<NL>filters=dnie:
+headless_si	headless=si
+mandatory_false	mandatoryCertSelection=False
+mandatory_true	mandatoryCertSelection=true
+disable_stores	filters=DisableOpeningExternalStores;dnie:
+disable_only	filters=disableopeningexternalstores
+disable_second	filters.1=dnie:<NL>filters.2=sscd:;disableopeningexternalstores
+and_sorted	filters=nonexpired:;keyusage.nonrepudiation:true
+combo_dnie_expired	filters=signingcert:;nonexpired:;issuer.rfc2254:(o=DIRECCION GENERAL DE LA POLICIA)
