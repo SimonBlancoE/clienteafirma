@@ -469,7 +469,7 @@ impl SignPage {
             ui.add_space(6.0);
             if has_pdf {
                 ui.horizontal(|ui| {
-                    toggle(ui, p, &mut self.visible_signature);
+                    toggle(ui, p, &mut self.visible_signature, tr("Firma visible en el PDF"));
                     ui.vertical(|ui| {
                         ui.label(RichText::new(tr("Firma visible en el PDF")).font(FontId::new(14.0, semibold())));
                         ui.label(
@@ -509,7 +509,9 @@ impl SignPage {
                         self.visible_stamp = false;
                     }
                     ui.horizontal(|ui| {
-                        ui.add_enabled_ui(!signed, |ui| toggle(ui, p, &mut self.visible_stamp));
+                        ui.add_enabled_ui(!signed, |ui| {
+                            toggle(ui, p, &mut self.visible_stamp, tr("Marca de imagen en el PDF"))
+                        });
                         ui.vertical(|ui| {
                             ui.label(
                                 RichText::new(tr("Marca de imagen en el PDF")).font(FontId::new(14.0, semibold())),
@@ -739,14 +741,17 @@ impl SignPage {
 }
 
 /// Interruptor de encendido/apagado.
-pub fn toggle(ui: &mut Ui, p: &Palette, on: &mut bool) -> egui::Response {
+/// Interruptor. `label` es el nombre accesible (lectores de pantalla); el
+/// texto visible va al lado.
+pub fn toggle(ui: &mut Ui, p: &Palette, on: &mut bool, label: &str) -> egui::Response {
     let size = egui::vec2(40.0, 22.0);
     let (rect, mut response) = ui.allocate_exact_size(size, egui::Sense::click());
     if response.clicked() {
         *on = !*on;
         response.mark_changed();
     }
-    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, true, *on, ""));
+    let enabled = ui.is_enabled();
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, enabled, *on, label));
     let t = ui.ctx().animate_bool_responsive(response.id, *on);
     let off = if p.dark {
         egui::Color32::from_rgb(0x46, 0x4E, 0x5B)

@@ -185,6 +185,7 @@ impl ToolsPage {
                             egui::Id::unique(("tool", *t as u8)),
                             egui::Sense::click(),
                         );
+                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, t.title()));
                         if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                             actions.push(ToolsAction::Open(*t));
                         }

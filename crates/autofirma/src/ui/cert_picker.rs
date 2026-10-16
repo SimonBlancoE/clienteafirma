@@ -429,6 +429,9 @@ fn cert_row(ui: &mut Ui, p: &Palette, c: &CertItem, view: CertListView, selected
     let rect = inner.response.rect;
     radio_dot(ui, p, Pos2::new(rect.right() - 26.0, rect.top() + 34.0), selected);
     let resp = ui.interact(rect, ui.scope_id().with(("cert_row", &c.alias)), Sense::click());
+    // Para lectores de pantalla: cada certificado es una opción seleccionable.
+    let name = c.title(view);
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::RadioButton, true, selected, &name));
     RowResult {
         clicked: resp.clicked() && !toggle_details,
         double_clicked: resp.double_clicked() && !toggle_details,
@@ -497,6 +500,7 @@ fn segmented(ui: &mut Ui, p: &Palette, view: &mut CertListView) {
         let r = Rect::from_min_size(Pos2::new(x, rect.top() + 3.0), Vec2::new(w, height - 6.0));
         let resp = ui.interact(r, ui.scope_id().with(("seg", label)), Sense::click());
         let on = *view == *opt;
+        resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, on, *label));
         if on {
             ui.painter().rect_filled(r, CornerRadius::same(6), p.surface);
             ui.painter()

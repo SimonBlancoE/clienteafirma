@@ -116,6 +116,8 @@ impl CertificatesPage {
                     egui::Id::unique(("store", i)),
                     egui::Sense::click(),
                 );
+                let store_label = self.stores[i].label.clone();
+                resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, &store_label));
                 if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() && !selected {
                     actions.push(CertsAction::SelectStore(i));
                 }

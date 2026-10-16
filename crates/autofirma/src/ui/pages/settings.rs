@@ -363,7 +363,7 @@ fn bool_row(ui: &mut Ui, c: &mut Ctx, key: &str, title: &str, desc: Option<&str>
     ui.horizontal_top(|ui| {
         let mut v = c.bool(key);
         ui.add_enabled_ui(!c.locked(key), |ui| {
-            if super::sign::toggle(ui, c.p, &mut v).changed() {
+            if super::sign::toggle(ui, c.p, &mut v, title).changed() {
                 c.put(key, Some(v.to_string()));
             }
         });
