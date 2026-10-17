@@ -1,0 +1,9 @@
+reset()='' -> detectado DnieNfc
+reset()='3B888001E1F35E117781A10003' -> detectado DnieNfc
+reset()='3B8C800150428E932AE1F35E1177818102' -> detectado DnieNfc
+reset()='E1F35E117781A100' -> detectado DnieNfc
+reset()='3B8C800150D71A03F3E1F35E117781A16A' -> detectado DnieNfc
+reset()='0102' -> detectado DnieNfc
+reset()='AABBCC' -> NO: InvalidCardException: Se esperaba una tarjeta de tipo 'DNIe' pero se encontro otra con ATR=AABBCC
+reset()='3B8F8001804F0CA000000306030001000000006A' -> NO: InvalidCardException: Se esperaba una tarjeta de tipo 'DNIe' pero se encontro otra con ATR=3B8F8001804F0CA000000306030001000000006A
+reset()='3B8180018080' -> NO: InvalidCardException: Se esperaba una tarjeta de tipo 'DNIe' pero se encontro otra con ATR=3B8180018080

@@ -1,0 +1,37 @@
+SIMULADOR DNIe 3.0/4.0 POR NFC CONTRA jmulticard 2.1 (clases reales compiladas en ../classes)
+Ejecucion: ./run.sh   (fuentes: src/sim/*.java; datos generados: data/, generador: gen/gen_data.py)
+
+Resultados empiricos (lo que jmulticard ENVIA; el lado tarjeta es un modelo propio):
+1. Deteccion (DnieFactory.getDnie/getDnieNfc, comparacion por SUFIJO con mascara de Atr.equals):
+   - reset() vacio (HLR NfcB vacio)            -> DnieNfc
+   - pseudo-ATR PC/SC 3B888001E1F35E117781A10003 -> DnieNfc
+   - 3B8C800150428E932AE1F35E1177818102 (ATR_NFC2) -> DnieNfc
+   - E1F35E117781A100 (8 hist. bytes)           -> DnieNfc (casa con el sufijo de ATR_NFC2)
+   - 3B8C800150D71A03F3E1F35E117781A16A (TIE)    -> DnieNfc (falso positivo conocido)
+   - 0102 (cualquier respuesta de <=2 octetos)  -> DnieNfc (las 2 ultimas posiciones de ATR_NFC2 tienen mascara 00)
+   - AABBCC / 3B8F8001804F0CA0...6A / 3B8180018080 -> InvalidCardException
+2. PACE: MSE:SET AT 0022C1A412800A04007F0007020204020283010284010D; GA1 10860000027C00 (sin Le);
+   GA2/GA3 1086000045 7C43 81|83 41 04<X><Y> (74 oct, sin Le); GA4 008600000C7C0A8508<T_IFD> (17 oct, sin Le).
+   jmulticard no comprueba T_ICC. CAN pedido una sola vez (TextInputCallback en JSE); reutilizado en el re-PACE.
+3. SM PACE: CLA|0C, DO87 (01||AES-CBC IV=E(K,SSC)), DO97 (si hay Le), DO8E 8 oct, Le=00 final SIEMPRE.
+   Caso 1 (sin datos ni Le): jmulticard calcula el MAC sobre pad(SSC||cabecera) sin rellenar la cabecera;
+   un verificador ICAO lo rechaza (simulador -> 6988; jmulticard -> ApduConnectionException "Error transmitiendo la APDU cifrada").
+4. Capas: carga de certificados y handshake del canal CWA de PIN van envueltos en PACE; tras EXTERNAL AUTHENTICATE
+   las APDU CWA-PIN viajan directamente por el enlace (sin PACE); el handshake del canal de usuario va envuelto en CWA-PIN;
+   despues las APDU CWA-USR viajan directamente. Nunca hay doble envoltura.
+5. Tras cada firma jmulticard envia SELECT Master.File EN CLARO (00A404000B4D61737465722E46696C65) -> 6987 (excepcion
+   capturada) y la siguiente firma repite PACE + canal PIN + reintentos + VERIFY + canal usuario + MSE DST + PSO CDS.
+6. PIN: consulta de reintentos 0C2000000D9701008E08<mac> (sin Le exterior); con SW exterior 9000 y 63C3 en DO99, o con
+   SW exterior 63C3, el resultado es el mismo (3 intentos). PIN erroneo -> BadPinException("intentos restantes: 2")
+   sin causa; reintentar con el MISMO objeto Dnie no vuelve a pedir PIN: isSecurityChannelOpen() es true (canal PIN abierto)
+   y se envian MSE SET DST + PSO CDS por el canal de PIN -> 6982 -> DnieCardException.
+7. Fallo raro por bigIntToByteArray (X de K con 00 inicial): stress PACE 20/3000 fallos (todos con K.x=00..),
+   firma: 15/3000 fallos (todos por re-PACE con K.x=00..). Excepcion: InvalidCanOrMrzException 6300 en GA4 (en carga ->
+   InvalidAccessCodeException "CAN incorrecto"; en firma -> CryptoCardException). Probabilidad teorica 2^248/p ~ 1/170.
+8. RNG: BcCryptoHelper.generateRandomBytes es determinista (DigestRandomGenerator SHA-1 sin semilla):
+   8 oct -> 6C5544797A91115D (siempre); 32 oct -> 6C5544797A91115DC3330EBD003851D239A706FF2AA2AB70039C5510DDF06420.
+   Consecuencias: RND.IFD fijo, KIFD fijo (empieza por RND.IFD), PRND2 fijo, en ambos canales y en todas las sesiones.
+9. Tamanos maximos en el enlace: C-APDU 244 oct (PSO VERIFY CERTIFICATE con C_CV_CA/C_CV_IFD envuelto en PACE);
+   R-APDU 285 oct (respuesta a PSO CDS por CWA-USR: 87820109 01||264 + DO99 + DO8E + 9000). ENVELOPE 90C2 nunca usado.
+10. Rama de autenticacion interna "N.ICC - SIG": inalcanzable en la practica (SIGMIN=N-SIG implica SIG>N/2, 128 oct).
+11. FCI: SelectFileApduResponse exige 6F L ... con L = longitud real y al menos un octeto tras el TLV 81 (si no, AIOOBE).
