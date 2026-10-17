@@ -118,6 +118,33 @@ jobs:
             test -s "firma-$f"
             "$exe" verify -i "firma-$f" | tee verificacion.txt
           done
+      - name: Firma desde una página web (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          certutil -f -user -p 12341234 -importpfx testdata\pki\firmante-rsa.p12 NoRoot
+          python tools/ci/web_sign.py target\release\autofirma.exe web
+      - name: Firma desde una página web (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Llavero propio con el certificado de prueba, accesible sin preguntar.
+          security create-keychain -p ci ci.keychain
+          security set-keychain-settings ci.keychain
+          security unlock-keychain -p ci ci.keychain
+          existing=$(security list-keychains -d user | tr -d '"' | xargs)
+          # shellcheck disable=SC2086 # una ruta por palabra
+          security list-keychains -d user -s ci.keychain $existing
+          security import testdata/pki/firmante-rsa.p12 -k ci.keychain -P 12341234 -A
+          security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k ci ci.keychain > /dev/null
+          python3 tools/ci/web_sign.py "$AF_BIN" web
+      - name: Registro de AutoFirma (si algo falla)
+        if: failure()
+        shell: bash
+        run: |
+          for f in "$HOME/.afirma/AutoFirma-rs.log" "$USERPROFILE/.afirma/AutoFirma-rs.log"; do
+            [ -f "$f" ] && tail -n 200 "$f"
+          done
+          exit 0
       - name: Desinstalar
         shell: bash
         run: |
