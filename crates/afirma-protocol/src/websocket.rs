@@ -91,6 +91,7 @@ pub(crate) async fn bind_first(addr: IpAddr, ports: &[u16]) -> Result<(TcpListen
         match TcpListener::bind(SocketAddr::new(addr, p)).await {
             Ok(l) => {
                 let port = l.local_addr().map(|a| a.port()).unwrap_or(p);
+                tracing::info!("Servidor WebSocket local escuchando en {addr}:{port}");
                 return Ok((l, port));
             }
             Err(e) => tracing::info!("El puerto {p} no esta disponible: {e}"),
@@ -160,7 +161,15 @@ impl WebSocketServer {
                     let st = state.clone();
                     let acc = acceptor.clone();
                     tokio::spawn(async move {
-                        let Ok(tls) = acc.accept(tcp).await else { return };
+                        // Un fallo aquí suele ser que el navegador no confía en el
+                        // certificado local (CA no instalada o rechazada).
+                        let tls = match acc.accept(tcp).await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                tracing::warn!("Conexión TLS rechazada con {peer}: {e}");
+                                return;
+                            }
+                        };
                         let origin_slot: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
                         let slot = origin_slot.clone();
                         #[allow(clippy::result_large_err)]
@@ -171,7 +180,14 @@ impl WebSocketServer {
                             }
                             Ok(resp)
                         };
-                        let Ok(ws) = tokio_tungstenite::accept_hdr_async_with_config(tls, callback, Some(config)).await else { return };
+                        let ws = match tokio_tungstenite::accept_hdr_async_with_config(tls, callback, Some(config)).await {
+                            Ok(ws) => ws,
+                            Err(e) => {
+                                tracing::warn!("Negociación WebSocket fallida con {peer}: {e}");
+                                return;
+                            }
+                        };
+                        tracing::info!("Página conectada desde {peer}");
                         let origin = origin_slot.lock().unwrap_or_else(|e| e.into_inner()).clone();
                         {
                             let mut fc = st.first_client.lock().unwrap_or_else(|e| e.into_inner());
