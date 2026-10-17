@@ -122,6 +122,8 @@ pub enum SignAction {
     OpenFolder(PathBuf),
     VerifyOutput(PathBuf),
     ChooseOutputDir,
+    /// Elegir nombre y carpeta de la firma de un único documento.
+    ChooseOutputFile,
     RepairIntegration,
     /// Botón «Validar certificado de firma» del resultado (complemento de Java).
     ValidateSigningCert,
@@ -137,6 +139,8 @@ pub struct SignPage {
     /// Validación del certificado de firma: `Some(None)` en curso.
     pub cert_validation: Option<Option<crate::services::certval::CertCheck>>,
     pub output_dir: Option<PathBuf>,
+    /// Destino elegido para la firma de un único documento: (documento, firma).
+    pub output_file: Option<(PathBuf, PathBuf)>,
     pub store_label: String,
     pub store_ready: bool,
     pub last_error: Option<String>,
@@ -153,6 +157,7 @@ impl Default for SignPage {
             visible_stamp: false,
             cert_validation: None,
             output_dir: None,
+            output_file: None,
             store_label: tr("Almacén del sistema").into(),
             store_ready: true,
             last_error: None,
@@ -162,6 +167,18 @@ impl Default for SignPage {
 }
 
 impl SignPage {
+    /// Destino de la firma de un único documento: el elegido por el usuario o el
+    /// propuesto junto al original (como Java, que propone ese nombre al guardar).
+    pub fn single_output(&self, file: &FileItem) -> Option<PathBuf> {
+        if let Some((input, out)) = &self.output_file
+            && *input == file.path
+        {
+            return Some(out.clone());
+        }
+        let signer = afirma_signers::signer_for_format(&file.format)?;
+        Some(afirma_signers::naming::single_output_path(signer.as_ref(), &file.path))
+    }
+
     pub fn ui(&mut self, ui: &mut Ui, p: &Palette, files_hovering: bool) -> Vec<SignAction> {
         let mut actions = Vec::new();
         match self.stage {
@@ -545,6 +562,18 @@ impl SignPage {
                     self.visible_stamp = false;
                 }
             }
+            if let [only] = self.files.as_slice()
+                && let Some(dest) = self.single_output(only)
+            {
+                ui.horizontal(|ui| {
+                    widgets::icon_label(ui, p, icons::FOLDER, tr("Guardar como:"));
+                    ui.label(RichText::new(dest.display().to_string()).font(FontId::new(13.5, semibold())));
+                    if ui.link(tr("Cambiar")).clicked() {
+                        actions.push(SignAction::ChooseOutputFile);
+                    }
+                });
+                ui.add_space(4.0);
+            }
             if self.files.len() > 1 {
                 ui.horizontal(|ui| {
                     widgets::icon_label(ui, p, icons::FOLDER, tr("Carpeta de destino:"));
@@ -684,6 +713,38 @@ impl SignPage {
                             actions.push(SignAction::OpenOutput(path.clone()));
                         }
                     });
+                }
+                if ok.len() > 1
+                    && let FileStatus::Done(first) = &ok[0].status
+                {
+                    // Dónde han quedado las firmas: una carpeta común o junto a cada original.
+                    let dir = first.parent();
+                    let same = ok
+                        .iter()
+                        .all(|f| matches!(&f.status, FileStatus::Done(o) if o.parent() == dir));
+                    ui.add_space(4.0);
+                    let text = match dir {
+                        Some(d) if same => trf("Guardados en {0}", &[&d.display()]),
+                        _ => tr("Guardados junto a cada documento original").to_string(),
+                    };
+                    ui.label(RichText::new(text).size(13.0).color(p.text_muted));
+                    if same {
+                        ui.add_space(10.0);
+                        if widgets::button_sized(
+                            ui,
+                            p,
+                            ButtonKind::Secondary,
+                            Some(icons::FOLDER_OPEN),
+                            tr("Abrir carpeta"),
+                            true,
+                            170.0,
+                            40.0,
+                        )
+                        .clicked()
+                        {
+                            actions.push(SignAction::OpenFolder(first.clone()));
+                        }
+                    }
                 }
                 ui.add_space(10.0);
             });

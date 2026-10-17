@@ -411,6 +411,22 @@ impl AutoFirmaApp {
                         self.sign.stage = Stage::Empty;
                     }
                 }
+                SignAction::ChooseOutputFile => {
+                    if let [only] = self.sign.files.as_slice()
+                        && let Some(proposed) = self.sign.single_output(only)
+                    {
+                        let mut dialog = crate::services::desktop::file_dialog().set_title(tr("Guardar la firma como"));
+                        if let Some(dir) = proposed.parent() {
+                            dialog = dialog.set_directory(dir);
+                        }
+                        if let Some(name) = proposed.file_name() {
+                            dialog = dialog.set_file_name(name.to_string_lossy());
+                        }
+                        if let Some(out) = dialog.save_file() {
+                            self.sign.output_file = Some((only.path.clone(), out));
+                        }
+                    }
+                }
                 SignAction::ChooseOutputDir => {
                     if let Some(dir) = crate::services::desktop::file_dialog()
                         .set_title(tr("Carpeta donde guardar las firmas"))
@@ -598,6 +614,10 @@ impl AutoFirmaApp {
                 None
             },
             output_dir: self.sign.output_dir.clone(),
+            output_file: match (self.sign.files.as_slice(), &self.sign.output_file) {
+                ([only], Some((input, out))) if *input == only.path => Some(out.clone()),
+                _ => None,
+            },
             overwrite: prefs.get("massiveOverride").is_some_and(|v| v == "true"),
             bridge: self.rt.bridge.clone(),
         };

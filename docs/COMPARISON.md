@@ -58,6 +58,57 @@ menú; AutoFirma-rs muestra un aviso con un botón que lo resuelve en el momento
 |---|---|
 | ![AutoFirma Java: error AF200801 al arrancar](img/java-inicio.png) | ![AutoFirma-rs: aviso con «Integrar ahora»](img/rs-inicio.png) |
 
+## Pasos por tarea
+
+`AFIRMA_JAR=… tools/bench/ui_tasks.sh <autofirma-rs>` maneja las dos interfaces con xdotool en un
+X virtual (Xvfb), cuenta lo que hay que hacer en cada tarea y, al terminar, comprueba el
+resultado (firma válida y visible, preferencia guardada). Son las interacciones que necesita un
+guion, no tiempos ni pruebas con personas, que no se han hecho.
+
+Las dos parten de una ventana de 1100×740, un perfil nuevo con las mismas preferencias y los
+mismos ficheros. Para firmar, el almacén por defecto es el PKCS#12 de pruebas; las dos piden su
+contraseña (Java al arrancar, AutoFirma-rs al elegir el certificado), y esa es la entrada de
+teclado de las tareas de firma. Los diálogos de ficheros se abren en la carpeta de los
+documentos: el propio de Java y el del escritorio (portal GTK) en AutoFirma-rs. Elegir un
+fichero cuesta dos clics en los dos (el fichero y «Abrir»), y elegir tres, tres (el primero, el
+último con Mayús y «Abrir»).
+
+| Tarea | | Clics | Teclado | Ventanas y diálogos | Al terminar |
+|---|---|---|---|---|---|
+| Firmar un PDF con firma visible | Java | 10 + 1 arrastre | 1 | 6 | ruta del fichero firmado |
+| | AutoFirma-rs | 8 + 1 arrastre | 1 | 5 | ruta del fichero firmado |
+| Firmar un PDF, un XML y un texto | Java | 8 | 1 | 5 | carpeta y nombre de cada firma |
+| | AutoFirma-rs | 7 | 1 | 4 | carpeta de las firmas, con botón para abrirla |
+| Verificar una firma CAdES y ver el firmante | Java | 4 | 0 | 2 | firmante, en un visor aparte |
+| | AutoFirma-rs | 4 | 0 | 1 | firmante, en la misma ventana |
+| Formato por defecto de «Resto de ficheros» | Java | 7 | 0 | 2 | sin aviso |
+| | AutoFirma-rs | 5 + 1 desplazamiento | 0 | 0 | sin aviso |
+
+«Ventanas y diálogos» cuenta las ventanas propias y las superpuestas a la principal, salvo las
+de progreso. De dónde salen las diferencias:
+
+- **PDF con firma visible**: Java pregunta dónde guardar y separa la firma visible en dos paneles
+  (posición y apariencia). AutoFirma-rs muestra la apariencia en el mismo editor y, antes de
+  firmar, enseña dónde guardará la firma («Guardar como: …/documento_signed.pdf», junto al
+  original y con `(1)` si ya existe), con un enlace «Cambiar» que abre el diálogo de guardar;
+  aceptar la propuesta no cuesta ningún clic.
+- **Tres ficheros**: Java pide la carpeta de salida en cada firma múltiple. AutoFirma-rs guarda
+  junto a cada original y lo indica antes de firmar («Carpeta de destino», con enlace para
+  cambiarla); la pantalla final dice dónde quedaron y permite abrir la carpeta.
+- **Verificar**: los mismos clics; Java abre el resultado en una ventana que luego hay que cerrar.
+- **Preferencias**: en Java, menú, diálogo con pestañas, subdiálogo «Formatos de firma» y dos
+  «Aceptar»; en AutoFirma-rs, la página «Preferencias» > «Firma» y «Guardar», aunque a 1100×740
+  hay que desplazar la página hasta el grupo de formatos.
+
+No se ha medido arrastrar ficheros a la ventana, que admiten las dos pero xdotool no simula de
+forma fiable, ni el manejo solo con teclado. Tampoco el tiempo: el guion espera pausas fijas tras
+cada paso, así que su duración no dice nada de la aplicación.
+
+| AutoFirma Java | AutoFirma-rs |
+|---|---|
+| ![AutoFirma Java: recuadro de la firma visible sobre la página, sin la apariencia](img/java-firma-pdf.png) | ![AutoFirma-rs: editor de la firma visible con la apariencia en la vista previa](img/rs-firma-pdf.png) |
+| ![AutoFirma Java: visor de firmas en una ventana aparte](img/java-verificar.png) | ![AutoFirma-rs: resultado de la verificación con el firmante](img/rs-verificar.png) |
+
 ## Diferencias de uso
 
 | | AutoFirma Java | AutoFirma-rs |

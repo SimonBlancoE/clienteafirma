@@ -25,6 +25,9 @@ pub struct SignJobInput {
     pub visible_params: Option<ExtraParams>,
     /// Carpeta de salida (firmas múltiples); `None` = junto al original.
     pub output_dir: Option<PathBuf>,
+    /// Fichero de salida elegido por el usuario (firma de un único documento); el
+    /// diálogo de guardar ya ha confirmado la sobrescritura.
+    pub output_file: Option<PathBuf>,
     pub overwrite: bool,
     pub bridge: UiBridge,
 }
@@ -147,6 +150,8 @@ fn write_output(input: &SignJobInput, file: &FileItem, signed: &[u8]) -> Result<
             .or_else(|| file.path.parent().map(|p| p.to_path_buf()))
             .unwrap_or_else(|| PathBuf::from("."));
         afirma_signers::naming::output_path(signer.as_ref(), &file.path, &dir, input.overwrite)
+    } else if let Some(chosen) = &input.output_file {
+        chosen.clone()
     } else {
         let proposed = afirma_signers::naming::single_output_path(signer.as_ref(), &file.path);
         if proposed.exists() {

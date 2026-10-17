@@ -147,6 +147,7 @@ impl AutoFirmaApp {
             crate::services::network::install(&|k| prefs.get(k));
         }
         tracing::debug!("arranque: almacén por defecto {:?}", app.rt.store_spec);
+        app.sign.store_label = app.rt.store_spec.display_name();
         if let Some(scale) = app.prefs.get("uiScale").and_then(|v| v.parse::<f32>().ok()) {
             cc.egui_ctx.set_zoom_factor(scale.clamp(0.8, 1.6));
         }
@@ -356,6 +357,7 @@ impl AutoFirmaApp {
         let prefs = &self.prefs;
         let spec = crate::services::certs::spec_from_prefs(&|k| prefs.get(k));
         if spec != self.rt.store_spec {
+            self.sign.store_label = spec.display_name();
             self.rt.store_spec = spec;
             self.rt.store = None;
         }
