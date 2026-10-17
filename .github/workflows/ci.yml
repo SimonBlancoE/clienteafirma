@@ -125,6 +125,25 @@ jobs:
           certutil -f -user -p 12341234 -importpfx testdata\pki\firmante-rsa.p12 NoRoot
           [Environment]::SetEnvironmentVariable('AUTOFIRMA_LOG', 'debug', 'User')
           python tools/ci/web_sign.py target\release\autofirma.exe web
+      - name: Abrir un fichero desde el Finder (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # La aplicación recién lanzada con un documento (evento «odoc», que AppKit entrega
+          # antes de terminar el arranque) lo recibe y la interfaz sigue en marcha.
+          log="$HOME/.afirma/AutoFirma-rs.log"
+          open -a /Applications/AutoFirma.app testdata/pades/rotated_pages.pdf
+          for _ in $(seq 60); do
+            grep -q 'Petición de apertura: File(".*rotated_pages.pdf")' "$log" 2>/dev/null && break
+            sleep 1
+          done
+          grep 'Petición de apertura: File' "$log"
+          sleep 5
+          if grep -q 'Error interno' "$log"; then
+            grep -A5 'Error interno' "$log"
+            exit 1
+          fi
+          pgrep -f AutoFirma.app/Contents/MacOS/autofirma
+          pkill -f AutoFirma.app/Contents/MacOS/autofirma
       - name: Firma desde una página web (macOS)
         if: runner.os == 'macOS'
         run: |
