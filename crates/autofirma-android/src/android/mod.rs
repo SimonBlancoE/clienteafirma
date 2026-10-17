@@ -10,7 +10,7 @@ use android_activity::{AndroidApp, OnCreateState};
 use tracing::{error, info};
 
 use crate::bridge::{Bridge, safe_area_points};
-use crate::screen::MainScreen;
+use crate::shell::Shell;
 
 /// Hilo principal de Java, dentro de `Activity.onCreate` y antes de `android_main`.
 #[unsafe(no_mangle)]
@@ -42,6 +42,12 @@ fn android_main(app: AndroidApp) {
     tls_self_check();
     let platform = Arc::new(java::JavaPlatform::new(app.clone()));
     let bridge = Bridge::global().clone();
+    // Directorio privado de la aplicación (Context.getFilesDir(), que GameActivity pasa a
+    // android-activity): preferencias e histórico de firmas.
+    let data_dir = app.internal_data_path();
+    if data_dir.is_none() {
+        error!("Sin directorio de datos: las preferencias no se guardarán");
+    }
     let options = eframe::NativeOptions {
         android_app: Some(app),
         // OpenGL ES 2/3 con EGL: disponible en todos los dispositivos con API 23 y en el
@@ -55,7 +61,7 @@ fn android_main(app: AndroidApp) {
         Box::new(move |cc| {
             bridge.set_repaint_context(cc.egui_ctx.clone());
             Ok(Box::new(App {
-                screen: MainScreen::new(platform, bridge.clone()),
+                shell: Shell::new(platform, bridge.clone(), data_dir.as_deref()),
                 bridge,
             }))
         }),
@@ -91,17 +97,17 @@ fn tls_self_check() {
 }
 
 struct App {
-    screen: MainScreen,
+    shell: Shell,
     bridge: Arc<Bridge>,
 }
 
 impl eframe::App for App {
-    fn logic(&mut self, _ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.screen.pump();
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.shell.pump(ctx);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.screen.ui(ui);
+        self.shell.ui(ui);
     }
 
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {

@@ -36,4 +36,25 @@ final class NativeBridge {
 
     /** Zona segura (barras del sistema, recortes de pantalla y teclado) en píxeles. */
     static native void onInsets(int left, int top, int right, int bottom);
+
+    /** Botón o gesto «Atrás» (la pila de pantallas está en Rust). */
+    static native void onBackPressed();
+
+    /**
+     * Configuración del dispositivo: idioma ({@code Locale.toLanguageTag()}), tema oscuro,
+     * escala del texto de accesibilidad y si hay NFC.
+     */
+    static native void onConfiguration(String locale, boolean night, float fontScale, boolean hasNfc);
+
+    /**
+     * Estado del editor del teclado en pantalla (GameTextInput): texto, selección y región de
+     * composición, con índices de la String (UTF-16; -1 si no hay).
+     */
+    static native void onTextInput(String text, int selStart, int selEnd, int composingStart, int composingEnd);
+
+    /** Tecla de acción del teclado ({@code EditorInfo.IME_ACTION_*}). */
+    static native void onEditorAction(int action);
+
+    /** El teclado en pantalla se ha mostrado u ocultado. */
+    static native void onImeVisibility(boolean visible);
 }

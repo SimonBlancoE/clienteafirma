@@ -85,67 +85,11 @@ impl SigningKey for KeyChainKey {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use std::sync::Mutex;
-
+mod tests {
     use afirma_core::DigestAlgorithm;
 
     use super::*;
-    use crate::bridge::RequestId;
-
-    /// Plataforma de prueba: KeyChain con un alias, sin Java.
-    #[derive(Default)]
-    pub(crate) struct FakePlatform {
-        pub chain: Vec<Vec<u8>>,
-        pub calls: Mutex<Vec<String>>,
-    }
-
-    impl FakePlatform {
-        fn record(&self, call: String) {
-            self.calls.lock().unwrap().push(call);
-        }
-    }
-
-    impl Platform for FakePlatform {
-        fn open_document(&self, request: RequestId) -> Result<(), PlatformError> {
-            self.record(format!("open_document {request}"));
-            Ok(())
-        }
-        fn choose_certificate(&self, request: RequestId) -> Result<(), PlatformError> {
-            self.record(format!("choose_certificate {request}"));
-            Ok(())
-        }
-        fn certificate_chain(&self, alias: &str) -> Result<Vec<Vec<u8>>, PlatformError> {
-            self.record(format!("certificate_chain {alias}"));
-            if alias == "firmante" {
-                Ok(self.chain.clone())
-            } else {
-                Err(PlatformError::new("java.security.KeyChainException: alias desconocido"))
-            }
-        }
-        fn sign(&self, alias: &str, algorithm: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>, PlatformError> {
-            self.record(format!("sign {alias} {} {}", algorithm.java_name(), data.len()));
-            Ok(vec![0x5a; 4])
-        }
-        fn start_nfc_reader(&self, request: RequestId) -> Result<(), PlatformError> {
-            self.record(format!("start_nfc_reader {request}"));
-            Err(PlatformError::new("sin NFC"))
-        }
-        fn nfc_transceive(&self, _apdu: &[u8]) -> Result<Vec<u8>, PlatformError> {
-            Err(PlatformError::new("sin NFC"))
-        }
-        fn stop_nfc_reader(&self) -> Result<(), PlatformError> {
-            Ok(())
-        }
-    }
-
-    /// Certificado autofirmado de prueba (P-256).
-    pub(crate) fn test_certificate(cn: &str) -> Vec<u8> {
-        let key = rcgen::KeyPair::generate().unwrap();
-        let mut params = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
-        params.distinguished_name.push(rcgen::DnType::CommonName, cn);
-        params.self_signed(&key).unwrap().der().to_vec()
-    }
+    use crate::testing::{FakePlatform, test_certificate};
 
     #[test]
     fn firma_con_el_alias_y_el_nombre_java_del_algoritmo() {

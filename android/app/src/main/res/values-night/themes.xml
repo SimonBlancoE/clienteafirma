@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema oscuro del sistema: los colores de la paleta oscura de la interfaz egui. -->
+    <color name="background">#0F1217</color>
+    <color name="primary">#F06E2E</color>
+</resources>

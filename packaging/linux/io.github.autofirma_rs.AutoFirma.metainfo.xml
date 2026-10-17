@@ -51,8 +51,8 @@
   <launchable type="desktop-id">autofirma.desktop</launchable>
   <icon type="stock">autofirma</icon>
 
-  <url type="homepage">https://github.com/autofirma-rs/autofirma-rs</url>
-  <url type="bugtracker">https://github.com/autofirma-rs/autofirma-rs/issues</url>
+  <url type="homepage">https://github.com/SimonBlancoE/autofirma-rs</url>
+  <url type="bugtracker">https://github.com/SimonBlancoE/autofirma-rs/issues</url>
 
   <categories>
     <category>Office</category>

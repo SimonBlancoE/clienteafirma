@@ -1,7 +1,9 @@
 package io.github.autofirma_rs.android;
 
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
@@ -14,15 +16,23 @@ import android.provider.OpenableColumns;
 import android.security.KeyChain;
 import android.util.Log;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityManager;
+import android.view.inputmethod.EditorInfo;
+import android.widget.FrameLayout;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.graphics.Insets;
+import androidx.core.os.ConfigurationCompat;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.androidgamesdk.GameActivity;
+import com.google.androidgamesdk.GameTextInputAccess;
+import com.google.androidgamesdk.gametextinput.State;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,6 +40,7 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -43,9 +54,11 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>Métodos públicos que llama Rust por JNI (desde cualquier hilo): selector de documentos
- *       (SAF), KeyChain (selector, cadena y firma) y lector NFC (IsoDep).</li>
+ *       (SAF), KeyChain (selector, cadena y firma), lector NFC (IsoDep), teclado en pantalla,
+ *       enlaces y dejar la aplicación en segundo plano.</li>
  *   <li>Avisos a Rust por {@link NativeBridge}: intents {@code afirma://}, resultados de las
- *       actividades del sistema y la zona segura de la ventana.</li>
+ *       actividades del sistema, la zona segura de la ventana, la configuración (idioma, tema,
+ *       escala del texto), el botón «Atrás» y el estado del editor del teclado.</li>
  * </ul>
  *
  * <p>Los métodos que bloquean ({@link #certificateChain}, {@link #sign}, {@link #nfcTransceive})
@@ -64,6 +77,9 @@ public final class MainActivity extends GameActivity {
     private final ActivityResultLauncher<String[]> openDocumentLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onDocumentChosen);
 
+    /** Pantalla raíz sin diálogo en Rust: «Atrás» deja la aplicación en segundo plano. */
+    private volatile boolean backAtRoot;
+
     /** Petición del selector de documentos en curso (0 si no hay). Solo en el hilo principal. */
     private long pendingOpenDocument;
 
@@ -78,16 +94,69 @@ public final class MainActivity extends GameActivity {
         EdgeToEdge.enable(this);
         // Carga la biblioteca nativa y arranca android_main.
         super.onCreate(savedInstanceState);
-        // Atrás deja la aplicación en segundo plano en lugar de destruir la actividad (winit no
-        // puede crear un segundo bucle de eventos en el mismo proceso).
+        // «Atrás» lo decide Rust (pila de pantallas). En una pantalla raíz sin diálogo (Rust lo
+        // avisa con setBackAtRoot) la aplicación pasa a segundo plano aquí mismo, en lugar de
+        // destruir la actividad (winit no puede crear un segundo bucle de eventos en el mismo
+        // proceso): hecho más tarde desde Rust, el sistema a veces no movía la tarea.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                moveTaskToBack(true);
+                if (backAtRoot) {
+                    Log.i(TAG, "Atrás en una pantalla raíz: la aplicación pasa a segundo plano");
+                    moveTaskToBack(true);
+                } else {
+                    NativeBridge.onBackPressed();
+                }
             }
         });
+        sendConfiguration(getResources().getConfiguration());
         if (savedInstanceState == null) {
             deliverViewIntent(getIntent());
+        }
+    }
+
+    /**
+     * Igual que el de GameActivity, pero con un contenedor que no pasa eventos de accesibilidad
+     * cuando la accesibilidad está desactivada. accesskit_android (0.8) sigue enviándolos
+     * cuando se desconecta un servicio (TalkBack apagado, uiautomator) y
+     * {@code AccessibilityManager.sendAccessibilityEvent} lanza «Accessibility off» en el hilo
+     * principal: el {@code unwrap} de Rust haría abortar el proceso.
+     */
+    @Override
+    protected void onCreateSurfaceView() {
+        mSurfaceView = createSurfaceView();
+        if (mSurfaceView == null) {
+            return;
+        }
+        FrameLayout frame = new AccessibilityGuardLayout(this);
+        contentViewId = ViewCompat.generateViewId();
+        frame.setId(contentViewId);
+        frame.addView(mSurfaceView);
+        setContentView(frame);
+        mSurfaceView.getHolder().addCallback(this);
+        ViewCompat.setOnApplyWindowInsetsListener(mSurfaceView, this);
+    }
+
+    /** Contenedor de la superficie que descarta los eventos de accesibilidad sin servicios activos. */
+    private static final class AccessibilityGuardLayout extends FrameLayout {
+        private final AccessibilityManager accessibility;
+
+        AccessibilityGuardLayout(Context context) {
+            super(context);
+            accessibility = (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+        }
+
+        @Override
+        public boolean requestSendAccessibilityEvent(View child, AccessibilityEvent event) {
+            if (accessibility == null || !accessibility.isEnabled()) {
+                return false;
+            }
+            try {
+                return super.requestSendAccessibilityEvent(child, event);
+            } catch (IllegalStateException e) {
+                // Se ha desactivado entre la comprobación y el envío.
+                return false;
+            }
         }
     }
 
@@ -96,6 +165,24 @@ public final class MainActivity extends GameActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         deliverViewIntent(intent);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Colores de los iconos de las barras del sistema según el tema (claro u oscuro).
+        EdgeToEdge.enable(this);
+        sendConfiguration(newConfig);
+    }
+
+    /** Idioma, tema, escala del texto y NFC para la interfaz de Rust. */
+    private void sendConfiguration(Configuration configuration) {
+        Locale locale = ConfigurationCompat.getLocales(configuration).get(0);
+        boolean night = (configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        boolean hasNfc = NfcAdapter.getDefaultAdapter(this) != null;
+        NativeBridge.onConfiguration(
+                locale != null ? locale.toLanguageTag() : "", night, configuration.fontScale, hasNfc);
     }
 
     @Override
@@ -123,6 +210,85 @@ public final class MainActivity extends GameActivity {
                 | WindowInsetsCompat.Type.ime());
         NativeBridge.onInsets(safe.left, safe.top, safe.right, safe.bottom);
         return result;
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Navegación y enlaces
+
+    /** Desde Rust: «Atrás» dejaría la aplicación en segundo plano (pantalla raíz sin diálogo). */
+    public void setBackAtRoot(boolean atRoot) {
+        backAtRoot = atRoot;
+    }
+
+    /** Desde Rust: «Atrás» en la pantalla principal; la actividad sigue viva. */
+    public void leaveApp() {
+        runOnUiThread(() -> moveTaskToBack(true));
+    }
+
+    /** Desde Rust: abre una URL en el navegador. No bloquea. */
+    public void openUrl(long request, String url) {
+        runOnUiThread(() -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        .addCategory(Intent.CATEGORY_BROWSABLE));
+            } catch (ActivityNotFoundException e) {
+                NativeBridge.onRequestFailed(request, false, "no hay ninguna aplicación para abrir el enlace");
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Teclado en pantalla (GameTextInput)
+    //
+    // Mientras el teclado está activo, GameTextInput se queda con las pulsaciones y con lo que
+    // escribe el teclado y avisa del estado completo del editor (stateChanged), que winit
+    // descarta. Aquí se pasa ese estado a Rust y Rust abre, actualiza y cierra el teclado
+    // (src/ime.rs). Todo en el hilo principal. Los índices son de la String de Java (UTF-16).
+
+    /** Desde Rust: abre el teclado para un campo (tipo de entrada, acción y opciones de EditorInfo). */
+    public void imeShow(int inputType, int actionId, int imeOptions, String text, int selStart, int selEnd) {
+        runOnUiThread(() -> {
+            setImeEditorInfoFields(inputType, actionId, imeOptions);
+            setEditorState(text, selStart, selEnd);
+            GameTextInputAccess.setSoftKeyboardActive(this, true);
+        });
+    }
+
+    /** Desde Rust: el campo ha cambiado el texto o la selección. */
+    public void imeUpdate(String text, int selStart, int selEnd) {
+        runOnUiThread(() -> setEditorState(text, selStart, selEnd));
+    }
+
+    /** Desde Rust: ningún campo tiene el foco. */
+    public void imeHide() {
+        runOnUiThread(() -> GameTextInputAccess.setSoftKeyboardActive(this, false));
+    }
+
+    private void setEditorState(String text, int selStart, int selEnd) {
+        // El teclado lee la selección inicial de EditorInfo al volver a conectarse.
+        EditorInfo info = getImeEditorInfo();
+        info.initialSelStart = selStart;
+        info.initialSelEnd = selEnd;
+        setTextInputState(new State(text, selStart, selEnd, -1, -1));
+    }
+
+    // No se llama a super en estos tres: android-activity los encolaría para winit, que los
+    // descarta registrando el evento (con el texto, que puede ser una contraseña o un PIN).
+
+    @Override
+    public void stateChanged(State newState, boolean dismissed) {
+        NativeBridge.onTextInput(newState.text, newState.selectionStart, newState.selectionEnd,
+                newState.composingRegionStart, newState.composingRegionEnd);
+    }
+
+    @Override
+    public void onEditorAction(int action) {
+        NativeBridge.onEditorAction(action);
+    }
+
+    @Override
+    public void onSoftwareKeyboardVisibilityChanged(boolean visible) {
+        NativeBridge.onImeVisibility(visible);
     }
 
     // -------------------------------------------------------------------------------------

@@ -151,7 +151,7 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
           description: AutoFirma
-          description-url: https://github.com/autofirma-rs/autofirma-rs
+          description-url: https://github.com/SimonBlancoE/autofirma-rs
 
       - name: Empaquetar (ZIP portable y MSI)
         shell: pwsh
@@ -180,7 +180,7 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
           description: AutoFirma
-          description-url: https://github.com/autofirma-rs/autofirma-rs
+          description-url: https://github.com/SimonBlancoE/autofirma-rs
 
       - uses: actions/upload-artifact@v7
         with:

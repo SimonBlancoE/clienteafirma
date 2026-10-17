@@ -12,3 +12,10 @@
 
 # GameActivity: android-activity llama a sus métodos y campos desde C.
 -keep class com.google.androidgamesdk.** { *; }
+
+# Sin registros de depuración en la release: GameTextInput registra con Log.d el texto del
+# editor en cada pulsación (contraseñas, PIN, CAN).
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int v(...);
+}

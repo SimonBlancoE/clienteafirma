@@ -23,6 +23,8 @@ use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use afirma_core::SignatureAlgorithm;
 
+use crate::ime::{ImeRequest, ImeState};
+
 /// Identificador de una petición a la capa Java (para casar la respuesta con su petición).
 pub type RequestId = i64;
 
@@ -70,6 +72,53 @@ pub trait Platform: Send + Sync {
 
     /// Desactiva el modo lector NFC y cierra la conexión con la tarjeta.
     fn stop_nfc_reader(&self) -> Result<(), PlatformError>;
+
+    /// Deja la aplicación en segundo plano (`moveTaskToBack`): «Atrás» en la pantalla
+    /// principal. La actividad no se destruye (winit no puede crear otro bucle de eventos).
+    fn leave_app(&self) -> Result<(), PlatformError>;
+
+    /// Indica si «Atrás» dejaría ahora la app en segundo plano (pantalla raíz sin diálogo).
+    /// Entonces Java llama a `moveTaskToBack` en el mismo gesto, sin pasar por Rust: hecho
+    /// después, desde otro mensaje del hilo principal, el sistema a veces no mueve la tarea.
+    fn set_back_at_root(&self, at_root: bool) -> Result<(), PlatformError>;
+
+    /// Abre una URL en el navegador (`ACTION_VIEW`). Si no hay ninguna aplicación que la
+    /// abra, responde [`PlatformEvent::RequestFailed`].
+    fn open_url(&self, request: RequestId, url: &str) -> Result<(), PlatformError>;
+
+    /// Abre el teclado en pantalla con el tipo de entrada y el estado de un campo.
+    fn ime_show(&self, request: &ImeRequest) -> Result<(), PlatformError>;
+
+    /// Cambia el texto o la selección que conoce el teclado (cambios hechos en egui).
+    fn ime_update(&self, state: &ImeState) -> Result<(), PlatformError>;
+
+    /// Cierra el teclado en pantalla.
+    fn ime_hide(&self) -> Result<(), PlatformError>;
+}
+
+/// Configuración del dispositivo que interesa a la interfaz (la envía Java al crear la
+/// actividad y en cada `onConfigurationChanged`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeviceConfig {
+    /// Idioma del sistema (`Locale.toLanguageTag()`, p. ej. `ca-ES-valencia`).
+    pub locale: String,
+    /// Tema oscuro del sistema (`UI_MODE_NIGHT_YES`).
+    pub night: bool,
+    /// Escala del texto de accesibilidad (`Configuration.fontScale`).
+    pub font_scale: f32,
+    /// El dispositivo tiene NFC (`NfcAdapter.getDefaultAdapter() != null`).
+    pub has_nfc: bool,
+}
+
+impl Default for DeviceConfig {
+    fn default() -> Self {
+        DeviceConfig {
+            locale: String::new(),
+            night: false,
+            font_scale: 1.0,
+            has_nfc: false,
+        }
+    }
 }
 
 /// Evento para la interfaz.
@@ -105,6 +154,16 @@ pub enum PlatformEvent {
         cancelled: bool,
         message: Option<String>,
     },
+    /// Botón o gesto «Atrás» del sistema (`OnBackPressedDispatcher`).
+    Back,
+    /// Configuración del dispositivo (al arrancar y cuando cambia).
+    Configuration(DeviceConfig),
+    /// Nuevo estado del editor del teclado en pantalla (`stateChanged`).
+    ImeState(ImeState),
+    /// Tecla de acción del teclado (`onEditorAction`, con el `actionId`).
+    ImeAction(i32),
+    /// El teclado en pantalla se ha mostrado u ocultado.
+    ImeVisibility(bool),
 }
 
 /// Datos de una tarjeta ISO-DEP detectada: los que necesita la identificación del DNIe

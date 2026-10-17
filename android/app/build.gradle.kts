@@ -4,9 +4,11 @@ plugins {
     id("com.android.application")
 }
 
-// API mínima: la misma que la app oficial «Cliente @firma móvil» (Android 6.0). KeyChain con
-// Uri en choosePrivateKeyAlias, ACTION_OPEN_DOCUMENT y el modo lector NFC ya existen en 23.
-val minSdkVersion = 23
+// API mínima: Android 8.0. La app oficial «Cliente @firma móvil» admite desde la 23 (6.0), pero
+// la accesibilidad (TalkBack) de egui pasa por accesskit_android, que carga su clase Java con
+// InMemoryDexClassLoader (API 26) al crear la ventana: con 23-25 la app no arrancaría. Véase
+// docs/ANDROID.md §1. Todo lo demás (KeyChain, SAF, NFC) funciona desde la 23.
+val minSdkVersion = 26
 
 // ABI que se compilan con cargo-ndk (gradle.properties o -Pautofirma.abis=x86_64).
 val rustAbis: List<String> = providers.gradleProperty("autofirma.abis")

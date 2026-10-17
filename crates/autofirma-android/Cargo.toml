@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
 authors.workspace = true
 publish = false
 
@@ -23,12 +24,21 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 x509-parser.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
 
 # Solo en Android: así la compilación del anfitrión no arrastra winit/glutin sin X11 ni
 # Wayland (y los rasgos de estas dependencias no se unifican con los de la aplicación de
 # escritorio).
 [target.'cfg(target_os = "android")'.dependencies]
-eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "android-game-activity"] }
+# accesskit: accesibilidad (TalkBack) con accesskit_android, que eframe solo admite con
+# GameActivity; obliga a minSdk 26 (InMemoryDexClassLoader, véase android/app/build.gradle.kts).
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "android-game-activity", "accesskit"] }
+# El adaptador de Android de AccessKit es una dependencia opcional de accesskit_winit que
+# eframe no activa: se activa aquí (los rasgos se unifican). Sin él, accesskit_winit usa su
+# adaptador vacío y TalkBack no ve nada.
+accesskit_winit = { version = "0.34", default-features = false, features = ["accesskit_android"] }
 # Misma versión que usa winit 0.30 (la que incluye el código C de GameActivity 4.4.0; la
 # dependencia de Gradle androidx.games:games-activity debe coincidir).
 android-activity = { version = "0.6", features = ["game-activity"] }
@@ -42,3 +52,4 @@ tracing-subscriber.workspace = true
 
 [dev-dependencies]
 rcgen.workspace = true
+tempfile.workspace = true

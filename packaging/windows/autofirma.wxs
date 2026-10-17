@@ -68,8 +68,8 @@
     <Property Id="ARPPRODUCTICON" Value="AutoFirmaIcon" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPCOMMENTS" Value="Firma electrónica de documentos y en trámites web (protocolo afirma://)" />
-    <Property Id="ARPHELPLINK" Value="https://github.com/autofirma-rs/autofirma-rs" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/autofirma-rs/autofirma-rs" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/SimonBlancoE/autofirma-rs" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/SimonBlancoE/autofirma-rs" />
 
     <!-- Propiedades públicas (Secure: se transmiten a la fase de ejecución elevada) -->
     <Property Id="BROWSER_POLICIES" Secure="yes" />

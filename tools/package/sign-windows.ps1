@@ -21,7 +21,7 @@
 param(
     [Parameter(Mandatory = $true)] [string[]] $Files,
     [string] $Description = 'AutoFirma',
-    [string] $DescriptionUrl = 'https://github.com/autofirma-rs/autofirma-rs'
+    [string] $DescriptionUrl = 'https://github.com/SimonBlancoE/autofirma-rs'
 )
 
 $ErrorActionPreference = 'Stop'

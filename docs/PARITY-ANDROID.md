@@ -12,32 +12,32 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 
 | Id | Función | Estado | Notas |
 |---|---|---|---|
-| AND-TEC-01 | Identificador `es.gob.afirma`, versión 1.9 (27), minSdk 23, targetSdk 35 | ❌ pendiente | 09 §1.1 |
+| AND-TEC-01 | Identificador `es.gob.afirma`, versión 1.9 (27), minSdk 23, targetSdk 35 | 🔁 | `io.github.autofirma_rs.android`, versión del espacio de trabajo, targetSdk 35; **minSdk 26** (la accesibilidad con AccessKit necesita `InMemoryDexClassLoader`, [ANDROID.md](ANDROID.md) §1) · 09 §1.1 |
 | AND-TEC-02 | Permisos (Internet, NFC, almacenamiento < 11) y características | ❌ pendiente | 09 §1.3 |
 | AND-TEC-03 | Seguridad de red: CA del sistema, del usuario y 26 CA españolas; tráfico en claro permitido | ❌ pendiente | 09 §1.5 |
 | AND-TEC-04 | Sin copia de seguridad de datos de la app; logs solo en depuración | ❌ pendiente | 09 §1.1, 09 §1.7 |
-| AND-TEC-05 | Orientación vertical en móvil y libre en tableta | ❌ pendiente | 09 §1.4 |
-| AND-NAV-01 | Splash de 2 s con logos y enrutado (bienvenida → condiciones → inicio) | ❌ pendiente | 09 §2.4 |
-| AND-NAV-02 | Bienvenida de primera ejecución | ❌ pendiente | 09 §2.4; `skipIntroScreen` |
-| AND-NAV-03 | Aceptación de condiciones: idioma, HTML de política y aviso, dos casillas | ❌ pendiente | 09 §2.4; `skipConditionsScreen` |
+| AND-TEC-05 | Orientación vertical en móvil y libre en tableta | 🔁 | La app gira en móviles y tabletas (WCAG 1.3.4 pide no bloquear la orientación); la interfaz se adapta (contenido centrado en horizontal). Emulador: capturas en horizontal · 09 §1.4 |
+| AND-NAV-01 | Splash de 2 s con logos y enrutado (bienvenida → condiciones → inicio) | ➕ | Arranque de 1,5 s que se salta tocando y con un enlace `afirma://` en frío; mismo enrutado (`nav::route_after_splash`, prueba `enrutado_del_arranque`). Sin logotipos institucionales ([ANDROID.md](ANDROID.md) §9.7). Emulador: captura 01 · 09 §2.4 |
+| AND-NAV-02 | Bienvenida de primera ejecución | ✅ | «Comenzar» guarda `skipIntroScreen` (prueba `primera_ejecucion_bienvenida_condiciones_e_inicio`); emulador: captura 02 · 09 §2.4 |
+| AND-NAV-03 | Aceptación de condiciones: idioma, HTML de política y aviso, dos casillas | 🔁 | Selector de idioma (sin volver al español, §10 n.º 3), dos casillas y «Aceptar» solo con ambas; los textos de privacidad y aviso legal son propios ([ANDROID.md](ANDROID.md) §9.7). Pruebas en el anfitrión y emulador (capturas 03–05) · 09 §2.4 |
 
 ## Pantallas y navegación
 
 | Id | Función | Estado | Notas |
 |---|---|---|---|
-| AND-NAV-04 | Inicio: «Firmar fichero», «Añadir nuevo certificado», menú Información/Ajustes | ❌ pendiente | 09 §2.5 |
-| AND-NAV-05 | Pregunta de primera ejecución para habilitar el DNIe por NFC | ❌ pendiente | 09 §2.5; `firstExecution` |
-| AND-NAV-06 | Diálogo de ayuda «¿Para qué sirve Autofirma?» | ❌ pendiente | 09 §2.5 |
-| AND-NAV-07 | Diálogos de resultado en Inicio (éxito y error con código `AA`) | ❌ pendiente | 09 §2.5, 09 §3.9 |
-| AND-NAV-08 | Ajustes con secciones Mi configuración / Ayuda / Información general | ❌ pendiente | 09 §2.6 |
-| AND-NAV-09 | Selección de idioma (6) con recarga de la interfaz | ❌ pendiente | 09 §2.7 |
-| AND-NAV-10 | Preguntas frecuentes (3) | ❌ pendiente | 09 §2.11 |
-| AND-NAV-11 | Pantallas de ayuda (DNIe NFC, firma visible, dominios, certificados) con accesos directos | ❌ pendiente | 09 §2.11 |
-| AND-NAV-12 | Aviso legal y política de privacidad en HTML local por idioma | ❌ pendiente | 09 §2.12 |
-| AND-NAV-13 | Declaración de accesibilidad (URL por idioma) | ❌ pendiente | 09 §2.6 |
-| AND-NAV-14 | Pantalla de versión con licencia y enlaces | ❌ pendiente | 09 §2.12 |
-| AND-NAV-15 | Comportamiento de Atrás por pantalla | ❌ pendiente | 09 §2.13 |
-| AND-NAV-16 | Diálogos genéricos (*bottom sheet*) y de progreso | ❌ pendiente | 09 §2.2 |
+| AND-NAV-04 | Inicio: «Firmar fichero», «Añadir nuevo certificado», menú Información/Ajustes | ➕ | «Firmar fichero» (abre el selector; la firma es de la fase siguiente), «Añadir nuevo certificado», Información y Ajustes; además accesos a firma web, certificados e histórico. Emulador: capturas 06, `selector.png` · 09 §2.5 |
+| AND-NAV-05 | Pregunta de primera ejecución para habilitar el DNIe por NFC | ✅ | Una vez, si hay NFC; «Sí» activa `useNfc` (prueba `pregunta_de_nfc_en_la_primera_ejecucion`; el emulador no tiene NFC) · 09 §2.5 |
+| AND-NAV-06 | Diálogo de ayuda «¿Para qué sirve Autofirma?» | ✅ | Hoja inferior con los textos del original (sin el botón oculto «Más información»). Emulador: captura 07 · 09 §2.5 |
+| AND-NAV-07 | Diálogos de resultado en Inicio (éxito y error con código `AA`) | ⚠️ | El diálogo genérico (`Dialog::Message`, iconos de éxito y error) está hecho; lo usarán los resultados de la firma local · 09 §2.5, 09 §3.9 |
+| AND-NAV-08 | Ajustes con secciones Mi configuración / Ayuda / Información general | ✅ | Tres secciones con la abreviatura del idioma; prueba `ajustes_y_pila_de_atras`, emulador: capturas 16, 34 · 09 §2.6 |
+| AND-NAV-09 | Selección de idioma (6) con recarga de la interfaz | ➕ | Seis idiomas más «Idioma del sistema»; se aplica al momento y se guarda (prueba `idioma_inmediato_persistente_y_del_sistema`; emulador: gallego y vuelta, capturas 17, 33) · 09 §2.7 |
+| AND-NAV-10 | Preguntas frecuentes (3) | ✅ | Tres preguntas desplegables con las respuestas del original. Emulador: captura 24 · 09 §2.11 |
+| AND-NAV-11 | Pantallas de ayuda (DNIe NFC, firma visible, dominios, certificados) con accesos directos | ✅ | Cuatro ayudas con sus accesos directos (iconos en lugar de las ilustraciones). Emulador: capturas 25–28 · 09 §2.11 |
+| AND-NAV-12 | Aviso legal y política de privacidad en HTML local por idioma | 🔁 | Textos propios en los seis idiomas, dentro de la app ([ANDROID.md](ANDROID.md) §9.7). Emulador: capturas 30, 31 · 09 §2.12 |
+| AND-NAV-13 | Declaración de accesibilidad (URL por idioma) | 🔁 | Declaración propia dentro de la app, con enlace al repositorio. Emulador: captura 29 · 09 §2.6 |
+| AND-NAV-14 | Pantalla de versión con licencia y enlaces | 🔁 | Versión, qué es AutoFirma para Android, licencias (enlace EUPL) y código fuente. Emulador: captura 32 · 09 §2.12 |
+| AND-NAV-15 | Comportamiento de Atrás por pantalla | ➕ | Pila de pantallas en Rust: Ajustes e Idioma vuelven atrás (§10 n.º 4), las instrucciones retroceden de página, los diálogos se cierran primero y las pantallas raíz dejan la app en segundo plano (pruebas `pila_y_atras`, `ajustes_y_pila_de_atras`; emulador: pasos 3, 7 y recorrido) · 09 §2.13 |
+| AND-NAV-16 | Diálogos genéricos (*bottom sheet*) y de progreso | ⚠️ | Hojas inferiores (ayuda, NFC, mensajes, minutos, borrar histórico, idioma); falta el diálogo de progreso modal (de momento, indicadores dentro de la pantalla) · 09 §2.2 |
 
 ## Firma local
 
@@ -72,7 +72,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | AND-CER-08 | Avisos de certificado caducado, próximo a caducar (< 7 días) y de seudónimo | ❌ pendiente | 09 §4.6 |
 | AND-CER-09 | Caché de certificado (*sticky*) con caducidad configurable; nunca con DNIe | ❌ pendiente | 09 §4.7 |
 | AND-CER-10 | Proveedor de la tarjeta en los extraParams del PKCS#1 | ❌ pendiente | 09 §3.6 |
-| AND-CER-11 | Asistente de importación de certificados (2 páginas) | ❌ pendiente | 09 §4.8 |
+| AND-CER-11 | Asistente de importación de certificados (2 páginas) | ⚠️ | Las dos páginas con «Continuar», «Atrás» de página y puntos; «Añadir certificado» lleva a «Próximamente» (importación en la fase de certificados). Emulador: capturas 10–12 · 09 §4.8 |
 | AND-CER-12 | Importación `.p12/.pfx` en `KeyChain` y mensajes | ❌ pendiente | 09 §4.8 |
 
 ## DNIe por NFC (interfaz)
@@ -132,13 +132,13 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 
 | Id | Función | Estado | Notas |
 |---|---|---|---|
-| AND-PRF-01 | Almacén `afirma.client` con todas las claves y valores por defecto | ❌ pendiente | 09 §7 |
-| AND-PRF-02 | Configuración de firma (NFC, firma visible, ofuscación, minutos de caché) | ❌ pendiente | 09 §2.8 |
-| AND-PRF-03 | Dominios de confianza: validar SSL y lista con validación de formato | ❌ pendiente | 09 §2.9 |
-| AND-PRF-04 | Idioma persistido | ❌ pendiente | 09 §2.7 |
-| AND-HIS-01 | Fichero `signsRecord.txt` (formato y escritura) | ❌ pendiente | 09 §3.10 |
-| AND-HIS-02 | Pantalla del histórico (orden y descripciones por tipo) | ❌ pendiente | 09 §2.10 |
-| AND-HIS-03 | Eliminar histórico con confirmación | ❌ pendiente | 09 §2.10 |
-| AND-I18N-01 | Seis idiomas con las mismas 272 claves | ❌ pendiente | 09 §9 |
+| AND-PRF-01 | Almacén `afirma.client` con todas las claves y valores por defecto | ✅ | `prefs::Prefs`: mismas claves, tipos y valores por defecto, en `afirma.client.json` del directorio privado, escritura atómica (pruebas `prefs::tests`) · 09 §7 |
+| AND-PRF-02 | Configuración de firma (NFC, firma visible, ofuscación, minutos de caché) | ✅ | Interruptores (NFC deshabilitado sin NFC), minutos 5/15/30/60/120 con «Por defecto», nada se guarda sin «Guardar» (prueba `configuracion_de_firma_y_minutos_de_cache`; emulador: capturas 18–20) · 09 §2.8 |
+| AND-PRF-03 | Dominios de confianza: validar SSL y lista con validación de formato | ➕ | «Validar conexiones SSL» al instante; lista validada con la expresión del original y error AA200700; se admiten también comas (§10 n.º 47). Escrita con el teclado en pantalla en el emulador (capturas 21–23) · 09 §2.9 |
+| AND-PRF-04 | Idioma persistido | ➕ | `localeConfig`; sin elegir, el idioma del sistema; se recupera tras reiniciar (emulador, paso 8) · 09 §2.7 |
+| AND-HIS-01 | Fichero `signsRecord.txt` (formato y escritura) | ⚠️ | Formato, lectura y escritura (`history::SignsHistory`, con las correcciones de §10 n.º 54); lo escribirán las fases de firma · 09 §3.10 |
+| AND-HIS-02 | Pantalla del histórico (orden y descripciones por tipo) | ✅ | Lista de más reciente a más antigua con las descripciones de la tabla de §2.10 (prueba `descripciones_por_tipo`) · 09 §2.10 |
+| AND-HIS-03 | Eliminar histórico con confirmación | ✅ | Confirmación y «No se encuentran registros» (prueba `historico_y_borrado`; emulador: captura 15) · 09 §2.10 |
+| AND-I18N-01 | Seis idiomas con las mismas 272 claves | ✅ | Seis catálogos con las 272 claves más las propias y las erratas corregidas (§10 n.º 59, [ANDROID.md](ANDROID.md) §9.2); prueba `catalogos_completos` · 09 §9 |
 | AND-I18N-02 | Catálogo de errores `AA` localizado | ❌ pendiente | 09 §8.1 |
-| AND-I18N-03 | Textos legales HTML por idioma | ❌ pendiente | 09 §1.6, 09 §2.12 |
+| AND-I18N-03 | Textos legales HTML por idioma | 🔁 | Textos legales propios en los seis idiomas en los catálogos ([ANDROID.md](ANDROID.md) §9.7) · 09 §1.6, 09 §2.12 |

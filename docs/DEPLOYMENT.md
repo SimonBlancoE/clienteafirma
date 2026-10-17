@@ -644,7 +644,7 @@ No hay control equivalente en el sistema. Publique `SHA256SUMS` firmado con GPG
 ```sh
 sha256sum -c SHA256SUMS --ignore-missing
 gpg --verify SHA256SUMS.asc SHA256SUMS
-gh attestation verify AutoFirma-2.0.0-windows-x86_64.msi --repo autofirma-rs/autofirma-rs
+gh attestation verify AutoFirma-2.0.0-windows-x86_64.msi --repo SimonBlancoE/autofirma-rs
 ```
 
 En Windows: `Get-AuthenticodeSignature .\AutoFirma-2.0.0-windows-x86_64.msi`; en macOS:

@@ -14,10 +14,11 @@ use afirma_core::SignatureAlgorithm;
 use android_activity::{AndroidApp, OnCreateState};
 use jni::errors::{Error as JniError, LogErrorAndDefault};
 use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString, JValue};
-use jni::sys::{jboolean, jint, jlong};
+use jni::sys::{jboolean, jfloat, jint, jlong};
 use jni::{Env, EnvUnowned, JavaVM, jni_mangle, jni_sig, jni_str};
 
-use crate::bridge::{Bridge, NfcTagInfo, Platform, PlatformError, PlatformEvent, RequestId};
+use crate::bridge::{Bridge, DeviceConfig, NfcTagInfo, Platform, PlatformError, PlatformEvent, RequestId};
+use crate::ime::{ImeRequest, ImeState};
 
 /// Tamaño máximo de un documento abierto con el selector del sistema.
 const MAX_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
@@ -177,6 +178,80 @@ impl Platform for JavaPlatform {
     fn stop_nfc_reader(&self) -> Result<(), PlatformError> {
         self.with_activity(|env, activity| {
             env.call_method(activity, jni_str!("stopNfcReader"), jni_sig!("()V"), &[])?;
+            Ok(())
+        })
+    }
+
+    fn leave_app(&self) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(activity, jni_str!("leaveApp"), jni_sig!("()V"), &[])?;
+            Ok(())
+        })
+    }
+
+    fn set_back_at_root(&self, at_root: bool) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(
+                activity,
+                jni_str!("setBackAtRoot"),
+                jni_sig!("(Z)V"),
+                &[JValue::Bool(at_root)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn open_url(&self, request: RequestId, url: &str) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            let url = JString::new(env, url)?;
+            env.call_method(
+                activity,
+                jni_str!("openUrl"),
+                jni_sig!("(JLjava/lang/String;)V"),
+                &[JValue::Long(request), JValue::Object(&url)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn ime_show(&self, request: &ImeRequest) -> Result<(), PlatformError> {
+        let (start, end) = request.state.selection_utf16();
+        self.with_activity(|env, activity| {
+            let text = JString::new(env, &request.state.text)?;
+            env.call_method(
+                activity,
+                jni_str!("imeShow"),
+                jni_sig!("(IIILjava/lang/String;II)V"),
+                &[
+                    JValue::Int(request.kind.input_type()),
+                    JValue::Int(request.kind.action_id()),
+                    JValue::Int(request.kind.ime_options()),
+                    JValue::Object(&text),
+                    JValue::Int(start),
+                    JValue::Int(end),
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn ime_update(&self, state: &ImeState) -> Result<(), PlatformError> {
+        let (start, end) = state.selection_utf16();
+        self.with_activity(|env, activity| {
+            let text = JString::new(env, &state.text)?;
+            env.call_method(
+                activity,
+                jni_str!("imeUpdate"),
+                jni_sig!("(Ljava/lang/String;II)V"),
+                &[JValue::Object(&text), JValue::Int(start), JValue::Int(end)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn ime_hide(&self) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(activity, jni_str!("imeHide"), jni_sig!("()V"), &[])?;
             Ok(())
         })
     }
@@ -344,4 +419,72 @@ pub fn on_insets<'local>(
     bottom: jint,
 ) {
     Bridge::global().set_safe_area_px([left as f32, top as f32, right as f32, bottom as f32]);
+}
+
+/// `NativeBridge.onBackPressed()`: botón o gesto «Atrás».
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_back_pressed<'local>(_env: EnvUnowned<'local>, _class: JClass<'local>) {
+    Bridge::global().post(PlatformEvent::Back);
+}
+
+/// `NativeBridge.onConfiguration(String locale, boolean night, float fontScale,
+/// boolean hasNfc)`: configuración del dispositivo (al crear la actividad y al cambiar).
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_configuration<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    locale: JString<'local>,
+    night: jboolean,
+    font_scale: jfloat,
+    has_nfc: jboolean,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let locale = optional_string(env, &locale)?.unwrap_or_default();
+        Bridge::global().post(PlatformEvent::Configuration(DeviceConfig {
+            locale,
+            night,
+            font_scale: if font_scale.is_finite() && font_scale > 0.0 {
+                font_scale
+            } else {
+                1.0
+            },
+            has_nfc,
+        }));
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onTextInput(String text, int selStart, int selEnd, int composingStart,
+/// int composingEnd)`: estado del editor del teclado (índices UTF-16 de Java). No se
+/// registra nunca el texto (puede ser una contraseña o un PIN).
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_text_input<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    text: JString<'local>,
+    sel_start: jint,
+    sel_end: jint,
+    composing_start: jint,
+    composing_end: jint,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let text = optional_string(env, &text)?.unwrap_or_default();
+        let state = ImeState::from_java(text, sel_start, sel_end, composing_start, composing_end);
+        Bridge::global().post(PlatformEvent::ImeState(state));
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onEditorAction(int action)`: tecla de acción del teclado.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_editor_action<'local>(_env: EnvUnowned<'local>, _class: JClass<'local>, action: jint) {
+    Bridge::global().post(PlatformEvent::ImeAction(action));
+}
+
+/// `NativeBridge.onImeVisibility(boolean visible)`: el teclado se ha mostrado u ocultado.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_ime_visibility<'local>(_env: EnvUnowned<'local>, _class: JClass<'local>, visible: jboolean) {
+    Bridge::global().post(PlatformEvent::ImeVisibility(visible));
 }

@@ -7,7 +7,7 @@ version = "2.0.0-alpha.1"
 edition = "2024"
 rust-version = "1.92"
 license = "GPL-2.0-or-later OR EUPL-1.1"
-repository = "https://github.com/ctt-gob-es/clienteafirma"
+repository = "https://github.com/SimonBlancoE/autofirma-rs"
 authors = ["AutoFirma-rs contributors", "Gobierno de España (código original Java)"]
 
 [workspace.dependencies]

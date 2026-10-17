@@ -106,7 +106,7 @@ depends = "libc6 (>= 2.28), libgcc-s1 | libgcc1"
 name = "autofirma-rs"
 summary = "AutoFirma: cliente de firma electrónica (protocolo afirma://)"
 license = "GPL-2.0-or-later OR EUPL-1.1"
-url = "https://github.com/autofirma-rs/autofirma-rs"
+url = "https://github.com/SimonBlancoE/autofirma-rs"
 vendor = "AutoFirma-rs"
 release = "1"
 # Las dependencias de bibliotecas se declaran abajo: el binario solo enlaza con glibc (el
