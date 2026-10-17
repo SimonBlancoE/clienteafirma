@@ -99,6 +99,9 @@ jobs:
           # El .pkg real (sin firmar): su postinstall ejecuta `install --system`.
           tools/package/macos.sh --binary target/release/autofirma --no-dmg --out dist
           sudo installer -pkg dist/AutoFirma-*.pkg -target /
+          # Si algo falla: qué hizo el postinstall y qué dice el diagnóstico.
+          trap 'echo "--- install.log"; grep -i -A3 "autofirma\|postinstall" /var/log/install.log | tail -60; [ -f doctor.json ] && cat doctor.json' ERR
+          set -x
           app=/Applications/AutoFirma.app/Contents/MacOS/autofirma
           test -x "$app"
           "$app" doctor --json > doctor.json
