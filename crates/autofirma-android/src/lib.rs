@@ -17,10 +17,14 @@
 //! - [`i18n`]: textos en los seis idiomas del original.
 //! - [`prefs`]: preferencias (`afirma.client`) y [`history`]: histórico de firmas.
 //! - [`ime`]: teclado en pantalla de GameActivity para los campos de texto de egui.
-//! - [`features`]: funciones que ya llaman a la plataforma (documento, KeyChain, enlaces,
+//! - [`features`]: peticiones sueltas a la plataforma («Ver un certificado», enlaces,
 //!   peticiones `afirma://`).
-//! - [`document`]: análisis de un documento con los firmadores de `afirma-signers`.
-//! - [`keychain`]: clave de firma ([`afirma_core::SigningKey`]) de un alias de KeyChain.
+//! - [`flow`]: operaciones de varios pasos: firma local e importación de certificados.
+//! - [`local_sign`]: formato, parámetros, firma y nombre del fichero firmado.
+//! - [`visible`]: vista previa de la firma visible y conversión del área a puntos PDF.
+//! - [`keychain`]: clave de firma ([`afirma_core::SigningKey`]) de un alias de KeyChain,
+//!   avisos sobre el certificado y caché de certificado.
+//! - [`errors`]: catálogo de errores `AA` del original.
 //! - `android` (solo `target_os = "android"`): punto de entrada, puente JNI y registro en
 //!   logcat.
 //!
@@ -44,16 +48,19 @@ macro_rules! k {
 }
 
 pub mod bridge;
-pub mod document;
+pub mod errors;
 pub mod features;
+pub mod flow;
 pub mod history;
 pub mod i18n;
 pub mod ime;
 pub mod keychain;
+pub mod local_sign;
 pub mod nav;
 pub mod prefs;
 pub mod shell;
 pub mod ui;
+pub mod visible;
 
 #[cfg(test)]
 mod testing;

@@ -3,7 +3,7 @@
 //! pedido como [`Action`]; la aplicación ([`crate::shell::Shell`]) las ejecuta después de
 //! dibujar (navegación, preferencias, llamadas a Android).
 
-use egui::{Align, Layout, Margin, Rect, RichText, ScrollArea, TextureHandle, Ui, UiBuilder, pos2, vec2};
+use egui::{Align, Color32, Layout, Margin, Rect, RichText, ScrollArea, TextureHandle, Ui, UiBuilder, pos2, vec2};
 
 use super::icons;
 use super::markup;
@@ -13,12 +13,15 @@ use super::widgets::{
     hero_action, icon_badge, link, list_row, notice, section_title, sheet, switch_row, text_field, tile, top_bar,
 };
 use crate::bridge::DeviceConfig;
-use crate::features::{CertificateState, DocumentState, Features};
+use crate::features::{CertificateState, Features};
+use crate::flow::{CertType, FlowAction, Flows};
 use crate::history::{RecordKind, SignRecord};
 use crate::i18n::{Language, tr, trf};
 use crate::ime::{FieldSpec, InputKind};
-use crate::nav::{Feature, Screen, SignConfigDraft};
+use crate::keychain::{CertificateWarning, warning_texts};
+use crate::nav::{Screen, SignConfigDraft};
 use crate::prefs::{CacheMinutes, Preferences};
+use crate::visible::ViewSelection;
 
 /// Lo que el usuario pide en una pantalla o diálogo.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,11 +47,30 @@ pub enum Action {
     ClearHistory,
     /// Respuesta a la pregunta de primera ejecución sobre el NFC.
     AnswerNfc(bool),
-    /// «Firmar fichero»: selector de documentos.
-    SignFile,
-    /// Selector de certificados de KeyChain.
+    /// Paso de una operación de varios pasos (firma local, importación).
+    Flow(FlowAction),
+    /// «Añadir certificado» al final de las instrucciones: se cierran y se abre el selector.
+    ImportCertificate,
+    /// Selector de certificados de KeyChain («Ver un certificado»).
     ChooseCertificate,
     OpenUrl(String),
+}
+
+/// Diálogo genérico con uno o dos botones que ejecutan acciones (`CustomDialog`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Prompt {
+    /// Identificador estable (registros y pruebas).
+    pub id: &'static str,
+    pub tone: Tone,
+    pub glyph: &'static str,
+    pub title: String,
+    pub body: String,
+    /// Botón principal: clave del texto y acción.
+    pub primary: (&'static str, Action),
+    /// Botón secundario (subrayado): clave del texto y acción.
+    pub secondary: Option<(&'static str, Action)>,
+    /// Lo que hace «Atrás»: `None` cierra el diálogo.
+    pub back: Option<Action>,
 }
 
 /// Diálogos (hojas inferiores, como los `BottomSheetDialog` del original).
@@ -73,6 +95,27 @@ pub enum Dialog {
     ConfirmClearHistory,
     /// Idioma (desde las condiciones).
     LanguagePicker,
+    /// Diálogo con acciones (avisos del certificado, firma visible, importación...).
+    Prompt(Box<Prompt>),
+    /// Progreso modal sin botones (`ProgressDialog`): «Realizando firma», «Cargando
+    /// certificado»... «Atrás» no lo cierra.
+    Progress {
+        /// Clave del texto.
+        text: &'static str,
+    },
+    /// «¿Con qué firmarás?» (`ChooseCertTypeDialog`).
+    ChooseCertType {
+        /// Selección de certificado web («¿Con qué te identificarás?»).
+        auth: bool,
+    },
+    /// Contraseña de un PDF protegido (`PDFPasswordDialog`, `PDFPasswordVisibleSignDialog`).
+    PdfPassword {
+        password: String,
+        /// Se ve la contraseña (icono del ojo).
+        revealed: bool,
+        /// Clave del texto de error («Contraseña incorrecta:»...).
+        error: Option<&'static str>,
+    },
 }
 
 impl Dialog {
@@ -84,7 +127,23 @@ impl Dialog {
             Dialog::CacheMinutes { .. } => "cache_minutes",
             Dialog::ConfirmClearHistory => "confirm_clear_history",
             Dialog::LanguagePicker => "language_picker",
+            Dialog::Prompt(prompt) => prompt.id,
+            Dialog::Progress { .. } => "progress",
+            Dialog::ChooseCertType { .. } => "cert_type",
+            Dialog::PdfPassword { .. } => "pdf_password",
         }
+    }
+
+    /// Se cierra al tocar fuera (las hojas del original que lo permitían).
+    fn dismissable(&self) -> bool {
+        !matches!(
+            self,
+            Dialog::ConfigNfc
+                | Dialog::Prompt(_)
+                | Dialog::Progress { .. }
+                | Dialog::ChooseCertType { .. }
+                | Dialog::PdfPassword { .. }
+        )
     }
 
     /// Mensaje informativo con el botón «Entendido».
@@ -104,6 +163,7 @@ pub struct View<'a> {
     pub prefs: &'a Preferences,
     pub device: &'a DeviceConfig,
     pub features: &'a Features,
+    pub flows: &'a Flows,
     pub logo: Option<&'a TextureHandle>,
     /// Idioma con el que se dibuja.
     pub language: Language,
@@ -199,9 +259,8 @@ pub fn draw(ui: &mut Ui, cx: &mut Cx, screen: &mut Screen, view: &View, actions:
         Screen::ImportInstructions { page } => import_instructions(ui, cx, page, actions),
         Screen::Certificates => certificates(ui, cx, view, actions),
         Screen::WebSigningInfo => web_signing(ui, cx, actions),
-        Screen::SignFile => sign_file(ui, cx, view, actions),
+        Screen::VisibleSignature { selection, drag } => visible_signature(ui, cx, view, selection, drag, actions),
         Screen::WebRequest => web_request(ui, cx, view, actions),
-        Screen::Unavailable(feature) => unavailable(ui, cx, *feature, actions),
     }
 }
 
@@ -504,7 +563,7 @@ fn home(ui: &mut Ui, cx: &mut Cx, view: &View, actions: &mut Vec<Action>) {
             )
             .clicked()
             {
-                actions.push(Action::SignFile);
+                actions.push(Action::Flow(FlowAction::StartSign));
             }
             ui.add_space(12.0);
             let tiles: [(&'static str, &str, &str, Action); 4] = [
@@ -1197,7 +1256,7 @@ fn import_instructions(ui: &mut Ui, cx: &mut Cx, page_index: &mut usize, actions
                 if current == 0 {
                     next = true;
                 } else {
-                    actions.push(Action::Push(Screen::Unavailable(Feature::ImportCertificate)));
+                    actions.push(Action::ImportCertificate);
                 }
             }
             widgets::page_dots(ui, cx, current, 2);
@@ -1276,6 +1335,15 @@ fn certificates(ui: &mut Ui, cx: &mut Cx, view: &View, actions: &mut Vec<Action>
                             ),
                         );
                         small(ui, cx, &trf("cert_chain_len", &[&c.chain_len]));
+                        for warning in &c.warnings {
+                            let (title, body) = warning_texts(*warning);
+                            let tone = match warning {
+                                CertificateWarning::Pseudonym => Tone::Info,
+                                _ => Tone::Warning,
+                            };
+                            ui.add_space(6.0);
+                            notice(ui, cx, tone, icons::WARNING, &format!("{}. {}", tr(title), tr(body)));
+                        }
                     }
                     CertificateState::Failed { alias, message } => {
                         ui.label(RichText::new(alias).font(cx.bold(size::BODY)).color(cx.p.text));
@@ -1328,66 +1396,245 @@ fn web_signing(ui: &mut Ui, cx: &mut Cx, actions: &mut Vec<Action>) {
     );
 }
 
-fn sign_file(ui: &mut Ui, cx: &mut Cx, view: &View, actions: &mut Vec<Action>) {
-    page(
-        ui,
-        cx,
-        actions,
-        tr("sign_file"),
-        true,
-        &[],
-        Box::new(|ui, cx, _| {
-            ui.add_space(8.0);
-            card(ui, cx, |ui, cx| match &view.features.document {
-                Some(DocumentState::Analyzing { name, size: bytes }) => {
-                    ui.label(RichText::new(name).font(cx.bold(size::BODY)).color(cx.p.text));
-                    small(
-                        ui,
-                        cx,
-                        &format!(
-                            "{} {}",
-                            tr("file_chooser_tamano_del_fichero"),
-                            crate::document::human_size(*bytes)
-                        ),
-                    );
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Spinner::new().color(cx.p.primary));
-                        muted(ui, cx, tr("analyzing_document"));
-                    });
-                }
-                Some(DocumentState::Ready(d)) => {
-                    ui.horizontal_top(|ui| {
-                        let glyph = if d.format == "PAdES" {
-                            icons::FILE_TEXT
-                        } else {
-                            icons::SIGNATURE
-                        };
-                        icon_badge(ui, cx, glyph, 52.0, cx.p.primary, cx.p.primary_soft);
-                        ui.vertical(|ui| {
-                            ui.add(
-                                egui::Label::new(RichText::new(&d.name).font(cx.bold(size::BODY)).color(cx.p.text))
-                                    .wrap(),
-                            );
-                            small(
-                                ui,
-                                cx,
-                                &format!(
-                                    "{} {}",
-                                    tr("file_chooser_tamano_del_fichero"),
-                                    crate::document::human_size(d.size)
-                                ),
-                            );
-                            small(ui, cx, &trf("proposed_format", &[&d.format]));
-                        });
-                    });
-                }
-                None => muted(ui, cx, tr("not_selected_area_desc")),
-            });
-            ui.add_space(12.0);
-            coming_soon(ui, cx);
-        }),
-        None,
+/// Vista previa de la firma visible (`PdfSelectPreviewActivity`, §3.5): una página que
+/// ocupa el espacio disponible, el área se dibuja arrastrando el dedo (sin zoom ni
+/// desplazamiento, como el original), botones de página y «Continuar».
+fn visible_signature(
+    ui: &mut Ui,
+    cx: &mut Cx,
+    view: &View,
+    selection: &mut Option<[f32; 4]>,
+    drag: &mut Option<[f32; 2]>,
+    actions: &mut Vec<Action>,
+) {
+    let full = ui.max_rect();
+    let bar = Rect::from_min_size(full.min, vec2(full.width(), TOP_BAR));
+    if top_bar(ui, cx, bar, tr("visible_sign"), true, &[]).back {
+        actions.push(Action::Back);
+    }
+    let preview = view.flows.preview();
+    let document = preview.and_then(|p| p.document.as_ref());
+    let page_index = preview.map_or(0, |p| p.page);
+    let pages = document.map_or(0, |d| d.page_count());
+    let width = full.width().min(MAX_WIDTH) - 32.0;
+    let column = Rect::from_min_max(
+        pos2(full.center().x - width / 2.0, bar.bottom()),
+        pos2(full.center().x + width / 2.0, full.bottom() - 12.0),
     );
+    // Abajo, de abajo arriba: «Continuar» y la barra de páginas.
+    let mut go_to = None;
+    let mut continue_clicked = false;
+    let used = ui
+        .scope_builder(
+            UiBuilder::new()
+                .max_rect(column)
+                .layout(Layout::bottom_up(Align::Center)),
+            |ui| {
+                ui.spacing_mut().item_spacing.y = 6.0;
+                continue_clicked = button(
+                    ui,
+                    cx,
+                    "preview.continue",
+                    ButtonKind::Primary,
+                    None,
+                    tr("drag_on"),
+                    document.is_some(),
+                )
+                .clicked();
+                let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), egui::Sense::hover());
+                let loading = preview.is_none_or(|p| p.loading());
+                let pager: [(&'static str, &str, &'static str, usize, bool); 4] = [
+                    ("preview.first", icons::CARET_DOUBLE_LEFT, k!("first_page"), 0, true),
+                    (
+                        "preview.prev",
+                        icons::CARET_LEFT,
+                        k!("previous_page"),
+                        page_index.saturating_sub(1),
+                        !loading,
+                    ),
+                    (
+                        "preview.next",
+                        icons::CARET_RIGHT,
+                        k!("next_page"),
+                        (page_index + 1).min(pages.saturating_sub(1)),
+                        !loading,
+                    ),
+                    (
+                        "preview.last",
+                        icons::CARET_DOUBLE_RIGHT,
+                        k!("last_page"),
+                        pages.saturating_sub(1),
+                        true,
+                    ),
+                ];
+                for (i, (tid, glyph, label, target, enabled)) in pager.into_iter().enumerate() {
+                    let x = match i {
+                        0 => row.left() + 24.0,
+                        1 => row.left() + 76.0,
+                        2 => row.right() - 76.0,
+                        _ => row.right() - 24.0,
+                    };
+                    let r = Rect::from_center_size(pos2(x, row.center().y), vec2(48.0, 48.0));
+                    if widgets::icon_button(ui, cx, tid, r, glyph, tr(label)).clicked() && enabled && document.is_some()
+                    {
+                        go_to = Some(target);
+                    }
+                }
+                if pages > 0 {
+                    let text = trf("page_number", &[&(page_index + 1), &pages]);
+                    ui.painter().text(
+                        row.center(),
+                        egui::Align2::CENTER_CENTER,
+                        &text,
+                        cx.font(size::BODY),
+                        cx.p.text,
+                    );
+                    let label = ui.interact(
+                        row.shrink2(vec2(110.0, 0.0)),
+                        egui::Id::unique("pagina"),
+                        egui::Sense::hover(),
+                    );
+                    label.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &text));
+                }
+            },
+        )
+        .response
+        .rect;
+    // Arriba: «Seleccione el área de firma».
+    let galley = ui.painter().layout(
+        tr("select_sign_area").to_string(),
+        cx.font(size::BODY),
+        cx.p.text_muted,
+        column.width(),
+    );
+    let text_pos = pos2(column.center().x - galley.size().x / 2.0, column.top() + 4.0);
+    let text_bottom = text_pos.y + galley.size().y;
+    ui.painter().galley(text_pos, galley, cx.p.text_muted);
+    let canvas = Rect::from_min_max(
+        pos2(column.left(), text_bottom + 10.0),
+        pos2(column.right(), used.top() - 8.0),
+    );
+    if canvas.height() < 40.0 {
+        return;
+    }
+    let Some(document) = document else {
+        ui.scope_builder(UiBuilder::new().max_rect(canvas), |ui| {
+            ui.centered_and_justified(|ui| ui.add(egui::Spinner::new().size(36.0).color(cx.p.primary)));
+        });
+        return;
+    };
+    // La página entera dentro del lienzo (`FitPolicy.BOTH`).
+    let (pw, ph) = document.page_size(page_index);
+    let scale = (canvas.width() / pw).min(canvas.height() / ph);
+    let page_rect = Rect::from_center_size(canvas.center(), vec2(pw * scale, ph * scale));
+    let painter = ui.painter_at(canvas);
+    painter.rect_filled(page_rect.translate(vec2(0.0, 2.0)), 0.0, Color32::from_black_alpha(40));
+    let ppp = ui.ctx().pixels_per_point();
+    let wanted = (page_rect.width() * ppp).round() as u32;
+    match preview
+        .and_then(|p| p.texture.as_ref())
+        .filter(|(p, _, _)| *p == page_index)
+    {
+        Some((_, rendered, texture)) => {
+            painter.image(
+                texture.id(),
+                page_rect,
+                Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                Color32::WHITE,
+            );
+            painter.rect_stroke(
+                page_rect,
+                egui::CornerRadius::ZERO,
+                egui::Stroke::new(1.0, cx.p.border),
+                egui::StrokeKind::Outside,
+            );
+            // Se vuelve a dibujar si ha cambiado mucho el tamaño (giro de la pantalla).
+            if (*rendered as f32 - wanted as f32).abs() > wanted as f32 * 0.15 {
+                actions.push(Action::Flow(FlowAction::PreviewRender {
+                    page: page_index,
+                    width: wanted,
+                }));
+            }
+        }
+        None => {
+            painter.rect_filled(page_rect, 0.0, Color32::WHITE);
+            painter.text(
+                page_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                icons::FILE_TEXT,
+                cx.icon(40.0),
+                cx.p.text_faint,
+            );
+            actions.push(Action::Flow(FlowAction::PreviewRender {
+                page: page_index,
+                width: wanted,
+            }));
+        }
+    }
+    // Área: se dibuja arrastrando; en fracciones de la página para que sobreviva a un giro.
+    let response = ui.interact(page_rect, egui::Id::unique("area-de-firma"), egui::Sense::drag());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, tr("select_sign_area")));
+    cx.targets.add("preview.page", page_rect, ui.clip_rect());
+    let to_fraction = |pos: egui::Pos2| {
+        [
+            ((pos.x - page_rect.left()) / page_rect.width()).clamp(0.0, 1.0),
+            ((pos.y - page_rect.top()) / page_rect.height()).clamp(0.0, 1.0),
+        ]
+    };
+    if response.drag_started()
+        && let Some(pos) = response.interact_pointer_pos()
+    {
+        *drag = Some(to_fraction(pos));
+    }
+    if let (Some(start), Some(pos)) = (*drag, response.interact_pointer_pos())
+        && (response.dragged() || response.drag_stopped())
+    {
+        let end = to_fraction(pos);
+        *selection = Some([
+            start[0].min(end[0]),
+            start[1].min(end[1]),
+            start[0].max(end[0]),
+            start[1].max(end[1]),
+        ]);
+    }
+    if response.drag_stopped() {
+        *drag = None;
+    }
+    if let Some([x0, y0, x1, y1]) = *selection {
+        let r = Rect::from_min_max(
+            page_rect.min + vec2(x0 * page_rect.width(), y0 * page_rect.height()),
+            page_rect.min + vec2(x1 * page_rect.width(), y1 * page_rect.height()),
+        );
+        // Relleno y borde negros al 50 % (#80000000), como el original.
+        painter.rect(
+            r,
+            egui::CornerRadius::ZERO,
+            Color32::from_black_alpha(64),
+            egui::Stroke::new(2.5, Color32::from_black_alpha(128)),
+            egui::StrokeKind::Inside,
+        );
+    }
+    if continue_clicked {
+        let view_size = (page_rect.width(), page_rect.height());
+        let selection = selection.map(|[x0, y0, x1, y1]| ViewSelection {
+            start_x: x0 * view_size.0,
+            start_y: y0 * view_size.1,
+            end_x: x1 * view_size.0,
+            end_y: y1 * view_size.1,
+        });
+        actions.push(Action::Flow(FlowAction::PreviewContinue {
+            selection,
+            view: view_size,
+        }));
+    }
+    if let Some(target) = go_to
+        && target != page_index
+    {
+        // Cambiar de página borra la selección.
+        *selection = None;
+        *drag = None;
+        actions.push(Action::Flow(FlowAction::PreviewPage(target)));
+    }
 }
 
 fn web_request(ui: &mut Ui, cx: &mut Cx, view: &View, actions: &mut Vec<Action>) {
@@ -1426,40 +1673,16 @@ fn web_request(ui: &mut Ui, cx: &mut Cx, view: &View, actions: &mut Vec<Action>)
     );
 }
 
-fn unavailable(ui: &mut Ui, cx: &mut Cx, feature: Feature, actions: &mut Vec<Action>) {
-    let title = match feature {
-        Feature::ImportCertificate => tr("title_activity_cert_chooser"),
-    };
-    page(
-        ui,
-        cx,
-        actions,
-        title,
-        true,
-        &[],
-        Box::new(|ui, cx, _| {
-            empty_state(
-                ui,
-                cx,
-                icons::HOURGLASS_MEDIUM,
-                tr("not_available_title"),
-                Some(tr("not_available_desc")),
-            );
-        }),
-        None,
-    );
-}
-
 // ----------------------------------------------------------------------------------------
 // Diálogos
 
-/// Cabecera de diálogo: título y botón X.
-fn dialog_title(ui: &mut Ui, cx: &mut Cx, title: &str, actions: &mut Vec<Action>) {
+/// Cabecera de diálogo: título y botón X (que ejecuta `close`).
+fn dialog_title(ui: &mut Ui, cx: &mut Cx, title: &str, close_action: Action, actions: &mut Vec<Action>) {
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(vec2(width, 52.0), egui::Sense::hover());
     let close = Rect::from_center_size(pos2(rect.right() - 20.0, rect.center().y), vec2(48.0, 48.0));
     if widgets::icon_button(ui, cx, "dialog.close", close, icons::X, tr("close")).clicked() {
-        actions.push(Action::CloseDialog);
+        actions.push(close_action);
     }
     let text_rect = Rect::from_min_max(rect.min, pos2(close.left() - 8.0, rect.max.y));
     ui.scope_builder(
@@ -1475,10 +1698,10 @@ fn dialog_title(ui: &mut Ui, cx: &mut Cx, title: &str, actions: &mut Vec<Action>
 /// Dibuja el diálogo abierto.
 pub fn draw_dialog(ctx: &egui::Context, cx: &mut Cx, dialog: &mut Dialog, view: &View, actions: &mut Vec<Action>) {
     let id = dialog.id();
-    let dismissable = !matches!(dialog, Dialog::ConfigNfc);
+    let dismissable = dialog.dismissable();
     let outside = sheet(ctx, cx, id, dismissable, |ui, cx| match dialog {
         Dialog::Help => {
-            dialog_title(ui, cx, tr("what_is_autofirma_for_title"), actions);
+            dialog_title(ui, cx, tr("what_is_autofirma_for_title"), Action::CloseDialog, actions);
             muted(ui, cx, tr("what_is_autofirma_for_desc"));
             ui.add_space(10.0);
             ui.label(
@@ -1544,7 +1767,7 @@ pub fn draw_dialog(ctx: &egui::Context, cx: &mut Cx, dialog: &mut Dialog, view: 
             }
         }
         Dialog::CacheMinutes { selected } => {
-            dialog_title(ui, cx, tr("select_minutes_value"), actions);
+            dialog_title(ui, cx, tr("select_minutes_value"), Action::CloseDialog, actions);
             group(ui, cx, |ui, cx| {
                 for minutes in CacheMinutes::ALL {
                     let tid = match minutes {
@@ -1594,10 +1817,117 @@ pub fn draw_dialog(ctx: &egui::Context, cx: &mut Cx, dialog: &mut Dialog, view: 
             }
         }
         Dialog::LanguagePicker => {
-            dialog_title(ui, cx, tr("language"), actions);
+            dialog_title(ui, cx, tr("language"), Action::CloseDialog, actions);
             if let Some(choice) = language_rows(ui, cx, view) {
                 actions.push(Action::SetLanguage(choice));
                 actions.push(Action::CloseDialog);
+            }
+        }
+        Dialog::Prompt(prompt) => {
+            let (fg, bg) = prompt.tone.colors(&cx.p);
+            ui.add_space(8.0);
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                icon_badge(ui, cx, prompt.glyph, 64.0, fg, bg);
+            });
+            ui.add_space(12.0);
+            centered_text(ui, &prompt.title, cx.bold(size::TITLE), cx.p.text);
+            ui.add_space(6.0);
+            centered_text(ui, &prompt.body, cx.font(size::BODY), cx.p.text_muted);
+            ui.add_space(18.0);
+            let (label, action) = &prompt.primary;
+            if button(ui, cx, "dialog.ok", ButtonKind::Primary, None, tr(label), true).clicked() {
+                actions.push(action.clone());
+            }
+            if let Some((label, action)) = &prompt.secondary
+                && button(ui, cx, "dialog.cancel", ButtonKind::Text, None, tr(label), true).clicked()
+            {
+                actions.push(action.clone());
+            }
+        }
+        Dialog::Progress { text } => {
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                ui.add(egui::Spinner::new().size(32.0).color(cx.p.primary));
+                ui.add_space(12.0);
+                ui.label(RichText::new(tr(text)).font(cx.font(size::BODY + 1.0)).color(cx.p.text));
+            });
+            ui.add_space(16.0);
+        }
+        Dialog::ChooseCertType { auth } => {
+            let title = if *auth {
+                tr("choose_cert_type_auth_title")
+            } else {
+                tr("choose_cert_type_sign_title")
+            };
+            dialog_title(ui, cx, title, Action::Flow(FlowAction::Cancel), actions);
+            ui.add_space(4.0);
+            group(ui, cx, |ui, cx| {
+                for (tid, glyph, label, kind) in [
+                    (
+                        "cert_type.certificate",
+                        icons::CERTIFICATE,
+                        k!("certificate"),
+                        CertType::Certificate,
+                    ),
+                    ("cert_type.dnie", icons::IDENTIFICATION_CARD, k!("dnie"), CertType::Dnie),
+                ] {
+                    if list_row(ui, cx, tid, Some(glyph), tr(label), None, Trailing::Chevron).clicked() {
+                        actions.push(Action::Flow(FlowAction::CertType(kind)));
+                    }
+                }
+            });
+            ui.add_space(8.0);
+        }
+        Dialog::PdfPassword {
+            password,
+            revealed,
+            error,
+        } => {
+            ui.add_space(8.0);
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                icon_badge(ui, cx, icons::INFO, 64.0, cx.p.info, cx.p.info_soft);
+            });
+            ui.add_space(12.0);
+            centered_text(ui, tr("encrypted_document"), cx.bold(size::TITLE), cx.p.text);
+            ui.add_space(6.0);
+            centered_text(ui, tr("encrypted_document_desc"), cx.font(size::BODY), cx.p.text_muted);
+            ui.add_space(12.0);
+            if let Some(error) = error {
+                ui.label(RichText::new(tr(error)).font(cx.bold(size::SMALL)).color(cx.p.danger));
+            }
+            let width = ui.available_width();
+            let mut submitted = false;
+            ui.allocate_ui_with_layout(vec2(width, 60.0), Layout::left_to_right(Align::Center), |ui| {
+                ui.allocate_ui(vec2(width - 56.0, 60.0), |ui| {
+                    let spec = FieldSpec::new(InputKind::Password).revealed(*revealed);
+                    submitted = text_field(ui, cx, "dialog.password", password, spec, tr("password"), 1).submitted;
+                });
+                let (eye, _) = ui.allocate_exact_size(vec2(48.0, 48.0), egui::Sense::hover());
+                let (glyph, label) = if *revealed {
+                    (icons::EYE_SLASH, tr("hide_password"))
+                } else {
+                    (icons::EYE, tr("show_password"))
+                };
+                if widgets::icon_button(ui, cx, "dialog.reveal", eye, glyph, label).clicked() {
+                    *revealed = !*revealed;
+                }
+            });
+            ui.add_space(14.0);
+            if button(ui, cx, "dialog.ok", ButtonKind::Primary, None, tr("ok"), true).clicked() || submitted {
+                actions.push(Action::Flow(FlowAction::PdfPassword(password.clone())));
+            }
+            if button(
+                ui,
+                cx,
+                "dialog.cancel",
+                ButtonKind::Text,
+                None,
+                tr("cancel_underline"),
+                true,
+            )
+            .clicked()
+            {
+                actions.push(Action::Flow(FlowAction::Cancel));
             }
         }
     });

@@ -43,13 +43,6 @@ impl SignConfigDraft {
     }
 }
 
-/// Funciones de fases posteriores que de momento son una pantalla que lo explica.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Feature {
-    /// Importar un `.p12`/`.pfx` en KeyChain (§4.8).
-    ImportCertificate,
-}
-
 /// Pantallas de la aplicación, con su estado.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
@@ -93,12 +86,15 @@ pub enum Screen {
     Certificates,
     /// Información sobre la firma desde las páginas web.
     WebSigningInfo,
-    /// Documento elegido con «Firmar fichero».
-    SignFile,
+    /// Vista previa de la firma visible (`PdfSelectPreviewActivity`): área elegida y
+    /// arrastre en curso, en fracciones de la página (el documento y la página visible
+    /// están en [`crate::flow::Preview`]).
+    VisibleSignature {
+        selection: Option<[f32; 4]>,
+        drag: Option<[f32; 2]>,
+    },
     /// Petición `afirma://` recibida.
     WebRequest,
-    /// Función aún no disponible.
-    Unavailable(Feature),
 }
 
 impl Screen {
@@ -127,9 +123,8 @@ impl Screen {
             Screen::ImportInstructions { .. } => "import_instructions_2",
             Screen::Certificates => "certificates",
             Screen::WebSigningInfo => "web_signing",
-            Screen::SignFile => "sign_file",
+            Screen::VisibleSignature { .. } => "visible_signature",
             Screen::WebRequest => "web_request",
-            Screen::Unavailable(_) => "unavailable",
         }
     }
 }
@@ -202,6 +197,23 @@ impl Navigator {
         self.stack[0] = root;
     }
 
+    /// Sale de la pantalla actual sin más (si no es la raíz).
+    pub fn pop(&mut self) {
+        if self.stack.len() > 1 {
+            self.stack.pop();
+        }
+    }
+
+    /// Quita de la pila las pantallas con ese identificador (nunca la raíz). Devuelve si
+    /// había alguna.
+    pub fn remove(&mut self, id: &str) -> bool {
+        let before = self.stack.len();
+        let root = self.stack.remove(0);
+        self.stack.retain(|s| s.id() != id);
+        self.stack.insert(0, root);
+        self.stack.len() != before
+    }
+
     /// Botón «Atrás» (§2.13).
     pub fn back(&mut self) -> BackOutcome {
         if let Screen::ImportInstructions { page } = self.current_mut()
@@ -271,7 +283,16 @@ mod tests {
             }
         );
 
+        nav.push(Screen::VisibleSignature {
+            selection: None,
+            drag: None,
+        });
+        nav.push(Screen::WebRequest);
+        assert!(nav.remove("visible_signature"));
+        assert!(!nav.remove("visible_signature"));
+        assert_eq!(nav.ids(), ["home", "faq", "web_request"]);
         nav.reset(Screen::Intro);
+        assert!(!nav.remove("intro"), "la raíz no se quita");
         assert_eq!(nav.ids(), ["intro"]);
         nav.push(Screen::WebRequest);
         nav.replace_root(Screen::Home);

@@ -17,7 +17,8 @@
 //! Los eventos se encolan en un [`Bridge`] y despiertan la interfaz con
 //! [`egui::Context::request_repaint`], que se puede llamar desde cualquier hilo.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
@@ -46,9 +47,22 @@ impl PlatformError {
 /// [`PlatformEvent`] con el mismo [`RequestId`]. Los métodos bloqueantes no se deben llamar
 /// desde el hilo de la interfaz ni desde el hilo principal de Java.
 pub trait Platform: Send + Sync {
-    /// Abre el selector de documentos del sistema (`ACTION_OPEN_DOCUMENT`). Respuesta:
+    /// Abre el selector de documentos del sistema (`ACTION_OPEN_DOCUMENT`) con los tipos MIME
+    /// que se pueden elegir (`*/*`, `application/x-pkcs12`...). Respuesta:
     /// [`PlatformEvent::DocumentOpened`] o [`PlatformEvent::RequestFailed`].
-    fn open_document(&self, request: RequestId) -> Result<(), PlatformError>;
+    fn open_document(&self, request: RequestId, mime_types: &[&str]) -> Result<(), PlatformError>;
+
+    /// Abre el diálogo del sistema para guardar un documento nuevo (`ACTION_CREATE_DOCUMENT`)
+    /// con el tipo MIME y el nombre propuesto. Los datos se dejan antes en el puente
+    /// ([`Bridge::stash_write`]) y se escriben en el descriptor que devuelve el sistema.
+    /// Respuesta: [`PlatformEvent::DocumentSaved`] o [`PlatformEvent::RequestFailed`]
+    /// (`cancelled` si el usuario cierra el diálogo).
+    fn create_document(&self, request: RequestId, mime_type: &str, name: &str) -> Result<(), PlatformError>;
+
+    /// Abre el instalador de certificados del sistema (`KeyChain.createInstallIntent` con
+    /// `EXTRA_PKCS12`). Respuesta: [`PlatformEvent::CertificateInstalled`] o
+    /// [`PlatformEvent::RequestFailed`] (`cancelled` si no se instala).
+    fn install_certificate(&self, request: RequestId, pkcs12: &[u8]) -> Result<(), PlatformError>;
 
     /// Abre el selector de certificados de KeyChain (`KeyChain.choosePrivateKeyAlias`).
     /// Respuesta: [`PlatformEvent::CertificateChosen`].
@@ -133,10 +147,29 @@ pub enum PlatformEvent {
         name: Option<String>,
         data: Vec<u8>,
     },
-    /// Análisis terminado de un documento (hilo de trabajo).
-    DocumentAnalyzed {
+    /// Documento nuevo guardado con el diálogo del sistema: los datos ya se han escrito.
+    DocumentSaved {
         request: RequestId,
-        summary: crate::document::DocumentSummary,
+        uri: String,
+        name: Option<String>,
+    },
+    /// El instalador del sistema ha añadido el certificado a KeyChain.
+    CertificateInstalled { request: RequestId },
+    /// Firma terminada (hilo de trabajo).
+    SignFinished {
+        request: RequestId,
+        result: Result<Vec<u8>, crate::local_sign::SignFailure>,
+    },
+    /// PDF de la vista previa de la firma visible abierto (hilo de trabajo).
+    PreviewOpened {
+        request: RequestId,
+        result: Result<Shared<crate::visible::PreviewDocument>, crate::visible::PreviewFailure>,
+    },
+    /// Página de la vista previa dibujada (hilo de trabajo; `None` si no se pudo).
+    PageRendered {
+        request: RequestId,
+        page: usize,
+        image: Option<Shared<crate::visible::PageImage>>,
     },
     /// Alias elegido en el selector de KeyChain (`None` si el usuario no eligió ninguno).
     CertificateChosen { request: RequestId, alias: Option<String> },
@@ -166,6 +199,45 @@ pub enum PlatformEvent {
     ImeVisibility(bool),
 }
 
+/// Dato compartido que viaja en un evento sin copiarse (documento abierto, imagen de una
+/// página). Dos valores son iguales si son el mismo objeto.
+pub struct Shared<T>(pub Arc<T>);
+
+impl<T> Shared<T> {
+    pub fn new(value: T) -> Shared<T> {
+        Shared(Arc::new(value))
+    }
+}
+
+impl<T> Clone for Shared<T> {
+    fn clone(&self) -> Self {
+        Shared(self.0.clone())
+    }
+}
+
+impl<T> PartialEq for Shared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<T> std::fmt::Debug for Shared<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Shared<{}>", std::any::type_name::<T>())
+    }
+}
+
+impl<T> std::ops::Deref for Shared<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+/// Mensaje de [`PlatformEvent::RequestFailed`] de un documento que supera el tamaño máximo
+/// (se muestra como error de memoria, AA200105).
+pub const DOCUMENT_TOO_LARGE: &str = "document-too-large";
+
 /// Datos de una tarjeta ISO-DEP detectada: los que necesita la identificación del DNIe
 /// (`docs/spec/10-dnie-nfc.md` §3).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -193,6 +265,7 @@ pub struct Bridge {
     repaint: Mutex<Option<egui::Context>>,
     next_request: AtomicI64,
     safe_area: Mutex<Option<SafeAreaPx>>,
+    writes: Mutex<HashMap<RequestId, Arc<Vec<u8>>>>,
 }
 
 impl Bridge {
@@ -250,6 +323,50 @@ impl Bridge {
     pub fn safe_area_px(&self) -> Option<SafeAreaPx> {
         *self.safe_area.lock().unwrap_or_else(PoisonError::into_inner)
     }
+
+    /// Deja los datos que hay que escribir en el documento que se cree con la petición
+    /// [`Platform::create_document`].
+    pub fn stash_write(&self, request: RequestId, data: Arc<Vec<u8>>) {
+        self.writes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(request, data);
+    }
+
+    /// Quita los datos de una petición de guardado (al terminar o al cancelarse).
+    pub fn take_write(&self, request: RequestId) -> Option<Arc<Vec<u8>>> {
+        self.writes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&request)
+    }
+
+    /// Escribe los datos de la petición en el documento creado por el sistema (`out`, el
+    /// descriptor que devuelve Java) y encola el resultado: [`PlatformEvent::DocumentSaved`]
+    /// o [`PlatformEvent::RequestFailed`]. Se llama desde el hilo de E/S de la capa Java.
+    pub fn complete_write(&self, request: RequestId, uri: String, name: Option<String>, out: impl Write) {
+        let event = match self.take_write(request) {
+            None => PlatformEvent::RequestFailed {
+                request,
+                cancelled: false,
+                message: Some("no hay datos que guardar".to_string()),
+            },
+            Some(data) => match write_all(out, &data) {
+                Ok(()) => PlatformEvent::DocumentSaved { request, uri, name },
+                Err(e) => PlatformEvent::RequestFailed {
+                    request,
+                    cancelled: false,
+                    message: Some(format!("no se pudo escribir el documento: {e}")),
+                },
+            },
+        };
+        self.post(event);
+    }
+}
+
+fn write_all(mut out: impl Write, data: &[u8]) -> std::io::Result<()> {
+    out.write_all(data)?;
+    out.flush()
 }
 
 /// Zona segura de egui (puntos) a partir de los márgenes en píxeles físicos.
@@ -303,6 +420,36 @@ mod tests {
             uri: "afirma://b".into(),
         });
         assert!(ctx.has_requested_repaint());
+    }
+
+    #[test]
+    fn datos_para_guardar_se_escriben_una_vez() {
+        let bridge = Bridge::new();
+        bridge.stash_write(7, Arc::new(b"firma".to_vec()));
+        let mut out = Vec::new();
+        bridge.complete_write(7, "content://d/1".into(), Some("a.csig".into()), &mut out);
+        assert_eq!(out, b"firma");
+        assert_eq!(
+            bridge.drain(),
+            [PlatformEvent::DocumentSaved {
+                request: 7,
+                uri: "content://d/1".into(),
+                name: Some("a.csig".into())
+            }]
+        );
+        // Sin datos (o ya escritos): error, nunca un documento vacío dado por bueno.
+        bridge.complete_write(7, String::new(), None, Vec::new());
+        assert!(matches!(
+            bridge.drain().as_slice(),
+            [PlatformEvent::RequestFailed {
+                request: 7,
+                cancelled: false,
+                ..
+            }]
+        ));
+        let shared = Shared::new(1u8);
+        assert_eq!(shared.clone(), shared);
+        assert_ne!(Shared::new(1u8), shared);
     }
 
     #[test]

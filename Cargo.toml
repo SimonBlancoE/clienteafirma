@@ -85,3 +85,12 @@ panic = "unwind"
 
 [profile.dev.package."*"]
 opt-level = 2
+
+# accesskit_android 0.8.0 (Android) resta 1 a la longitud de un texto vacío al avisar de que ha
+# cambiado el texto de un nodo (`send_text_changed`): en depuración, con las comprobaciones de
+# desbordamiento, la aplicación aborta en cuanto hay un servicio de accesibilidad activo
+# (TalkBack, uiautomator) y un nodo pasa de no tener texto a tenerlo. En release la resta da la
+# vuelta y el índice queda en -1, que es lo que espera el algoritmo: se desactivan las
+# comprobaciones solo en ese crate.
+[profile.dev.package.accesskit_android]
+overflow-checks = false

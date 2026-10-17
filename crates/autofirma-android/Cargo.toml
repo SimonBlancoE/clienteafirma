@@ -18,6 +18,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 afirma-core.workspace = true
 afirma-signers.workspace = true
+# Vista previa de la firma visible (rasterizador de páginas e información del PDF).
+afirma-pdf.workspace = true
 afirma-protocol.workspace = true
 egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -51,5 +53,7 @@ android-properties = "0.2"
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
+# Clave de prueba (PKCS#12 de testdata/pki) detrás de la KeyChain falsa de las pruebas.
+afirma-keystores.workspace = true
 rcgen.workspace = true
 tempfile.workspace = true

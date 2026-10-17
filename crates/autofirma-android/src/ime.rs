@@ -201,11 +201,23 @@ impl InputKind {
 pub struct FieldSpec {
     pub kind: InputKind,
     pub max_chars: Option<usize>,
+    /// Un campo secreto que se muestra (icono del ojo).
+    pub revealed: bool,
 }
 
 impl FieldSpec {
     pub const fn new(kind: InputKind) -> FieldSpec {
-        FieldSpec { kind, max_chars: None }
+        FieldSpec {
+            kind,
+            max_chars: None,
+            revealed: false,
+        }
+    }
+
+    /// Muestra el texto de un campo secreto.
+    pub const fn revealed(mut self, revealed: bool) -> FieldSpec {
+        self.revealed = revealed;
+        self
     }
 
     pub const fn max_chars(mut self, max: usize) -> FieldSpec {

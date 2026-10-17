@@ -1,10 +1,9 @@
-//! Funciones que ya llaman a la plataforma: elegir y analizar un documento (SAF +
-//! `afirma-signers`), elegir un certificado de KeyChain y leer su cadena, abrir enlaces y
-//! recibir peticiones `afirma://`. Es la lógica de la base técnica; las pantallas de la
-//! interfaz ([`crate::shell`]) la usan y las fases de firma la ampliarán.
+//! Peticiones sueltas a la plataforma: «Ver un certificado» (selector de KeyChain y cadena del
+//! alias), abrir enlaces y recibir peticiones `afirma://`. Las operaciones de varios pasos
+//! (firma local, importación de certificados) están en [`crate::flow`].
 //!
 //! No depende de Android: las pruebas usan la [`Platform`] falsa. Los mensajes de registro
-//! («Selector de documentos abierto»...) los busca la prueba del emulador.
+//! («Selector de certificados abierto»...) los busca la prueba del emulador.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,23 +13,13 @@ use afirma_protocol::request::{Dispatch, OperationKind, dispatch};
 use tracing::{error, info, warn};
 
 use crate::bridge::{Bridge, Platform, PlatformError, PlatformEvent, RequestId};
-use crate::document::{self, DocumentSummary};
 
 /// Qué se espera de cada petición en curso.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pending {
-    OpenDocument,
-    AnalyzeDocument,
     ChooseCertificate,
     LoadCertificate,
     OpenUrl,
-}
-
-/// Documento abierto.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DocumentState {
-    Analyzing { name: String, size: usize },
-    Ready(DocumentSummary),
 }
 
 /// Certificado elegido en KeyChain.
@@ -52,6 +41,8 @@ pub struct CertificateSummary {
     /// Fin de la validez (`dd/MM/yyyy`).
     pub not_after: String,
     pub chain_len: usize,
+    /// Avisos sobre el certificado (caducado, próximo a caducar, seudónimo).
+    pub warnings: Vec<crate::keychain::CertificateWarning>,
 }
 
 /// Última petición web (`afirma://`) recibida.
@@ -68,8 +59,6 @@ pub struct WebRequest {
 /// Lo que la interfaz tiene que hacer tras un evento.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
-    /// Se ha recibido un documento (ir a la pantalla del documento).
-    DocumentOpened,
     /// Ha llegado una petición web (ir a su pantalla).
     WebRequest,
     /// Error que hay que mostrar.
@@ -81,7 +70,6 @@ pub struct Features {
     platform: Arc<dyn Platform>,
     bridge: Arc<Bridge>,
     pending: HashMap<RequestId, Pending>,
-    pub document: Option<DocumentState>,
     pub certificate: Option<CertificateState>,
     pub web_request: Option<WebRequest>,
 }
@@ -92,7 +80,6 @@ impl Features {
             platform,
             bridge,
             pending: HashMap::new(),
-            document: None,
             certificate: None,
             web_request: None,
         }
@@ -101,19 +88,6 @@ impl Features {
     /// `true` mientras haya alguna petición o tarea en curso.
     pub fn is_busy(&self) -> bool {
         self.pending.values().any(|p| !matches!(p, Pending::OpenUrl))
-    }
-
-    /// Abre el selector de documentos del sistema.
-    pub fn open_document(&mut self) -> Result<(), String> {
-        let request = self.bridge.next_request_id();
-        match self.platform.open_document(request) {
-            Ok(()) => {
-                info!("Selector de documentos abierto (petición {request})");
-                self.pending.insert(request, Pending::OpenDocument);
-                Ok(())
-            }
-            Err(e) => Err(request_error("No se pudo abrir el selector de documentos", &e)),
-        }
     }
 
     /// Abre el selector de certificados de KeyChain.
@@ -151,36 +125,6 @@ impl Features {
                 info!("Petición web recibida: {}", request.description);
                 self.web_request = Some(request);
                 Some(Outcome::WebRequest)
-            }
-            PlatformEvent::DocumentOpened {
-                request, name, data, ..
-            } => {
-                if !self.take_pending(request, Pending::OpenDocument) {
-                    return None;
-                }
-                let name = name.unwrap_or_else(|| "documento".to_string());
-                info!("Documento recibido: {} bytes (petición {request})", data.len());
-                self.document = Some(DocumentState::Analyzing {
-                    name: name.clone(),
-                    size: data.len(),
-                });
-                self.pending.insert(request, Pending::AnalyzeDocument);
-                let bridge = self.bridge.clone();
-                spawn_worker("analisis", move || {
-                    let summary = document::analyze(&name, &data);
-                    bridge.post(PlatformEvent::DocumentAnalyzed { request, summary });
-                });
-                Some(Outcome::DocumentOpened)
-            }
-            PlatformEvent::DocumentAnalyzed { request, summary } => {
-                if self.take_pending(request, Pending::AnalyzeDocument) {
-                    info!(
-                        "Documento analizado: {}, formato propuesto {}",
-                        summary.kind, summary.format
-                    );
-                    self.document = Some(DocumentState::Ready(summary));
-                }
-                None
             }
             PlatformEvent::CertificateChosen { request, alias } => {
                 if !self.take_pending(request, Pending::ChooseCertificate) {
@@ -226,7 +170,6 @@ impl Features {
                 message,
             } => {
                 let what = match self.pending.remove(&request) {
-                    Some(Pending::OpenDocument) => "Selector de documentos",
                     Some(Pending::ChooseCertificate) => "Selector de certificados",
                     Some(Pending::OpenUrl) => "Enlace",
                     _ => "Petición",
@@ -239,6 +182,15 @@ impl Features {
                     warn!("{what}: error en la petición {request}: {message}");
                     Some(Outcome::Error(message))
                 }
+            }
+            PlatformEvent::DocumentOpened { request, .. }
+            | PlatformEvent::DocumentSaved { request, .. }
+            | PlatformEvent::CertificateInstalled { request }
+            | PlatformEvent::SignFinished { request, .. }
+            | PlatformEvent::PreviewOpened { request, .. }
+            | PlatformEvent::PageRendered { request, .. } => {
+                warn!("Respuesta inesperada para la petición {request}");
+                None
             }
             PlatformEvent::Back
             | PlatformEvent::Configuration(_)
@@ -305,6 +257,7 @@ pub fn summarize_chain(alias: &str, chain: &[Vec<u8>]) -> Result<CertificateSumm
         not_before: info.not_before.format("%d/%m/%Y").to_string(),
         not_after: info.not_after.format("%d/%m/%Y").to_string(),
         chain_len: chain.len(),
+        warnings: crate::keychain::certificate_warnings(leaf, chrono::Utc::now()),
     })
 }
 
@@ -337,36 +290,9 @@ mod tests {
     }
 
     #[test]
-    fn documento_elegido_se_analiza() {
-        let (mut f, platform, bridge) = features();
-        f.open_document().unwrap();
-        assert_eq!(platform.calls(), ["open_document 1"]);
-        let pdf = std::fs::read(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../testdata/pades/rotated_pages.pdf"
-        ))
-        .unwrap();
-        let outcome = f.handle_event(PlatformEvent::DocumentOpened {
-            request: 1,
-            uri: "content://prueba/1".into(),
-            name: Some("rotated_pages.pdf".into()),
-            data: pdf,
-        });
-        assert_eq!(outcome, Some(Outcome::DocumentOpened));
-        settle(&mut f, &bridge);
-        match &f.document {
-            Some(DocumentState::Ready(d)) => {
-                assert_eq!(d.format, "PAdES");
-                assert_eq!(d.name, "rotated_pages.pdf");
-            }
-            other => panic!("documento no analizado: {other:?}"),
-        }
-    }
-
-    #[test]
     fn cancelar_errores_y_respuestas_inesperadas() {
         let (mut f, _, _) = features();
-        f.open_document().unwrap();
+        f.choose_certificate().unwrap();
         let cancelled = PlatformEvent::RequestFailed {
             request: 1,
             cancelled: true,
@@ -375,13 +301,11 @@ mod tests {
         assert_eq!(f.handle_event(cancelled), None);
         assert!(!f.is_busy());
         // Una respuesta de una petición que no existe no cambia nada.
-        f.handle_event(PlatformEvent::DocumentOpened {
+        f.handle_event(PlatformEvent::CertificateChosen {
             request: 99,
-            uri: String::new(),
-            name: None,
-            data: vec![],
+            alias: Some("firmante".into()),
         });
-        assert_eq!(f.document, None);
+        assert_eq!(f.certificate, None);
         f.open_url("https://ejemplo.es").unwrap();
         assert!(!f.is_busy(), "abrir un enlace no bloquea la interfaz");
         let failed = PlatformEvent::RequestFailed {

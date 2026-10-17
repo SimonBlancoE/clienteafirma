@@ -3,19 +3,47 @@
 
 use std::sync::Mutex;
 
-use afirma_core::SignatureAlgorithm;
+use afirma_core::{SignatureAlgorithm, SigningKey};
+use afirma_keystores::software::SoftwareKey;
 
 use crate::bridge::{Platform, PlatformError, RequestId};
 use crate::ime::{ImeRequest, ImeState};
 
+/// Contraseña de los PKCS#12 de `testdata/pki`.
+pub(crate) const TEST_P12_PASSWORD: &str = "12341234";
+
 /// Plataforma de prueba: KeyChain con un alias (`firmante`), sin NFC; registra las llamadas.
+/// Con `key`, el alias firma de verdad (como la clave de KeyChain, que no sale de Java); si
+/// no, devuelve una firma fija.
 #[derive(Default)]
 pub(crate) struct FakePlatform {
     pub chain: Vec<Vec<u8>>,
+    pub key: Option<SoftwareKey>,
     pub calls: Mutex<Vec<String>>,
 }
 
+/// PKCS#12 de `testdata/pki`.
+pub(crate) fn test_p12(name: &str) -> Vec<u8> {
+    std::fs::read(format!("{}/../../testdata/pki/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
+}
+
+/// Clave de `testdata/pki/firmante-rsa.p12`.
+pub(crate) fn software_key() -> SoftwareKey {
+    let entries = afirma_keystores::pkcs12::open(&test_p12("firmante-rsa.p12"), TEST_P12_PASSWORD).unwrap();
+    entries[0].signing_key().unwrap()
+}
+
 impl FakePlatform {
+    /// KeyChain con el alias `firmante` de un PKCS#12 de `testdata/pki` que firma de verdad.
+    pub fn with_p12(name: &str) -> FakePlatform {
+        let entries = afirma_keystores::pkcs12::open(&test_p12(name), TEST_P12_PASSWORD).unwrap();
+        FakePlatform {
+            chain: entries[0].chain.clone(),
+            key: Some(entries[0].signing_key().unwrap()),
+            ..Default::default()
+        }
+    }
+
     fn record(&self, call: String) {
         self.calls.lock().unwrap().push(call);
     }
@@ -32,8 +60,16 @@ impl FakePlatform {
 }
 
 impl Platform for FakePlatform {
-    fn open_document(&self, request: RequestId) -> Result<(), PlatformError> {
-        self.record(format!("open_document {request}"));
+    fn open_document(&self, request: RequestId, mime_types: &[&str]) -> Result<(), PlatformError> {
+        self.record(format!("open_document {request} {}", mime_types.join(",")));
+        Ok(())
+    }
+    fn create_document(&self, request: RequestId, mime_type: &str, name: &str) -> Result<(), PlatformError> {
+        self.record(format!("create_document {request} {mime_type} {name}"));
+        Ok(())
+    }
+    fn install_certificate(&self, request: RequestId, pkcs12: &[u8]) -> Result<(), PlatformError> {
+        self.record(format!("install_certificate {request} {}", pkcs12.len()));
         Ok(())
     }
     fn choose_certificate(&self, request: RequestId) -> Result<(), PlatformError> {
@@ -50,7 +86,15 @@ impl Platform for FakePlatform {
     }
     fn sign(&self, alias: &str, algorithm: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>, PlatformError> {
         self.record(format!("sign {alias} {} {}", algorithm.java_name(), data.len()));
-        Ok(vec![0x5a; 4])
+        match &self.key {
+            Some(key) if alias == "firmante" => key
+                .sign(data, algorithm)
+                .map_err(|e| PlatformError::new(format!("java.security.SignatureException: {e}"))),
+            Some(_) => Err(PlatformError::new(
+                "android.security.KeyChainException: alias desconocido",
+            )),
+            None => Ok(vec![0x5a; 4]),
+        }
     }
     fn start_nfc_reader(&self, request: RequestId) -> Result<(), PlatformError> {
         self.record(format!("start_nfc_reader {request}"));

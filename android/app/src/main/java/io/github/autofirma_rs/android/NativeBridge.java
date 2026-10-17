@@ -21,6 +21,15 @@ final class NativeBridge {
      */
     static native void onDocumentOpened(long request, String uri, String name, int fd);
 
+    /**
+     * Documento nuevo creado con el diálogo de guardado: se cede el descriptor, abierto para
+     * escribir; Rust escribe los datos y lo cierra.
+     */
+    static native void onDocumentCreated(long request, String uri, String name, int fd);
+
+    /** El instalador del sistema ha añadido el certificado a KeyChain. */
+    static native void onCertificateInstalled(long request);
+
     /** Alias elegido en el selector de KeyChain ({@code null} si no se eligió ninguno). */
     static native void onCertificateChosen(long request, String alias);
 

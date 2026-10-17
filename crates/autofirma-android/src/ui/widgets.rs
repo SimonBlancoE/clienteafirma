@@ -811,7 +811,7 @@ pub fn text_field(
     };
     let output = edit
         .id(id)
-        .password(spec.kind.is_secret())
+        .password(spec.kind.is_secret() && !spec.revealed)
         .font(cx.font(size::BODY + 1.0))
         .text_color(p.text)
         .hint_text(hint_text)

@@ -28,11 +28,17 @@
 #      (android_main no se ejecuta dos veces);
 #   8. arranque en frío (tras `am force-stop`) con un enlace afirma://selectcert?..., con el
 #      idioma guardado;
-#   9. que no hay cierres inesperados (FATAL EXCEPTION, señales, pánicos de Rust).
+#   9. que no hay cierres inesperados (FATAL EXCEPTION, señales, pánicos de Rust);
+#  10. con --sign, la firma local de extremo a extremo (emulator-sign.sh): importa la identidad
+#      de prueba (testdata/pki) con el botón de la aplicación y el instalador del sistema,
+#      firma un PDF con firma visible, un .txt (CAdES) y un .xml (XAdES) con el certificado de
+#      KeyChain, los guarda con el diálogo del sistema, comprueba el histórico y verifica las
+#      firmas en el anfitrión con `autofirma verify` (el verificador del escritorio).
 #
 # Deja en --out: captura.png (Inicio), selector.png, intent.png, keychain.png,
-# accesibilidad.xml, logcat.txt, logcat-crash.txt y emulator.log; y en --shots una captura
-# numerada de cada pantalla y diálogo.
+# accesibilidad.xml, logcat.txt, logcat-crash.txt y emulator.log (con --sign, además las
+# firmas en firmas/ y su verificación en verificacion.txt); y en --shots una captura numerada
+# de cada pantalla y diálogo.
 #
 # Uso: tools/android/emulator-test.sh [opciones]
 #
@@ -41,6 +47,9 @@
 #                       $AUTOFIRMA_ANDROID_BUILD_DIR/emulator).
 #   --shots <dir>       Captura de cada pantalla (por defecto <out>/pantallas).
 #   --tls-check <url>   Comprobar también la verificación TLS descargando esta URL.
+#   --sign              Firma local de extremo a extremo (paso 10).
+#   --verifier <ruta>   Binario de AutoFirma de escritorio con el que se verifican las firmas
+#                       (por defecto se compila `autofirma` del espacio de trabajo con Cargo).
 #   --rebuild-image     Reconstruir la imagen Docker aunque ya exista.
 #
 # Variables: AUTOFIRMA_ANDROID_BUILD_DIR (como en build.sh), AUTOFIRMA_ANDROID_EMULATOR_IMAGE
@@ -58,6 +67,8 @@ OUT=""
 SHOTS=""
 TLS_CHECK=""
 REBUILD_IMAGE=0
+SIGN=0
+VERIFIER=""
 
 usage() {
     sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"
@@ -70,6 +81,8 @@ while [ $# -gt 0 ]; do
         --out) OUT="$2"; shift 2 ;;
         --shots) SHOTS="$2"; shift 2 ;;
         --tls-check) TLS_CHECK="$2"; shift 2 ;;
+        --sign) SIGN=1; shift ;;
+        --verifier) VERIFIER="$2"; shift 2 ;;
         --rebuild-image) REBUILD_IMAGE=1; shift ;;
         -h | --help) usage 0 ;;
         *) warn "opción desconocida: $1"; usage 2 ;;
@@ -95,6 +108,23 @@ if [ "$REBUILD_IMAGE" = 1 ] || ! docker image inspect "$IMAGE" > /dev/null 2>&1;
     docker build -f "$ROOT/tools/android/Dockerfile" --target emulator -t "$IMAGE" "$ROOT/tools/android"
 fi
 
+SIGN_ARGS=()
+if [ "$SIGN" = 1 ]; then
+    if [ -z "$VERIFIER" ]; then
+        info "Compilando el verificador (autofirma de escritorio)"
+        cargo build --locked -p autofirma --manifest-path "$ROOT/Cargo.toml"
+        VERIFIER="${CARGO_TARGET_DIR:-$ROOT/target}/debug/autofirma"
+    fi
+    [ -x "$VERIFIER" ] || die "no existe el verificador $VERIFIER"
+    rm -rf "$OUT/firmas"
+    SIGN_ARGS=(-e SIGN_E2E=1
+        -v "$ROOT/tools/android/emulator-sign.sh:/work/emulator-sign.sh:ro"
+        -v "$ROOT/testdata/cades/data/documento.pdf:/work/data/documento.pdf:ro"
+        -v "$ROOT/testdata/cades/data/hola.txt:/work/data/hola.txt:ro"
+        -v "$ROOT/testdata/cades/data/documento.xml:/work/data/documento.xml:ro"
+        -v "$ROOT/testdata/pki/firmante-rsa-legacy.p12:/work/data/firmante-rsa-legacy.p12:ro")
+fi
+
 info "Prueba de $(basename "$APK") en el emulador; resultados en $OUT"
 docker run --rm --device /dev/kvm \
     -v "$APK:/work/app.apk:ro" \
@@ -104,5 +134,22 @@ docker run --rm --device /dev/kvm \
     -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
     -e TLS_CHECK="$TLS_CHECK" \
     -e BOOT_TIMEOUT="${AUTOFIRMA_EMULATOR_BOOT_TIMEOUT:-600}" \
+    "${SIGN_ARGS[@]}" \
     "$IMAGE" bash /work/emulator-smoke.sh
+
+if [ "$SIGN" = 1 ]; then
+    info "Verificación de las firmas del emulador con $VERIFIER verify"
+    : > "$OUT/verificacion.txt"
+    for f in documento_signed.pdf hola.txt.csig documento.xml.xsig; do
+        [ -s "$OUT/firmas/$f" ] || die "falta la firma $f"
+        result="$("$VERIFIER" verify -i "$OUT/firmas/$f" 2>&1)"
+        printf '%s: %s\n' "$f" "$(tr '\n' ' ' <<< "$result")" | tee -a "$OUT/verificacion.txt"
+        # Una línea por resultado; sin errores, solo «firma válida» (en el idioma del sistema).
+        first="$(head -n 1 <<< "$result")"
+        case "$first" in
+            "Valid signature" | "Firma válida") ;;
+            *) die "la firma $f no es válida: $result" ;;
+        esac
+    done
+fi
 info "Prueba superada: $OUT/captura.png; capturas de las pantallas en $SHOTS"

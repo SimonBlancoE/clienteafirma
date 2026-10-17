@@ -13,7 +13,9 @@ use egui::{Context, TextureHandle, Ui, UiBuilder};
 use tracing::{info, warn};
 
 use crate::bridge::{Bridge, DeviceConfig, Platform, PlatformEvent};
+use crate::errors;
 use crate::features::{Features, Outcome};
+use crate::flow::{Effect, FlowAction, Flows};
 use crate::history::SignsHistory;
 use crate::i18n::{self, Language, tr, trf};
 use crate::ime::ImeController;
@@ -41,6 +43,7 @@ pub struct Shell {
     dialog: Option<Dialog>,
     ime: ImeController,
     features: Features,
+    flows: Flows,
     device: DeviceConfig,
     configured: bool,
     language_logged: Option<Language>,
@@ -80,6 +83,7 @@ impl Shell {
         Shell {
             ime: ImeController::new(platform.clone()),
             features: Features::new(platform.clone(), bridge.clone()),
+            flows: Flows::new(platform.clone(), bridge.clone(), prefs.clone(), history.clone()),
             platform,
             bridge,
             prefs,
@@ -119,6 +123,10 @@ impl Shell {
         &self.features
     }
 
+    pub fn flows(&self) -> &Flows {
+        &self.flows
+    }
+
     pub fn ime(&self) -> &ImeController {
         &self.ime
     }
@@ -135,7 +143,7 @@ impl Shell {
 
     /// `true` mientras haya alguna petición o tarea en curso.
     pub fn is_busy(&self) -> bool {
-        self.features.is_busy()
+        self.features.is_busy() || self.flows.is_busy()
     }
 
     /// Idioma de la interfaz: el elegido o el del sistema.
@@ -182,25 +190,48 @@ impl Shell {
             PlatformEvent::ImeState(state) => self.ime.on_state(state),
             PlatformEvent::ImeAction(_) => self.ime.on_editor_action(now),
             PlatformEvent::ImeVisibility(visible) => self.ime.on_visibility(visible, now),
-            other => match self.features.handle_event(other) {
-                Some(Outcome::DocumentOpened) => {
-                    if self.nav.current() != &Screen::SignFile {
-                        self.nav.push(Screen::SignFile);
-                    }
-                }
-                Some(Outcome::WebRequest) => {
-                    // Un enlace afirma:// salta el arranque y se abre sobre lo que haya.
-                    if self.nav.current() == &Screen::Splash {
-                        self.nav.reset(route_after_splash(&self.prefs.get()));
-                    }
-                    if self.nav.current() != &Screen::WebRequest {
-                        self.nav.push(Screen::WebRequest);
-                    }
-                    self.dialog = None;
-                }
-                Some(Outcome::Error(message)) => self.show_error(&message),
-                None => {}
+            other => match self.flows.handle_event(other) {
+                Ok(effects) => self.apply_effects(effects),
+                Err(other) => self.feature_event(*other),
             },
+        }
+    }
+
+    fn feature_event(&mut self, event: PlatformEvent) {
+        match self.features.handle_event(event) {
+            Some(Outcome::WebRequest) => {
+                // Un enlace afirma:// salta el arranque y se abre sobre lo que haya.
+                if self.nav.current() == &Screen::Splash {
+                    self.nav.reset(route_after_splash(&self.prefs.get()));
+                }
+                if self.nav.current() != &Screen::WebRequest {
+                    self.nav.push(Screen::WebRequest);
+                }
+                self.dialog = None;
+            }
+            Some(Outcome::Error(message)) => self.show_error(&message),
+            None => {}
+        }
+    }
+
+    /// Aplica lo que piden las operaciones de varios pasos.
+    fn apply_effects(&mut self, effects: Vec<Effect>) {
+        for effect in effects {
+            match effect {
+                Effect::Dialog(dialog) => self.dialog = Some(dialog),
+                Effect::CloseDialog => self.dialog = None,
+                Effect::OpenPreview => {
+                    if !matches!(self.nav.current(), Screen::VisibleSignature { .. }) {
+                        self.nav.push(Screen::VisibleSignature {
+                            selection: None,
+                            drag: None,
+                        });
+                    }
+                }
+                Effect::ClosePreview => {
+                    self.nav.remove("visible_signature");
+                }
+            }
         }
     }
 
@@ -216,10 +247,34 @@ impl Shell {
     /// Botón «Atrás» del sistema.
     pub fn back(&mut self) {
         if let Some(dialog) = self.dialog.take() {
-            info!("Atrás: se cierra el diálogo «{}»", dialog.id());
-            if dialog == Dialog::ConfigNfc {
-                self.answer_nfc(false);
+            match dialog {
+                Dialog::Progress { .. } => {
+                    // Una operación en curso que no se puede interrumpir.
+                    info!("Atrás durante «{}»: no se hace nada", dialog.id());
+                    self.dialog = Some(dialog);
+                }
+                Dialog::Prompt(prompt) => {
+                    info!("Atrás: se cierra el diálogo «{}»", prompt.id);
+                    if let Some(action) = prompt.back {
+                        self.apply(action);
+                    }
+                }
+                Dialog::ChooseCertType { .. } | Dialog::PdfPassword { .. } => {
+                    info!("Atrás: se cierra el diálogo «{}»", dialog.id());
+                    self.apply(Action::Flow(FlowAction::Cancel));
+                }
+                other => {
+                    info!("Atrás: se cierra el diálogo «{}»", other.id());
+                    if other == Dialog::ConfigNfc {
+                        self.answer_nfc(false);
+                    }
+                }
             }
+            return;
+        }
+        if matches!(self.nav.current(), Screen::VisibleSignature { .. }) {
+            info!("Atrás en la vista previa de la firma visible");
+            self.apply(Action::Flow(FlowAction::Cancel));
             return;
         }
         let from = self.nav.current().id();
@@ -310,7 +365,11 @@ impl Shell {
                         Tone::Danger,
                         icons::WARNING_CIRCLE,
                         tr("error_ocurred"),
-                        format!("AA200700 - {}", trf("error_format_trusted_domains", &[&domain])),
+                        format!(
+                            "{} - {}",
+                            errors::DOMAIN_FORMAT_INCORRECT.code_str(),
+                            trf("error_format_trusted_domains", &[&domain])
+                        ),
                     ));
                 }
             },
@@ -319,6 +378,7 @@ impl Shell {
                     warn!("No se pudo leer el histórico de firmas: {e}");
                     Vec::new()
                 });
+                info!("Histórico de firmas: {} registros", records.len());
                 self.nav.push(Screen::SignsRecord { records });
             }
             Action::ClearHistory => {
@@ -335,10 +395,18 @@ impl Shell {
                 self.answer_nfc(yes);
                 self.dialog = None;
             }
-            Action::SignFile => {
-                if let Err(e) = self.features.open_document() {
-                    self.show_error(&e);
+            Action::Flow(action) => {
+                let effects = self.flows.apply(action);
+                self.apply_effects(effects);
+            }
+            Action::ImportCertificate => {
+                // Se cierran las instrucciones y se abre el selector (el original abría además
+                // un Inicio nuevo que lanzaba un segundo selector, §10 n.º 15).
+                while matches!(self.nav.current(), Screen::ImportInstructions { .. }) && self.nav.depth() > 1 {
+                    self.nav.pop();
                 }
+                let effects = self.flows.apply(FlowAction::StartImport);
+                self.apply_effects(effects);
             }
             Action::ChooseCertificate => {
                 if let Err(e) = self.features.choose_certificate() {
@@ -428,11 +496,13 @@ impl Shell {
         {
             let prefs = self.prefs.get();
             let language = i18n::language();
+            self.flows.upload_textures(&ctx);
             let Shell {
                 nav,
                 ime,
                 targets,
                 features,
+                flows,
                 device,
                 logo,
                 dialog,
@@ -442,6 +512,7 @@ impl Shell {
                 prefs: &prefs,
                 device,
                 features,
+                flows,
                 logo: logo.as_ref(),
                 language,
             };
@@ -532,6 +603,7 @@ mod tests {
     use crate::ime::ImeState;
     use crate::prefs::CacheMinutes;
     use crate::testing::FakePlatform;
+    use crate::ui::screens::Action;
 
     /// Aplicación con egui sin pintor y una plataforma falsa; el tiempo avanza 50 ms por
     /// pasada.
@@ -546,7 +618,11 @@ mod tests {
 
     impl Harness {
         fn new(prefs: Prefs, history: SignsHistory) -> Harness {
-            let platform = Arc::new(FakePlatform::default());
+            Harness::with_platform(FakePlatform::default(), prefs, history)
+        }
+
+        fn with_platform(platform: FakePlatform, prefs: Prefs, history: SignsHistory) -> Harness {
+            let platform = Arc::new(platform);
             let bridge = Arc::new(Bridge::new());
             let shell = Shell::with_storage(platform.clone(), bridge.clone(), prefs, history);
             Harness {
@@ -762,7 +838,19 @@ mod tests {
         assert_eq!(h.screen(), "import_instructions_1", "Atrás vuelve a la página 1");
         h.tap("import.continue");
         h.tap("import.add");
-        assert_eq!(h.screen(), "unavailable");
+        assert_eq!(h.screen(), "help_import_certs", "se cierran las instrucciones");
+        assert_eq!(
+            h.platform.calls_with("open_document"),
+            ["open_document 1 application/x-pkcs12"],
+            "un solo selector (el original abría dos, §10 n.º 15)"
+        );
+        h.bridge.post(PlatformEvent::RequestFailed {
+            request: 1,
+            cancelled: true,
+            message: None,
+        });
+        h.frames(2);
+        assert_eq!(h.shell.dialog(), None, "cancelar no muestra nada");
         while h.screen() != "home" {
             h.back();
         }
@@ -787,7 +875,7 @@ mod tests {
         }
         h.tap("settings.version");
         h.tap("version.license");
-        assert_eq!(h.platform.calls_with("open_url"), ["open_url 1 https://eupl.eu/1.1/es"]);
+        assert_eq!(h.platform.calls_with("open_url"), ["open_url 2 https://eupl.eu/1.1/es"]);
     }
 
     #[test]
@@ -1033,7 +1121,7 @@ mod tests {
         let _lock = test_lock();
         let mut h = Harness::at_home();
         h.tap("home.sign_file");
-        assert_eq!(h.platform.calls_with("open_document"), ["open_document 1"]);
+        assert_eq!(h.platform.calls_with("open_document"), ["open_document 1 */*"]);
         h.bridge.post(PlatformEvent::DocumentOpened {
             request: 1,
             uri: "content://prueba".into(),
@@ -1041,11 +1129,23 @@ mod tests {
             data: b"hola".to_vec(),
         });
         h.frames(2);
-        assert_eq!(h.screen(), "sign_file");
-        h.back();
+        // Sin el DNIe habilitado, directamente el selector de KeyChain.
+        assert_eq!(h.platform.calls_with("choose_certificate"), ["choose_certificate 2"]);
+        assert_eq!(h.screen(), "home");
+        // Sin elegir certificado: se cancela sin mensaje.
+        h.bridge.post(PlatformEvent::CertificateChosen {
+            request: 2,
+            alias: None,
+        });
+        h.frames(2);
+        assert_eq!((h.screen(), h.shell.dialog()), ("home", None));
+        assert!(!h.shell.flows().signing());
         h.tap("home.certificates");
         h.tap("certs.view");
-        assert_eq!(h.platform.calls_with("choose_certificate"), ["choose_certificate 2"]);
+        assert_eq!(
+            h.platform.calls_with("choose_certificate"),
+            ["choose_certificate 2", "choose_certificate 3"]
+        );
         h.back();
         // Enlace afirma:// con la app abierta: se abre su pantalla encima.
         h.bridge.post(PlatformEvent::ViewIntent {
@@ -1055,6 +1155,505 @@ mod tests {
         assert_eq!(h.shell.nav().ids(), ["home", "web_request"]);
         h.back();
         assert_eq!(h.screen(), "home");
+    }
+
+    fn testdata(path: &str) -> Vec<u8> {
+        std::fs::read(format!("{}/../../testdata/{path}", env!("CARGO_MANIFEST_DIR"))).unwrap()
+    }
+
+    impl Harness {
+        /// En Inicio con unas preferencias, el histórico en `dir` y una KeyChain falsa con el
+        /// alias `firmante` del PKCS#12 de `testdata/pki`.
+        fn signing(p12: &str, prefs: Preferences, dir: &std::path::Path) -> Harness {
+            let prefs = Preferences {
+                skip_intro_screen: true,
+                skip_conditions_screen: true,
+                ..prefs
+            };
+            let mut h = Harness::with_platform(
+                FakePlatform::with_p12(p12),
+                Prefs::in_memory(prefs),
+                SignsHistory::open(dir),
+            );
+            h.configure("es-ES", false);
+            h.tap_splash();
+            assert_eq!(h.screen(), "home");
+            h
+        }
+
+        /// Pasadas hasta que terminen los hilos de trabajo.
+        fn settle(&mut self) {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+            loop {
+                self.frames(2);
+                if !self.shell.is_busy() {
+                    self.frames(2);
+                    if !self.shell.is_busy() {
+                        return;
+                    }
+                }
+                assert!(std::time::Instant::now() < deadline, "tareas sin terminar");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+
+        /// Petición de la última llamada a la plataforma que empieza por `call`.
+        fn last_request(&self, call: &str) -> crate::bridge::RequestId {
+            let calls = self.platform.calls_with(call);
+            let last = calls.last().unwrap_or_else(|| panic!("sin llamadas a {call}"));
+            last.split(' ').nth(1).unwrap().parse().unwrap()
+        }
+
+        /// Elige un documento en el selector de documentos (falso).
+        fn open_document(&mut self, name: &str, data: Vec<u8>) {
+            let request = self.last_request("open_document");
+            self.bridge.post(PlatformEvent::DocumentOpened {
+                request,
+                uri: format!("content://descargas/{name}"),
+                name: Some(name.into()),
+                data,
+            });
+            self.frames(2);
+        }
+
+        /// Elige el alias en el selector de KeyChain y espera a la firma.
+        fn choose_alias(&mut self, alias: Option<&str>) {
+            let request = self.last_request("choose_certificate");
+            self.bridge.post(PlatformEvent::CertificateChosen {
+                request,
+                alias: alias.map(Into::into),
+            });
+            self.settle();
+        }
+
+        /// Guarda con el diálogo del sistema (falso): devuelve el nombre propuesto, el tipo
+        /// MIME y lo que se ha escrito.
+        fn save_document(&mut self) -> (String, String, Vec<u8>) {
+            let call = self.platform.calls_with("create_document").last().cloned().unwrap();
+            let mut parts = call.splitn(4, ' ').skip(1);
+            let request = parts.next().unwrap().parse().unwrap();
+            let mime = parts.next().unwrap().to_string();
+            let name = parts.next().unwrap().to_string();
+            let mut out = Vec::new();
+            self.bridge.complete_write(
+                request,
+                format!("content://descargas/{name}"),
+                Some(name.clone()),
+                &mut out,
+            );
+            self.frames(2);
+            (name, mime, out)
+        }
+
+        fn drag(&mut self, from: Pos2, to: Pos2) {
+            let button = |pos, pressed| Event::PointerButton {
+                pos,
+                button: PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            self.frame(vec![Event::PointerMoved(from), button(from, true)]);
+            for i in 1..=8 {
+                let t = i as f32 / 8.0;
+                self.frame(vec![Event::PointerMoved(from + (to - from) * t)]);
+            }
+            self.frame(vec![button(to, false)]);
+            self.frame(vec![Event::PointerGone]);
+            self.frames(2);
+        }
+
+        fn dialog_id(&self) -> Option<&'static str> {
+            self.shell.dialog().map(Dialog::id)
+        }
+
+        fn dialog_title(&self) -> String {
+            match self.shell.dialog() {
+                Some(Dialog::Message { title, .. }) => title.clone(),
+                Some(Dialog::Prompt(p)) => p.title.clone(),
+                other => panic!("sin diálogo de mensaje: {other:?}"),
+            }
+        }
+    }
+
+    fn assert_valid(signature: &[u8]) {
+        let result = afirma_signers::validate(signature, &afirma_core::ExtraParams::new());
+        assert_eq!(
+            result[0].validity,
+            afirma_core::validity::Validity::Ok,
+            "firma no válida: {result:?}"
+        );
+    }
+
+    /// Firma local completa con la KeyChain falsa (clave RSA de testdata/pki que firma de
+    /// verdad): PDF con firma visible, fichero cualquiera en CAdES y XML en XAdES; las tres
+    /// firmas se validan con afirma-signers (el verificador del escritorio) y quedan en el
+    /// histórico. Guardar cancelado no se registra.
+    #[test]
+    fn firma_local_con_keychain_de_extremo_a_extremo() {
+        let _lock = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let prefs = Preferences {
+            pades_visible_signature: true,
+            ..Default::default()
+        };
+        let mut h = Harness::signing("firmante-rsa.p12", prefs, dir.path());
+        // Caché de certificado de la firma web con una entrada: la firma local la vacía (§4.7).
+        let cached: Arc<dyn afirma_core::SigningKey> = Arc::new(crate::testing::software_key());
+        h.shell
+            .flows()
+            .cache()
+            .store(cached, std::time::Duration::from_secs(300));
+        assert!(h.shell.flows().cache().get().is_some());
+
+        // PDF: vista previa, área, certificado, firma y guardado.
+        h.tap("home.sign_file");
+        h.open_document("documento.pdf", testdata("cades/data/documento.pdf"));
+        assert_eq!(h.screen(), "visible_signature");
+        h.settle();
+        let page = h.shell.target("preview.page").expect("página dibujada");
+        let preview = h.shell.flows().preview().unwrap();
+        assert!(preview.texture.is_some(), "página dibujada en una textura");
+        assert!(!preview.loading());
+        h.drag(
+            page.min + vec2(page.width() * 0.1, page.height() * 0.6),
+            page.min + vec2(page.width() * 0.7, page.height() * 0.8),
+        );
+        assert!(matches!(
+            h.shell.nav().current(),
+            Screen::VisibleSignature { selection: Some(_), .. }
+        ));
+        h.tap("preview.continue");
+        assert_eq!(h.screen(), "home", "se sale de la vista previa");
+        h.choose_alias(Some("firmante"));
+        assert!(h.shell.flows().cache().get().is_none(), "la firma local vacía la caché");
+        let (name, mime, pdf) = h.save_document();
+        assert_eq!(
+            (name.as_str(), mime.as_str()),
+            ("documento_signed.pdf", "application/pdf")
+        );
+        assert_eq!(h.dialog_title(), "Fichero firmado");
+        assert_valid(&pdf);
+        let info = afirma_pdf::info::PdfInfo::open(&pdf, None).unwrap();
+        let field = &info.signature_fields[0];
+        assert_eq!(field.page, 1);
+        assert!(
+            field.urx - field.llx > 100 && field.ury - field.lly > 45,
+            "firma visible: {field:?}"
+        );
+        assert!(
+            h.platform.calls_with("sign firmante SHA256withRSA").len() == 1,
+            "firmado con KeyChain: {:?}",
+            h.platform.calls()
+        );
+        h.tap("dialog.ok");
+
+        // Fichero cualquiera: CAdES implícita, sin vista previa.
+        h.tap("home.sign_file");
+        h.open_document("hola.txt", testdata("cades/data/hola.txt"));
+        assert_eq!(h.screen(), "home");
+        h.choose_alias(Some("firmante"));
+        let (name, mime, cades) = h.save_document();
+        assert_eq!((name.as_str(), mime.as_str()), ("hola.txt.csig", "application/csig"));
+        assert_valid(&cades);
+        let signer = afirma_signers::signer_for_format("CAdES").unwrap();
+        assert_eq!(
+            signer.get_data(&cades, &afirma_core::ExtraParams::new()).unwrap(),
+            Some(testdata("cades/data/hola.txt")),
+            "implícita: la firma contiene los datos"
+        );
+        h.tap("dialog.ok");
+
+        // XML: XAdES.
+        h.tap("home.sign_file");
+        h.open_document("documento.xml", testdata("cades/data/documento.xml"));
+        h.choose_alias(Some("firmante"));
+        let (name, mime, xades) = h.save_document();
+        assert_eq!(
+            (name.as_str(), mime.as_str()),
+            ("documento.xml.xsig", "application/xsig")
+        );
+        assert_valid(&xades);
+        assert!(
+            afirma_signers::signer_for_format("XAdES")
+                .unwrap()
+                .is_sign(&xades, &afirma_core::ExtraParams::new())
+        );
+        h.tap("dialog.ok");
+
+        // Guardado cancelado: sin mensaje y sin registro (§10 n.º 21).
+        h.tap("home.sign_file");
+        h.open_document("otro.bin", vec![1, 2, 3]);
+        h.choose_alias(Some("firmante"));
+        let request = h.last_request("create_document");
+        h.bridge.post(PlatformEvent::RequestFailed {
+            request,
+            cancelled: true,
+            message: None,
+        });
+        h.frames(2);
+        assert_eq!((h.screen(), h.dialog_id()), ("home", None));
+        assert!(
+            h.bridge.take_write(request).is_none(),
+            "los datos pendientes se descartan"
+        );
+
+        let records = SignsHistory::open(dir.path()).load().unwrap();
+        let mut files: Vec<_> = records.iter().map(|r| r.file.clone().unwrap()).collect();
+        files.sort();
+        assert_eq!(files, ["documento.pdf", "documento.xml", "hola.txt"]);
+        assert!(
+            records
+                .iter()
+                .all(|r| r.kind == RecordKind::Local && r.operation == RecordOperation::Sign)
+        );
+        h.tap("home.history");
+        assert!(matches!(h.shell.nav().current(), Screen::SignsRecord { records } if records.len() == 3));
+    }
+
+    /// Vista previa: sin área y con un área pequeña se ofrece seguir sin firma visible (como
+    /// el original); «Atrás» cancela sin mensaje.
+    #[test]
+    fn vista_previa_sin_area_area_pequena_y_atras() {
+        let _lock = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let prefs = Preferences {
+            pades_visible_signature: true,
+            ..Default::default()
+        };
+        let mut h = Harness::signing("firmante-rsa.p12", prefs, dir.path());
+        h.tap("home.sign_file");
+        h.open_document("documento.pdf", testdata("cades/data/documento.pdf"));
+        h.settle();
+        h.tap("preview.continue");
+        assert_eq!(h.dialog_id(), Some("not_selected_area"));
+        h.tap("dialog.cancel");
+        assert_eq!((h.screen(), h.dialog_id()), ("visible_signature", None));
+        let page = h.shell.target("preview.page").unwrap();
+        h.drag(page.min + vec2(10.0, 10.0), page.min + vec2(30.0, 25.0));
+        h.tap("preview.continue");
+        assert_eq!(h.dialog_id(), Some("small_area"));
+        // «Continuar»: firma invisible.
+        h.tap("dialog.ok");
+        assert_eq!(h.screen(), "home");
+        assert_eq!(h.platform.calls_with("choose_certificate").len(), 1);
+        h.choose_alias(Some("firmante"));
+        let (_, _, pdf) = h.save_document();
+        assert_valid(&pdf);
+        let info = afirma_pdf::info::PdfInfo::open(&pdf, None).unwrap();
+        assert!(info.signature_fields.iter().all(|f| f.urx == f.llx), "firma invisible");
+        h.tap("dialog.ok");
+
+        // Atrás en la vista previa: se cancela sin mensaje.
+        h.tap("home.sign_file");
+        h.open_document("documento.pdf", testdata("cades/data/documento.pdf"));
+        h.settle();
+        h.back();
+        assert_eq!((h.screen(), h.dialog_id()), ("home", None));
+        assert!(!h.shell.flows().signing());
+        assert!(h.shell.flows().preview().is_none());
+    }
+
+    /// PDF protegido: el diálogo de contraseña no acepta una vacía, avisa de la incorrecta y
+    /// reintenta la firma con `ownerPassword`; con vista previa, la contraseña se pide antes
+    /// y sirve también para firmar (§10 n.º 26).
+    #[test]
+    fn pdf_protegido_con_contrasena() {
+        let _lock = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let mut h = Harness::signing("firmante-rsa.p12", Preferences::default(), dir.path());
+        h.tap("home.sign_file");
+        h.open_document("cifrado.pdf", testdata("pades/encrypted_aes128.pdf"));
+        h.choose_alias(Some("firmante"));
+        assert_eq!(h.dialog_id(), Some("pdf_password"));
+        h.tap("dialog.ok");
+        assert!(matches!(
+            h.shell.dialog(),
+            Some(Dialog::PdfPassword {
+                error: Some("error_empty_pdf_password"),
+                ..
+            })
+        ));
+        h.shell.apply(Action::Flow(FlowAction::PdfPassword("mala".into())));
+        h.settle();
+        assert!(matches!(
+            h.shell.dialog(),
+            Some(Dialog::PdfPassword {
+                error: Some("dialog_pdf_bad_password"),
+                ..
+            })
+        ));
+        h.shell.apply(Action::Flow(FlowAction::PdfPassword("owner".into())));
+        h.settle();
+        let (name, _, pdf) = h.save_document();
+        assert_eq!(name, "cifrado_signed.pdf");
+        assert_eq!(h.dialog_title(), "Fichero firmado");
+        let params = afirma_core::ExtraParams::parse("ownerPassword=owner");
+        let result = afirma_signers::validate(&pdf, &params);
+        assert_eq!(result[0].validity, afirma_core::validity::Validity::Ok, "{result:?}");
+        h.tap("dialog.ok");
+
+        // Con vista previa: la contraseña del usuario abre el documento.
+        h.shell.prefs().update(|p| p.pades_visible_signature = true).unwrap();
+        h.tap("home.sign_file");
+        h.open_document("usuario.pdf", testdata("pades/encrypted_aes128_user.pdf"));
+        h.settle();
+        assert_eq!(h.dialog_id(), Some("pdf_password"));
+        h.shell.apply(Action::Flow(FlowAction::PdfPassword("user".into())));
+        h.settle();
+        assert_eq!((h.screen(), h.dialog_id()), ("visible_signature", None));
+        h.tap("preview.continue");
+        h.tap("dialog.ok"); // sin área: firma invisible
+        h.choose_alias(Some("firmante"));
+        // La de usuario no basta para firmar: se pide la del propietario sin volver a abrir.
+        assert!(matches!(
+            h.shell.dialog(),
+            Some(Dialog::PdfPassword {
+                error: Some("dialog_pdf_bad_password"),
+                ..
+            })
+        ));
+        h.back();
+        assert_eq!((h.screen(), h.dialog_id()), ("home", None), "cancelar no muestra nada");
+    }
+
+    /// Avisos del certificado: «Cancelar» vuelve a elegir certificado y «Continuar» firma.
+    #[test]
+    fn avisos_del_certificado_caducado() {
+        let _lock = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let mut h = Harness::signing("caducado.p12", Preferences::default(), dir.path());
+        h.tap("home.sign_file");
+        h.open_document("hola.txt", testdata("cades/data/hola.txt"));
+        h.choose_alias(Some("firmante"));
+        assert_eq!(h.dialog_id(), Some("cert_expired"));
+        assert_eq!(h.dialog_title(), "Certificado caducado");
+        h.tap("dialog.cancel");
+        assert_eq!(
+            h.platform.calls_with("choose_certificate").len(),
+            2,
+            "se vuelve a elegir"
+        );
+        h.choose_alias(Some("firmante"));
+        assert_eq!(h.dialog_id(), Some("cert_expired"));
+        h.tap("dialog.ok");
+        h.settle();
+        let (_, _, cades) = h.save_document();
+        assert_eq!(h.dialog_title(), "Fichero firmado");
+        assert!(!cades.is_empty());
+        // Un alias que KeyChain no conoce: error de certificado (AA200000).
+        h.tap("dialog.ok");
+        h.tap("home.sign_file");
+        h.open_document("hola.txt", testdata("cades/data/hola.txt"));
+        h.choose_alias(Some("otro"));
+        match h.shell.dialog() {
+            Some(Dialog::Message { title, body, .. }) => {
+                assert_eq!(title, "¡Algo salió mal!");
+                assert!(body.starts_with("AA200000 - "), "{body}");
+            }
+            other => panic!("se esperaba el error: {other:?}"),
+        }
+    }
+
+    /// Con el DNIe habilitado: «¿Con qué firmarás?»; el DNIe aún no está y se vuelve a
+    /// elegir; sin elegir en KeyChain se vuelve a preguntar; la X cancela.
+    #[test]
+    fn eleccion_de_almacen_con_dnie_habilitado() {
+        let _lock = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let prefs = Preferences {
+            use_nfc: true,
+            first_execution: false,
+            ..Default::default()
+        };
+        let mut h = Harness::signing("firmante-rsa.p12", prefs, dir.path());
+        h.tap("home.sign_file");
+        h.open_document("hola.txt", testdata("cades/data/hola.txt"));
+        assert_eq!(h.dialog_id(), Some("cert_type"));
+        h.tap("cert_type.dnie");
+        assert_eq!(h.dialog_id(), Some("dnie_unavailable"));
+        h.tap("dialog.ok");
+        assert_eq!(h.dialog_id(), Some("cert_type"));
+        h.tap("cert_type.certificate");
+        assert_eq!(h.dialog_id(), None);
+        assert_eq!(h.platform.calls_with("choose_certificate").len(), 1);
+        h.choose_alias(None);
+        assert_eq!(h.dialog_id(), Some("cert_type"), "sin elegir se vuelve a preguntar");
+        h.tap("dialog.close");
+        assert_eq!(h.dialog_id(), None);
+        assert!(!h.shell.flows().signing());
+    }
+
+    /// Importación de un PKCS#12 en KeyChain (§4.8) con su error y «Volver a intentarlo».
+    #[test]
+    fn importar_certificado() {
+        let _lock = test_lock();
+        let mut h = Harness::at_home();
+        h.tap("home.add_cert");
+        h.tap("import.continue");
+        h.tap("import.add");
+        assert_eq!(h.screen(), "home");
+        assert_eq!(
+            h.platform.calls_with("open_document"),
+            ["open_document 1 application/x-pkcs12"]
+        );
+        let p12 = crate::testing::test_p12("firmante-rsa.p12");
+        h.open_document("firmante.p12", p12.clone());
+        assert_eq!(
+            h.platform.calls_with("install_certificate"),
+            [format!("install_certificate 2 {}", p12.len())]
+        );
+        h.bridge.post(PlatformEvent::CertificateInstalled { request: 2 });
+        h.frames(2);
+        assert_eq!(h.dialog_title(), "Certificado añadido");
+        h.tap("dialog.ok");
+        // Error al leer el fichero: «No hemos podido añadir tu certificado».
+        h.tap("home.add_cert");
+        h.tap("import.continue");
+        h.tap("import.add");
+        h.bridge.post(PlatformEvent::RequestFailed {
+            request: 3,
+            cancelled: false,
+            message: Some("java.io.IOException".into()),
+        });
+        h.frames(2);
+        assert_eq!(h.dialog_id(), Some("cant_add_cert"));
+        assert!(matches!(h.shell.dialog(), Some(Dialog::Prompt(p)) if p.body.starts_with("AA201100 - ")));
+        h.tap("dialog.ok");
+        assert_eq!(h.platform.calls_with("open_document").len(), 3, "«Volver a intentarlo»");
+        // Instalación cancelada: nada.
+        h.open_document("firmante.p12", p12);
+        h.bridge.post(PlatformEvent::RequestFailed {
+            request: 5,
+            cancelled: true,
+            message: None,
+        });
+        h.frames(2);
+        assert_eq!(h.dialog_id(), None);
+    }
+
+    /// Documentos que no se pueden leer: demasiado grandes (AA200105) o con error (AA200102).
+    #[test]
+    fn errores_al_leer_el_documento() {
+        let _lock = test_lock();
+        let mut h = Harness::at_home();
+        for (message, code) in [
+            (crate::bridge::DOCUMENT_TOO_LARGE, "AA200105"),
+            ("IOException", "AA200102"),
+        ] {
+            h.tap("home.sign_file");
+            let request = h.last_request("open_document");
+            h.bridge.post(PlatformEvent::RequestFailed {
+                request,
+                cancelled: false,
+                message: Some(message.into()),
+            });
+            h.frames(2);
+            match h.shell.dialog() {
+                Some(Dialog::Message { body, .. }) => assert!(body.starts_with(code), "{body}"),
+                other => panic!("se esperaba el error {code}: {other:?}"),
+            }
+            h.tap("dialog.ok");
+        }
     }
 
     #[test]
@@ -1105,9 +1704,11 @@ mod tests {
             Screen::ImportInstructions { page: 1 },
             Screen::Certificates,
             Screen::WebSigningInfo,
-            Screen::SignFile,
+            Screen::VisibleSignature {
+                selection: Some([0.1, 0.2, 0.5, 0.4]),
+                drag: None,
+            },
             Screen::WebRequest,
-            Screen::Unavailable(crate::nav::Feature::ImportCertificate),
         ];
         let dialogs = [
             Dialog::Help,

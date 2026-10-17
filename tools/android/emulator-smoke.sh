@@ -3,7 +3,8 @@
 # (imagen autofirma-android-emulator). Entradas: /work/app.apk; salidas en /out (captura.png,
 # selector.png, intent.png, keychain.png, logcat.txt, emulator.log) y una captura por pantalla
 # en /shots. Variables: HOST_UID/HOST_GID (dueño de las salidas), TLS_CHECK (URL opcional),
-# BOOT_TIMEOUT (segundos).
+# BOOT_TIMEOUT (segundos) y SIGN_E2E (1: al final, la firma local de extremo a extremo de
+# /work/emulator-sign.sh con los ficheros de /work/data; las firmas quedan en /out/firmas).
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
@@ -334,11 +335,20 @@ go home.add_cert import_instructions_1
 shot importar-1
 go import.continue import_instructions_2
 shot importar-2
-go import.add unavailable
-shot proximamente
-back_to import_instructions_2
-back_to import_instructions_1
-back_to home
+# «Añadir certificado» cierra las instrucciones y abre el selector de .p12/.pfx.
+mark
+tap import.add
+wait_new 'Selector de documentos abierto' 30
+wait_screen home
+for ((i = 0; i < 30; i++)); do
+    focused_window | contains '[Dd]ocuments[Uu][Ii]' && break
+    sleep 1
+done
+focused_window | contains '[Dd]ocuments[Uu][Ii]' || fail "no se abrió el selector de certificados para importar"
+sleep 1
+shot selector-p12
+adb shell input keyevent KEYCODE_BACK
+wait_new 'Selector de documentos cancelado' 30
 go home.web_signing web_signing
 shot firma-web
 back_to home
@@ -489,13 +499,18 @@ pid="$(adb shell pidof "$PKG" | tr -d '\r')"
 mark
 adb shell input keyevent KEYCODE_BACK
 wait_new 'la aplicación pasa a segundo plano'
-sleep 2
-if focused_window | contains "$PKG"; then
-    # Si coincide con una transición de ventanas, el sistema puede no mover la tarea: otra vez.
+# Si coincide con una transición de ventanas, el sistema puede responder a moveTaskToBack con
+# una transición vacía («No transition roots … so abort») y no mover la tarea: otra vez.
+for ((attempt = 1; attempt <= 4; attempt++)); do
+    for ((i = 0; i < 6; i++)); do
+        focused_window | contains "$PKG" || break
+        sleep 0.5
+    done
+    focused_window | contains "$PKG" || break
     info "    sigue en primer plano: Atrás otra vez"
     adb shell input keyevent KEYCODE_BACK
-    sleep 2
-fi
+done
+sleep 1
 focused_window | contains "$PKG" && fail "la aplicación sigue en primer plano tras pulsar Atrás"
 adb shell am start -W -n "$PKG/.MainActivity" > /dev/null
 sleep 2
@@ -521,5 +536,14 @@ check_alive
 adb shell pidof "$PKG" > /dev/null || fail "el proceso de la aplicación ya no existe"
 if app_log | contains 'Error interno \(pánico\)|panicked at'; then
     fail "pánico de Rust en el registro"
+fi
+if [ "${SIGN_E2E:-0}" = 1 ]; then
+    # shellcheck source-path=SCRIPTDIR source=emulator-sign.sh
+    source /work/emulator-sign.sh
+    sign_e2e
+    check_alive
+    if app_log | contains 'Error interno \(pánico\)|panicked at'; then
+        fail "pánico de Rust en el registro"
+    fi
 fi
 info "Prueba de humo superada ($SHOT_NUMBER capturas en el directorio de capturas)"

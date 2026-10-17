@@ -853,6 +853,8 @@ version = "2.0.0-alpha.1"
 dependencies = [
  "accesskit_winit",
  "afirma-core",
+ "afirma-keystores",
+ "afirma-pdf",
  "afirma-protocol",
  "afirma-signers",
  "android-activity",

@@ -4,7 +4,10 @@
 
 pub const ARROW_LEFT: &str = "\u{E058}";
 pub const ARROW_SQUARE_OUT: &str = "\u{E5DE}";
+pub const CARET_DOUBLE_LEFT: &str = "\u{E128}";
+pub const CARET_DOUBLE_RIGHT: &str = "\u{E12A}";
 pub const CARET_DOWN: &str = "\u{E136}";
+pub const CARET_LEFT: &str = "\u{E138}";
 pub const CARET_RIGHT: &str = "\u{E13A}";
 pub const CARET_UP: &str = "\u{E13C}";
 pub const CERTIFICATE: &str = "\u{E766}";
@@ -15,6 +18,8 @@ pub const CONTACTLESS_PAYMENT: &str = "\u{ED42}";
 pub const DEVICE_MOBILE: &str = "\u{E1E0}";
 pub const DOWNLOAD_SIMPLE: &str = "\u{E20C}";
 pub const ENVELOPE_SIMPLE: &str = "\u{E218}";
+pub const EYE: &str = "\u{E220}";
+pub const EYE_SLASH: &str = "\u{E224}";
 pub const FILE_TEXT: &str = "\u{E23A}";
 pub const FOLDER_OPEN: &str = "\u{E256}";
 pub const GEAR_SIX: &str = "\u{E272}";

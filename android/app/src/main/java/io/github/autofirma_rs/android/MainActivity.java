@@ -23,6 +23,7 @@ import android.widget.FrameLayout;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.graphics.Insets;
@@ -54,8 +55,9 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>Métodos públicos que llama Rust por JNI (desde cualquier hilo): selector de documentos
- *       (SAF), KeyChain (selector, cadena y firma), lector NFC (IsoDep), teclado en pantalla,
- *       enlaces y dejar la aplicación en segundo plano.</li>
+ *       y diálogo de guardado (SAF), KeyChain (selector, cadena, firma e instalador de
+ *       certificados), lector NFC (IsoDep), teclado en pantalla, enlaces y dejar la aplicación
+ *       en segundo plano.</li>
  *   <li>Avisos a Rust por {@link NativeBridge}: intents {@code afirma://}, resultados de las
  *       actividades del sistema, la zona segura de la ventana, la configuración (idioma, tema,
  *       escala del texto), el botón «Atrás» y el estado del editor del teclado.</li>
@@ -77,11 +79,24 @@ public final class MainActivity extends GameActivity {
     private final ActivityResultLauncher<String[]> openDocumentLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onDocumentChosen);
 
+    private final ActivityResultLauncher<Intent> createDocumentLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::onDocumentCreated);
+
+    private final ActivityResultLauncher<Intent> installCertificateLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                    this::onCertificateInstallResult);
+
     /** Pantalla raíz sin diálogo en Rust: «Atrás» deja la aplicación en segundo plano. */
     private volatile boolean backAtRoot;
 
     /** Petición del selector de documentos en curso (0 si no hay). Solo en el hilo principal. */
     private long pendingOpenDocument;
+
+    /** Petición del diálogo de guardado en curso (0 si no hay). Solo en el hilo principal. */
+    private long pendingCreateDocument;
+
+    /** Petición del instalador de certificados en curso (0 si no hay). Solo en el hilo principal. */
+    private long pendingInstallCertificate;
 
     private final Object nfcLock = new Object();
     /** Tarjeta conectada por el lector NFC (protegida por {@link #nfcLock}). */
@@ -294,8 +309,12 @@ public final class MainActivity extends GameActivity {
     // -------------------------------------------------------------------------------------
     // Selector de documentos (Storage Access Framework)
 
-    /** Desde Rust: abre el selector de documentos del sistema. No bloquea. */
-    public void openDocument(long request) {
+    /**
+     * Desde Rust: abre el selector de documentos del sistema con los tipos MIME que se pueden
+     * elegir, separados por comas (todos, o {@code application/x-pkcs12} para importar
+     * certificados). No bloquea.
+     */
+    public void openDocument(long request, String mimeTypes) {
         runOnUiThread(() -> {
             if (pendingOpenDocument != 0) {
                 NativeBridge.onRequestFailed(request, false, "ya hay un selector de documentos abierto");
@@ -303,7 +322,7 @@ public final class MainActivity extends GameActivity {
             }
             pendingOpenDocument = request;
             try {
-                openDocumentLauncher.launch(new String[] {"*/*"});
+                openDocumentLauncher.launch(mimeTypes.split(","));
             } catch (ActivityNotFoundException e) {
                 pendingOpenDocument = 0;
                 NativeBridge.onRequestFailed(request, false, "no hay ninguna aplicación para elegir documentos");
@@ -337,6 +356,64 @@ public final class MainActivity extends GameActivity {
         });
     }
 
+    /**
+     * Desde Rust: abre el diálogo del sistema para guardar un documento nuevo
+     * ({@code ACTION_CREATE_DOCUMENT}) con el tipo MIME y el nombre propuesto. No bloquea. Rust
+     * escribe los datos en el descriptor que se le pasa con {@code onDocumentCreated}.
+     */
+    public void createDocument(long request, String mimeType, String name) {
+        runOnUiThread(() -> {
+            if (pendingCreateDocument != 0) {
+                NativeBridge.onRequestFailed(request, false, "ya hay un diálogo de guardado abierto");
+                return;
+            }
+            pendingCreateDocument = request;
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType(mimeType)
+                    .putExtra(Intent.EXTRA_TITLE, name);
+            try {
+                createDocumentLauncher.launch(intent);
+            } catch (ActivityNotFoundException e) {
+                pendingCreateDocument = 0;
+                NativeBridge.onRequestFailed(request, false, "no hay ninguna aplicación para guardar documentos");
+            }
+        });
+    }
+
+    private void onDocumentCreated(ActivityResult result) {
+        long request = pendingCreateDocument;
+        pendingCreateDocument = 0;
+        if (request == 0) {
+            Log.w(TAG, "Documento creado sin petición pendiente (¿proceso reiniciado?)");
+            return;
+        }
+        Uri uri = result.getResultCode() == RESULT_OK && result.getData() != null
+                ? result.getData().getData() : null;
+        if (uri == null) {
+            NativeBridge.onRequestFailed(request, true, null);
+            return;
+        }
+        io.execute(() -> {
+            try {
+                ParcelFileDescriptor document;
+                try {
+                    // «wt»: si el proveedor reutiliza un documento, se trunca.
+                    document = getContentResolver().openFileDescriptor(uri, "wt");
+                } catch (IllegalArgumentException | UnsupportedOperationException e) {
+                    document = getContentResolver().openFileDescriptor(uri, "w");
+                }
+                if (document == null) {
+                    throw new IOException("el proveedor no ha devuelto el documento");
+                }
+                // Rust escribe los datos y cierra el descriptor.
+                NativeBridge.onDocumentCreated(request, uri.toString(), displayName(uri), document.detachFd());
+            } catch (IOException | RuntimeException e) {
+                NativeBridge.onRequestFailed(request, false, e.toString());
+            }
+        });
+    }
+
     private String displayName(Uri uri) {
         try (Cursor cursor = getContentResolver().query(
                 uri, new String[] {OpenableColumns.DISPLAY_NAME}, null, null, null)) {
@@ -363,6 +440,43 @@ public final class MainActivity extends GameActivity {
                 null));
     }
 
+    /**
+     * Desde Rust: abre el instalador de certificados del sistema con un PKCS#12 (el sistema pide
+     * la contraseña y el nombre). No bloquea; responde {@code onCertificateInstalled} o
+     * {@code onRequestFailed} (cancelado).
+     */
+    public void installCertificate(long request, byte[] pkcs12) {
+        runOnUiThread(() -> {
+            if (pendingInstallCertificate != 0) {
+                NativeBridge.onRequestFailed(request, false, "ya hay una instalación de certificado en curso");
+                return;
+            }
+            pendingInstallCertificate = request;
+            Intent intent = KeyChain.createInstallIntent();
+            intent.putExtra(KeyChain.EXTRA_PKCS12, pkcs12);
+            try {
+                installCertificateLauncher.launch(intent);
+            } catch (ActivityNotFoundException e) {
+                pendingInstallCertificate = 0;
+                NativeBridge.onRequestFailed(request, false, "no hay instalador de certificados");
+            }
+        });
+    }
+
+    private void onCertificateInstallResult(ActivityResult result) {
+        long request = pendingInstallCertificate;
+        pendingInstallCertificate = 0;
+        if (request == 0) {
+            Log.w(TAG, "Resultado del instalador sin petición pendiente (¿proceso reiniciado?)");
+            return;
+        }
+        if (result.getResultCode() == RESULT_OK) {
+            NativeBridge.onCertificateInstalled(request);
+        } else {
+            NativeBridge.onRequestFailed(request, true, null);
+        }
+    }
+
     /** Desde Rust (hilo de trabajo, bloquea): cadena de certificados DER del alias. */
     public byte[][] certificateChain(String alias) throws Exception {
         X509Certificate[] chain = KeyChain.getCertificateChain(this, alias);
@@ -379,6 +493,10 @@ public final class MainActivity extends GameActivity {
     /**
      * Desde Rust (hilo de trabajo, bloquea): firma {@code data} con la clave privada del alias.
      * {@code algorithm} es el nombre Java ({@code SHA256withRSA}, {@code SHA256withECDSA}...).
+     * La clave puede estar en el TEE o en StrongBox y no sale de ahí: {@code Signature} elige el
+     * proveedor que la admite (AndroidKeyStore) al iniciarse con ella. Errores: alias sin clave
+     * o sin permiso ({@code KeyChainException}, {@code KeyStoreException}), algoritmo que la
+     * clave no admite ({@code InvalidKeyException}).
      */
     public byte[] sign(String alias, String algorithm, byte[] data) throws Exception {
         PrivateKey key = KeyChain.getPrivateKey(this, alias);

@@ -11,9 +11,13 @@ Estado: está hecha la «carcasa» de la app (§9): arranque, bienvenida, condic
 Ajustes con todas sus pantallas (idioma, configuración de firma, dominios de confianza,
 histórico, preguntas frecuentes, ayudas, aviso legal, privacidad, accesibilidad y versión), los
 diálogos, la navegación con «Atrás», los seis idiomas del original, las preferencias, el
-teclado en pantalla y la accesibilidad (TalkBack). «Firmar fichero», «Certificados» y las
-peticiones `afirma://` ya llaman a Android (selector de documentos, KeyChain, intents) pero la
-firma, el flujo web y el DNIe están por hacer: sus pantallas lo dicen (§8).
+teclado en pantalla y la accesibilidad (TalkBack). También la **firma local** completa (§9.8):
+selector de documentos, PAdES con firma visible (vista previa de las páginas y área elegida con
+el dedo), CAdES y XAdES, contraseña de los PDF protegidos, certificados de KeyChain con sus
+avisos, guardado con el diálogo del sistema, histórico y mensajes de resultado y de error con
+los códigos `AA` del original; y la **importación de certificados** `.p12`/`.pfx` en KeyChain.
+Quedan la interfaz de la firma web (el protocolo ya está en `afirma_protocol::android`, §10) y
+el DNIe por NFC (§8).
 
 ## 1. Decisiones
 
@@ -68,13 +72,19 @@ crates/autofirma-android/                 libautofirma_android.so
   src/ui/                                 tema, componentes táctiles, iconos, pantallas
   src/i18n.rs, prefs.rs, history.rs       idiomas, preferencias, histórico de firmas
   src/ime.rs                              teclado en pantalla para los campos de egui
-  src/features.rs                         selector de documentos, KeyChain, enlaces, afirma://
-  src/document.rs                         análisis del documento con afirma-signers
-  src/keychain.rs                         KeyChainKey: afirma_core::SigningKey sobre KeyChain
+  src/features.rs                         «Ver un certificado», enlaces, afirma://
+  src/flow.rs                             firma local e importación de certificados (§9.8)
+  src/local_sign.rs                       formato, parámetros, firma y nombre del fichero firmado
+  src/visible.rs                          vista previa de la firma visible y área en puntos PDF
+  src/errors.rs                           errores AA para la interfaz (§8.1 de la spec; los de la
+                                          firma y la web, de afirma_protocol::android::errors)
+  src/keychain.rs                         KeyChainKey (afirma_core::SigningKey sobre KeyChain) y
+                                          textos de los avisos sobre el certificado
   src/android/{mod,java,logcat}.rs        solo Android: entradas, JNI, logcat
 tools/android/Dockerfile                  imágenes de compilación y de emulador (versiones y SHA-256)
 tools/android/build.sh                    APK de depuración y release
-tools/android/emulator-test.sh            prueba de humo en el emulador (+ emulator-smoke.sh)
+tools/android/emulator-test.sh            prueba de humo en el emulador (+ emulator-smoke.sh y,
+                                          con --sign, la firma de extremo a extremo emulator-sign.sh)
 .github/workflows/android.yml             CI
 ```
 
@@ -119,7 +129,9 @@ cargador del sistema y no encuentra las clases de la app.
 
 | Rasgo `Platform` (Rust) | `MainActivity` (Java) | Bloquea | Respuesta |
 |---|---|---|---|
-| `open_document(id)` | `openDocument(long)` → `ACTION_OPEN_DOCUMENT` (`registerForActivityResult`) | No | `onDocumentOpened` / `onRequestFailed` |
+| `open_document(id, tipos)` | `openDocument(long, String)` → `ACTION_OPEN_DOCUMENT` con los tipos MIME (separados por comas; `*/*` o `application/x-pkcs12`) | No | `onDocumentOpened` / `onRequestFailed` |
+| `create_document(id, tipo, nombre)` | `createDocument(long, String, String)` → `ACTION_CREATE_DOCUMENT` (`CATEGORY_OPENABLE`, `EXTRA_TITLE`); los datos esperan en el puente (`Bridge::stash_write`) | No | `onDocumentCreated` / `onRequestFailed` (cancelado) |
+| `install_certificate(id, pkcs12)` | `installCertificate(long, byte[])` → `KeyChain.createInstallIntent` con `EXTRA_PKCS12` | No | `onCertificateInstalled` / `onRequestFailed` (cancelado) |
 | `choose_certificate(id)` | `chooseCertificate(long)` → `KeyChain.choosePrivateKeyAlias` (RSA y EC) | No | `onCertificateChosen` |
 | `certificate_chain(alias)` | `byte[][] certificateChain(String)` → `KeyChain.getCertificateChain` | Sí | valor devuelto |
 | `sign(alias, alg, datos)` | `byte[] sign(String, String, byte[])` → `KeyChain.getPrivateKey` + `Signature` (`SHA256withRSA`, `SHA256withECDSA`...) | Sí | valor devuelto |
@@ -148,7 +160,9 @@ Métodos `static native` de `NativeBridge`, exportados en Rust con `#[jni_mangle
 | `NativeBridge` | Evento |
 |---|---|
 | `onViewIntent(String uri)` | `ViewIntent` (se reparte con `afirma_protocol::request::dispatch`) |
-| `onDocumentOpened(long id, String uri, String nombre, int fd)` | `DocumentOpened`: Java cede el descriptor (`ParcelFileDescriptor.detachFd`) y Rust lo lee (máx. 256 MB) y lo cierra; nada de copias por el montón de Java |
+| `onDocumentOpened(long id, String uri, String nombre, int fd)` | `DocumentOpened`: Java cede el descriptor (`ParcelFileDescriptor.detachFd`) y Rust lo lee (máx. 256 MB; si es mayor, `RequestFailed` con `DOCUMENT_TOO_LARGE`, error AA200105) y lo cierra; nada de copias por el montón de Java |
+| `onDocumentCreated(long id, String uri, String nombre, int fd)` | `DocumentSaved`: Java cede el descriptor del documento nuevo (modo `wt`, o `w` si el proveedor no trunca) y Rust escribe en él, en el hilo de E/S de Java, los datos que esperaban en el puente con ese id (`Bridge::complete_write`) y lo cierra |
+| `onCertificateInstalled(long id)` | `CertificateInstalled` (el instalador ha devuelto `RESULT_OK`) |
 | `onCertificateChosen(long id, String alias)` | `CertificateChosen` (`alias` nulo: no se eligió) |
 | `onNfcTag(long id, byte[] tagId, byte[] históricos, byte[] hiLayer, byte[] datosNfcB, byte[] protocoloNfcB)` | `NfcTag` con `NfcTagInfo`: identificador, `getHistoricalBytes` (NFC-A), `getHiLayerResponse`, `NfcB.getApplicationData`/`getProtocolInfo` (NFC-B), lo que necesita la identificación del DNIe (`spec/10-dnie-nfc.md` §3) |
 | `onRequestFailed(long id, boolean cancelada, String mensaje)` | `RequestFailed` |
@@ -170,9 +184,15 @@ Métodos `static native` de `NativeBridge`, exportados en Rust con `#[jni_mangle
         ▲                    repaint)        │                                   │
         │ runOnUiThread                      │ open_document / choose_…          │ evento con el resultado
         └────────────────────────────────────┘ (no bloquean)                     └──► cola del puente
- ejecutor de E/S de Java: abre el documento y llama a onDocumentOpened (Rust lee el descriptor ahí)
+ ejecutor de E/S de Java: abre el documento y llama a onDocumentOpened (Rust lee el descriptor ahí);
+                         abre el documento creado y llama a onDocumentCreated (Rust escribe ahí)
  hilo del lector NFC (binder): conecta IsoDep y llama a onNfcTag
 ```
+
+Hilos de trabajo de la firma local (`flow.rs`): cadena del certificado (`certificateChain`),
+firma (`local_sign::sign`, que llama a `sign` de Java por cada PKCS#1), apertura del PDF de la
+vista previa y dibujo de cada página. La textura de la página se sube a egui en el hilo de la
+interfaz (`Flows::upload_textures`).
 
 Reglas: el hilo de la interfaz nunca bloquea (las llamadas que abren actividades del sistema solo
 encolan trabajo con `runOnUiThread`); el hilo principal de Java nunca ejecuta trabajo largo de
@@ -225,7 +245,7 @@ Comprobado con `cargo ndk -t arm64-v8a -P 23 check -p <crate>` (NDK r29, Rust 1.
 | Crate | ¿Compila para Android? | Uso en Android |
 |---|---|---|
 | `afirma-core` | Sí | Todo. Dos detalles: `http::proxy` detecta el proxy del sistema con variables de entorno y órdenes de escritorio (`scutil`, `gsettings`) que en Android no existen (el proxy habrá que pedirlo a Java, `ProxySelector`), y las rutas no pueden salir de `directories` (devuelve `None` sin `HOME`): hay que usar `AndroidApp::internal_data_path()` o `Context.getFilesDir()` |
-| `afirma-cms`, `afirma-xml`, `afirma-pdf`, `afirma-signers` | Sí | Firma CAdES, XAdES, PAdES (con `hayro` para la vista previa), detección de formato. Ya enlazados en la app (análisis del documento) |
+| `afirma-cms`, `afirma-xml`, `afirma-pdf`, `afirma-signers` | Sí | Firma local CAdES, XAdES y PAdES (`afirma-signers`); vista previa de la firma visible con el rasterizador de `afirma-pdf` (`hayro`, el mismo que el editor de firma visible del escritorio) y `afirma_pdf::info::PdfInfo` para los tamaños de página y las contraseñas |
 | `afirma-protocol` | Sí | Análisis de `afirma://`, servidor intermedio, cifrado, trifásica y lotes. En Android solo se usa el servidor intermedio (`spec/09-android.md` §5): ni WebSocket ni socket de servicio |
 | `afirma-hash`, `afirma-certval` | Sí | Huellas y validación OCSP/CRL, si se ofrecen |
 | `afirma-keystores` | Sí (PKCS#11 con los enlaces genéricos de `cryptoki-sys`) | Solo PKCS#12 y los filtros de certificados. Los almacenes de Android son KeyChain (`keychain::KeyChainKey`) y el DNIe por NFC |
@@ -355,6 +375,7 @@ descarga desde Google Play, que comprime y además reparte por ABI si se publica
 tools/android/emulator-test.sh                                   # APK de depuración de build.sh
 tools/android/emulator-test.sh --tls-check https://github.com/   # y verificación TLS
 tools/android/emulator-test.sh --apk ruta/al/release.apk --out /tmp/emu
+tools/android/emulator-test.sh --sign                            # y firma local de extremo a extremo
 ```
 
 Arranca, dentro de la imagen `autofirma-android-emulator` y con `--device /dev/kvm`, un
@@ -376,7 +397,8 @@ falta. Después:
 6. con `--tls-check`, espera «Comprobación TLS correcta»;
 
 después recorre la interfaz entera: las pantallas de Inicio (importar certificado en sus dos
-páginas, «Próximamente», firma web, histórico y su diálogo «sin registros»), Ajustes y cada
+páginas y «Añadir certificado», que abre el selector de `.p12` del sistema, firma web, histórico
+y su diálogo «sin registros»), Ajustes y cada
 una de sus pantallas (idioma; configuración de firma con el diálogo de minutos y «Cambios
 guardados»; dominios de confianza; histórico; preguntas frecuentes con una desplegada; las
 cuatro ayudas; accesibilidad, aviso legal, privacidad y versión); **escribe con el teclado en
@@ -393,7 +415,8 @@ accesibilidad de AccessKit llega a Android («Firmar fichero» como nodo, `acces
 8. detiene la app (`am force-stop`) y la arranca en frío con `afirma://selectcert?…`, como lo
    haría el navegador, y comprueba que se recupera el idioma guardado;
 9. comprueba que no hay cierres (`logcat -b crash`), que el proceso sigue vivo y que no hay
-   pánicos de Rust.
+   pánicos de Rust;
+10. con `--sign`, la **firma local de extremo a extremo** (`emulator-sign.sh`, §6.1).
 
 Deja en `--out` las capturas, `accesibilidad.xml`, `logcat.txt`, `logcat-crash.txt` y
 `emulator.log`, y en `--shots` (por defecto `<out>/pantallas`) una captura numerada de cada
@@ -403,7 +426,37 @@ pantalla y diálogo (38). Si falla, guarda además `fallo.png`, el estado de las
 arrancada las aplicaciones de Google lo llenan en segundos. En este equipo (20 núcleos, KVM)
 tarda unos 5 minutos, arranque incluido.
 
-### 6.1 CI
+### 6.1 Firma local de extremo a extremo (`--sign`)
+
+`emulator-sign.sh` se ejecuta al final de la prueba de humo y maneja las actividades del sistema
+con `uiautomator dump` (busca los nodos por su texto y los pulsa):
+
+1. copia en Descargas `testdata/cades/data/documento.pdf`, `hola.txt`, `documento.xml` y la
+   identidad de prueba `testdata/pki/firmante-rsa-legacy.p12`;
+2. la **importa con el botón de la app** (Inicio → «Añadir nuevo certificado» → «Continuar» →
+   «Añadir certificado»): DocumentsUI (raíz «Descargas» si hace falta), el instalador de
+   certificados (contraseña `12341234`, «Certificado de usuario de VPN y aplicaciones», nombre)
+   y el diálogo «Certificado añadido» de la app;
+3. firma el PDF con **firma visible** (la configuración de firma del recorrido la deja
+   activada): vista previa, área dibujada con `input swipe` sobre la página (su centro lo
+   registra la app como `preview.page`), «Continuar», selector de KeyChain («firmante-rsa» →
+   «Seleccionar»), diálogo de guardado del sistema («Guardar») y «Fichero firmado»; después
+   `hola.txt` (CAdES) y `documento.xml` (XAdES) igual, sin vista previa;
+4. abre el histórico y comprueba con `uiautomator` que lista las tres firmas
+   («Firma local del fichero …»);
+5. saca las firmas con `adb pull` a `<out>/firmas/`.
+
+Al terminar el contenedor, `emulator-test.sh` las verifica en el anfitrión con
+`autofirma verify -i` (la aplicación de escritorio del espacio de trabajo; `--verifier` para
+usar un binario ya compilado) y exige «Firma válida» en las tres (`<out>/verificacion.txt`).
+Las capturas de la importación, la vista previa, el guardado, los resultados y el histórico
+quedan en el directorio de capturas.
+
+Se usa el PKCS#12 «legacy» (3DES/RC2): el instalador de certificados de Android 15 no abre los
+PKCS#12 con PBES2/AES-256 que genera OpenSSL 3 por defecto (`firmante-rsa.p12`; responde «The
+certificate is not installed» y el resultado llega a la app como cancelación, §8).
+
+### 6.2 CI
 
 `.github/workflows/android.yml` (en `main`, en las PR que tocan `crates/`, `android/`,
 `tools/android/`, `Cargo.*`… y a mano): activa KVM con una regla de udev (como
@@ -434,27 +487,42 @@ Las capturas y el logcat se suben siempre (`autofirma-android-emulador`). `ci.ym
   Java; la más probable (enviar eventos con la accesibilidad apagada) la evita
   `MainActivity.AccessibilityGuardLayout` (§9.6). Falta revisar a mano la navegación con
   TalkBack pantalla a pantalla (la prueba solo comprueba que el árbol llega).
-- **Funciones de plataforma pendientes:** guardar con SAF (`ACTION_CREATE_DOCUMENT`, con el
-  descriptor en modo `wt`), compartir (`ACTION_SEND` con `FileProvider`), portapapeles, proxy
-  del sistema, devolver el resultado al navegador, ajustes de NFC del sistema.
-- **Pantallas de fases posteriores:** «Firmar fichero» elige y analiza el documento pero no
-  firma; «Ver un certificado» muestra los datos del certificado elegido en KeyChain; «Añadir
-  certificado» (al final de las instrucciones de importación), la firma web y el diálogo de
-  progreso dicen «Próximamente». Los diálogos de resultado de Inicio (`Dialog::Message`), el
-  histórico (`SignsHistory::append`) y las preferencias (`Prefs`) ya tienen la API que usarán.
-- **Flujo web:** conectar `afirma_protocol::OperationHandler` con la interfaz; solo servidor
-  intermedio y las operaciones de `spec/09-android.md` §5.3 (la pantalla actual marca
-  `websocket` y `service` como no disponibles en Android).
+- **Funciones de plataforma pendientes:** compartir (`ACTION_SEND` con `FileProvider`),
+  portapapeles, proxy del sistema, devolver el resultado al navegador, ajustes de NFC del
+  sistema.
+- **Pantallas de fases posteriores:** la firma web dice «Próximamente»; en «¿Con qué
+  firmarás?» (solo con el DNIe habilitado) «DNI electrónico» explica que llegará en una
+  próxima versión y vuelve a la elección (`FlowAction::CertType(CertType::Dnie)` en
+  `flow.rs` es donde se enganchará el DNIe de `afirma-dnie`).
+- **PKCS#12 modernos:** el instalador de certificados de Android 15 (`com.android.certinstaller`)
+  no abre los PKCS#12 cifrados con PBES2/AES (lo que exportan OpenSSL 3 y muchos navegadores
+  actuales): dice «The certificate is not installed» y devuelve `RESULT_CANCELED`, que la app
+  trata como cancelación (como el original). Los «legacy» (3DES/RC2) se instalan bien. Se
+  podría pedir la contraseña en la app y volver a cifrar el almacén en «legacy» antes de pasarlo
+  al instalador (cambia el flujo del original, que delegaba todo en el sistema).
+- **Lector USB, tarjetas y DNIe por NFC** (§4.4, §4.5 y §4.9 de la especificación): fase
+  posterior. La firma local vacía la caché de certificado de la firma web
+  (`afirma_protocol::android::sticky::StickyKeyCache`, `Flows::cache`): la interfaz web tiene
+  que usar esa misma instancia.
+- **Flujo web:** el lado de protocolo está hecho (`afirma_protocol::android`, §10); falta
+  implementar `AndroidWebHandler` con la interfaz (diálogos, SAF, vista previa), registrar los
+  `afirma://` e intents en el manifiesto y llamar a `AndroidWebLauncher::run` (la pantalla
+  actual marca `websocket` y `service` como no disponibles en Android).
 - **DNIe por NFC:** el transporte (modo lector, `IsoDep`, `transceive`) está hecho en Java y Rust
   pero sin probar con hardware (el emulador no tiene NFC). Falta lo de
   `spec/10-dnie-nfc.md`: identificación, PACE con CAN, mensajería segura, canal CWA-14890, PIN
   y firma. Hay que comprobar en API 26–27 que las sondas de presencia del modo lector no cortan
   el canal (JMulticard usaba un *watchdog* por reflexión).
-- **KeyChain en las pruebas:** el emulador no tiene certificados y instalar uno exige
-  interacción (y bloqueo de pantalla); la prueba automática comprueba que se abre el selector y
-  que vuelve la respuesta, pero no `certificateChain` ni `sign` con una clave real (sí con la
-  `Platform` falsa en el anfitrión). Se puede probar a mano instalando un PKCS#12 de
-  `testdata/pki` en Ajustes → Seguridad → Cifrado y credenciales.
+- **KeyChain en las pruebas:** la prueba de humo sin `--sign` solo comprueba que se abre el
+  selector y que vuelve la respuesta; con `--sign` se instala la identidad de prueba (sin
+  bloqueo de pantalla: Android 15 no lo pide para certificados de usuario) y se firma con ella
+  (§6.1). Las claves del TEE/StrongBox no se pueden probar en el emulador.
+- **Accesibilidad en depuración:** `accesskit_android` 0.8.0 resta 1 a la longitud de un texto
+  vacío al avisar de un cambio de texto; con las comprobaciones de desbordamiento de la
+  compilación de depuración, la app abortaba si había un servicio de accesibilidad activo
+  (`uiautomator dump` lo activa) y un nodo pasaba de no tener texto a tenerlo. El `Cargo.toml`
+  del espacio de trabajo quita esas comprobaciones solo a ese crate en el perfil `dev` (en
+  release la resta da la vuelta y el resultado es el correcto). Hay que comunicarlo a AccessKit.
 - **Estado al morir el proceso:** no se guarda (`onSaveInstanceState` no se reenvía a Rust);
   las peticiones en curso se pierden si Android mata el proceso mientras está abierto el
   selector.
@@ -487,8 +555,10 @@ condiciones si no se han aceptado → Inicio, como en §2.4.
 
 «Atrás» (§2.13): cierra primero el diálogo; en las instrucciones de importación vuelve a la
 página 1; si hay pantalla debajo, vuelve a ella; en una pantalla raíz (arranque, bienvenida,
-condiciones, Inicio) deja la app en segundo plano (desde Java, §3.1). Las pantallas de funciones que aún no están
-dicen «Próximamente» (`Screen::Unavailable`, `features.rs`).
+condiciones, Inicio) deja la app en segundo plano (desde Java, §3.1). La firma local es una
+operación de varios pasos (`flow.rs`, §9.8) que abre la vista previa de la firma visible
+(`Screen::VisibleSignature`) y diálogos sobre Inicio, como la `LocalSignActivity`
+transparente del original.
 
 ### 9.2 Idiomas
 
@@ -588,3 +658,143 @@ aviso legal, la política de privacidad y la declaración de accesibilidad son t
 los seis idiomas y dentro de la app; la pantalla de versión explica qué es AutoFirma para
 Android, su licencia y dónde está el código. Se añaden «Idioma del sistema», el resumen de los
 certificados de KeyChain y accesos en Inicio a la firma web, los certificados y el histórico.
+
+### 9.8 Firma local y certificados
+
+La firma local (`flow.rs`, `local_sign.rs`, `visible.rs`) sigue el orden de `LocalSignActivity`
+(`spec/09-android.md` §3) sobre la pantalla de Inicio, con diálogos y una sola pantalla propia
+(la vista previa); cada paso que espera a Android o a un hilo de trabajo guarda el identificador
+de su petición y descarta las respuestas que no espera:
+
+1. **Documento:** `ACTION_OPEN_DOCUMENT` (`*/*`) en todas las versiones (con `minSdk` 26 no hacen
+   falta el selector propio ni el permiso de almacenamiento de Android < 11). Cancelar no dice
+   nada; un error de lectura da AA200102 y uno de más de 256 MB, AA200105.
+2. **Formato** por el nombre (como el original, §10 n.º 20): `.pdf` → PAdES, `.xml` → XAdES
+   (añadido: el original no tenía XAdES monofásica y firmaba los XML en CAdES), el resto →
+   CAdES implícita; SHA-256, `mode=implicit`, siempre firma (nunca cofirma).
+3. **Firma visible** (PAdES con «Hacer firma visible»): la vista previa abre el PDF y dibuja la
+   página visible con el rasterizador de `afirma-pdf` en un hilo de trabajo (a la resolución de
+   la pantalla); el área se dibuja arrastrando el dedo (sin zoom ni desplazamiento, como el
+   original), con los botones de primera, anterior, siguiente y última página; cambiar de
+   página borra el área. «Continuar» aplica la fórmula y los mínimos del original (30×45 puntos
+   y 1350 puntos², §10 n.º 28) con el tamaño de la página tal como se muestra (el original usaba
+   la caja de medios sin girar y en las páginas giradas el área quedaba fuera de sitio); sin
+   área o con un área pequeña ofrece seguir sin firma visible (§10 n.º 25). Parámetros:
+   `signaturePages`, `signaturePositionOnPage*`, `layer2Text` con la plantilla del idioma (la de
+   seudónimo si el certificado lo es) y `obfuscateCertText` según la preferencia.
+4. **Contraseña del PDF:** si la vista previa o la firma la necesitan, «El documento está
+   encriptado» con campo oculto (icono del ojo para verla), «La contraseña del PDF no puede
+   estar vacía:» y «Contraseña incorrecta:»; la firma se repite con `ownerPassword`. La
+   contraseña de la vista previa vale también para la firma invisible (el original la perdía y
+   la volvía a pedir, §10 n.º 26).
+5. **Almacén:** con «Permitir firmar con DNIe por NFC», «¿Con qué firmarás?» (la X cancela; el
+   DNIe dice que llegará en una próxima versión y vuelve a preguntar); si no, directamente el
+   selector de KeyChain (claves RSA y EC). Sin elegir certificado: con el DNIe habilitado se
+   vuelve a preguntar; si no, se cancela sin mensaje.
+6. **Certificado:** la cadena se lee en un hilo de trabajo («Cargando certificado») y se
+   avisa, en este orden, de certificado caducado, aún no válido (el original lo trataba como
+   error genérico, §10 n.º 13), próximo a caducar (menos de 7 días) y de seudónimo: «Continuar»
+   sigue y «Cancelar» vuelve a la elección de almacén. Los avisos se calculan con
+   `afirma_protocol::android::launcher::certificate_warnings`, como en la firma web. La firma
+   local vacía la caché de certificado (`StickyKeyCache` de la firma web, §4.7).
+7. **Firma** en un hilo de trabajo («Realizando firma»): los firmadores de `afirma-signers` con
+   `KeyChainKey`, que firma cada PKCS#1 en Java (`Signature` con la clave de
+   `KeyChain.getPrivateKey`, que puede estar en el TEE o en StrongBox). Un error da AA200002; uno
+   del certificado o de KeyChain, AA200000.
+8. **Guardado** con `ACTION_CREATE_DOCUMENT`: nombre `<nombre>_signed.pdf`, `<nombre>.csig` o
+   `<nombre>.xsig` y tipo `application/<extensión>`, como el original; Rust escribe la firma en
+   el descriptor que devuelve Java. El histórico (`LOCAL`, `sign`, nombre del fichero) se
+   escribe **después** de guardar: si se cancela el guardado no se registra (§10 n.º 21). Un
+   error de escritura da AA200301. El nombre del `save` web sin «datosdatos.pdf» (§10 n.º 49)
+   lo propone `afirma_protocol::android::launcher::proposed_save_name`; el diálogo de guardado
+   (`Platform::create_document`) es el mismo.
+9. **Resultado:** «Fichero firmado» / «El fichero ha sido firmado correctamente.» o «¡Algo salió
+   mal!» con «AA<código> - <texto>» (`errors.rs`: las categorías de
+   `afirma_protocol::android::errors` más las que solo muestra la interfaz —dominios,
+   importación, DNIe—, con el texto de los catálogos de la app en el idioma activo).
+
+**Importación** (`spec` §4.8): «Añadir certificado» en la segunda página de las instrucciones
+las cierra y abre el selector de documentos con `application/x-pkcs12` (uno solo: el original
+abría dos seguidos desde Inicio, §10 n.º 15); el almacén se pasa a
+`KeyChain.createInstallIntent` y el sistema pide la contraseña, el tipo y el nombre. Instalado →
+«Certificado añadido»; cancelado → nada; error al leer → «No hemos podido añadir tu
+certificado» con AA201100 y «Volver a intentarlo». Los textos de las instrucciones son los de
+la página visible (§10 n.º 16).
+
+Pruebas: en el anfitrión, `shell::tests` recorre la firma local con una KeyChain falsa que firma
+de verdad con la clave de `testdata/pki/firmante-rsa.p12` (PDF con firma visible, CAdES, XAdES,
+guardado cancelado, PDF protegido, avisos del certificado, elección de almacén, importación,
+errores de lectura) y valida las firmas con `afirma_signers::validate`, el verificador del
+escritorio; en el emulador, §6.1.
+
+## 10. Firma desde la web: API del protocolo (`afirma_protocol::android`)
+
+El lado de protocolo de la firma web del original (`spec/09-android.md` §5, §6 y §8) está en
+el módulo `android` de `afirma-protocol`, sin dependencias de Android ni de interfaz: reutiliza
+del crate el análisis de consultas y sobres, la validación de URL de servicio, el cliente
+trifásico, los lotes y el cliente HTTP, y `autofirma-android` ya depende de él (un crate aparte
+obligaría a hacer públicas esas piezas internas). Reproduce la app 1:1 (análisis con
+`afirma-core` **1.9**, peticiones al servidor intermedio, respuestas y errores) salvo los fallos
+que §10 de la especificación manda corregir, listados en
+`docs/deviations/afirma-protocol.md` (sección Android, A1–A21).
+
+**Uso.** Una sola instancia por proceso (guarda la caché de certificado *sticky* entre
+invocaciones):
+
+```rust
+let mut cfg = AndroidWebConfig::new(HttpClient::new(Arc::new(cliente_ureq)));
+cfg.language = WebLanguage::from_tag(&prefs.locale).unwrap_or_default(); // localeConfig
+cfg.obfuscate_cert_text = prefs.pades_obfuscate_cert_info;               // padesObfuscateCertInfo
+cfg.sticky_timeout = Duration::from_secs(60 * prefs.sticky_minutes);     // stickySignatureTimeout
+let web = AndroidWebLauncher::new(handler, signer, cfg);
+// En un hilo de trabajo, con la URL del intent (afirma://… o la de SIGN_SERVICE):
+let out = web.run(&url, InvocationMode::Browser); // o App { calling_package }
+```
+
+- **Cliente HTTP**: el de `afirma-core` (`UreqHttpClient`) como en el original: sin proxy
+  (`ProxyMode::None`), sin tiempos de espera y con la confianza TLS de las preferencias:
+  `domains::http_trust_overrides(validateSslChecks, secureDomainsList)` devuelve
+  `disable_ssl_checks` y `secure_domains` para `HttpSettings` (las reglas de coincidencia de la
+  app, por líneas, convertidas al formato del cliente común; se aplican por petición).
+- **`signer`**: un `afirma_protocol::LocalSigner` con `afirma-signers` (el mismo que el del
+  escritorio, `sign` y `detect_format`). Solo le llegan los formatos monofásicos de la app
+  (`CAdES`, `CAdES-ASiC-S`, `PAdES`, `Adobe PDF`, `NONE`); XAdES y FacturaE van siempre por la
+  trifásica (necesitan `serverUrl`) y los `*tri` los hace el crate (`android::formats`).
+- **`handler`** (`AndroidWebHandler`, se llama desde el hilo de trabajo y debe esperar a la
+  interfaz):
+
+| Método | Interfaz del original |
+|---|---|
+| `select_key(KeyRequest) -> SelectedKey { key, source }` | `ChooseCertTypeDialog` + KeyChain / DNIe por NFC / lector USB; `source` decide los avisos (solo `SystemKeyStore`) y la caché (nunca `DnieNfc`). Los errores (`KeySelectionError`) dan `ERR-11`, `ERR-23`, `ERR-21` o `ERR-13` como en §5.12 |
+| `confirm_certificate_warning` | Avisos de caducado / aún no válido / próximo a caducar / seudónimo; `false` vuelve a la elección |
+| `choose_file` | SAF `ACTION_OPEN_DOCUMENT` cuando la web no manda datos |
+| `visible_signature` | `PdfSelectPreviewActivity` (área en puntos PDF, contraseña) |
+| `pdf_password` | `PDFPasswordDialog` |
+| `save_file` | SAF `ACTION_CREATE_DOCUMENT` de `save` (nombre propuesto ya calculado) |
+| `show_error`, `progress` | «¡Algo salió mal!» con «AA… - …»; «Firmando», «Cargando almacén de claves» |
+
+- **Resultado** (`WebOutcome`): `reply` (`Uploaded` o `UploadFailed` con el `dat` exacto
+  subido, `Intent` con los extras de `RESULT_OK`/`RESULT_CANCELED` para la modalidad
+  `SIGN_SERVICE`/`SIGN_BATCH_SERVICE`, o `NotSent`) y `history` (registro `WEB`, `APP`,
+  `BATCH`, `BATCH_APP` que la app escribe con `history::SignsHistory`). Tras `Uploaded` o
+  `Intent`, la app se cierra y vuelve al navegador (`finishAffinity`/`setResult`).
+- **Atrás** mientras se descarga o firma: `request_cancel()` → `ERR-11` (si ya se respondió,
+  nada: una sola respuesta por invocación). Con un diálogo abierto, la cancelación es la
+  respuesta del diálogo.
+- **Piezas sueltas**: `request::parse_url` (análisis 1.9), `errors` (catálogo `AA` y `ERR-NN`
+  con los textos de usuario en los seis idiomas y `URLEncoder`), `cipher` (`CipherDataManager`
+  y el Base64 de Android con saltos de línea), `intermediate` (subida, descarga con 10
+  reintentos ante `ERR-06`, `#WAIT` cada 10 s en lotes con sobre), `domains`, `formats`,
+  `sticky` (`StickyKeyCache`; la firma local debe vaciarla o compartir la de `keychain`) y
+  `batch` (lotes JSON como `BatchSigner`, con `org.json` de Android).
+
+**Pruebas** (`cargo test -p afirma-protocol`): unitarias de cada pieza; `tests/android_oracle.rs`
+compara 89 casos (análisis de URL y sobres, DES, errores, cuerpos de las peticiones al
+servidor intermedio) con lo que producen las clases Java originales (`afirma-core` 1.9 de la
+etiqueta `v1.9` y `CipherDataManager`, `ErrorManager` e `IntermediateServerUtil` de la app;
+`tools/oracle/android_web_oracle.sh` regenera `testdata/android-web/oracle.golden`); y
+`tests/android_web_e2e.rs` ejecuta cada operación (firma, cofirma con sobre y `ERR-06`,
+contrafirma, XAdES trifásica, PAdES con firma visible y contraseña, `selectcert` con caché,
+`save`, lotes JSON con espera activa, XML/local, errores, cancelación, intent) contra un
+StorageService/RetrieveService y un servicio de lotes simulados sobre TCP con el cliente HTTP
+real y los firmadores de `afirma-signers`.

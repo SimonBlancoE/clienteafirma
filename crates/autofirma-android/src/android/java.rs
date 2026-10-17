@@ -17,7 +17,9 @@ use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString, JValue};
 use jni::sys::{jboolean, jfloat, jint, jlong};
 use jni::{Env, EnvUnowned, JavaVM, jni_mangle, jni_sig, jni_str};
 
-use crate::bridge::{Bridge, DeviceConfig, NfcTagInfo, Platform, PlatformError, PlatformEvent, RequestId};
+use crate::bridge::{
+    Bridge, DOCUMENT_TOO_LARGE, DeviceConfig, NfcTagInfo, Platform, PlatformError, PlatformEvent, RequestId,
+};
 use crate::ime::{ImeRequest, ImeState};
 
 /// Tamaño máximo de un documento abierto con el selector del sistema.
@@ -79,13 +81,41 @@ impl JavaPlatform {
 }
 
 impl Platform for JavaPlatform {
-    fn open_document(&self, request: RequestId) -> Result<(), PlatformError> {
+    fn open_document(&self, request: RequestId, mime_types: &[&str]) -> Result<(), PlatformError> {
         self.with_activity(|env, activity| {
+            let mime_types = JString::new(env, mime_types.join(","))?;
             env.call_method(
                 activity,
                 jni_str!("openDocument"),
-                jni_sig!("(J)V"),
-                &[JValue::Long(request)],
+                jni_sig!("(JLjava/lang/String;)V"),
+                &[JValue::Long(request), JValue::Object(&mime_types)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn create_document(&self, request: RequestId, mime_type: &str, name: &str) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            let mime_type = JString::new(env, mime_type)?;
+            let name = JString::new(env, name)?;
+            env.call_method(
+                activity,
+                jni_str!("createDocument"),
+                jni_sig!("(JLjava/lang/String;Ljava/lang/String;)V"),
+                &[JValue::Long(request), JValue::Object(&mime_type), JValue::Object(&name)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn install_certificate(&self, request: RequestId, pkcs12: &[u8]) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            let pkcs12 = env.byte_array_from_slice(pkcs12)?;
+            env.call_method(
+                activity,
+                jni_str!("installCertificate"),
+                jni_sig!("(J[B)V"),
+                &[JValue::Long(request), JValue::Object(&pkcs12)],
             )?;
             Ok(())
         })
@@ -314,14 +344,17 @@ pub fn on_document_opened<'local>(
             let file = File::from(unsafe { OwnedFd::from_raw_fd(fd) });
             let mut data = Vec::new();
             match file.take(MAX_DOCUMENT_BYTES + 1).read_to_end(&mut data) {
-                Ok(n) if n as u64 > MAX_DOCUMENT_BYTES => PlatformEvent::RequestFailed {
-                    request,
-                    cancelled: false,
-                    message: Some(format!(
-                        "el documento supera el tamaño máximo ({} MB)",
+                Ok(n) if n as u64 > MAX_DOCUMENT_BYTES => {
+                    tracing::warn!(
+                        "El documento supera el tamaño máximo ({} MB)",
                         MAX_DOCUMENT_BYTES / 1024 / 1024
-                    )),
-                },
+                    );
+                    PlatformEvent::RequestFailed {
+                        request,
+                        cancelled: false,
+                        message: Some(DOCUMENT_TOO_LARGE.to_string()),
+                    }
+                }
                 Ok(_) => PlatformEvent::DocumentOpened {
                     request,
                     uri,
@@ -339,6 +372,46 @@ pub fn on_document_opened<'local>(
         Ok(())
     })
     .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onDocumentCreated(long request, String uri, String name, int fd)`: documento
+/// nuevo del diálogo de guardado. Java cede el descriptor, abierto para escribir; aquí (hilo
+/// de E/S de la capa Java) se escriben los datos de la petición y se cierra.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_document_created<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    request: jlong,
+    uri: JString<'local>,
+    name: JString<'local>,
+    fd: jint,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let uri = optional_string(env, &uri)?.unwrap_or_default();
+        let name = optional_string(env, &name)?;
+        let bridge = Bridge::global();
+        if fd < 0 {
+            bridge.take_write(request);
+            bridge.post(PlatformEvent::RequestFailed {
+                request,
+                cancelled: false,
+                message: Some("descriptor de fichero no válido".to_string()),
+            });
+        } else {
+            // SAFETY: Java ha cedido la propiedad del descriptor y no lo vuelve a usar.
+            let file = File::from(unsafe { OwnedFd::from_raw_fd(fd) });
+            bridge.complete_write(request, uri, name, file);
+        }
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onCertificateInstalled(long request)`: el instalador del sistema ha añadido
+/// el certificado.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_certificate_installed<'local>(_env: EnvUnowned<'local>, _class: JClass<'local>, request: jlong) {
+    Bridge::global().post(PlatformEvent::CertificateInstalled { request });
 }
 
 /// `NativeBridge.onCertificateChosen(long request, String alias)`: resultado del selector de
