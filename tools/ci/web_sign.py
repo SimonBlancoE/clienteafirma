@@ -44,6 +44,9 @@ def chrome():
 
 
 def launch(url):
+    # Registro detallado (Windows hereda el entorno con ShellExecute; en macOS lo
+    # pone `launchctl setenv` en la CI).
+    os.environ.setdefault("AUTOFIRMA_LOG", "debug")
     system = platform.system()
     if system == "Windows":
         # Como el navegador: ShellExecute con el manejador registrado (con `cmd /c start`
@@ -111,7 +114,17 @@ finally:
     browser.terminate()
     srv.shutdown()
 if not results:
-    sys.exit("la página no ha recibido respuesta de AutoFirma")
+    # Diagnóstico: ¿está AutoFirma en marcha y escuchando en el puerto?
+    system = platform.system()
+    cmds = {
+        "Windows": [["tasklist"], ["netstat", "-ano"]],
+        "Darwin": [["ps", "-axo", "pid,etime,command"], ["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]],
+    }.get(system, [["ps", "-eo", "pid,etime,args"]])
+    for c in cmds:
+        out = subprocess.run(c, capture_output=True).stdout.decode("utf-8", "replace")
+        print(f"--- {' '.join(c)}")
+        print("\n".join(l for l in out.splitlines() if "autofirma" in l.lower() or str(ws_port) in l))
+    sys.exit(f"la página no ha recibido respuesta de AutoFirma (puerto {ws_port})")
 r = results[0]
 print(json.dumps({k: (v[:60] + "…") if isinstance(v, str) and len(v) > 60 else v for k, v in r.items()}, ensure_ascii=False))
 if not r.get("ok"):
@@ -119,8 +132,9 @@ if not r.get("ok"):
 sig = os.path.join(WORK, "firma-web.csig")
 with open(sig, "wb") as f:
     f.write(base64.b64decode(r["sig"].replace("-", "+").replace("_", "/") + "=="))
-v = subprocess.run([APP, "verify", "-i", sig], capture_output=True, text=True)
-print(v.stdout.strip())
-if "Firma válida" not in v.stdout and "Valid signature" not in v.stdout:
+v = subprocess.run([APP, "verify", "-i", sig], capture_output=True)
+out = v.stdout.decode("utf-8", "replace")  # AutoFirma escribe UTF-8 también en Windows
+print(out.strip())
+if "Firma válida" not in out and "Valid signature" not in out:
     sys.exit("la firma devuelta no es válida")
 print("firma desde la web correcta")
