@@ -101,13 +101,33 @@ pub fn check(ctx: &Context, scope: TrustScope, certs: &LocalCerts) -> TrustCheck
 
 fn delete_old(ctx: &Context, kc: &Path, keep: &[&[u8]]) -> Result<bool> {
     let kcs = kc.to_string_lossy();
+    let admin = kc == keychain(ctx, TrustScope::Machine);
     let mut changed = false;
     for cn in [CA_CN, SSL_CN] {
         for (hash, der) in find(ctx, kc, cn)? {
             if keep.contains(&der.as_slice()) || !is_autofirma_cert(&der) {
                 continue;
             }
-            let o = security(ctx, &["delete-certificate", "-Z", &hash, "-t", &kcs])?;
+            // Primero la configuración de confianza (con -d en el llavero del sistema): es la
+            // operación inversa de add-trusted-cert y, como root, no pide autorización.
+            // `delete-certificate -t` borraba ambas cosas pero en el dominio de administrador
+            // exige confirmación interactiva y se quedaba esperando sin interfaz.
+            let tmp = std::env::temp_dir().join(format!("autofirma-trust-{}-{hash}.cer", std::process::id()));
+            if std::fs::write(&tmp, &der).is_ok() {
+                let tmps = tmp.to_string_lossy().into_owned();
+                let mut args = vec!["remove-trusted-cert"];
+                if admin {
+                    args.push("-d");
+                }
+                args.push(&tmps);
+                if let Ok(o) = security(ctx, &args)
+                    && !o.success()
+                {
+                    tracing::debug!("remove-trusted-cert: {}", o.message());
+                }
+                let _ = std::fs::remove_file(&tmp);
+            }
+            let o = security(ctx, &["delete-certificate", "-Z", &hash, &kcs])?;
             if !o.success() {
                 return Err(SystemError::TrustStore {
                     store: kcs.to_string(),

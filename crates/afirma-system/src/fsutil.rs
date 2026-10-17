@@ -70,6 +70,29 @@ pub fn remove_file_if_exists(path: &Path) -> Result<bool> {
 }
 
 /// Comprueba si se puede escribir en un directorio (creando y borrando un fichero de prueba).
+/// Indica si `path` está en el directorio personal de otro usuario y el proceso es root
+/// (instaladores y `sudo` que conservan `HOME`). Ahí no se deben crear ficheros: quedarían
+/// con propietario root y el usuario no podría leerlos después.
+pub fn root_in_foreign_home(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        // SAFETY: geteuid no tiene precondiciones.
+        if unsafe { libc::geteuid() } != 0 {
+            return false;
+        }
+        // Primer antepasado existente: si es de otro usuario, no es nuestro.
+        path.ancestors()
+            .find_map(|a| std::fs::metadata(a).ok())
+            .is_some_and(|m| m.uid() != 0)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        false
+    }
+}
+
 pub fn dir_is_writable(dir: &Path) -> bool {
     if !dir.is_dir() {
         return false;

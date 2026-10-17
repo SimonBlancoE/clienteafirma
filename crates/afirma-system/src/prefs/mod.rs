@@ -236,7 +236,11 @@ impl Preferences {
                     nodes: legacy,
                     ..Default::default()
                 };
-                if let Err(e) = store.save(&f, Some(0o600)) {
+                // Como root en el directorio de otro usuario (instalador, sudo) no se
+                // crea el fichero: el usuario lo creará al abrir la aplicación.
+                if crate::fsutil::root_in_foreign_home(&user_prefs_path(ctx)) {
+                    tracing::debug!("migración de preferencias no guardada (root en HOME ajeno)");
+                } else if let Err(e) = store.save(&f, Some(0o600)) {
                     tracing::warn!("No se pudo guardar la migración de preferencias: {e}");
                 }
                 f

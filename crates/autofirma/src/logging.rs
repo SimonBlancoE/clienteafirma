@@ -17,6 +17,18 @@ pub fn log_path() -> PathBuf {
 /// (`info`, `debug`...). Nunca se registran contraseñas ni datos firmados.
 pub fn init() {
     let path = log_path();
+    // Como root con el HOME de otro usuario (instalador, sudo) no se crea el registro
+    // allí (quedaría con propietario root): se escribe en la salida de errores.
+    if afirma_system::fsutil::root_in_foreign_home(&path) {
+        let filter = tracing_subscriber::EnvFilter::try_from_env("AUTOFIRMA_LOG")
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .with_ansi(false)
+            .with_writer(std::io::stderr)
+            .try_init();
+        return;
+    }
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
