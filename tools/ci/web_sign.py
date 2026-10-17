@@ -65,6 +65,34 @@ def launch(url):
         subprocess.Popen(["xdg-open", url])
 
 
+def processes():
+    """Procesos de AutoFirma y estado del puerto del WebSocket."""
+    system = platform.system()
+    cmds = {
+        "Windows": [["tasklist"], ["netstat", "-ano"]],
+        "Darwin": [["ps", "-axo", "pid,etime,command"], ["lsof", "-nP", f"-iTCP:{ws_port}"]],
+    }.get(system, [["ps", "-eo", "pid,etime,args"], ["ss", "-tanp"]])
+    for c in cmds:
+        out = subprocess.run(c, capture_output=True).stdout.decode("utf-8", "replace")
+        lines = [l for l in out.splitlines() if "autofirma" in l.lower() or str(ws_port) in l]
+        print(f"--- {' '.join(c)}\n" + "\n".join(lines), flush=True)
+
+
+def probe():
+    """Mientras la página intenta conectar: ¿sigue vivo AutoFirma y acepta conexiones?
+
+    Solo abre y cierra una conexión TCP (no llega a la negociación WebSocket, así que
+    no ocupa el lugar de la página como primer cliente)."""
+    for delay in (3, 6, 12):
+        time.sleep(delay)
+        try:
+            socket.create_connection(("127.0.0.1", ws_port), timeout=3).close()
+            log(f"sondeo: el puerto {ws_port} acepta conexiones TCP")
+        except OSError as e:
+            log(f"sondeo: el puerto {ws_port} no acepta conexiones: {e}")
+        processes()
+
+
 os.makedirs(WORK, exist_ok=True)
 ws_port, web_port = free_port(), free_port()
 results = []
@@ -104,6 +132,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path == "/ready":
             log("página cargada: se lanza AutoFirma")
             launch(f"afirma://websocket?ports={ws_port}&v=4&jvc=4")
+            threading.Thread(target=probe, daemon=True).start()
             time.sleep(2)
             launched.set()
         elif self.path == "/log":
@@ -126,7 +155,8 @@ chrome_log = open(os.path.join(WORK, "chrome.log"), "wb")
 log("se abre Chrome")
 browser = subprocess.Popen(
     [chrome(), "--headless=new", "--no-first-run", "--disable-gpu", "--use-mock-keychain",
-     "--password-store=basic", f"--user-data-dir={WORK}/chrome", f"http://127.0.0.1:{web_port}/page.html"],
+     "--password-store=basic", f"--user-data-dir={WORK}/chrome", f"--log-net-log={WORK}/netlog.json",
+     f"http://127.0.0.1:{web_port}/page.html"],
     stdout=chrome_log, stderr=subprocess.STDOUT)
 try:
     for _ in range(240):
@@ -142,16 +172,17 @@ if not results:
     print("\n".join(open(chrome_log.name, encoding="utf-8", errors="replace").read().splitlines()[-30:]))
     if not launched.is_set():
         sys.exit("la página no llegó a cargarse en Chrome")
-    # Diagnóstico: ¿está AutoFirma en marcha y escuchando en el puerto?
-    system = platform.system()
-    cmds = {
-        "Windows": [["tasklist"], ["netstat", "-ano"]],
-        "Darwin": [["ps", "-axo", "pid,etime,command"], ["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]],
-    }.get(system, [["ps", "-eo", "pid,etime,args"]])
-    for c in cmds:
-        out = subprocess.run(c, capture_output=True).stdout.decode("utf-8", "replace")
-        print(f"--- {' '.join(c)}")
-        print("\n".join(l for l in out.splitlines() if "autofirma" in l.lower() or str(ws_port) in l))
+    # Códigos de error de red que ha visto Chrome (p. ej. -102 conexión rechazada,
+    # -202 CA no reconocida).
+    try:
+        net = open(os.path.join(WORK, "netlog.json"), encoding="utf-8", errors="replace").read().splitlines()
+        errs = sorted({l.split('"net_error":')[1].split(",")[0].split("}")[0] for l in net if '"net_error":' in l})
+        print(f"--- errores de red de Chrome: {errs}")
+        for l in [l for l in net if str(ws_port) in l][:8]:
+            print(l[:400])
+    except OSError as e:
+        print(f"--- sin registro de red de Chrome: {e}")
+    processes()
     sys.exit(f"la página no ha recibido respuesta de AutoFirma (puerto {ws_port})")
 r = results[0]
 print(json.dumps({k: (v[:60] + "…") if isinstance(v, str) and len(v) > 60 else v for k, v in r.items()}, ensure_ascii=False))

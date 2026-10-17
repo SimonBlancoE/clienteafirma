@@ -138,6 +138,7 @@ jobs:
           # La herramienta security no admite el PKCS#12 moderno (AES y MAC SHA-256).
           security import testdata/pki/firmante-rsa-legacy.p12 -k ci.keychain -P 12341234 -A
           security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k ci ci.keychain > /dev/null
+          /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate --getstealthmode --getblockall || true
           # Registro detallado también para la app que abre LaunchServices.
           launchctl setenv AUTOFIRMA_LOG debug
           python3 tools/ci/web_sign.py "$AF_BIN" web
@@ -147,6 +148,10 @@ jobs:
         run: |
           for f in "$HOME/.afirma/AutoFirma-rs.log" "$USERPROFILE/.afirma/AutoFirma-rs.log"; do
             [ -f "$f" ] && tail -n 400 "$f"
+          done
+          # Informes de cierre inesperado de macOS.
+          for f in "$HOME"/Library/Logs/DiagnosticReports/autofirma*; do
+            [ -f "$f" ] && { echo "--- $f"; head -c 6000 "$f"; }
           done
           exit 0
       - name: Desinstalar

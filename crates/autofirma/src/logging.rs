@@ -15,6 +15,22 @@ pub fn log_path() -> PathBuf {
 
 /// Inicia el registro. El nivel se puede cambiar con `AUTOFIRMA_LOG`
 /// (`info`, `debug`...). Nunca se registran contraseñas ni datos firmados.
+/// Lleva al registro los errores internos (pánicos), también los de hilos y
+/// tareas secundarias: abierta desde el navegador o el Finder, la aplicación no
+/// tiene salida de errores visible.
+fn log_panics() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        tracing::error!(
+            "Error interno en el hilo {}: {info}\n{backtrace}",
+            thread.name().unwrap_or("sin nombre")
+        );
+        default(info);
+    }));
+}
+
 pub fn init() {
     let path = log_path();
     // Como root con el HOME de otro usuario (instalador, sudo) no se crea el registro
@@ -49,6 +65,7 @@ pub fn init() {
         Ok(f) => builder.with_writer(Mutex::new(f)).try_init(),
         Err(_) => builder.with_writer(std::io::stderr).try_init(),
     };
+    log_panics();
     tracing::info!(
         "AutoFirma-rs {} ({} {})",
         env!("CARGO_PKG_VERSION"),

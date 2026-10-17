@@ -86,6 +86,7 @@ impl ProtocolLauncher {
     }
 
     fn channel_exit(&self, r: Result<ServerExit, ChannelError>, version: ProtocolVersion) -> i32 {
+        tracing::info!("Fin del canal con la página: {r:?}");
         match r {
             Ok(_) => 0,
             Err(e) => {
