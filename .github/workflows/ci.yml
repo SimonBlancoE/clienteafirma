@@ -134,7 +134,8 @@ jobs:
           existing=$(security list-keychains -d user | tr -d '"' | xargs)
           # shellcheck disable=SC2086 # una ruta por palabra
           security list-keychains -d user -s ci.keychain $existing
-          security import testdata/pki/firmante-rsa.p12 -k ci.keychain -P 12341234 -A
+          # La herramienta security no admite el PKCS#12 moderno (AES y MAC SHA-256).
+          security import testdata/pki/firmante-rsa-legacy.p12 -k ci.keychain -P 12341234 -A
           security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k ci ci.keychain > /dev/null
           python3 tools/ci/web_sign.py "$AF_BIN" web
       - name: Registro de AutoFirma (si algo falla)

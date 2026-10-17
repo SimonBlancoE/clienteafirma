@@ -46,7 +46,9 @@ def chrome():
 def launch(url):
     system = platform.system()
     if system == "Windows":
-        subprocess.Popen(["cmd", "/c", "start", "", url])
+        # Como el navegador: ShellExecute con el manejador registrado (con `cmd /c start`
+        # los «&» de la URL separarían órdenes).
+        os.startfile(url)
     elif system == "Darwin":
         subprocess.Popen(["open", url])
     else:
