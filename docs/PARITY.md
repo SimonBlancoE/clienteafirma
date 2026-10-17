@@ -37,13 +37,13 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Cifrado de respuestas (DES/AES), códigos de error y versiones del protocolo | ✅ | |
 | Ventana de la petición (sede, documento, certificado) | ➕ | Ventana compacta nueva; muestra el origen de la petición |
 | Firma visible pedida por la web (`visibleSignature=want/optional`) | ✅ | |
-| URL `afirma://` en macOS (evento `kAEGetURL`) | ⚠️ | Registro en LaunchServices comprobado en macOS real; falta probar la llegada del evento desde un navegador |
+| URL `afirma://` en macOS (evento `kAEGetURL`) | ✅ | En macOS real (CI): el `.pkg` registra el esquema, la URL llega como evento de Apple y la página recibe una firma válida |
 
 ## Certificados
 
 | Función | Estado | Notas |
 |---|---|---|
-| Almacén de Windows (CNG/CryptoAPI), llavero de macOS, NSS (Firefox, Chrome en Linux) | ✅ | |
+| Almacén de Windows (CNG/CryptoAPI), llavero de macOS, NSS (Firefox, Chrome en Linux) | ✅ | Almacén de Windows y llavero de macOS usados desde la web en Windows y macOS reales (CI) |
 | PKCS#12, PKCS#11 (DNIe, CERES, tarjetas registradas) | ✅ | Probado con SoftHSM2 |
 | Controlador DNIe propio de Java (JMulticard) | 🔁 | Se usan los módulos PKCS#11 del DNIe/OpenSC |
 | Filtros de certificados (`filters`, `headless`, seudónimos, uso de clave...) | ✅ | |
@@ -116,7 +116,13 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 - **Firma desde la web**: `tools/e2e/web_sign.py` abre una página con el `autoscript.js` real
   en Chromium, la app atiende `afirma://websocket` y la firma devuelta se verifica (CAdES,
   XAdES y PAdES en Linux; CAdES con el ejecutable de Windows en Wine,
-  `tools/e2e/wine-autofirma.sh`).
+  `tools/e2e/wine-autofirma.sh`). En Windows y macOS reales (`tools/ci/web_sign.py`, en la
+  CI) Chrome carga la página y AutoFirma se abre con el manejador del sistema (ShellExecute;
+  LaunchServices y evento de Apple). Chrome solo conecta porque confía en la CA instalada,
+  sin desactivar ninguna comprobación. El certificado del almacén del sistema (Windows) o del
+  llavero (macOS) se elige sin diálogo y la firma devuelta es válida.
+- **Finder (macOS)**: un PDF abierto con `open -a AutoFirma.app` llega a la aplicación recién
+  lanzada.
 - **Línea de comandos**: 179 casos comparados con la versión Java (`testdata/cli/`).
 - **Instaladores**: MSI con WiX 5 instalado y desinstalado con `msiexec` en Wine; .deb
   instalado y purgado en Debian 13 y .rpm en Rocky Linux 8 (glibc 2.28), con firma por línea
