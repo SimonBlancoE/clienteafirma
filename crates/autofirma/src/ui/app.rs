@@ -552,9 +552,7 @@ impl AutoFirmaApp {
                     // Cada invocación del navegador se atiende en su propio
                     // proceso, con su ventana compacta, como en la línea de
                     // comandos de los demás sistemas.
-                    let spawned =
-                        std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg(&url).spawn());
-                    if let Err(e) = spawned {
+                    if let Err(e) = crate::platform::spawn_protocol_instance(&url) {
                         tracing::error!("No se ha podido atender la URL del navegador: {e}");
                     }
                     if self.launch_grace.take().is_some() {

@@ -56,6 +56,32 @@ pub fn take_opened() -> Vec<Opened> {
     QUEUE.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default()
 }
 
+/// Atiende una URL `afirma://` en una instancia nueva de la aplicación, que no
+/// depende de esta: en macOS se abre con LaunchServices (`open -n`), porque al
+/// salir una aplicación `launchd` termina todo su grupo de procesos y un hijo
+/// normal moriría con ella; en los demás casos, en su propio grupo de procesos.
+pub fn spawn_protocol_instance(url: &str) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    if let Some(bundle) = afirma_system::AppIdentity::current().macos_bundle {
+        tracing::info!("Nueva instancia para la petición web con LaunchServices");
+        return std::process::Command::new("/usr/bin/open")
+            .arg("-n")
+            .arg(&bundle)
+            .arg("--args")
+            .arg(url)
+            .spawn()
+            .map(|_| ());
+    }
+    let mut cmd = std::process::Command::new(std::env::current_exe()?);
+    cmd.arg(url);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    cmd.spawn().map(|_| ())
+}
+
 /// En macOS el navegador y el Finder no pasan la URL ni los ficheros por la
 /// línea de comandos sino como eventos, que llegan poco después de arrancar.
 pub const fn launch_events_by_message() -> bool {
