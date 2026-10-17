@@ -78,19 +78,34 @@ def processes():
         print(f"--- {' '.join(c)}\n" + "\n".join(lines), flush=True)
 
 
+def stacks():
+    """macOS: pilas de los hilos de AutoFirma (`sample`), para ver dónde espera."""
+    if platform.system() != "Darwin":
+        return
+    pids = subprocess.run(["pgrep", "-f", "AutoFirma.app/Contents/MacOS/autofirma"], capture_output=True, text=True)
+    for pid in pids.stdout.split():
+        out = subprocess.run(["sample", pid, "2"], capture_output=True).stdout.decode("utf-8", "replace")
+        keep = [l for l in out.splitlines()
+                if any(k in l for k in ("Thread_", "Sec", "security", "afirma", "keystore", "Keychain", "semaphore"))]
+        print(f"--- sample {pid}\n" + "\n".join(l[:200] for l in keep[:120]), flush=True)
+
+
 def probe():
     """Mientras la página intenta conectar: ¿sigue vivo AutoFirma y acepta conexiones?
 
     Solo abre y cierra una conexión TCP (no llega a la negociación WebSocket, así que
     no ocupa el lugar de la página como primer cliente)."""
-    for delay in (3, 6, 12):
+    for delay in (3, 6, 12, 30):
         time.sleep(delay)
+        if results:
+            return
         try:
             socket.create_connection(("127.0.0.1", ws_port), timeout=3).close()
             log(f"sondeo: el puerto {ws_port} acepta conexiones TCP")
         except OSError as e:
             log(f"sondeo: el puerto {ws_port} no acepta conexiones: {e}")
         processes()
+    stacks()
 
 
 os.makedirs(WORK, exist_ok=True)

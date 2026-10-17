@@ -278,6 +278,7 @@ fn load(options: &KeychainOptions, keychains: Option<&[SecKeychain]>) -> Result<
         });
     }
 
+    tracing::info!("Llavero de macOS: {} identidades", rows.len());
     let aliases = logic::java_aliases(&rows.iter().map(|r| r.label.as_str()).collect::<Vec<_>>());
     let keep = logic::dedup_by_serial(&rows.iter().map(|r| r.der.as_slice()).collect::<Vec<_>>());
 
@@ -387,7 +388,14 @@ impl SigningKey for KeychainKey {
             )));
         }
         let hash = algorithm.digest.digest(data);
-        self.key.create_signature(sec_alg, &hash).map_err(|e| cf_error(&e))
+        // macOS puede pedir aquí al usuario permiso para usar la clave (diálogo del sistema).
+        tracing::info!("Firma {} con la clave del llavero", algorithm.java_name());
+        let r = self.key.create_signature(sec_alg, &hash).map_err(|e| cf_error(&e));
+        tracing::info!(
+            "Firma con la clave del llavero terminada: {}",
+            if r.is_ok() { "correcta" } else { "error" }
+        );
+        r
     }
 }
 

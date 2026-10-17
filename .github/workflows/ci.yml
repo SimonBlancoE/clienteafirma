@@ -159,7 +159,10 @@ jobs:
           security list-keychains -d user -s ci.keychain $existing
           # La herramienta security no admite el PKCS#12 moderno (AES y MAC SHA-256).
           security import testdata/pki/firmante-rsa-legacy.p12 -k ci.keychain -P 12341234 -A
-          security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k ci ci.keychain > /dev/null
+          # Sin preguntar al firmar: la app (firma ad hoc, sin equipo) se identifica por su cdhash.
+          cdhash=$(codesign -dvvv /Applications/AutoFirma.app 2>&1 | sed -n 's/^CDHash=//p' | head -n 1)
+          echo "cdhash de la app: $cdhash"
+          security set-key-partition-list -S "apple-tool:,apple:,unsigned:,cdhash:$cdhash" -s -k ci ci.keychain > /dev/null
           /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate --getstealthmode --getblockall || true
           # Registro detallado también para la app que abre LaunchServices.
           launchctl setenv AUTOFIRMA_LOG debug
