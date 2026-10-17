@@ -37,7 +37,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Cifrado de respuestas (DES/AES), códigos de error y versiones del protocolo | ✅ | |
 | Ventana de la petición (sede, documento, certificado) | ➕ | Ventana compacta nueva; muestra el origen de la petición |
 | Firma visible pedida por la web (`visibleSignature=want/optional`) | ✅ | |
-| URL `afirma://` en macOS (evento `kAEGetURL`) | ✅ | Compila para macOS; pendiente de prueba en un Mac real |
+| URL `afirma://` en macOS (evento `kAEGetURL`) | ⚠️ | Registro en LaunchServices comprobado en macOS real; falta probar la llegada del evento desde un navegador |
 
 ## Certificados
 
@@ -103,9 +103,9 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | CA local y certificado SSL (`autofirma.pfx`, `Autofirma_ROOT.cer`) | ✅ | |
 | Confianza en Windows, macOS (llavero) y NSS (Firefox, Chrome) | ✅ | |
 | Manejador `afirma://`, menús contextuales «Firmar/Verificar/Huella» | ✅ | |
-| Instalador de Windows (MSI con propiedades `CONFIG_PATH`, `FIREFOX_SECURITY_ROOTS`...) | ✅ | Probado con Wine: instalación silenciosa, protocolo, directivas, desinstalación limpia y firma desde la web; pendiente en Windows real |
+| Instalador de Windows (MSI con propiedades `CONFIG_PATH`, `FIREFOX_SECURITY_ROOTS`...) | ✅ | En Windows real (CI): `install --system`, CA en `LocalMachine\Root`, protocolo, diagnóstico, firma y desinstalación; el MSI, con `msiexec` en Wine |
 | Paquetes de Linux (.deb, .rpm) y AppImage | ➕ | AppImage nuevo |
-| Paquete de macOS (.pkg, .dmg) | ✅ | Pendiente de prueba en un Mac real |
+| Paquete de macOS (.pkg, .dmg) | ✅ | En macOS real (CI): `.pkg` instalado con `installer`, CA en el llavero del sistema, `afirma://` registrado, firma y desinstalación |
 | Directivas de navegadores para abrir `afirma://` sin preguntar | ➕ | Nuevo: Chrome, Edge, Firefox |
 | Firefox en Linux: confianza en la CA local también para perfiles nuevos | ➕ | `Certificates.Install` |
 
@@ -121,5 +121,9 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 - **Instaladores**: MSI con WiX 5 instalado y desinstalado con `msiexec` en Wine; .deb
   instalado y purgado en Debian 13 y .rpm en Rocky Linux 8 (glibc 2.28), con firma por línea
   de comandos y diagnóstico.
-- **Pruebas automáticas**: `cargo test --workspace` (más de 630 pruebas), que la CI
-  (`.github/workflows/ci.yml`) ejecuta en Linux, Windows y macOS.
+- **Pruebas automáticas**: `cargo test --workspace` (más de 630 pruebas), clippy y formato en
+  Linux, Windows y macOS reales (`.github/workflows/ci.yml`, en verde).
+- **Integración real** (mismo flujo de CI): `install --system`, confianza en el almacén del
+  sistema, registro de `afirma://`, diagnóstico sin errores (`tools/ci/check_doctor.py`),
+  firma y verificación CAdES/XAdES/PAdES y desinstalación, en Ubuntu, Windows y macOS (con el
+  `.pkg` instalado como lo haría un usuario).
