@@ -1,0 +1,49 @@
+Claves (xsl:key, key()), generate-id(), id() y eliminación de espacios
+(xsl:strip-space, xsl:preserve-space, xml:space) en el documento de entrada.
+
+#### @input
+<lib>
+  <book id="b1" cat="x y"><t>Uno</t><a>ana</a><a>luis</a></book>
+  <book id="b2" cat="y"><t>Dos</t><a>ana</a></book>
+  <book id="b3" cat=""><t>Tres</t></book>
+  <pre xml:space="preserve">  <i> </i>  </pre>
+  <mix>  <i>  </i>  <j xml:space="default"> <k> </k> </j></mix>
+</lib>
+#### key_basic
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:key name="byAuthor" match="book" use="a"/><xsl:key name="byCat" match="book" use="@cat"/><xsl:template match="/"><r><xsl:for-each select="key('byAuthor', 'ana')"><xsl:value-of select="@id"/>,</xsl:for-each>|<xsl:value-of select="count(key('byAuthor', 'nadie'))"/>|<xsl:value-of select="count(key('byCat', 'y'))"/>|<xsl:value-of select="count(key('byCat', 'x y'))"/>|<xsl:value-of select="count(key('byCat', ''))"/>|<xsl:for-each select="key('byAuthor', //book[1]/a)"><xsl:value-of select="@id"/></xsl:for-each>|<xsl:value-of select="count(key('byAuthor', //book[3]/t | //book[1]/a[2]))"/></r></xsl:template></xsl:stylesheet>
+#### key_multiple_defs
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:key name="k" match="book" use="@id"/><xsl:key name="k" match="a" use="."/><xsl:template match="/"><r><xsl:for-each select="key('k', 'b2') | key('k', 'luis')"><xsl:value-of select="name()"/>,</xsl:for-each>|<xsl:for-each select="key('k', //a)"><xsl:value-of select="."/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### key_use_number
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:key name="k" match="book" use="count(a)"/><xsl:template match="/"><r><xsl:value-of select="count(key('k', 1))"/>,<xsl:value-of select="count(key('k', '2'))"/>,<xsl:value-of select="count(key('k', 0))"/>,<xsl:value-of select="count(key('k', 2.0))"/></r></xsl:template></xsl:stylesheet>
+#### key_grouping_muench
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:key name="a" match="a" use="."/><xsl:template match="/"><r><xsl:for-each select="//a[generate-id() = generate-id(key('a', .)[1])]"><xsl:sort select="."/><g n="{.}" c="{count(key('a', .))}"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### key_qname
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns:q="urn:p"><xsl:key name="p:k" match="t" use="."/><xsl:template match="/"><r><xsl:value-of select="count(key('q:k', 'Dos'))"/></r></xsl:template></xsl:stylesheet>
+#### key_undefined
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(key('nada', 'x'))"/></r></xsl:template></xsl:stylesheet>
+#### key_in_rtf
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:exsl="http://exslt.org/common" exclude-result-prefixes="exsl"><xsl:key name="k" match="e" use="@v"/><xsl:variable name="t"><e v="1"/><e v="2"/><e v="1"/></xsl:variable><xsl:template match="/"><r><xsl:value-of select="count(key('k', '1'))"/>|<xsl:for-each select="exsl:node-set($t)"><xsl:value-of select="count(key('k', '1'))"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### generate_id
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="generate-id()"/>,<xsl:value-of select="generate-id(/lib)"/>,<xsl:value-of select="generate-id(//book[2])"/>,<xsl:value-of select="generate-id(//book/@id)"/>,<xsl:value-of select="generate-id(//nada)"/>,<xsl:value-of select="generate-id(//book) = generate-id(//book[1])"/>,<xsl:for-each select="//t/text()"><xsl:value-of select="generate-id()"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### generate_id_unstripped
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:strip-space elements="*"/><xsl:template match="/"><r><xsl:value-of select="generate-id(//book[2])"/>,<xsl:value-of select="generate-id(//t[3])"/></r></xsl:template></xsl:stylesheet>
+#### ws_default
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(//text())"/>|<xsl:copy-of select="//pre|//mix"/></r></xsl:template></xsl:stylesheet>
+#### ws_strip_all
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:strip-space elements="*"/><xsl:template match="/"><r><xsl:value-of select="count(//text())"/>|<xsl:copy-of select="/"/></r></xsl:template></xsl:stylesheet>
+#### ws_strip_preserve
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:strip-space elements="*"/><xsl:preserve-space elements="mix i"/><xsl:template match="/"><r><xsl:value-of select="count(//text())"/>|<xsl:copy-of select="//mix"/></r></xsl:template></xsl:stylesheet>
+#### ws_strip_some
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:strip-space elements="lib book"/><xsl:template match="/"><r><xsl:for-each select="/lib/node()"><xsl:value-of select="name()"/>:</xsl:for-each>|<xsl:value-of select="count(/lib/book[1]/preceding-sibling::node())"/>|<xsl:for-each select="//book"><xsl:value-of select="position()"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### ws_priority_conflict
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:preserve-space elements="*"/><xsl:strip-space elements="mix"/><xsl:preserve-space elements="j"/><xsl:strip-space elements="j k"/><xsl:template match="/"><r><xsl:copy-of select="//mix"/></r></xsl:template></xsl:stylesheet>
+#### ws_ns_wildcard
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p"><xsl:strip-space elements="p:*"/><xsl:template match="/"><r><xsl:copy-of select="/"/></r></xsl:template></xsl:stylesheet>
+====
+<d xmlns:p="urn:p"> <p:a> <p:b> </p:b> </p:a> <c> </c> <p:c xml:space="preserve"> <p:x> </p:x> </p:c></d>
+#### ws_position_after_strip
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:strip-space elements="*"/><xsl:template match="/"><r><xsl:for-each select="/lib/*"><xsl:value-of select="concat(position(), name(), count(preceding-sibling::node()), ' ')"/></xsl:for-each><xsl:apply-templates select="/lib/book[1]/node()"/></r></xsl:template><xsl:template match="*"><xsl:value-of select="position()"/></xsl:template></xsl:stylesheet>
+#### ws_text_merge_cdata
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(//e/text())"/>|<xsl:for-each select="//e/text()">[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<d><e>a<![CDATA[b<]]>c&amp;<!--x-->d<?p?>e</e></d>

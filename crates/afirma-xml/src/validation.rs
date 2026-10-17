@@ -351,8 +351,21 @@ fn keyinfo_certificates(doc: &Document, sig: NodeId) -> Option<Vec<Vec<u8>>> {
     Some(out)
 }
 
-/// Resultado de validar un documento XML firmado (`ValidateXMLSignature.validate`).
+/// Resultado de validar un documento XML firmado (`ValidateXMLSignature.validate`),
+/// con la validación segura de AutoFirma 1.9.
 pub fn validate(sign: &[u8], check_certificates: bool, resolver: &dyn Resolver) -> Vec<SignValidity> {
+    validate_with(sign, check_certificates, resolver, dsig::RefOptions::default())
+}
+
+/// [`validate`] con opciones de proceso de las referencias (por ejemplo, sin
+/// validación segura para aplicar la transformada XSLT, que AutoFirma 1.9
+/// rechaza).
+pub fn validate_with(
+    sign: &[u8],
+    check_certificates: bool,
+    resolver: &dyn Resolver,
+    options: dsig::RefOptions,
+) -> Vec<SignValidity> {
     let doc = match crate::xades::sign::load_xml(sign) {
         Some(x) => x.doc,
         None => return vec![SignValidity::ko(ValidityError::NoSign)],
@@ -387,6 +400,7 @@ pub fn validate(sign: &[u8], check_certificates: bool, resolver: &dyn Resolver) 
             doc: &doc,
             signature: sig,
             resolver,
+            options,
         };
         let refs = dsig::ds_children(&doc, si, "Reference");
         let uri_of = |r: NodeId| doc.element(r).and_then(|e| e.attr("URI")).unwrap_or("").to_string();

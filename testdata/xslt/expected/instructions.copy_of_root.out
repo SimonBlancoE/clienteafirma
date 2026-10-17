@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="UTF-8"?><lib xmlns:x="urn:x"><book id="b1" year="1999" x:lang="es"><title>Uno</title><price>10.50</price><tag>a</tag><tag>b</tag></book><book id="b2" year="2005"><title>Dos</title><price>3</price></book><book id="b3"><title>Tres</title><price>abc</price><!--c--><?p d?></book>text<x:extra x:a="1">e</x:extra></lib>

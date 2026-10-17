@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerException: java.lang.RuntimeException: Un atributo cuyo valor debe ser un QName tenía el valor 'a b'
+java.lang.RuntimeException: Un atributo cuyo valor debe ser un QName tenía el valor 'a b'

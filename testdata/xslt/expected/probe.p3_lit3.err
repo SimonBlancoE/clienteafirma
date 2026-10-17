@@ -1,0 +1,1 @@
+javax.xml.transform.TransformerConfigurationException: Error de sintaxis en 'concat(9999999, ' ', 9999999.5, ' ', 0.00099, ' ', 1 div 7 * 1000000000, ' ', 3.0, ' ', 1.5e300 * 1, ' ', 4.35, ' ', 0.3 - 0.1, ' ', 2 * 0.000001, ' ', 1000000000000000000000)'.

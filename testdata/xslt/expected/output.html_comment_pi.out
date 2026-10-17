@@ -1,0 +1,5 @@
+<!--antes--><html>
+    <?php echo 1? >>
+    <body></body>
+</html><?fin x>
+

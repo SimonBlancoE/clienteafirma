@@ -1,0 +1,176 @@
+#### @input
+<doc><a x="1">uno</a><b>dos</b><html/></doc>
+#### p1_identity
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"/>
+#### p1_rtfnodeset
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x><y>1</y></x></xsl:variable><xsl:template match="/"><r><xsl:value-of select="count($v/x/y)"/></r></xsl:template></xsl:stylesheet>
+#### p1_exslnodeset
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:exsl="http://exslt.org/common"><xsl:variable name="v"><x><y>1</y></x></xsl:variable><xsl:template match="/"><r><xsl:value-of select="count(exsl:node-set($v)/x/y)"/></r></xsl:template></xsl:stylesheet>
+#### p1_xalannodeset
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xalan="http://xml.apache.org/xalan"><xsl:variable name="v"><x><y>1</y></x></xsl:variable><xsl:template match="/"><r><xsl:value-of select="count(xalan:nodeset($v)/x/y)"/></r></xsl:template></xsl:stylesheet>
+#### p1_docempty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(document(''))"/></r></xsl:template></xsl:stylesheet>
+#### p1_docext
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(document('file:///etc/hostname'))"/></r></xsl:template></xsl:stylesheet>
+#### p1_include
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:include href="file:///tmp/x.xsl"/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p1_import
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:import href="x.xsl"/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p1_extfunc
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:j="http://xml.apache.org/xalan/java/java.lang.System"><xsl:template match="/"><r><xsl:value-of select="j:getProperty('user.home')"/></r></xsl:template></xsl:stylesheet>
+#### p1_htmlauto
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><html><head><title>t</title></head><body><br/><p>a&lt;&amp;é&#160;ñ<img src="a b/é.png" alt="x&amp;y&lt;"/></p><input checked="checked"/><script>if (a &lt; b &amp;&amp; c) {}</script></body></html></xsl:template></xsl:stylesheet>
+#### p1_htmlnohead
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><HTML><p>x</p></HTML></xsl:template></xsl:stylesheet>
+#### p1_textout
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/">a&lt;b&amp;<x>c</x>é€&#x10437;</xsl:template></xsl:stylesheet>
+#### p1_indent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output indent="yes"/><xsl:template match="/"><r><a>t</a><b><c/><d>x<e/>y</d></b><!--c--><?pi d?></r></xsl:template></xsl:stylesheet>
+#### p1_standalone
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output standalone="yes" doctype-system="a.dtd" doctype-public="-//X//Y"/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p1_omitdecl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes" encoding="ISO-8859-1"/><xsl:template match="/"><r>é€ñ</r></xsl:template></xsl:stylesheet>
+#### p1_latin1
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="iso-8859-1"/><xsl:template match="/"><r a="é€">é€ñ</r></xsl:template></xsl:stylesheet>
+#### p1_ascii
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="US-ASCII"/><xsl:template match="/"><r a="é€">é€ñ</r></xsl:template></xsl:stylesheet>
+#### p1_utf16
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="UTF-16"/><xsl:template match="/"><r>é</r></xsl:template></xsl:stylesheet>
+#### p1_badenc
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="NOPE-1"/><xsl:template match="/"><r>é</r></xsl:template></xsl:stylesheet>
+#### p1_cdata
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output cdata-section-elements="c"/><xsl:template match="/"><r><c>a]]>b&lt;</c><d>x</d></r></xsl:template></xsl:stylesheet>
+#### p1_nodecl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/">texto</xsl:template></xsl:stylesheet>
+#### @input
+<doc xmlns:p="urn:p"><a x="1" p:y="2">uno<![CDATA[ cd ]]>dos</a><b>tres</b><!--c--><?pi x?></doc>
+#### p2_rtfcount
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x>1</x><x>2</x></xsl:variable><xsl:template match="/"><r><xsl:value-of select="count($v)"/></r></xsl:template></xsl:stylesheet>
+#### p2_rtfsum
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x>1</x><x>2</x></xsl:variable><xsl:template match="/"><r><xsl:value-of select="sum($v)"/>|<xsl:value-of select="$v = '12'"/>|<xsl:value-of select="$v * 2"/>|<xsl:value-of select="boolean($v)"/></r></xsl:template></xsl:stylesheet>
+#### p2_rtfempty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"></xsl:variable><xsl:variable name="w"/><xsl:template match="/"><r><xsl:value-of select="boolean($v)"/>|<xsl:value-of select="boolean($w)"/>|<xsl:if test="$v">si</xsl:if></r></xsl:template></xsl:stylesheet>
+#### p2_rtfforeach
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x>1</x></xsl:variable><xsl:template match="/"><r><xsl:for-each select="$v">a</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### p2_rtfapply
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x>1</x></xsl:variable><xsl:template match="/"><r><xsl:apply-templates select="$v"/></r></xsl:template></xsl:stylesheet>
+#### p2_genid
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="/|//node()|//@*|//namespace::*"><xsl:value-of select="concat(name(), '=', generate-id(), ' ')"/></xsl:for-each><xsl:value-of select="generate-id(/nada)"/></r></xsl:template></xsl:stylesheet>
+#### p2_nsorder
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:z="urn:z" xmlns:a="urn:a" xmlns:m="urn:m" xmlns="urn:def" xmlns:b="urn:b"><xsl:template match="/"><r><s/><xsl:copy-of select="/doc/a"/></r></xsl:template></xsl:stylesheet>
+#### p2_copyns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:copy-of select="//a"/><xsl:copy-of select="//namespace::*"/><xsl:for-each select="//a"><xsl:copy/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### p2_identity
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template></xsl:stylesheet>
+#### p2_attrorder
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r zz="1" aa="2" B="3" p:x="4" xmlns:p="urn:p" mm="5"><xsl:attribute name="cc">6</xsl:attribute><xsl:attribute name="aa">7</xsl:attribute></r></xsl:template></xsl:stylesheet>
+#### p2_numfmt
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(1 div 3, ' ', 0.1+0.2, ' ', 1e1, ' ', 10000000, ' ', 12345678.9, ' ', 0.0001, ' ', 0.001, ' ', -0, ' ', 1 div 0, ' ', -1 div 0, ' ', 0 div 0, ' ', 100 * 1.1, ' ', 5 div 2, ' ', 1000000 * 1000000, ' ', 0.000001234, ' ', number('1e3'), ' ', number(' 12 '), ' ', number('+1'), ' ', number('1.'), ' ', number('.5'), ' ', number('1d'), ' ', number('0x10'), ' ', number('Infinity'), ' ', number('-'), ' ', 2.5 mod 1, ' ', round(2.5), ' ', round(-2.5), ' ', round(-0.2), ' ', floor(-0.5))"/></r></xsl:template></xsl:stylesheet>
+#### p2_strfn
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(substring('12345', 1.5, 2.6), '|', substring('12345', 0, 3), '|', substring('12345', 0 div 0, 3), '|', substring('12345', -1 div 0, 1 div 0), '|', string-length('aé&#x10437;'), '|', translate('bar','abc','ABC'), '|', normalize-space('  a  b  '), '|', substring-before('1999/04/01','/'), '|', substring-after('1999/04/01','/'), '|', starts-with('abc', ''), '|', contains('abc', ''))"/></r></xsl:template></xsl:stylesheet>
+#### @input
+<doc><n>1e3</n><n> 12 </n><n>+1</n><n>1.</n><n>.5</n><n>1d</n><n>0x10</n><n>Infinity</n><n>-</n><n>-0</n><n>1,5</n><n>NaN</n><n>1f</n><n>-.5</n><n>12abc</n></doc>
+#### p3_nums
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//n"><xsl:value-of select="number(.)"/>,<xsl:value-of select=". * 1"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### p3_lit
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(1 div 3, ' ', 0.1+0.2, ' ', 10000000, ' ', 12345678.9, ' ', 0.0001, ' ', 0.001, ' ', -0, ' ', 1 div 0, ' ', -1 div 0, ' ', 0 div 0, ' ', 100 * 1.1, ' ', 5 div 2, ' ', 1000000 * 1000000, ' ', 0.000001234)"/></r></xsl:template></xsl:stylesheet>
+#### p3_lit2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(2.5 mod 1, ' ', round(2.5), ' ', round(-2.5), ' ', round(-0.2), ' ', floor(-0.5), ' ', -0.0, ' ', 0 * -1, ' ', 1 div (0 * -1), ' ', 123456789012345678901234567890, ' ', 1.0e0)"/></r></xsl:template></xsl:stylesheet>
+#### p3_lit3
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(9999999, ' ', 9999999.5, ' ', 0.00099, ' ', 1 div 7 * 1000000000, ' ', 3.0, ' ', 1.5e300 * 1, ' ', 4.35, ' ', 0.3 - 0.1, ' ', 2 * 0.000001, ' ', 1000000000000000000000)"/></r></xsl:template></xsl:stylesheet>
+#### p3_exp
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="1e1"/></r></xsl:template></xsl:stylesheet>
+#### p3_negzero
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="-0"/></r></xsl:template></xsl:stylesheet>
+#### p3_rtfbool
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x/></xsl:variable><xsl:variable name="t">  </xsl:variable><xsl:variable name="u"><xsl:if test="false()">a</xsl:if></xsl:variable><xsl:template match="/"><r><xsl:value-of select="boolean($v)"/>|<xsl:value-of select="boolean($t)"/>|<xsl:value-of select="boolean($u)"/>|<xsl:value-of select="$v = ''"/>|<xsl:value-of select="string($u)='' "/></r></xsl:template></xsl:stylesheet>
+#### p4_idnodtd
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(id('a1'))"/>|<xsl:value-of select="count(id('x1'))"/></r></xsl:template></xsl:stylesheet>
+====
+<doc><e Id="a1" id="a1" ID="a1"/><f xml:id="x1"/></doc>
+#### p4_iddtd
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(id('a1 b2'))"/>|<xsl:value-of select="id('b2')/@k"/>|<xsl:value-of select="//e/@def"/></r></xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ATTLIST e k ID #IMPLIED def CDATA "valor">]><doc><e k="a1"/><e k="b2"/></doc>
+#### p4_extdtd
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc SYSTEM "http://example.com/x.dtd"><doc/>
+#### p4_extent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ENTITY e SYSTEM "file:///etc/hostname">]><doc>&e;</doc>
+#### p4_extentunused
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ENTITY e SYSTEM "file:///etc/hostname">]><doc/>
+#### p4_sysprop
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="system-property('xsl:version')"/>|<xsl:value-of select="system-property('xsl:vendor')"/>|<xsl:value-of select="system-property('xsl:vendor-url')"/>|<xsl:value-of select="system-property('user.home')"/>|<xsl:value-of select="function-available('concat')"/><xsl:value-of select="function-available('foo')"/><xsl:value-of select="function-available('exsl:node-set')"/><xsl:value-of select="element-available('xsl:if')"/><xsl:value-of select="element-available('xsl:foo')"/><xsl:value-of select="element-available('lit')"/></r></xsl:template></xsl:stylesheet>
+#### p4_sysprop2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:exsl="http://exslt.org/common" xmlns:x="http://xml.apache.org/xalan"><xsl:template match="/"><r><xsl:value-of select="function-available('exsl:node-set')"/><xsl:value-of select="function-available('x:nodeset')"/><xsl:value-of select="function-available('exsl:object-type')"/><xsl:value-of select="function-available('current')"/><xsl:value-of select="function-available('key')"/><xsl:value-of select="function-available('document')"/><xsl:value-of select="function-available('format-number')"/></r></xsl:template></xsl:stylesheet>
+#### p4_message
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:message>hola</xsl:message>a</r></xsl:template></xsl:stylesheet>
+#### p4_messageterm
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:message terminate="yes">adios</xsl:message>a</r></xsl:template></xsl:stylesheet>
+#### p4_fallback
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:foo><xsl:fallback>fb</xsl:fallback></xsl:foo></r></xsl:template></xsl:stylesheet>
+#### p4_fallback2
+<xsl:stylesheet version="1.1" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:foo/>x</r></xsl:template></xsl:stylesheet>
+#### p4_unknownxsl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:foo/>x</r></xsl:template></xsl:stylesheet>
+#### p4_extelem
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:ext" extension-element-prefixes="e"><xsl:template match="/"><r><e:foo><xsl:fallback>fb</xsl:fallback></e:foo><e:bar/></r></xsl:template></xsl:stylesheet>
+#### p4_simplified
+<r xsl:version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" a="{count(//*)}"><xsl:value-of select="name(/*)"/></r>
+#### p4_simplifiednover
+<r xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:value-of select="name(/*)"/></r>
+#### p4_badroot
+<foo/>
+#### @input
+<doc><a>1</a><a>2</a></doc>
+#### p6_nover
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p6_unkfn
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:if test="false()"><xsl:value-of select="foo()"/></xsl:if></r></xsl:template></xsl:stylesheet>
+#### p6_unkfnns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:u="urn:u"><xsl:template match="/"><r><xsl:if test="false()"><xsl:value-of select="u:foo()"/></xsl:if></r></xsl:template></xsl:stylesheet>
+#### p6_unkfnns2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:u="urn:u"><xsl:template match="/"><r><xsl:value-of select="u:foo()"/></r></xsl:template></xsl:stylesheet>
+#### p6_fnavail
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:u="urn:u" xmlns:m="http://exslt.org/math"><xsl:template match="/"><r><xsl:value-of select="concat(function-available('foo'), function-available('u:foo'), function-available('m:max'), function-available('position'), function-available('xsl:foo'), function-available('generate-id'), function-available('system-property'), function-available('unparsed-entity-uri'), function-available('element-available'), function-available('function-available'), function-available('lang'), function-available('namespace-uri'))"/></r></xsl:template></xsl:stylesheet>
+#### p6_mathmax
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:m="http://exslt.org/math"><xsl:template match="/"><r><xsl:value-of select="m:max(//a)"/></r></xsl:template></xsl:stylesheet>
+#### p6_undefvar
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:if test="false()"><xsl:value-of select="$nope"/></xsl:if></r></xsl:template></xsl:stylesheet>
+#### p6_undeftpl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:if test="false()"><xsl:call-template name="nope"/></xsl:if></r></xsl:template></xsl:stylesheet>
+#### p6_unkxsltop
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:foo/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p6_unkxsltop11
+<xsl:stylesheet version="1.1" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:foo/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p6_lretop
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><foo/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p6_lretopns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:d="urn:d"><d:foo><x/></d:foo><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### p6_intvar
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="m" select="1000000"/><xsl:param name="p" select="1000000"/><xsl:template match="/"><r><xsl:value-of select="concat($m * $m, ' ', $p * $p, ' ', count(//a) * 2000000000, ' ', 2147483647 + 1, ' ', -2147483648 - 1, ' ', 2147483648 * 2, ' ', position() * 3000000000, ' ', string-length('abc') * 1000000000, ' ', 1000000 * 1000000 div 1, ' ', (1000000 * 1000000) mod 7, ' ', -(1000000 * 1000000), ' ', 46341 * 46341)"/></r></xsl:template></xsl:stylesheet>
+#### p6_intvar2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:variable name="m" select="1000000"/><r><xsl:value-of select="$m * $m"/>|<xsl:value-of select="round(1000000) * 1000000"/>|<xsl:value-of select="number(1000000) * 1000000"/>|<xsl:value-of select="floor(2.5) * 1000000000"/>|<xsl:value-of select="last() * 3000000000"/></r></xsl:template></xsl:stylesheet>
+#### p6_prio
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//a"/></r></xsl:template><xsl:template match="a[1] | a">X</xsl:template><xsl:template match="a">Y</xsl:template></xsl:stylesheet>
+#### p6_prio2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//a"/></r></xsl:template><xsl:template match="a">Y</xsl:template><xsl:template match="a[1] | a">X</xsl:template><xsl:template match="node()">N</xsl:template></xsl:stylesheet>
+#### p6_dupname
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template name="t">1</xsl:template><xsl:template name="t">2</xsl:template><xsl:template match="/"><r><xsl:call-template name="t"/></r></xsl:template></xsl:stylesheet>
+#### p6_dupvar
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v" select="1"/><xsl:variable name="v" select="2"/><xsl:template match="/"><r><xsl:value-of select="$v"/></r></xsl:template></xsl:stylesheet>
+#### p6_shadow
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v" select="1"/><xsl:template match="/"><r><xsl:variable name="v" select="2"/><xsl:value-of select="$v"/><xsl:for-each select="//a"><xsl:variable name="v" select="3"/><xsl:value-of select="$v"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### p6_shadow2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:variable name="v" select="2"/><xsl:variable name="v" select="3"/><xsl:value-of select="$v"/></r></xsl:template></xsl:stylesheet>
+#### p6_unrefvar
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:j="http://xml.apache.org/xalan/java/java.lang.System"><xsl:template match="/"><xsl:variable name="v" select="j:exit(1)"/><r>ok</r></xsl:template></xsl:stylesheet>
+#### p6_refvar
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:j="http://xml.apache.org/xalan/java/java.lang.System"><xsl:template match="/"><xsl:variable name="v" select="j:exit(1)"/><r><xsl:if test="false()"><xsl:value-of select="$v"/></xsl:if>ok</r></xsl:template></xsl:stylesheet>
+#### p6_paramtpl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:call-template name="t"><xsl:with-param name="a" select="'A'"/><xsl:with-param name="z" select="'Z'"/></xsl:call-template></r></xsl:template><xsl:template name="t"><xsl:param name="a" select="'x'"/><xsl:param name="b">def</xsl:param><xsl:value-of select="concat($a, $b)"/></xsl:template></xsl:stylesheet>

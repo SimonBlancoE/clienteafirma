@@ -1,0 +1,5 @@
+<html>
+    <body>
+        <input checked src="%C3%A9 x"><option selected>o</option><img src="/%C3%A9">
+    </body>
+</html>

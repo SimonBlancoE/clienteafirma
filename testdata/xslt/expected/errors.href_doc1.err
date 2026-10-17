@@ -1,0 +1,4 @@
+javax.xml.transform.TransformerException: com.sun.org.apache.xalan.internal.xsltc.TransletException: java.net.MalformedURLException: unknown protocol: foo
+java.net.MalformedURLException: unknown protocol: foo
+com.sun.org.apache.xalan.internal.xsltc.TransletException: java.net.MalformedURLException: unknown protocol: foo
+java.net.MalformedURLException: unknown protocol: foo

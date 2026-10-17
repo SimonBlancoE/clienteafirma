@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerException: java.lang.RuntimeException: Intentando formatear número '1.0' mediante el patrón '%%0'.
+java.lang.RuntimeException: Intentando formatear número '1.0' mediante el patrón '%%0'.

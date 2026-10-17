@@ -1,0 +1,1 @@
+javax.xml.transform.TransformerConfigurationException: line 1: Error al analizar la expresión XPath 'ancestor::x'.

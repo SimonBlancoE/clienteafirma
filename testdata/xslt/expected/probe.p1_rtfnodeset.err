@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerConfigurationException: Error al comprobar el tipo de la expresión 'FilterParentPath(variable-ref(v/result-tree), ParentLocationPath(step("child", 14), step("child", 15)))'.
+com.sun.org.apache.xalan.internal.xsltc.compiler.util.TypeCheckError: Error al comprobar el tipo de la expresión 'FilterParentPath(variable-ref(v/result-tree), ParentLocationPath(step("child", 14), step("child", 15)))'.

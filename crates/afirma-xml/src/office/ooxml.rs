@@ -717,6 +717,7 @@ pub fn verify_package(package: &[u8]) -> afirma_core::Result<Vec<(bool, Vec<Stri
             doc: &doc,
             signature: sig,
             resolver: &resolver,
+            options: dsig::RefOptions::default(),
         };
         let mut bad = Vec::new();
         for m in doc.find_descendants(sig, dsig::DSIG_NS, "Manifest") {

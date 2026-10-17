@@ -1,0 +1,60 @@
+Números: format-number() con DecimalFormat del JDK (redondeo HALF_EVEN,
+patrones, xsl:decimal-format) y xsl:number (niveles, count, from, value,
+formatos, agrupación).
+
+#### @input
+<doc><ch t="a"><s>1</s><s>2</s><ch t="b"><s>3</s></ch></ch><ch t="c"><s>4</s><p/><s>5</s></ch><p/><s>6</s></doc>
+#### format_basic
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(format-number(1234567.891, '#,##0.00'), ' ', format-number(0.125, '0.00'), ' ', format-number(0.135, '0.00'), ' ', format-number(2.5, '0'), ' ', format-number(3.5, '0'), ' ', format-number(1.005, '0.00'), ' ', format-number(-0.001, '0.00'), ' ', format-number(0.5, '#%'), ' ', format-number(0.0256, '0.0%'), ' ', format-number(0.5, '0‰'), ' ', format-number(12345, '0.###E0'), ' ', format-number(-5, '#;(#)'), ' ', format-number(0 div 0, '0'), ' ', format-number(-1 div 0, '0'), ' ', format-number(1 div 0, '#,##0.00 €'), ' ', format-number(0.5, ''), ' ', format-number(7, '000'), ' ', format-number(1234.5, '#'), ' ', format-number(-0, '0.0'), ' ', format-number(0.0001, '#.##'), ' ', format-number(123, '#.'), ' ', format-number(0.1, '.00'))"/></r></xsl:template></xsl:stylesheet>
+#### format_rounding
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//v"><xsl:value-of select="format-number(., '0.0')"/>,<xsl:value-of select="format-number(., '0')"/>,<xsl:value-of select="format-number(., '0.000')"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><v>0.05</v><v>0.15</v><v>0.25</v><v>0.35</v><v>0.45</v><v>1.45</v><v>2.675</v><v>1.0000000000000002</v><v>-2.5</v><v>-0.5</v><v>0.95</v><v>9.95</v><v>99.5</v><v>0.0005</v><v>1e-7</v><v>123456789.4999</v><v>4.35</v><v>8.325</v><v>5e-324</v><v>1.7976931348623157e308</v></l>
+#### format_grouping
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(format-number(1234567, '#,###'), ' ', format-number(1234567, '#,####'), ' ', format-number(1234567, '#,##,###'), ' ', format-number(12, '#,##0'), ' ', format-number(1234567.5, '#,##0.0#'), ' ', format-number(1, '0,000'))"/></r></xsl:template></xsl:stylesheet>
+#### format_exponent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(format-number(12345, '##0.##E0'), ' ', format-number(0.00012345, '0.00E00'), ' ', format-number(0, '0.0E0'), ' ', format-number(-123.456, '00.###E0'), ' ', format-number(1234, '#E0'), ' ', format-number(1, '0.###E0'))"/></r></xsl:template></xsl:stylesheet>
+#### format_affixes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(format-number(5, '''#''0'), ' ', format-number(5, '0 ''it''''s'''), ' ', format-number(-5, '+0;-0'), ' ', format-number(5, '¤0.00'), ' ', format-number(5, '¤¤ 0'), ' ', format-number(-3, '0;-0 menos'), ' ', format-number(-3, 'a0b;c0d'))"/></r></xsl:template></xsl:stylesheet>
+#### decimal_format
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:f="urn:f"><xsl:decimal-format name="es" decimal-separator="," grouping-separator="." NaN="NoEsNum" infinity="inf" minus-sign="~"/><xsl:decimal-format name="f:otro" zero-digit="a" digit="x" percent="p" pattern-separator="!"/><xsl:decimal-format decimal-separator="'"/><xsl:template match="/"><r><xsl:value-of select="concat(format-number(1234567.891, '#.##0,00', 'es'), ' ', format-number(-5, '0', 'es'), ' ', format-number(0 div 0, '0', 'es'), ' ', format-number(1 div 0, '0', 'es'), ' ', format-number(12.5, 'xaaa.a', 'f:otro'), ' ', format-number(0.25, 'ap!(a)', 'f:otro'), ' ', format-number(-1, 'ap!(a)', 'f:otro'), ' ', format-number(1.5, '0''0'))"/></r></xsl:template></xsl:stylesheet>
+#### format_empty_pattern_first
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="format-number(1234.5678, '')"/></r></xsl:template></xsl:stylesheet>
+#### format_empty_pattern_reuse
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v" select="''"/><xsl:variable name="w"></xsl:variable><xsl:decimal-format name="d" decimal-separator=","/><xsl:template match="/"><r><xsl:value-of select="format-number(1234.5678, '0.0')"/>|<xsl:value-of select="format-number(1234.5678, $v)"/>|<xsl:value-of select="format-number(1234.5678, $w)"/>|<xsl:value-of select="format-number(1234.5678, string(/doc/@nada))"/>|<xsl:value-of select="format-number(1234.5678, '', 'd')"/>|<xsl:value-of select="format-number(1234.5678, '', 'nada')"/>|<xsl:value-of select="format-number(1234.5678, '#,##0.00', 'd')"/>|<xsl:value-of select="format-number(1234.5678, '', 'd')"/>|<xsl:value-of select="format-number(1234.5678, concat('', ''))"/>|<xsl:value-of select="format-number(1234.5678, '')"/>|<xsl:for-each select="//s"><xsl:value-of select="format-number(-0.5, '#;(#)')"/>,<xsl:value-of select="format-number(-5, '')"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### format_bad_pattern
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="format-number(1, '0.0.0')"/></r></xsl:template></xsl:stylesheet>
+#### format_bad_pattern2
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="format-number(1, '%%0')"/></r></xsl:template></xsl:stylesheet>
+#### format_unknown_name
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="format-number(1, '0', 'nada')"/></r></xsl:template></xsl:stylesheet>
+#### number_single
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number count="s|p"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number count="ch"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number count="ch" from="ch[@t='a']"/>,</xsl:for-each>|<xsl:for-each select="//ch"><xsl:number/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_multiple
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number level="multiple" count="ch|s" format="1.a"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number level="multiple"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number level="multiple" count="ch|s" from="ch[@t='a']" format="(A-i)"/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_any
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s|//p"><xsl:number level="any"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number level="any" count="s|ch"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number level="any" from="ch"/>,</xsl:for-each>|<xsl:for-each select="//s"><xsl:number level="any" count="nada"/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_value_formats
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//v"><xsl:number value="." format="1"/>|<xsl:number value="." format="001"/>|<xsl:number value="." format="a"/>|<xsl:number value="." format="A"/>|<xsl:number value="." format="i"/>|<xsl:number value="." format="I"/>|<xsl:number value="." format="α"/>|<xsl:number value="." format="i" letter-value="alphabetic"/>|<xsl:number value="." grouping-separator="." grouping-size="3"/>|<xsl:number value="." grouping-size="2"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><v>1</v><v>2.7</v><v>-3</v><v>0</v><v>27</v><v>1999</v><v>4001</v><v>1234567</v><v>x</v><v>-0.4</v></l>
+#### number_format_tokens
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s[1]"><xsl:number level="multiple" count="doc|ch|s" format="[1]"/>,<xsl:number level="multiple" count="doc|ch|s" format="1"/>,<xsl:number level="multiple" count="doc|ch|s" format="I-a-1."/>,<xsl:number level="multiple" count="doc|ch|s" format="x"/>,<xsl:number level="multiple" count="doc|ch|s" format="-1-"/>,<xsl:number level="multiple" count="doc|ch|s" format="1)"/>,<xsl:number value="5" format="(a)"/>,<xsl:number value="7" format="01-"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_format_no_token
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s[1]"><xsl:number format="-"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_empty_value
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number value=""/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_empty_count
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number count=""/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_bad_level
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number level="bogus"/>,<xsl:number value="0" format=""/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_shared_counter
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number/>,<xsl:number level="any"/>,<xsl:number count="s"/>,<xsl:number value="position() * 10" level="multiple"/>,<xsl:number level="multiple"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_format_empty_avt
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s"><xsl:number format="{''}"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_format_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:number value="3" format=""/></r></xsl:template></xsl:stylesheet>
+#### number_text_nodes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//text()"><xsl:number/>,</xsl:for-each>|<xsl:for-each select="//@*"><xsl:number/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l a="1" b="2">x<e/>y<e c="3"/>z</l>

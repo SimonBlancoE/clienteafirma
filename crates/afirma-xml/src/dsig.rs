@@ -30,6 +30,7 @@ pub const BASE64: &str = "http://www.w3.org/2000/09/xmldsig#base64";
 pub const ENVELOPED: &str = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 pub const XPATH: &str = "http://www.w3.org/TR/1999/REC-xpath-19991116";
 pub const XPATH2: &str = "http://www.w3.org/2002/06/xmldsig-filter2";
+pub const XSLT: &str = "http://www.w3.org/TR/1999/REC-xslt-19991116";
 pub const RELATIONSHIP_TRANSFORM: &str = "http://schemas.openxmlformats.org/package/2006/RelationshipTransform";
 pub const MDSSI_NS: &str = "http://schemas.openxmlformats.org/package/2006/digital-signature";
 pub const OPC_RELS_NS: &str = "http://schemas.openxmlformats.org/package/2006/relationships";
@@ -148,6 +149,40 @@ enum Data<'d> {
     Octets(Vec<u8>),
 }
 
+/// Opciones de proceso de las referencias.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RefOptions {
+    /// Validación segura de Apache Santuario
+    /// (`org.apache.jcp.xml.dsig.secureValidation`). AutoFirma 1.9 la tiene
+    /// activa (es el valor por defecto de Santuario 3.0.5) y con ella la
+    /// transformada XSLT se rechaza con una `TransformException`, de modo que
+    /// la firma se informa como mal construida (`BAD_BUILD_SIGN`). Sin ella
+    /// la transformada se aplica como `TransformXSLT`.
+    pub secure_validation: bool,
+    /// Límites del procesador XSLT cuando se aplica la transformada.
+    pub xslt_limits: crate::xslt::Limits,
+}
+
+impl Default for RefOptions {
+    /// Comportamiento de AutoFirma 1.9 (validación segura).
+    fn default() -> Self {
+        RefOptions {
+            secure_validation: true,
+            xslt_limits: crate::xslt::Limits::default(),
+        }
+    }
+}
+
+impl RefOptions {
+    /// Sin validación segura: la transformada XSLT se aplica.
+    pub fn allow_xslt() -> Self {
+        RefOptions {
+            secure_validation: false,
+            ..RefOptions::default()
+        }
+    }
+}
+
 /// Contexto de proceso de una referencia.
 pub struct RefContext<'a> {
     /// Documento que contiene la firma.
@@ -155,6 +190,7 @@ pub struct RefContext<'a> {
     /// Elemento `Signature` que contiene la referencia.
     pub signature: NodeId,
     pub resolver: &'a dyn Resolver,
+    pub options: RefOptions,
 }
 
 fn parse_octets(bytes: &[u8]) -> DResult<Rc<Document>> {
@@ -400,6 +436,20 @@ impl<'a> RefContext<'a> {
                 }
                 let octets = to_octets(data);
                 Ok(Data::Octets(relationship_transform(&octets, &ids, &types)?))
+            }
+            XSLT => {
+                if self.options.secure_validation {
+                    // `ApacheTransform.transformIt` con `secureValidation`.
+                    return Err(DsigError::Processing(format!(
+                        "la transformada {XSLT} está prohibida con la validación segura"
+                    )));
+                }
+                // `TransformXSLT`: entrada en octetos (un conjunto de nodos se
+                // canonicaliza antes) y salida en octetos.
+                let input = to_octets(data);
+                let out = crate::xslt::transform_xslt(sdoc, transform, &input, &self.options.xslt_limits)
+                    .map_err(|e| DsigError::Processing(e.to_string()))?;
+                Ok(Data::Octets(out))
             }
             other => Err(DsigError::Unsupported(format!("transformada {other}"))),
         }
@@ -815,6 +865,7 @@ pub fn complete(mut text: String, ph: &Placeholders, c: &Completion<'_>) -> afir
             doc: &doc,
             signature: sig,
             resolver: c.resolver,
+            options: RefOptions::default(),
         };
         let mut subs = Vec::new();
         for r in doc.find_descendants(sig, DSIG_NS, "Reference") {
@@ -955,7 +1006,7 @@ const SANTUARIO_TRANSFORMS: &[&str] = &[
     ENVELOPED,
     XPATH,
     XPATH2,
-    "http://www.w3.org/TR/1999/REC-xslt-19991116",
+    XSLT,
 ];
 
 /// Comprobaciones que hace JSR-105 al analizar (`unmarshalXMLSignature`) la
@@ -1012,12 +1063,24 @@ pub fn verify_signature_value(doc: &Document, sig: NodeId, key: Option<PublicKey
 }
 
 /// Validación criptográfica (núcleo XMLDSig) de una firma con la clave dada
-/// (o la seleccionada de su `KeyInfo`).
+/// (o la seleccionada de su `KeyInfo`), con la validación segura de
+/// AutoFirma.
 pub fn validate_core(
     doc: &Document,
     sig: NodeId,
     resolver: &dyn Resolver,
     key: Option<PublicKey>,
+) -> DResult<CoreValidation> {
+    validate_core_with(doc, sig, resolver, key, RefOptions::default())
+}
+
+/// [`validate_core`] con opciones de proceso de las referencias.
+pub fn validate_core_with(
+    doc: &Document,
+    sig: NodeId,
+    resolver: &dyn Resolver,
+    key: Option<PublicKey>,
+    options: RefOptions,
 ) -> DResult<CoreValidation> {
     let si = ds_child(doc, sig, "SignedInfo").ok_or_else(|| DsigError::Malformed("Signature sin SignedInfo".into()))?;
     let signature_value = verify_signature_value(doc, sig, key)?;
@@ -1025,6 +1088,7 @@ pub fn validate_core(
         doc,
         signature: sig,
         resolver,
+        options,
     };
     let mut references = Vec::new();
     for r in ds_children(doc, si, "Reference") {
@@ -1067,6 +1131,7 @@ mod tests {
             doc: &doc,
             signature: sig,
             resolver: &NoResolver,
+            options: RefOptions::default(),
         };
         assert_eq!(b64(&ctx.reference_digest(r).unwrap()), "qTTy37gklsHItf7qbmMqqWzqRR8=");
     }
@@ -1083,6 +1148,7 @@ mod tests {
             doc: &doc,
             signature: sig,
             resolver: &NoResolver,
+            options: RefOptions::default(),
         };
         assert_eq!(b64(&ctx.reference_digest(r).unwrap()), "7RVdV2qdgFdEC2G7Jt6VY5s6z0c=");
         // Vector de FIPS 202: SHA3-256("abc").

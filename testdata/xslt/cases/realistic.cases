@@ -1,0 +1,122 @@
+Hojas realistas de las que se usan en firmas XML para «lo que ves es lo que
+firmas»: presentación HTML de una factura, extracción de texto y
+normalización de datos antes de firmar.
+
+#### @input
+<?xml version="1.0" encoding="UTF-8"?>
+<fe:Facturae xmlns:fe="http://www.facturae.es/Facturae/2014/v3.2.1/Facturae" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <FileHeader>
+    <SchemaVersion>3.2.1</SchemaVersion>
+    <Modality>I</Modality>
+    <InvoiceIssuerType>EM</InvoiceIssuerType>
+    <Batch>
+      <BatchIdentifier>B12345678-F-2026/001</BatchIdentifier>
+      <InvoicesCount>1</InvoicesCount>
+      <TotalInvoicesAmount><TotalAmount>1234.56</TotalAmount></TotalInvoicesAmount>
+      <InvoiceCurrencyCode>EUR</InvoiceCurrencyCode>
+    </Batch>
+  </FileHeader>
+  <Parties>
+    <SellerParty><TaxIdentification><TaxIdentificationNumber>B12345678</TaxIdentificationNumber></TaxIdentification><LegalEntity><CorporateName>Ñandú &amp; Cía, S.L.</CorporateName><AddressInSpain><Address>C/ Mayor, 1</Address><Town>Cáceres</Town></AddressInSpain></LegalEntity></SellerParty>
+    <BuyerParty><TaxIdentification><TaxIdentificationNumber>12345678Z</TaxIdentificationNumber></TaxIdentification><Individual><Name>José</Name><FirstSurname>Pérez</FirstSurname></Individual></BuyerParty>
+  </Parties>
+  <Invoices>
+    <Invoice>
+      <InvoiceHeader><InvoiceNumber>001</InvoiceNumber><InvoiceSeriesCode>2026</InvoiceSeriesCode></InvoiceHeader>
+      <InvoiceIssueData><IssueDate>2026-10-17</IssueDate></InvoiceIssueData>
+      <Items>
+        <InvoiceLine><ItemDescription>Servicio de consultoría</ItemDescription><Quantity>10</Quantity><UnitPriceWithoutTax>85.00</UnitPriceWithoutTax><TaxesOutputs><Tax><TaxRate>21.00</TaxRate></Tax></TaxesOutputs></InvoiceLine>
+        <InvoiceLine><ItemDescription>Licencia "anual" &lt;básica&gt;</ItemDescription><Quantity>2</Quantity><UnitPriceWithoutTax>85.2645</UnitPriceWithoutTax><TaxesOutputs><Tax><TaxRate>21.00</TaxRate></Tax></TaxesOutputs></InvoiceLine>
+        <InvoiceLine><ItemDescription>Descuento</ItemDescription><Quantity>1</Quantity><UnitPriceWithoutTax>-29.75</UnitPriceWithoutTax><TaxesOutputs><Tax><TaxRate>21.00</TaxRate></Tax></TaxesOutputs></InvoiceLine>
+      </Items>
+    </Invoice>
+  </Invoices>
+</fe:Facturae>
+#### html_invoice
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:fe="http://www.facturae.es/Facturae/2014/v3.2.1/Facturae" exclude-result-prefixes="fe">
+  <xsl:output method="html" encoding="ISO-8859-1" indent="yes" doctype-public="-//W3C//DTD HTML 4.01//EN" doctype-system="http://www.w3.org/TR/html4/strict.dtd"/>
+  <xsl:decimal-format name="eur" decimal-separator="," grouping-separator="."/>
+  <xsl:template match="/">
+    <html>
+      <head><title>Factura <xsl:value-of select="//InvoiceSeriesCode"/>/<xsl:value-of select="//InvoiceNumber"/></title>
+        <style type="text/css">td.n { text-align: right } td &gt; b { color: #333 }</style>
+        <script type="text/javascript">if (a &lt; b &amp;&amp; c) { x = "&lt;/p&gt;"; }</script>
+      </head>
+      <body>
+        <h1><xsl:value-of select="//SellerParty//CorporateName"/></h1>
+        <p>Cliente: <xsl:value-of select="concat(//BuyerParty//Name, ' ', //BuyerParty//FirstSurname)"/><br/>NIF: <xsl:value-of select="//BuyerParty//TaxIdentificationNumber"/></p>
+        <table border="1" cellpadding="2">
+          <tr><th>Concepto</th><th>Cantidad</th><th>Precio</th><th>Importe</th></tr>
+          <xsl:for-each select="//InvoiceLine">
+            <xsl:sort select="Quantity * UnitPriceWithoutTax" data-type="number" order="descending"/>
+            <tr class="{concat('fila', position() mod 2)}">
+              <td><xsl:value-of select="ItemDescription"/></td>
+              <td class="n"><xsl:value-of select="Quantity"/></td>
+              <td class="n"><xsl:value-of select="format-number(UnitPriceWithoutTax, '#.##0,00', 'eur')"/></td>
+              <td class="n"><b><xsl:value-of select="format-number(Quantity * UnitPriceWithoutTax, '#.##0,00 €;-#.##0,00 €', 'eur')"/></b></td>
+            </tr>
+          </xsl:for-each>
+        </table>
+        <xsl:variable name="base" select="sum(//InvoiceLine/UnitPriceWithoutTax)"/>
+        <p>Base (suma de precios): <xsl:value-of select="format-number($base, '#.##0,00', 'eur')"/></p>
+        <p><input type="checkbox" checked="checked" disabled="disabled"/> Conforme <a href="http://example.com/ver?f={//InvoiceNumber}&amp;s=ñ">ver</a></p>
+        <hr/>
+        <xsl:comment> generada el <xsl:value-of select="//IssueDate"/> </xsl:comment>
+      </body>
+    </html>
+  </xsl:template>
+</xsl:stylesheet>
+#### text_summary
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="text" encoding="UTF-8"/>
+  <xsl:strip-space elements="*"/>
+  <xsl:template match="/">
+    <xsl:text>FACTURA </xsl:text><xsl:value-of select="//InvoiceSeriesCode"/>-<xsl:value-of select="//InvoiceNumber"/>
+    <xsl:text>&#10;Emisor: </xsl:text><xsl:value-of select="//SellerParty//CorporateName"/>
+    <xsl:text>&#10;</xsl:text>
+    <xsl:apply-templates select="//InvoiceLine"/>
+    <xsl:text>Total: </xsl:text><xsl:value-of select="//TotalAmount"/><xsl:text> EUR&#10;</xsl:text>
+  </xsl:template>
+  <xsl:template match="InvoiceLine">
+    <xsl:number format="1. "/><xsl:value-of select="ItemDescription"/> x<xsl:value-of select="Quantity"/><xsl:text>&#10;</xsl:text>
+  </xsl:template>
+</xsl:stylesheet>
+#### normalize_xml
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:fe="http://www.facturae.es/Facturae/2014/v3.2.1/Facturae">
+  <xsl:output method="xml" indent="yes" encoding="UTF-8" omit-xml-declaration="no" standalone="yes"/>
+  <xsl:strip-space elements="*"/>
+  <xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template>
+  <xsl:template match="comment()|processing-instruction()"/>
+  <xsl:template match="text()"><xsl:value-of select="normalize-space()"/></xsl:template>
+  <xsl:template match="UnitPriceWithoutTax"><xsl:copy><xsl:value-of select="format-number(., '0.00')"/></xsl:copy></xsl:template>
+</xsl:stylesheet>
+#### xhtml_like_xml
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/1999/xhtml">
+  <xsl:output method="xml" omit-xml-declaration="yes" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN" doctype-system="http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"/>
+  <xsl:template match="/">
+    <html><head><title>Lote</title></head><body><ul><xsl:for-each select="//InvoiceLine"><li><xsl:value-of select="ItemDescription"/></li></xsl:for-each></ul><br/><p/></body></html>
+  </xsl:template>
+</xsl:stylesheet>
+#### html_auto_detected
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/">
+    <HTML><BODY><P>Factura de <xsl:value-of select="//SellerParty//CorporateName"/></P><IMG SRC="logo.png" ALT="á"/><SELECT><OPTION SELECTED="SELECTED">1</OPTION></SELECT></BODY></HTML>
+  </xsl:template>
+</xsl:stylesheet>
+#### keys_and_modes_report
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:key name="porTipo" match="InvoiceLine" use="TaxesOutputs/Tax/TaxRate"/>
+  <xsl:template match="/">
+    <resumen>
+      <xsl:for-each select="//InvoiceLine[generate-id() = generate-id(key('porTipo', TaxesOutputs/Tax/TaxRate)[1])]">
+        <tipo valor="{TaxesOutputs/Tax/TaxRate}" lineas="{count(key('porTipo', TaxesOutputs/Tax/TaxRate))}">
+          <xsl:apply-templates select="key('porTipo', TaxesOutputs/Tax/TaxRate)" mode="linea"/>
+        </tipo>
+      </xsl:for-each>
+    </resumen>
+  </xsl:template>
+  <xsl:template match="InvoiceLine" mode="linea">
+    <linea n="{position()}" importe="{round(Quantity * UnitPriceWithoutTax * 100) div 100}"/>
+  </xsl:template>
+</xsl:stylesheet>

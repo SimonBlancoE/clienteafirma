@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>t</title>
+        <style>a < b</style>
+    </head>
+    <body bgcolor="white">
+        <br>
+        <p>
+            a&lt;&amp;&eacute;&nbsp;&ntilde;<img alt="x&amp;y<&quot;" ismap src="a b/%C3%A9.png">
+        </p>
+        <input checked disabled type="checkbox"><script>if (a < b && c) {}</script><a href="x?a=1&amp;b=%C3%A9 %22">l</a>
+        <table>
+            <tr>
+                <td nowrap>c</td>
+            </tr>
+        </table>
+        <hr>
+        <pre>  x  </pre>
+        <span>s</span><b>b</b>
+    </body>
+</html>

@@ -1,0 +1,119 @@
+Salida: declaración XML, escapes, codificaciones, sangrado, HTML, texto,
+CDATA, DOCTYPE y detección automática del método HTML.
+
+#### @input
+<doc a="1&amp;2" b="&lt;x&gt;"><p>uno <b>dos</b> tres</p><p/><e>é€ñ</e><!--com--><?pi data?></doc>
+#### identity
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template></xsl:stylesheet>
+#### identity_indent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output indent="yes"/><xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template></xsl:stylesheet>
+#### identity_indent_amount
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xalan="http://xml.apache.org/xalan"><xsl:output indent="yes" xalan:indent-amount="2"/><xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template></xsl:stylesheet>
+#### identity_indent_xslt_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:x="http://xml.apache.org/xslt"><xsl:output method="xml" indent="yes" x:indent-amount="1"/><xsl:template match="@*|node()"><xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy></xsl:template></xsl:stylesheet>
+#### text_escapes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r a="&#10;&#9;&#13;&quot;&lt;&gt;&amp;'é&#x10437;&#127;&#128;&#x2028;&#x85;">&lt;&gt;&amp;"'é€&#x10437;&#13;x&#9;&#127;&#128;&#x2028;&#x85;<b/><c></c></r></xsl:template></xsl:stylesheet>
+#### text_leading_ws
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:text>&#13; &#10;</xsl:text><r><xsl:text> &#13;&#10;x</xsl:text></r></xsl:template></xsl:stylesheet>
+#### doe
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:text disable-output-escaping="yes">&lt;b&gt;&amp;amp;</xsl:text><xsl:value-of select="'&lt;i&gt;'" disable-output-escaping="yes"/><xsl:value-of select="'&lt;u&gt;'"/></r></xsl:template></xsl:stylesheet>
+#### doe_rtf
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v"><x><xsl:text disable-output-escaping="yes">&lt;raw/&gt;</xsl:text>&lt;esc/&gt;</x></xsl:variable><xsl:template match="/"><r><xsl:copy-of select="$v"/>|<xsl:value-of select="$v"/></r></xsl:template></xsl:stylesheet>
+#### indent_mixed
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output indent="yes"/><xsl:template match="/"><r><a>t</a><b><c/><d>x<e/>y</d></b><xsl:comment>c</xsl:comment><xsl:processing-instruction name="pi">d</xsl:processing-instruction><f>  </f><g><xsl:text>&#10;&#10;z</xsl:text></g></r></xsl:template></xsl:stylesheet>
+#### indent_preserve
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output indent="yes"/><xsl:template match="/"><r><a xml:space="preserve"><b>x</b><c/></a><d><e/></d></r></xsl:template></xsl:stylesheet>
+#### indent_text_root
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output indent="yes"/><xsl:template match="/">texto<r/>mas</xsl:template></xsl:stylesheet>
+#### standalone_doctype
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output standalone="yes" doctype-system="a.dtd" doctype-public="-//X//Y"/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### standalone_no
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" standalone="no" indent="yes"/><xsl:template match="/"><r><a/></r></xsl:template></xsl:stylesheet>
+#### doctype_system_only
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" doctype-system="x&quot;y.dtd"/><xsl:template match="/"><p:r xmlns:p="urn:p"/></xsl:template></xsl:stylesheet>
+#### doctype_public_only
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN"/><xsl:template match="/"><r><br/></r></xsl:template></xsl:stylesheet>
+#### xhtml_space_before_close
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN" doctype-system="http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"/><xsl:template match="/"><html xmlns="http://www.w3.org/1999/xhtml"><br/></html></xsl:template></xsl:stylesheet>
+#### omit_decl_latin1
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output omit-xml-declaration="yes" encoding="ISO-8859-1"/><xsl:template match="/"><r a="€">é€ñ<xsl:comment>€é</xsl:comment></r></xsl:template></xsl:stylesheet>
+#### version_11
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output version="1.1"/><xsl:template match="/"><r>&#x85;&#x2028;</r></xsl:template></xsl:stylesheet>
+#### enc_utf16
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="UTF-16"/><xsl:template match="/"><r a="é&#x10437;">é&#x10437;</r></xsl:template></xsl:stylesheet>
+#### enc_ascii
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="ascii"/><xsl:template match="/"><r a="é">é<xsl:comment>é</xsl:comment></r></xsl:template></xsl:stylesheet>
+#### enc_us_ascii_upper
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="US-ASCII"/><xsl:template match="/"><r>é<xsl:comment>é€</xsl:comment></r></xsl:template></xsl:stylesheet>
+#### enc_cp1252
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="cp1252"/><xsl:template match="/"><r>é€Œ&#x10437;</r></xsl:template></xsl:stylesheet>
+#### enc_iso15
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="ISO-8859-15"/><xsl:template match="/"><r>é€¤</r></xsl:template></xsl:stylesheet>
+#### enc_unknown
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="x-desconocida"/><xsl:template match="/"><r>é</r></xsl:template></xsl:stylesheet>
+#### enc_utf8_lower
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="utf-8"/><xsl:template match="/"><r>é</r></xsl:template></xsl:stylesheet>
+#### cdata
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p"><xsl:output cdata-section-elements="c p:d"/><xsl:template match="/"><r><c>a]]&gt;b&lt;&amp;</c><c>]x]</c><p:d>t</p:d><d>no</d><c>é€<x>in</x>mas</c></r></xsl:template></xsl:stylesheet>
+#### cdata_latin1
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output cdata-section-elements="c" encoding="ISO-8859-1"/><xsl:template match="/"><r><c>a€b</c></r></xsl:template></xsl:stylesheet>
+#### cdata_indent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output cdata-section-elements="c" indent="yes"/><xsl:template match="/"><r><c>a</c><c><x/>b</c></r></xsl:template></xsl:stylesheet>
+#### text_method
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/">a&lt;b&amp;<x y="1">c</x>é€&#x10437;<xsl:comment>no</xsl:comment><xsl:processing-instruction name="p">no</xsl:processing-instruction>&#13;&#10;fin</xsl:template></xsl:stylesheet>
+#### text_latin1
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text" encoding="ISO-8859-1"/><xsl:template match="/">é€&#x10437;ñ</xsl:template></xsl:stylesheet>
+#### text_ascii
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text" encoding="US-ASCII"/><xsl:template match="/">aé</xsl:template></xsl:stylesheet>
+#### html_explicit
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><html><head><title>t</title><style>a &lt; b</style></head><body bgcolor="white"><br/><p>a&lt;&amp;é&#160;ñ<img src="a b/é.png" alt="x&amp;y&lt;&quot;" ismap=""/></p><input checked="checked" disabled="disabled" type="checkbox"/><script>if (a &lt; b &amp;&amp; c) {}</script><a href="x?a=1&amp;b=&#233; &quot;">l</a><table><tr><td nowrap="">c</td></tr></table><hr/><pre>  x  </pre><span>s</span><b>b</b></body></html></xsl:template></xsl:stylesheet>
+#### html_noindent
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" indent="no"/><xsl:template match="/"><html><head><title>t</title></head><body><p>x<br/>y</p><ul><li>1</li><li>2</li></ul></body></html></xsl:template></xsl:stylesheet>
+#### html_doctype
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html" doctype-public="-//W3C//DTD HTML 4.01//EN" doctype-system="http://www.w3.org/TR/html4/strict.dtd" encoding="ISO-8859-1"/><xsl:template match="/"><html><head/><body>é€</body></html></xsl:template></xsl:stylesheet>
+#### html_xsl_attrs
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><html><body><input><xsl:attribute name="checked">checked</xsl:attribute><xsl:attribute name="src">é x</xsl:attribute></input><option selected="{'selected'}">o</option><xsl:element name="img"><xsl:attribute name="src">/é</xsl:attribute></xsl:element></body></html></xsl:template></xsl:stylesheet>
+#### html_comment_pi
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><xsl:comment>antes</xsl:comment><html><xsl:processing-instruction name="php">echo 1?&gt;</xsl:processing-instruction><body/></html><xsl:processing-instruction name="fin">x</xsl:processing-instruction></xsl:template></xsl:stylesheet>
+#### html_ns_element
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><html><body><svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg></body></html></xsl:template></xsl:stylesheet>
+#### auto_html
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><html><head><title>t</title></head><body><br/><p>a&lt;&amp;é&#160;ñ<img src="a b/é.png" alt="x&amp;y&lt;"/></p><input checked="checked"/><script>if (a &lt; b &amp;&amp; c) {}</script></body></html></xsl:template></xsl:stylesheet>
+#### auto_html_upper
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><HTML><P>x</P></HTML></xsl:template></xsl:stylesheet>
+#### auto_html_latin1
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output encoding="ISO-8859-1"/><xsl:template match="/"><html><head/><body>é€Œ</body></html></xsl:template></xsl:stylesheet>
+#### auto_html_after_text
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:text>  </xsl:text><html><head/></html></xsl:template></xsl:stylesheet>
+#### auto_html_after_comment
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:comment>c</xsl:comment><html><head/></html></xsl:template></xsl:stylesheet>
+#### auto_html_empty_value
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:value-of select="''"/><html><head/></html></xsl:template></xsl:stylesheet>
+#### auto_html_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><html xmlns="http://www.w3.org/1999/xhtml"><head/></html></xsl:template></xsl:stylesheet>
+#### auto_html_prefixed
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><h:html xmlns:h="urn:h"><h:head/></h:html></xsl:template></xsl:stylesheet>
+#### auto_html_doctype
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output doctype-system="about:legacy-compat" indent="no"/><xsl:template match="/"><html><body>x</body></html></xsl:template></xsl:stylesheet>
+#### auto_xml_decl
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><htmlx/></xsl:template></xsl:stylesheet>
+#### auto_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"/></xsl:stylesheet>
+#### xml_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"/></xsl:stylesheet>
+#### text_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="text"/><xsl:template match="/"/></xsl:stylesheet>
+#### multiple_outputs
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" indent="yes" encoding="ISO-8859-1"/><xsl:output indent="no" omit-xml-declaration="yes"/><xsl:template match="/"><r><a>é</a></r></xsl:template></xsl:stylesheet>
+#### comment_dashes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:comment>a--b---c-</xsl:comment><xsl:comment/><xsl:comment>-</xsl:comment><xsl:comment> <xsl:value-of select="'x'"/> </xsl:comment></r></xsl:template></xsl:stylesheet>
+#### pi_forms
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:processing-instruction name="a"/><r><xsl:processing-instruction name="b"> x</xsl:processing-instruction><xsl:processing-instruction name="c">y?&gt;z?&gt;</xsl:processing-instruction><xsl:processing-instruction name="{concat('d','e')}">?&gt;w</xsl:processing-instruction></r></xsl:template></xsl:stylesheet>
+#### attrs_after_children
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><x/><xsl:attribute name="a">1</xsl:attribute></r></xsl:template></xsl:stylesheet>
+#### attrs_after_children_unique
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r b="2"><xsl:value-of select="'t'"/><xsl:attribute name="a">1</xsl:attribute></r></xsl:template></xsl:stylesheet>
+#### attr_top_level
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:attribute name="a">1</xsl:attribute><r/></xsl:template></xsl:stylesheet>
+#### text_top_level_xml
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml" indent="yes"/><xsl:template match="/">a<r/>b<s/></xsl:template></xsl:stylesheet>

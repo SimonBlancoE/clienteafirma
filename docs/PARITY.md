@@ -23,7 +23,7 @@ Leyenda: ✅ igual que Java · ➕ igual y mejorado · 🔁 sustituido por un eq
 | Validación de firmas (veredictos y textos) | ✅ | XML 116/117, PDF 52/53 iguales que Java (las diferencias son fallos de Java) |
 | Detección del ataque de sombra en PDF | ✅ | |
 | Resúmenes SHA-3 al validar firmas XML | ✅ | |
-| Transformada XSLT al validar firmas XML | ⚠️ | Solo afecta a firmas XML de terceros que la usen |
+| Transformada XSLT al validar firmas XML | ✅ | Como en Java, la validación segura de Santuario la rechaza (`BAD_BUILD_SIGN`); sin ella (`RefOptions::allow_xslt`) la aplica un XSLT 1.0 propio con salida idéntica a la de XSLTC del JDK en 366 casos y 6 firmas del JDK válidas |
 | Claves DSA en firmas XML | ❌ | Sin uso real en certificados actuales |
 | Firma visible en PDF/A con fuentes incrustadas | ➕ | PDF/A-1, 2 y 3 siguen siendo conformes (veraPDF); Java solo lo hacía en PDF/A-1 |
 

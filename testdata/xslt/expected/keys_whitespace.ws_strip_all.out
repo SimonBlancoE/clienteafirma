@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="UTF-8"?><r>9|<lib><book id="b1" cat="x y"><t>Uno</t><a>ana</a><a>luis</a></book><book id="b2" cat="y"><t>Dos</t><a>ana</a></book><book id="b3" cat=""><t>Tres</t></book><pre xml:space="preserve">  <i> </i>  </pre><mix><i/><j xml:space="default"><k/></j></mix></lib></r>

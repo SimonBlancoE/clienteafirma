@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerException: java.lang.RuntimeException: El uso de la función de extensión 'http://exslt.org/sets:distinct' no está permitido cuando la función de procesamiento seguro se ha definido en true.
+java.lang.RuntimeException: El uso de la función de extensión 'http://exslt.org/sets:distinct' no está permitido cuando la función de procesamiento seguro se ha definido en true.

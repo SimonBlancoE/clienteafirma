@@ -1,0 +1,13 @@
+<html>
+    <head>
+        <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>t</title>
+    </head>
+    <body>
+        <br>
+        <p>
+            a&lt;&amp;&eacute;&nbsp;&ntilde;<img alt="x&amp;y<" src="a b/&eacute;.png">
+        </p>
+        <input checked="checked"><script>if (a < b && c) {}</script>
+    </body>
+</html>

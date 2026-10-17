@@ -1,0 +1,4 @@
+javax.xml.transform.TransformerException: com.sun.org.apache.xalan.internal.xsltc.TransletException: java.lang.Exception: No se ha podido leer el destino de hoja de estilos '', porque no se permite el acceso 'file' debido a una restricción definida por la propiedad accessExternalStylesheet.
+java.lang.Exception: No se ha podido leer el destino de hoja de estilos '', porque no se permite el acceso 'file' debido a una restricción definida por la propiedad accessExternalStylesheet.
+com.sun.org.apache.xalan.internal.xsltc.TransletException: java.lang.Exception: No se ha podido leer el destino de hoja de estilos '', porque no se permite el acceso 'file' debido a una restricción definida por la propiedad accessExternalStylesheet.
+java.lang.Exception: No se ha podido leer el destino de hoja de estilos '', porque no se permite el acceso 'file' debido a una restricción definida por la propiedad accessExternalStylesheet.

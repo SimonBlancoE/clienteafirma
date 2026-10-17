@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerException: java.lang.RuntimeException: El uso de la función de extensión 'http://xml.apache.org/xalan/java/java.lang.System:getProperty' no está permitido cuando la función de procesamiento seguro se ha definido en true.
+java.lang.RuntimeException: El uso de la función de extensión 'http://xml.apache.org/xalan/java/java.lang.System:getProperty' no está permitido cuando la función de procesamiento seguro se ha definido en true.

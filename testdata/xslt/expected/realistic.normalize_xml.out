@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<fe:Facturae xmlns:fe="http://www.facturae.es/Facturae/2014/v3.2.1/Facturae" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+    <FileHeader>
+        <SchemaVersion>3.2.1</SchemaVersion>
+        <Modality>I</Modality>
+        <InvoiceIssuerType>EM</InvoiceIssuerType>
+        <Batch>
+            <BatchIdentifier>B12345678-F-2026/001</BatchIdentifier>
+            <InvoicesCount>1</InvoicesCount>
+            <TotalInvoicesAmount>
+                <TotalAmount>1234.56</TotalAmount>
+            </TotalInvoicesAmount>
+            <InvoiceCurrencyCode>EUR</InvoiceCurrencyCode>
+        </Batch>
+    </FileHeader>
+    <Parties>
+        <SellerParty>
+            <TaxIdentification>
+                <TaxIdentificationNumber>B12345678</TaxIdentificationNumber>
+            </TaxIdentification>
+            <LegalEntity>
+                <CorporateName>Ñandú &amp; Cía, S.L.</CorporateName>
+                <AddressInSpain>
+                    <Address>C/ Mayor, 1</Address>
+                    <Town>Cáceres</Town>
+                </AddressInSpain>
+            </LegalEntity>
+        </SellerParty>
+        <BuyerParty>
+            <TaxIdentification>
+                <TaxIdentificationNumber>12345678Z</TaxIdentificationNumber>
+            </TaxIdentification>
+            <Individual>
+                <Name>José</Name>
+                <FirstSurname>Pérez</FirstSurname>
+            </Individual>
+        </BuyerParty>
+    </Parties>
+    <Invoices>
+        <Invoice>
+            <InvoiceHeader>
+                <InvoiceNumber>001</InvoiceNumber>
+                <InvoiceSeriesCode>2026</InvoiceSeriesCode>
+            </InvoiceHeader>
+            <InvoiceIssueData>
+                <IssueDate>2026-10-17</IssueDate>
+            </InvoiceIssueData>
+            <Items>
+                <InvoiceLine>
+                    <ItemDescription>Servicio de consultoría</ItemDescription>
+                    <Quantity>10</Quantity>
+                    <UnitPriceWithoutTax>85.00</UnitPriceWithoutTax>
+                    <TaxesOutputs>
+                        <Tax>
+                            <TaxRate>21.00</TaxRate>
+                        </Tax>
+                    </TaxesOutputs>
+                </InvoiceLine>
+                <InvoiceLine>
+                    <ItemDescription>Licencia "anual" &lt;básica&gt;</ItemDescription>
+                    <Quantity>2</Quantity>
+                    <UnitPriceWithoutTax>85.26</UnitPriceWithoutTax>
+                    <TaxesOutputs>
+                        <Tax>
+                            <TaxRate>21.00</TaxRate>
+                        </Tax>
+                    </TaxesOutputs>
+                </InvoiceLine>
+                <InvoiceLine>
+                    <ItemDescription>Descuento</ItemDescription>
+                    <Quantity>1</Quantity>
+                    <UnitPriceWithoutTax>-29.75</UnitPriceWithoutTax>
+                    <TaxesOutputs>
+                        <Tax>
+                            <TaxRate>21.00</TaxRate>
+                        </Tax>
+                    </TaxesOutputs>
+                </InvoiceLine>
+            </Items>
+        </Invoice>
+    </Invoices>
+</fe:Facturae>

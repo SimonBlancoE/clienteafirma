@@ -1,0 +1,1 @@
+java.lang.VerifyError: (class: die/verwandlung/GregorSamsa, method: template$dot$0 signature: (Lcom/sun/org/apache/xalan/internal/xsltc/DOM;Lcom/sun/org/apache/xml/internal/dtm/DTMAxisIterator;Lcom/sun/org/apache/xml/internal/serializer/SerializationHandler;I)V) Incompatible object argument for function call

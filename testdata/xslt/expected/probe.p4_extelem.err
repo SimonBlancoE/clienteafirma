@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerException: java.lang.RuntimeException: Extensión 'urn:ext:bar' de XSLTC no reconocida
+java.lang.RuntimeException: Extensión 'urn:ext:bar' de XSLTC no reconocida

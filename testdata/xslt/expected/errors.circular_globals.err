@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerConfigurationException: java.lang.StackOverflowError
+java.lang.StackOverflowError: null

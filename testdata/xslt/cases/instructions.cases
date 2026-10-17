@@ -1,0 +1,106 @@
+Instrucciones: plantillas, modos, prioridades, parámetros, variables,
+condicionales, bucles, copias, elementos y atributos calculados.
+
+#### @input
+<lib xmlns:x="urn:x"><book id="b1" year="1999" x:lang="es"><title>Uno</title><price>10.50</price><tag>a</tag><tag>b</tag></book><book id="b2" year="2005"><title>Dos</title><price>3</price></book><book id="b3"><title>Tres</title><price>abc</price><!--c--><?p d?></book>text<x:extra x:a="1">e</x:extra></lib>
+#### builtin_text
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"/>
+#### builtin_mode
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates mode="m"/></r></xsl:template><xsl:template match="title" mode="m">[<xsl:value-of select="."/>]</xsl:template></xsl:stylesheet>
+#### builtin_attr
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//@*"/></r></xsl:template></xsl:stylesheet>
+#### builtin_comment_pi
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//comment()|//processing-instruction()|//text()"/></r></xsl:template></xsl:stylesheet>
+#### priorities
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//*"/></r></xsl:template><xsl:template match="*">[*]</xsl:template><xsl:template match="book">[book]</xsl:template><xsl:template match="book[@year]">[book-year]</xsl:template><xsl:template match="lib/book[2]" priority="2">[2]</xsl:template><xsl:template match="title|price">[tp]</xsl:template><xsl:template match="node()">[node]</xsl:template><xsl:template match="x:*" xmlns:x="urn:x">[x]</xsl:template></xsl:stylesheet>
+#### priority_conflict_last
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//title"/></r></xsl:template><xsl:template match="title">A</xsl:template><xsl:template match="book/title">B</xsl:template><xsl:template match="title">C</xsl:template><xsl:template match="lib//title" priority="0.5">D</xsl:template></xsl:stylesheet>
+#### priority_union
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//book"/></r></xsl:template><xsl:template match="book[@id='b1'] | book">U</xsl:template><xsl:template match="book">S</xsl:template></xsl:stylesheet>
+#### priority_negative
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//title"/></r></xsl:template><xsl:template match="title" priority="-1">L</xsl:template><xsl:template match="*">S</xsl:template></xsl:stylesheet>
+#### patterns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//node()|//@*" mode="p"/></r></xsl:template><xsl:template match="/lib/book/title" mode="p">1</xsl:template><xsl:template match="lib//tag[2]" mode="p">2</xsl:template><xsl:template match="@year" mode="p">3</xsl:template><xsl:template match="book[@id='b3']/price" mode="p">4</xsl:template><xsl:template match="text()[.='text']" mode="p">6</xsl:template><xsl:template match="comment()" mode="p">7</xsl:template><xsl:template match="processing-instruction('p')" mode="p">8</xsl:template><xsl:template match="@*" mode="p">9</xsl:template><xsl:template match="*" mode="p"/><xsl:template match="text()" mode="p"/><xsl:key name="k" match="tag" use="."/></xsl:stylesheet>
+#### pattern_id
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//e"/></r></xsl:template><xsl:template match="id('a2')">[id]</xsl:template><xsl:template match="e">[e]</xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ATTLIST e k ID #IMPLIED>]><doc><e k="a1"/><e k="a2"/></doc>
+#### pattern_id_mode
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//e" mode="m"/></r></xsl:template><xsl:template match="id('a2')" mode="m">[id]</xsl:template><xsl:template match="e" mode="m">[e]</xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ATTLIST e k ID #IMPLIED>]><doc><e k="a1"/><e k="a2"/></doc>
+#### pattern_key
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:key name="k" match="tag" use="."/><xsl:template match="/"><r><xsl:apply-templates select="//tag"/></r></xsl:template><xsl:template match="key('k','b')">[b]</xsl:template><xsl:template match="tag">[t]</xsl:template></xsl:stylesheet>
+#### params_leak_explicit
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//book[1]"><xsl:with-param name="p" select="'X'"/></xsl:apply-templates></r></xsl:template><xsl:template match="book"><xsl:param name="p"/>(<xsl:value-of select="$p"/>)<xsl:apply-templates select="title"/><xsl:call-template name="n"/></xsl:template><xsl:template match="title"><xsl:param name="p" select="'def'"/>[<xsl:value-of select="$p"/>]</xsl:template><xsl:template name="n"><xsl:param name="p" select="'nd'"/>{<xsl:value-of select="$p"/>}</xsl:template></xsl:stylesheet>
+#### mode_switch
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:m="urn:m"><xsl:template match="/"><r><xsl:apply-templates select="//book" mode="m:a"/><xsl:apply-templates select="//book" mode="b"/></r></xsl:template><xsl:template match="book" mode="m:a">a<xsl:value-of select="@id"/></xsl:template><xsl:template match="book" mode="b">b<xsl:value-of select="@id"/></xsl:template></xsl:stylesheet>
+#### params
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:param name="g" select="'global'"/><xsl:template match="/"><r><xsl:apply-templates select="//book"><xsl:with-param name="p" select="'P'"/><xsl:with-param name="q">Q<b/></xsl:with-param></xsl:apply-templates><xsl:call-template name="t"/><xsl:call-template name="t"><xsl:with-param name="a" select="1+1"/><xsl:with-param name="nope" select="0"/></xsl:call-template></r></xsl:template><xsl:template match="book"><xsl:param name="p" select="'defp'"/><xsl:param name="q"/><xsl:param name="z" select="concat($p, '!')"/><i p="{$p}" q="{$q}" z="{$z}"><xsl:copy-of select="$q"/></i></xsl:template><xsl:template name="t"><xsl:param name="a">x<xsl:value-of select="$g"/></xsl:param>[<xsl:value-of select="$a"/>]</xsl:template></xsl:stylesheet>
+#### params_not_passed_through_builtin
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates><xsl:with-param name="p" select="'X'"/></xsl:apply-templates></r></xsl:template><xsl:template match="title"><xsl:param name="p" select="'def'"/><xsl:value-of select="$p"/></xsl:template><xsl:template match="text()"/></xsl:stylesheet>
+#### recursion
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:call-template name="f"><xsl:with-param name="n" select="10"/></xsl:call-template></r></xsl:template><xsl:template name="f"><xsl:param name="n"/><xsl:if test="$n &gt; 0"><xsl:value-of select="$n"/>,<xsl:call-template name="f"><xsl:with-param name="n" select="$n - 1"/></xsl:call-template></xsl:if></xsl:template></xsl:stylesheet>
+#### variables
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="books" select="//book"/><xsl:variable name="n" select="count($books)"/><xsl:variable name="rtf"><a>1</a><b>2</b></xsl:variable><xsl:variable name="empty"/><xsl:variable name="later" select="$books[last()]/title"/><xsl:template match="/"><xsl:variable name="local" select="$n * 10"/><r n="{$n}" l="{$local}" t="{$later}"><xsl:value-of select="$rtf"/>|<xsl:copy-of select="$rtf"/>|<xsl:value-of select="string-length($empty)"/>|<xsl:for-each select="$books"><xsl:variable name="p" select="price"/><xsl:value-of select="$p * 2"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### variable_scope
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="v" select="'g'"/><xsl:template match="/"><r><xsl:value-of select="$v"/><xsl:if test="true()"><xsl:variable name="v" select="'i'"/><xsl:value-of select="$v"/></xsl:if><xsl:value-of select="$v"/><xsl:variable name="v" select="'l'"/><xsl:value-of select="$v"/><xsl:call-template name="t"/></r></xsl:template><xsl:template name="t"><xsl:value-of select="$v"/></xsl:template></xsl:stylesheet>
+#### rtf_ops
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:exsl="http://exslt.org/common" exclude-result-prefixes="exsl"><xsl:variable name="v"><x n="3">a</x><x n="1">b</x>c</xsl:variable><xsl:variable name="num">42</xsl:variable><xsl:template match="/"><r><xsl:value-of select="concat($v, '|', $num + 1, '|', $v = 'abc', '|', boolean($v), '|', string-length($v))"/>|<xsl:value-of select="count(exsl:node-set($v)/x)"/>|<xsl:for-each select="exsl:node-set($v)/x"><xsl:sort select="@n"/><xsl:value-of select="."/></xsl:for-each>|<xsl:value-of select="exsl:object-type($v)"/>,<xsl:value-of select="exsl:object-type(1)"/>,<xsl:value-of select="exsl:object-type('s')"/>,<xsl:value-of select="exsl:object-type(true())"/>,<xsl:value-of select="exsl:object-type(/)"/></r></xsl:template></xsl:stylesheet>
+#### rtf_xalan_nodeset
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xalan="http://xml.apache.org/xalan" exclude-result-prefixes="xalan"><xsl:variable name="v"><x>1</x><x>2</x></xsl:variable><xsl:template match="/"><r><xsl:apply-templates select="xalan:nodeset($v)/x"/></r></xsl:template><xsl:template match="x"><y><xsl:value-of select=". * 10"/></y></xsl:template></xsl:stylesheet>
+#### if_choose
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//book"><xsl:if test="@year">Y</xsl:if><xsl:choose><xsl:when test="price &gt; 5">caro</xsl:when><xsl:when test="price &lt;= 5">barato</xsl:when><xsl:otherwise>?</xsl:otherwise></xsl:choose>,</xsl:for-each><xsl:choose><xsl:when test="false()">no</xsl:when></xsl:choose></r></xsl:template></xsl:stylesheet>
+#### for_each_position
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//title"><xsl:value-of select="concat(position(), '/', last(), ':', ., ' ')"/><xsl:for-each select="../*"><xsl:value-of select="position()"/></xsl:for-each><xsl:text> </xsl:text></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### for_each_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//nada">x</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### current
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//book"><xsl:value-of select="count(//book[@year &lt; current()/@year])"/>:<xsl:value-of select="//book[title = current()/title]/@id"/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### copy
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:copy><r><xsl:for-each select="//book[1]/@*|//book[1]/title/text()|//comment()|//processing-instruction()|/lib/*[last()]/@*"><xsl:copy><xsl:text>ignorado</xsl:text></xsl:copy></xsl:for-each><xsl:for-each select="//x:extra" xmlns:x="urn:x"><xsl:copy><c/></xsl:copy></xsl:for-each></r></xsl:copy></xsl:template></xsl:stylesheet>
+#### copy_of
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:copy-of select="//book[1]"/><xsl:copy-of select="//book[3]/node()"/><xsl:copy-of select="//@id"/><xsl:copy-of select="1 div 3"/><xsl:copy-of select="'texto'"/><xsl:copy-of select="true()"/></r></xsl:template></xsl:stylesheet>
+#### copy_of_root
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:copy-of select="/"/></xsl:template></xsl:stylesheet>
+#### element_attribute
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p"><xsl:template match="/"><r><xsl:element name="e1">t</xsl:element><xsl:element name="p:e2"/><xsl:element name="e3" namespace="urn:q"/><xsl:element name="e4" namespace="urn:p"/><xsl:element name="{concat('e', 5)}"><xsl:attribute name="a">1</xsl:attribute><xsl:attribute name="p:b">2</xsl:attribute><xsl:attribute name="c" namespace="urn:c">3</xsl:attribute><xsl:attribute name="{'d'}">4</xsl:attribute><xsl:attribute name="q:e" namespace="urn:q">5</xsl:attribute></xsl:element><xsl:element name="{'x:e6'}" namespace="urn:x6"/><xsl:element name="{'e7'}" namespace="{'urn:e7'}"/><xsl:element name="{'e8'}" namespace="{'urn:e8'}"/></r></xsl:template></xsl:stylesheet>
+#### element_dynamic_prefix_from_source
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//*[local-name()='extra']"><xsl:element name="{'x:z'}"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### attribute_value_content
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:attribute name="a"> </xsl:attribute><xsl:attribute name="b"><xsl:value-of select="'x'"/><e>ignorado</e><xsl:text>y</xsl:text></xsl:attribute><xsl:attribute name="c"/><xsl:attribute name="d">&#10;&#9;</xsl:attribute></r></xsl:template></xsl:stylesheet>
+#### attribute_override
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r a="1"><xsl:attribute name="a">2</xsl:attribute><xsl:attribute name="b">3</xsl:attribute><xsl:attribute name="b">4</xsl:attribute></r></xsl:template></xsl:stylesheet>
+#### attribute_sets
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:attribute-set name="s1"><xsl:attribute name="a">1</xsl:attribute><xsl:attribute name="b"><xsl:value-of select="name()"/></xsl:attribute></xsl:attribute-set><xsl:attribute-set name="s2" use-attribute-sets="s1"><xsl:attribute name="c">3</xsl:attribute></xsl:attribute-set><xsl:attribute-set name="s1"><xsl:attribute name="a">9</xsl:attribute><xsl:attribute name="d">4</xsl:attribute></xsl:attribute-set><xsl:template match="/"><r xsl:use-attribute-sets="s2" z="0"><xsl:element name="e" use-attribute-sets="s1"/><xsl:for-each select="//book[1]"><xsl:copy use-attribute-sets="s1"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### message
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:message>hola <xsl:value-of select="count(//book)"/></xsl:message>ok<xsl:message terminate="no">x</xsl:message></r></xsl:template></xsl:stylesheet>
+#### message_terminate
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:message terminate="yes">adios</xsl:message></r></xsl:template></xsl:stylesheet>
+#### text_whitespace
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/">
+  <r>
+    <a> </a>
+    <b xml:space="preserve"> <c>  </c> </b>
+    <xsl:text> </xsl:text>
+    <d>  x  <!-- c -->  y  </d>
+    <xsl:if test="true()">
+    </xsl:if>
+  </r>
+</xsl:template></xsl:stylesheet>
+#### value_of_types
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="//book"/>|<xsl:value-of select="//nada"/>|<xsl:value-of select="//@year"/>|<xsl:value-of select="count(//book)"/>|<xsl:value-of select="//book[1]/@x:lang" xmlns:x="urn:x"/>|<xsl:value-of select="//comment()"/>|<xsl:value-of select="//processing-instruction()"/>|<xsl:value-of select="1=1"/></r></xsl:template></xsl:stylesheet>
+#### avt
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r a="{{lit}}" b="x{count(//book)}y{//title}z" c="{'}'}" d="}}{{" e="{&quot;q&quot;}"/></xsl:template></xsl:stylesheet>
+#### apply_templates_select_attr
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//book/@*"/></r></xsl:template><xsl:template match="@*"><xsl:copy/></xsl:template></xsl:stylesheet>
+#### fallback_forward
+<xsl:stylesheet version="1.1" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:nueva><xsl:fallback>fb1</xsl:fallback><xsl:fallback>fb2</xsl:fallback></xsl:nueva><xsl:if test="true()"><xsl:fallback>no</xsl:fallback>si</xsl:if></r></xsl:template></xsl:stylesheet>
+#### extension_element_fallback
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:ext" extension-element-prefixes="e"><xsl:template match="/"><r><e:foo><xsl:fallback>fb</xsl:fallback></e:foo></r></xsl:template></xsl:stylesheet>
+#### extension_element_lre
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:ext"><xsl:template match="/"><r xsl:extension-element-prefixes="e"><e:foo><xsl:fallback>fb</xsl:fallback></e:foo></r></xsl:template></xsl:stylesheet>
+#### apply_imports_noop
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//title"/></r></xsl:template><xsl:template match="title">[<xsl:apply-imports/>]</xsl:template></xsl:stylesheet>
+#### simplified_in_transform
+<xsl:transform version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r/></xsl:template></xsl:transform>

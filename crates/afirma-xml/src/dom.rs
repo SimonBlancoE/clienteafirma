@@ -286,6 +286,68 @@ impl Document {
         std::iter::successors(self.parent(id), move |&n| self.parent(n))
     }
 
+    /// Final (exclusivo) del subárbol de un nodo: sus descendientes son los
+    /// nodos con identificador entre `id + 1` y este valor (los nodos se
+    /// numeran en orden de documento).
+    pub fn subtree_end(&self, id: NodeId) -> usize {
+        let mut n = id;
+        while let Some(&c) = self.nodes[n.0].children.last() {
+            n = c;
+        }
+        n.0 + 1
+    }
+
+    /// Raíz del árbol que contiene el nodo (un documento puede contener
+    /// varios árboles cuando se construye por programa).
+    pub fn tree_root(&self, id: NodeId) -> NodeId {
+        let mut n = id;
+        while let Some(p) = self.nodes[n.0].parent {
+            n = p;
+        }
+        n
+    }
+
+    /// Documento vacío (solo el nodo documento) para construir árboles por
+    /// programa con [`Document::push`]. No tiene texto de origen.
+    pub(crate) fn empty() -> Document {
+        Document {
+            source: String::new(),
+            nodes: vec![NodeData {
+                kind: NodeKind::Document,
+                parent: None,
+                children: vec![],
+                range: 0..0,
+            }],
+            xml_decl: None,
+            doctype: None,
+        }
+    }
+
+    /// Añade un nodo como último hijo de `parent` o, sin padre, como raíz de
+    /// un árbol nuevo. Los nodos deben añadirse en orden de documento y cada
+    /// árbol de forma contigua.
+    pub(crate) fn push(&mut self, parent: Option<NodeId>, kind: NodeKind) -> NodeId {
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(NodeData {
+            kind,
+            parent,
+            children: vec![],
+            range: 0..0,
+        });
+        if let Some(p) = parent {
+            self.nodes[p.0].children.push(id);
+        }
+        id
+    }
+
+    /// Acceso mutable al texto de un nodo de texto construido por programa.
+    pub(crate) fn text_mut(&mut self, id: NodeId) -> Option<&mut String> {
+        match &mut self.nodes[id.0].kind {
+            NodeKind::Text { text, .. } => Some(text),
+            _ => None,
+        }
+    }
+
     /// Descendientes en preorden, incluido el propio nodo.
     pub fn descendants(&self, id: NodeId) -> Vec<NodeId> {
         let mut out = Vec::new();
@@ -335,8 +397,8 @@ impl Document {
     /// Concatenación de todo el texto descendiente.
     pub fn text_content(&self, id: NodeId) -> String {
         let mut out = String::new();
-        for n in self.descendants(id) {
-            if let NodeKind::Text { text, .. } = self.kind(n) {
+        for i in id.0..self.subtree_end(id) {
+            if let NodeKind::Text { text, .. } = &self.nodes[i].kind {
                 out.push_str(text);
             }
         }

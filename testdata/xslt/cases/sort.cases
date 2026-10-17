@@ -1,0 +1,62 @@
+Ordenación (xsl:sort): colación de texto del JDK (español por defecto),
+case-order, lang, data-type number, order descending, varias claves y
+estabilidad.
+
+#### @input
+<l><i>b</i><i>A</i><i>a</i><i>ñ</i><i>o</i><i>n</i><i>B</i><i>é</i><i>e</i><i>E</i><i>É</i><i>10</i><i>9</i><i>ab</i><i>a b</i><i>a-b</i><i>Ab</i><i>aB</i><i>-1</i><i>1.5</i><i></i><i> z</i><i>ø</i><i>Æ</i><i>æ</i><i>ß</i><i>ss</i><i>Ñ</i><i>ç</i><i>c</i><i>ch</i><i>ll</i><i>l</i><i>m</i><i>ü</i><i>u</i><i>Ü</i><i>a,b</i><i>a.b</i><i>x1</i><i>x10</i><i>x2</i><i>€</i><i>$</i><i>_a</i><i>(z)</i><i>中</i><i>𐐷</i></l>
+#### text_default
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="."/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### text_descending
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." order="descending"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### text_upper_first
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." case-order="upper-first"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### text_lower_first
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." case-order="lower-first"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### text_lang_en
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." lang="en"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### text_lang_es
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." lang="es-ES"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." data-type="number"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_descending
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//i"><xsl:sort select="." data-type="number" order="descending"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_values
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//n"><xsl:sort select="." data-type="number"/>[<xsl:value-of select="."/>]</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><n>10</n><n>-0</n><n>0</n><n>NaN</n><n>x</n><n>2e1</n><n> 3 </n><n>-Infinity</n><n>Infinity</n><n></n><n>1d</n><n>-5.5</n><n>0x1p2</n></l>
+#### multi_key
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="@a"/><xsl:sort select="@n" data-type="number" order="descending"/><xsl:value-of select="concat(@a, @n, @id, ' ')"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p a="b" n="1" id="1"/><p a="a" n="2" id="2"/><p a="b" n="3" id="3"/><p a="a" n="2" id="4"/><p a="A" n="9" id="5"/><p n="1" id="6"/></l>
+#### stable_ties
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="@a" order="descending"/><xsl:value-of select="@id"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p a="x" id="1"/><p a="y" id="2"/><p a="x" id="3"/><p a="y" id="4"/><p a="x" id="5"/></l>
+#### apply_templates_sort
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:apply-templates select="//p"><xsl:sort select="@n" data-type="number"/></xsl:apply-templates></r></xsl:template><xsl:template match="p"><xsl:value-of select="concat(position(), '/', last(), ':', @n, ' ')"/></xsl:template></xsl:stylesheet>
+====
+<l><p n="3"/><p n="1"/><p n="2"/></l>
+#### sort_default_select
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort/><xsl:value-of select="."/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p>c</p><p>a</p><p>b</p></l>
+#### sort_int_default_number
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="string-length(.)" order="descending"/><xsl:value-of select="."/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p>aaaaaaaaaa</p><p>a</p><p>aa</p><p>aaaaaaaaaaa</p></l>
+#### sort_avt
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="o" select="'descending'"/><xsl:variable name="t" select="'number'"/><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="." order="{$o}" data-type="{$t}"/><xsl:value-of select="."/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p>10</p><p>9</p><p>100</p></l>
+#### sort_length_quirk
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="." order="DESCENDING" data-type="numero"/><xsl:value-of select="."/>,</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p>10</p><p>9</p><p>100</p></l>
+#### sort_position_in_key
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//p"><xsl:sort select="last() - position()" data-type="number"/><xsl:value-of select="."/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l><p>a</p><p>b</p><p>c</p></l>
+#### sort_attributes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//@*"><xsl:sort select="name()"/><xsl:value-of select="name()"/>=<xsl:value-of select="."/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+====
+<l z="1" a="2" m="3"><x b="4"/></l>

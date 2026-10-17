@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+        <title>Factura 2026/001</title>
+        <style type="text/css">td.n { text-align: right } td > b { color: #333 }</style>
+        <script type="text/javascript">if (a < b && c) { x = "</p>"; }</script>
+    </head>
+    <body>
+        <h1>&Ntilde;and&uacute; &amp; C&iacute;a, S.L.</h1>
+        <p>
+            Cliente: Jos&eacute; P&eacute;rez
+            <br>
+            NIF: 12345678Z
+        </p>
+        <table border="1" cellpadding="2">
+            <tr>
+                <th>Concepto</th><th>Cantidad</th><th>Precio</th><th>Importe</th>
+            </tr>
+            <tr class="fila1">
+                <td>Servicio de consultor&iacute;a</td><td class="n">10</td><td class="n">85,00</td><td class="n"><b>850,00 &euro;</b></td>
+            </tr>
+            <tr class="fila0">
+                <td>Licencia "anual" &lt;b&aacute;sica&gt;</td><td class="n">2</td><td class="n">85,26</td><td class="n"><b>170,53 &euro;</b></td>
+            </tr>
+            <tr class="fila1">
+                <td>Descuento</td><td class="n">1</td><td class="n">-29,75</td><td class="n"><b>-29,75 &euro;</b></td>
+            </tr>
+        </table>
+        <p>Base (suma de precios): 140,51</p>
+        <p>
+            <input checked disabled type="checkbox"> Conforme <a href="http://example.com/ver?f=001&amp;s=%C3%B1">ver</a>
+        </p>
+        <hr>
+        <!-- generada el 2026-10-17-->
+    </body>
+</html>

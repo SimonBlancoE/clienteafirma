@@ -25,6 +25,7 @@ pub mod validation;
 pub mod xades;
 pub mod xmldsig;
 pub mod xpath;
+pub mod xslt;
 
 /// Error de tratamiento XML.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

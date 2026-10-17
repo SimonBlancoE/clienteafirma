@@ -1,0 +1,48 @@
+Espacios de nombres: declaraciones de los elementos literales (orden de la
+Hashtable de XSLTC), exclude-result-prefixes, extension-element-prefixes,
+namespace-alias, xsl:element/xsl:attribute y copias.
+
+#### @input
+<d:doc xmlns:d="urn:d" xmlns:o="urn:o"><d:item o:at="1">a</d:item><item xmlns="urn:def"><sub/></item><plain/></d:doc>
+#### lre_scope
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:z="urn:z" xmlns:a="urn:a" xmlns:m="urn:m" xmlns="urn:def" xmlns:b="urn:b"><xsl:output method="xml"/><xsl:template match="/"><r><s/><t xmlns:c="urn:c"><u/></t></r></xsl:template></xsl:stylesheet>
+#### lre_scope_unknown
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:z="urn:z" xmlns:a="urn:a" xmlns:m="urn:m" xmlns="urn:def" xmlns:b="urn:b"><xsl:template match="/"><r><s/></r></xsl:template></xsl:stylesheet>
+#### many_prefixes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p1="urn:1" xmlns:p2="urn:2" xmlns:p3="urn:3" xmlns:p4="urn:4" xmlns:p5="urn:5" xmlns:p6="urn:6" xmlns:p7="urn:7" xmlns:p8="urn:8" xmlns:p9="urn:9" xmlns:p10="urn:10" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#"><xsl:output method="xml"/><xsl:template match="/"><r a="1"/></xsl:template></xsl:stylesheet>
+#### exclude
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="urn:a" xmlns:b="urn:b" xmlns="urn:def" exclude-result-prefixes="a #default"><xsl:output method="xml"/><xsl:template match="/"><r><a:x/><y b:at="1" at2="2" xsl:exclude-result-prefixes="b"/><z xmlns:c="urn:c" xsl:exclude-result-prefixes="c"><c:w/></z><q/></r></xsl:template></xsl:stylesheet>
+#### exclude_all
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="urn:a" xmlns:b="urn:b" exclude-result-prefixes="a b"><xsl:output method="xml"/><xsl:template match="/"><r><s/></r></xsl:template></xsl:stylesheet>
+#### extension_prefix_excluded
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:e="urn:e" extension-element-prefixes="e"><xsl:output method="xml"/><xsl:template match="/"><r/></xsl:template></xsl:stylesheet>
+#### xmlns_empty
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"><r xmlns="urn:r"><s xmlns=""><t/></s><xsl:element name="u" namespace=""/><xsl:element name="{'v'}"/><xsl:copy-of select="//plain"/></r></xsl:template></xsl:stylesheet>
+#### alias
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:axsl="urn:alias" xmlns:out="http://www.w3.org/1999/XSL/Transform"><xsl:namespace-alias stylesheet-prefix="axsl" result-prefix="out"/><xsl:output method="xml"/><xsl:template match="/"><axsl:stylesheet version="1.0"><axsl:template match="/"><axsl:value-of select="x"/></axsl:template></axsl:stylesheet></xsl:template></xsl:stylesheet>
+#### alias_default
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:a="urn:a" xmlns="urn:def"><xsl:namespace-alias stylesheet-prefix="a" result-prefix="#default"/><xsl:output method="xml"/><xsl:template match="/"><a:r><a:s/></a:r></xsl:template></xsl:stylesheet>
+#### element_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns:q="urn:q"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:element name="p:a"><xsl:element name="b" namespace="urn:p"/><xsl:element name="c" namespace="urn:new"/><xsl:element name="q:d" namespace="urn:other"/><xsl:element name="e" namespace="urn:new"/></xsl:element><xsl:element name="{'p:f'}"/><xsl:element name="g" namespace="{concat('urn:', 'p')}"/></r></xsl:template></xsl:stylesheet>
+#### attribute_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:attribute name="p:a">1</xsl:attribute><xsl:attribute name="b" namespace="urn:p">2</xsl:attribute><xsl:attribute name="c" namespace="urn:new">3</xsl:attribute><xsl:attribute name="d" namespace="urn:new2">4</xsl:attribute><xsl:attribute name="q:e" namespace="urn:p">5</xsl:attribute></r><s><xsl:attribute name="{'p:x'}">6</xsl:attribute><xsl:attribute name="{'y'}" namespace="urn:y">7</xsl:attribute></s></xsl:template></xsl:stylesheet>
+#### attribute_prefix_clash
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"><p:r xmlns:p="urn:one"><xsl:attribute name="p:a" namespace="urn:two">1</xsl:attribute></p:r></xsl:template></xsl:stylesheet>
+#### copy_namespaces
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:d="urn:d"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:copy-of select="//d:item"/><xsl:copy-of select="/*/*[2]"/><xsl:for-each select="//*"><xsl:copy/></xsl:for-each><xsl:copy-of select="/*/namespace::*"/></r></xsl:template></xsl:stylesheet>
+#### copy_into_default
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"><r xmlns="urn:other"><xsl:copy-of select="//plain"/><xsl:apply-templates select="//plain"/></r></xsl:template><xsl:template match="plain"><xsl:copy/></xsl:template></xsl:stylesheet>
+#### copy_attr_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:copy-of select="//@*"/></r></xsl:template></xsl:stylesheet>
+#### namespace_axis
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:for-each select="//*"><xsl:value-of select="concat(name(), ':', count(namespace::*), ':')"/><xsl:for-each select="namespace::*"><xsl:value-of select="name()"/>=<xsl:value-of select="."/>,</xsl:for-each>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### names
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:dd="urn:d"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:for-each select="//node()|//@*"><xsl:value-of select="concat(name(), '|', local-name(), '|', namespace-uri(), ';')"/></xsl:for-each><xsl:value-of select="count(//dd:item)"/></r></xsl:template></xsl:stylesheet>
+#### default_ns_not_in_xpath
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="urn:def"><xsl:output method="xml"/><xsl:template match="/"><r><xsl:value-of select="count(//item)"/>,<xsl:value-of select="count(//*[local-name()='item'])"/></r></xsl:template></xsl:stylesheet>
+#### lre_attr_default_ns
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p" xmlns="urn:def" exclude-result-prefixes="#default"><xsl:output method="xml"/><xsl:template match="/"><p:r a="1"><p:s/></p:r></xsl:template></xsl:stylesheet>
+#### nested_lre_inside_instruction
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:p="urn:p"><xsl:output method="xml"/><xsl:template match="/"><p:r><xsl:if test="true()"><p:s/></xsl:if><xsl:for-each select="//plain"><p:t/></xsl:for-each></p:r></xsl:template></xsl:stylesheet>
+#### signature_like
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:d="urn:d" exclude-result-prefixes="d"><xsl:output method="xml" encoding="UTF-8" indent="no"/><xsl:template match="/"><ds:Object Id="o1"><xsl:apply-templates select="//d:item"/></ds:Object></xsl:template><xsl:template match="d:item"><ds:X><xsl:copy-of select="@*"/><xsl:value-of select="."/></ds:X></xsl:template></xsl:stylesheet>

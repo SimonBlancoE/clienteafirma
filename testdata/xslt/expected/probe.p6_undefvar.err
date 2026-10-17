@@ -1,0 +1,2 @@
+javax.xml.transform.TransformerConfigurationException: line 1: No se ha definido la variable o el parámetro 'nope'.
+com.sun.org.apache.xalan.internal.xsltc.compiler.util.TypeCheckError: line 1: No se ha definido la variable o el parámetro 'nope'.

@@ -1,0 +1,1 @@
+javax.xml.transform.TransformerConfigurationException: Error de sintaxis en 'concat(format-number(5, '''#''0'), ' ', format-number(5, '0 ''it''''s'''), ' ', format-number(-5, '+0;-0'), ' ', format-number(5, '¤0.00'), ' ', format-number(5, '¤¤ 0'), ' ', format-number(-3, '0;-0 menos'), ' ', format-number(-3, 'a0b;c0d'))'.

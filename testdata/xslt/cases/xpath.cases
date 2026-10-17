@@ -1,0 +1,62 @@
+XPath en XSLTC: funciones, conversiones de números (Double.valueOf y
+realToString), aritmética entera de Java, comparaciones, ejes y uniones.
+
+#### @input
+<doc><n>1e3</n><n> 12 </n><n>+1</n><n>1.</n><n>.5</n><n>1d</n><n>0x10</n><n>Infinity</n><n>-</n><n>-0</n><n>1,5</n><n>NaN</n><n>-.5f</n><n>12abc</n><n>0x1p3</n><v>3</v><v>7</v><v>x</v><s xml:lang="en-GB">Hola  Mundo
+ fin</s><t xml:lang="es"><u/></t></doc>
+#### numbers_from_strings
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//n"><xsl:value-of select="number(.)"/>,<xsl:value-of select=". * 1"/>,<xsl:value-of select=". = 12"/>;</xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### number_to_string
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(1 div 3, ' ', 0.1+0.2, ' ', 10000000, ' ', 9999999.5, ' ', 12345678.9, ' ', 0.0001, ' ', 0.001, ' ', 0.00099, ' ', -0, ' ', 1 div 0, ' ', -1 div 0, ' ', 0 div 0, ' ', 100 * 1.1, ' ', 5 div 2, ' ', 0.000001234, ' ', 1 div 7 * 1000000000, ' ', 3.0, ' ', 4.35, ' ', 0.3 - 0.1, ' ', 2 * 0.000001, ' ', 1000000000 * 1000000000000, ' ', 123456789012.5, ' ', -0.5, ' ', 1 div 3 * 1000000000.0 * 1000000000000)"/></r></xsl:template></xsl:stylesheet>
+#### number_to_string_large
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(2 div 3 * 1000000000000000000 * 1000000000000000000 * 100000000000000, ' ', 1 div 3 div 1000000000000000000 div 1000, ' ', 123456789 * 1000000, ' ', 98765.4321 * 1000, ' ', 0.1 * 3)"/></r></xsl:template></xsl:stylesheet>
+#### int_arithmetic
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="m" select="1000000"/><xsl:param name="p" select="1000000"/><xsl:template match="/"><r><xsl:value-of select="concat($m * $m, ' ', $p * $p, ' ', count(//n) * 200000000, ' ', 2147483647 + 1, ' ', -2147483648 - 1, ' ', 2147483648 * 2, ' ', position() * 3000000000, ' ', string-length('abc') * 1000000000, ' ', 1000000 * 1000000 div 1, ' ', (1000000 * 1000000) mod 7, ' ', -(1000000 * 1000000), ' ', 46341 * 46341, ' ', 0 * 5, ' ', 7 - 10, ' ', last() * 2)"/></r></xsl:template></xsl:stylesheet>
+#### int_local_var
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:variable name="m" select="1000000"/><xsl:variable name="k" select="$m * 3"/><r><xsl:value-of select="$m * $m"/>|<xsl:value-of select="$k * $k"/>|<xsl:value-of select="round(1000000) * 1000000"/>|<xsl:value-of select="number(1000000) * 1000000"/>|<xsl:value-of select="floor(2.5) * 1000000000"/>|<xsl:value-of select="1.0 * 1000000 * 1000000"/></r></xsl:template></xsl:stylesheet>
+#### arithmetic
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(5 mod 3, ' ', -5 mod 3, ' ', 5 mod -3, ' ', 5.5 mod 2, ' ', 1 div 0 mod 2, ' ', 7 div 2, ' ', - - 3, ' ', 2 - -1, ' ', sum(//v), ' ', sum(//v[. != 'x']), ' ', sum(/nada), ' ', floor(-1.5), ' ', ceiling(-1.5), ' ', round(-1.5), ' ', round(1.5), ' ', round(0.49999999999999994), ' ', round(-0.4), ' ', round(1 div 0), ' ', round(0 div 0))"/></r></xsl:template></xsl:stylesheet>
+#### string_functions
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(substring('12345', 1.5, 2.6), '|', substring('12345', 0, 3), '|', substring('12345', 0 div 0, 3), '|', substring('12345', -1 div 0, 1 div 0), '|', substring('12345', 2), '|', substring('12345', -3), '|', substring('a&#x10437;b', 2, 1), '|', string-length('aé&#x10437;'), '|', translate('bar','abc','ABC'), '|', translate('aaa','a',''), '|', normalize-space('  a &#9; b&#10;'), '|', substring-before('1999/04/01','/'), '|', substring-after('1999/04/01','/'), '|', substring-after('abc', ''), '|', starts-with('abc', ''), '|', contains('abc', 'bc'), '|', concat('a', 1, true()), '|', string(), '|', string(1 div 0), '|', normalize-space(//s))"/></r></xsl:template></xsl:stylesheet>
+#### string_values
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(string(true()), string(false()), '|', boolean(''), boolean('0'), boolean(0), boolean(-0), boolean(0 div 0), boolean(//nada), boolean(//n), '|', number(true()), number(false()), '|', number(''), '|', string-length(), '|', number())"/></r></xsl:template></xsl:stylesheet>
+#### comparisons
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(//v = 7, //v != 7, //v &lt; 4, //v &gt; 100, //v = 'x', //v = //n, //v = true(), //nada = false(), //nada != false(), '1' = 1, 'a' &lt; 'b', true() &gt; false(), 1 = '1.0', //v &lt; //n, //nada = //nada, //nada != //nada, 2 &gt;= '2', 'NaN' = 0 div 0)"/></r></xsl:template></xsl:stylesheet>
+#### lang
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//s|//t|//u"><xsl:value-of select="concat(lang('en'), lang('EN-gb'), lang('es'), lang('e'), lang('en-'), lang('english'), ' ')"/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### axes
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//v[2]"><xsl:value-of select="concat(count(preceding::*), count(following::*), count(preceding-sibling::*), count(following-sibling::*), count(ancestor::*), count(ancestor-or-self::*), count(descendant::*), count(../descendant-or-self::*), name(preceding-sibling::*[1]), name(following-sibling::*[last()]), name(ancestor::*[1]), name(..), count(self::v), count(self::n))"/></xsl:for-each>|<xsl:value-of select="count(//@*)"/>|<xsl:value-of select="count(//node())"/>|<xsl:value-of select="count(//text())"/>|<xsl:value-of select="name((//v)[last()]/preceding::n[1])"/>|<xsl:value-of select="(//v | //n)[1]"/>|<xsl:value-of select="count(//v/.. | //n/..)"/></r></xsl:template></xsl:stylesheet>
+#### predicates
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="concat(//n[2], '|', //n[last()], '|', (//n)[2], '|', //n[position() &gt; 13][1], '|', count(//n[. = 'NaN' or . = '-']), '|', //v[. &gt; 3][1], '|', //n[number(.) = number(.)][3], '|', count(//*[2]), '|', (//v)[0 div 0], '|', //v['x'][1], '|', //v[1.0])"/></r></xsl:template></xsl:stylesheet>
+#### id_function
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(id('a b c'))"/>|<xsl:value-of select="id('b')/@v"/>|<xsl:for-each select="id(//ref)"><xsl:value-of select="@i"/></xsl:for-each>|<xsl:value-of select="count(id('x1'))"/></r></xsl:template></xsl:stylesheet>
+====
+<!DOCTYPE doc [<!ATTLIST e i ID #IMPLIED v CDATA "def"><!ATTLIST f xml:id ID #IMPLIED>]><doc><e i="a" v="1"/><e i="b"/><e Id="c"/><ref>a c</ref><ref>b</ref><f xml:id="x1"/></doc>
+#### dtd_defaults
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><xsl:copy-of select="/"/></xsl:template></xsl:stylesheet>
+====
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc ANY>
+  <!ATTLIST e a CDATA "x" b CDATA #FIXED "fijo" c NMTOKENS "  t1   t2 " d CDATA #IMPLIED>
+  <!ENTITY ent "texto &amp; más">
+]>
+<doc><e/><e a="dado"/>&ent;<!-- comentario --></doc>
+#### literal_limits
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="9223372036854775807"/>|<xsl:value-of select="2147483648"/>|<xsl:value-of select="100000000000000000000.5"/>|<xsl:value-of select="2147483647"/></r></xsl:template></xsl:stylesheet>
+#### literal_too_big
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:if test="false()"><xsl:value-of select="9223372036854775808"/></xsl:if></r></xsl:template></xsl:stylesheet>
+#### system_property
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="system-property('xsl:version')"/>|<xsl:value-of select="system-property('xsl:vendor')"/>|<xsl:value-of select="system-property('xsl:vendor-url')"/></r></xsl:template></xsl:stylesheet>
+#### system_property_other
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="system-property('java.version')"/></r></xsl:template></xsl:stylesheet>
+#### function_available
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:u="urn:u" xmlns:m="http://exslt.org/math" xmlns:exsl="http://exslt.org/common" xmlns:x="http://xml.apache.org/xalan" xmlns:set="http://exslt.org/sets" xmlns:str="http://exslt.org/strings"><xsl:template match="/"><r><xsl:value-of select="concat(function-available('foo'), function-available('u:foo'), function-available('m:max'), function-available('m:nope'), function-available('position'), function-available('xsl:foo'), function-available('generate-id'), function-available('system-property'), function-available('concat'), function-available('lang'), function-available('exsl:node-set'), function-available('exsl:object-type'), function-available('x:nodeset'), function-available('set:distinct'), function-available('str:tokenize'), function-available('true'), function-available('nodeset'))"/></r></xsl:template></xsl:stylesheet>
+#### element_available
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:redirect="http://xml.apache.org/xalan/redirect"><xsl:template match="/"><r><xsl:value-of select="concat(element-available('xsl:if'), element-available('xsl:foo'), element-available('xsl:template'), element-available('lit'), element-available('redirect:write'), element-available('xsl:document'))"/></r></xsl:template></xsl:stylesheet>
+#### union_order
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:for-each select="//v | //n[1] | //s"><xsl:value-of select="name()"/></xsl:for-each>|<xsl:for-each select="//v/@* | //v/text()"><xsl:value-of select="."/></xsl:for-each></r></xsl:template></xsl:stylesheet>
+#### variable_types_in_value_of
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:variable name="nodes" select="//v"/><xsl:variable name="num" select="2.50"/><xsl:variable name="bool" select="1 = 1"/><xsl:template match="/"><r><xsl:value-of select="$nodes"/>|<xsl:value-of select="$num"/>|<xsl:value-of select="$bool"/>|<xsl:value-of select="$nodes[2] + $num"/></r></xsl:template></xsl:stylesheet>
+#### deep_path
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><r><xsl:value-of select="count(/doc/*[self::n or self::v][position() mod 2 = 0])"/>|<xsl:value-of select="name(/*/*[last()]/*)"/>|<xsl:value-of select="count(//*/..)"/>|<xsl:value-of select="count(/descendant::*/ancestor::*)"/></r></xsl:template></xsl:stylesheet>
