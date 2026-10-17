@@ -1,0 +1,48 @@
+[package]
+name = "afirma-dnie"
+description = "DNIe 3.0/4.0 por NFC (y lector sin contacto) en Rust puro para AutoFirma-rs: PACE con CAN, mensajería segura AES y CWA-14890, lectura de certificados, PIN y firma"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+# Simulador software de DNIe (lado tarjeta) para pruebas y para ejercitar la interfaz sin
+# tarjeta real (puerto de tools/oracle/dnie/src/sim/SimCard.java).
+sim = []
+# Clave de firma `afirma_core::key::SigningKey` sobre el DNIe (para los firmadores CAdES,
+# PAdES, XAdES…).
+signing-key = ["dep:afirma-core"]
+# Almacén `afirma_keystores::KeyStore` sobre el DNIe.
+keystore = ["signing-key", "dep:afirma-keystores"]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+hex.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+flate2.workspace = true
+rsa.workspace = true
+# Mismas versiones (cipher 0.5) que afirma-protocol y afirma-system.
+# Con borrado de las claves expandidas al liberarse.
+aes = { version = "0.9", features = ["zeroize"] }
+des = { version = "0.9", features = ["zeroize"] }
+cipher = "0.5"
+# Aritmética modular en tiempo constante para brainpoolP256r1 (misma versión que usa
+# elliptic-curve 0.13 en el resto del espacio de trabajo).
+crypto-bigint = { version = "0.5", features = ["zeroize"] }
+subtle = "2.6"
+zeroize = "1"
+getrandom = "0.3"
+afirma-core = { workspace = true, optional = true }
+afirma-keystores = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Las pruebas de integración usan el simulador y la integración con los almacenes.
+afirma-dnie = { path = ".", features = ["sim", "keystore"] }
+afirma-core.workspace = true
+afirma-keystores.workspace = true
+afirma-cms.workspace = true

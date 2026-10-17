@@ -1536,3 +1536,89 @@ público del terminal (`00010001`) está al final de `5F38`.
 15. Número de apéndice/edición del ejemplo ICAO de §4.5.
 16. Disponibilidad de aritmética en el crate `bp256`.
 17. Selección de un `SecureRandom` determinista vía proveedor en el arnés Java.
+
+---
+
+## 18. Notas de implementación
+
+Implementación: `crates/afirma-dnie` (Rust puro; características `sim`, `signing-key`, `keystore`). Lo que sigue
+resuelve puntos del apéndice C, precisa la especificación donde el código o las pruebas lo han aclarado y recoge las
+decisiones que no son de paridad.
+
+### 18.1 Puntos VERIFICAR resueltos (o acotados)
+
+- **1 (JMulticard 2.0 frente a 2.1).** En el repositorio de JMulticard, entre la etiqueta `v2.0` y el commit analizado
+  (`4ec9494f`) los módulos `jmulticard`, `jmulticard-crypto` y `jmulticard-jse` solo cambian en
+  `Dnie.getInternalPasswordCallback` (el PIN se pide con `CardWithRetriesPasswordCallback`, subclase de
+  `PasswordCallback` con el mismo texto y `getRetriesLeft()`) y en `Ceres`; `DnieNfc`, PACE, mensajería segura,
+  CWA-14890, PKCS#15 y firma son idénticos. `jmulticard-android` no estaba en el repositorio en `v2.0`, así que
+  `AndroidNfcConnection` 2.0 sigue sin comprobar.
+- **9 (respuesta a la consulta de intentos).** Se aceptan las dos formas (SW externa `9000` con `63Cx` en DO99, y SW
+  externa `63Cx` con o sin objetos SM; si los trae, se verifica el MAC). `63C0` y `6983` = PIN bloqueado (sin enviar
+  `VERIFY`); `9000` = intentos desconocidos.
+- **7 (FCI).** El tamaño se toma de la etiqueta `80`, si no de `81` y si no del campo propietario FNMT `85 0A`
+  (octetos 3–4 del valor, como JMulticard y OpenSC `card-dnie.c`); sin tamaño se lee hasta un bloque corto, `6282` o
+  `6B00`. El FCI real sigue pendiente de tarjeta.
+- **16 (`bp256`).** `bp256` 0.6.1 (la compatible con `elliptic-curve` 0.13 del espacio de trabajo) solo trae la
+  característica `wip-arithmetic-do-not-use`; la 0.14.0 (2026-09-10) sí tiene `arithmetic`, pero sobre
+  `elliptic-curve` 0.14 / `crypto-bigint` 0.7 (una segunda pila RustCrypto). Se implementa la curva en
+  `src/ec.rs` sobre `crypto-bigint` 0.5: residuos de Montgomery en tiempo constante, fórmulas completas de
+  Renes–Costello–Batina para `a` genérico (las de `primeorder::EquationAIsGeneric`), multiplicación escalar con
+  ventana fija de 4 bits y selección en tiempo constante, validación SEC 1 de los puntos recibidos.
+- **17 (aleatorios deterministas en el arnés Java).** No ha hecho falta: la comparación con JMulticard se hace con los
+  comandos internos (desprotegidos) enmascarando solo lo aleatorio (claves y tokens de GA2–GA4, `RND.IFD` y el
+  criptograma de EXTERNAL AUTHENTICATE), más contexto SM, longitudes en el aire y SW de cada APDU. Resultado: las
+  131 APDU de `transcript_full.txt` (carga + dos firmas) coinciden con las del controlador Rust, tanto contra el
+  simulador Rust (`tests/golden.rs`) como vistas desde el simulador Java en la prueba cruzada (`tests/oracle.rs`);
+  también `transcript_r1.txt`, `transcript_outer63.txt` y `transcript_wrongpin.txt` hasta el `VERIFY` erróneo
+  (después el Rust descarta el contexto en vez de reutilizar el canal de PIN, §18.3).
+
+### 18.2 Precisiones y erratas
+
+- **Número de APDU de la carga (§11.2).** `testdata/dnie/transcript_full.txt` tiene 59 APDU antes de la primera firma,
+  no 56: las 57–59 son una segunda lectura del IDESP que hace el propio arnés (`Main.flow` llama a `card.getIdesp()`
+  al registrar la tarjeta), no JMulticard. Las 56 de §11.2 son correctas (comprobado: 56 + 35 + 40).
+- **Vector §5.4 b.** El FCI `6F048102000A` termina justo tras el TLV `81`, que `SelectFileApduResponse` de JMulticard
+  rechazaría (§7.2); el vector sale del script de referencia, no del flujo de JMulticard. El Rust lo acepta.
+- **Interfaces (§10.3, §13.2).** Los nombres reales son `CardTransport` (`transceive`, `identification` con
+  `CardIdentification` —ATR, bytes históricos, HLR y datos del ATQB—, `max_command_len`) y
+  `DnieInteraction::request_pin(&PinRequest)`, con `retries_left: Option<u8>` (la tarjeta puede no informarlo).
+  El RNG inyectable es `RandomSource` (todos los aleatorios de PACE y CWA salen de él).
+
+### 18.3 Decisiones que no son de paridad
+
+- Defectos corregidos: P1 (X de 32 octetos; 3000 sesiones PACE con claves aleatorias contra el simulador Rust y
+  2000 contra el Java sin ningún fallo; en cada ejecución hay entre 4 y 20 sesiones con X = `00…`, las que fallaban
+  con JMulticard), P2 (`T_ICC` verificado en tiempo
+  constante), P3 (puntos validados, `PK_ICC ≠ PK_IFD` y `PK_map_ICC ≠ PK_map_IFD`), P4 (escalares uniformes en
+  `[1, n−1]`), P5 (etiquetas), P6 (MAC ICAO en el caso 1), C2 (CSPRNG del sistema), C3–C5, `setLe` sin Lc.
+- Detección (§3.2): con los datos del ATQB (`NfcB.getApplicationData()`/`getProtocolInfo()`) se construye el
+  pseudo-ATR y se compara entero con `ATR_NFC` (rechaza tipo B que no son DNIe); sin ellos, comparación por sufijo de
+  JMulticard. ATR de contacto y DNIe «quemado» se rechazan con «tarjeta no soportada». Tras PACE, cualquier respuesta
+  inesperada al leer CDF/PrKDF/certificados (p. ej. TIE) es «tarjeta no soportada»; los errores de enlace siguen
+  siendo «error de lectura».
+- PIN: se rechaza antes de enviarlo si está vacío, no es ASCII imprimible o supera 16 caracteres (no gasta
+  intentos); no se impone mínimo (punto 10 sigue abierto). Nunca se repite un `VERIFY`.
+- Errores durante una firma: siempre se envía el `SELECT` en claro para descartar el contexto de la tarjeta (también
+  tras un PIN erróneo, en vez de reutilizar el canal de PIN como JMulticard, §8.3). Ante un error de enlace o de SM se
+  reabre una vez desde PACE, salvo si el resultado de un `VERIFY` enviado es desconocido; si el `VERIFY` ya había sido
+  correcto, el reintento reutiliza ese PIN.
+- Cada firma se verifica con la clave pública del certificado antes de devolverla (`BadSignature` si no).
+- Confirmación de firma (`DnieInteraction::confirm_signature`): se pide antes de cualquier APDU de la firma
+  (JMulticard 2.1 no la emite; por defecto acepta).
+- La comprobación opcional C1 (certificado de componente firmado por `CA_COMPONENT_PUBLIC_KEY`) solo se registra.
+
+### 18.4 Oráculo
+
+`tools/oracle/dnie/src/sim/Main.java` tiene un modo `serve` (APDU en hexadecimal por la entrada estándar, una línea
+por respuesta; órdenes `ATR`, `#idesp`, `#can`, `#pin`, `#retries`, `#outer63`, `#stats`) y `run.sh` admite
+`BUILD_ONLY=1`. `AFIRMA_DNIE_ORACLE=<directorio de trabajo> cargo test -p afirma-dnie --test oracle` ejecuta el host
+Rust contra el `SimCard` Java (flujo completo r2 y r1, PIN erróneo, SW externa = interna, CAN erróneo y carga de
+PACE); sin la variable, la prueba queda ignorada.
+
+### 18.5 Pendiente de tarjeta real
+
+Siguen abiertos los puntos 2–6, 8, 10–15 del apéndice C (HLR/ATQB reales en Android, reset PC/SC, `EF.CardAccess`,
+SW de GA4 con CAN erróneo, IDESP real, cabecera de compresión, longitudes de PIN, respuesta al `SELECT` de reinicio,
+canal de usuario entre firmas, CA de componentes, DNIe 4.0, apéndice ICAO) y la prueba de la sonda de presencia en
+Android API 23–27 (§2.1).

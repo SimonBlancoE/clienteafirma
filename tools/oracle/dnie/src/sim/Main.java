@@ -3,6 +3,10 @@ package sim;
 import static sim.Hex.h;
 import static sim.Hex.log;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
 
@@ -79,8 +83,75 @@ public final class Main {
             case "rng": rng(); break;
             case "signstress": signStress(Integer.parseInt(args[2])); break;
             case "detect": detect(args[2]); break;
+            case "serve": serve(args); break;
             default: throw new IllegalArgumentException(mode);
         }
+    }
+
+    /**
+     * Modo servidor para la prueba cruzada con el controlador Rust (crates/afirma-dnie/tests/oracle.rs):
+     * lee por la entrada estándar una APDU por línea en hexadecimal y escribe la respuesta de la tarjeta
+     * simulada en hexadecimal. Uso: {@code serve <datos> [semilla] [transcripción]}.
+     * Órdenes: {@code ATR} (pseudo-ATR de reset()), {@code #idesp X}, {@code #can X}, {@code #pin X},
+     * {@code #retries n}, {@code #outer63 true|false}, {@code #log texto}, {@code #stats} (contexto,
+     * intentos, APDU, fallos de GA4 y sesiones PACE con X empezando por 00),
+     * {@code QUIT}. Cada orden recibe exactamente una línea de respuesta.
+     */
+    static void serve(final String[] args) throws Exception {
+        final long seed = args.length > 2 ? Long.parseLong(args[2]) : 1L;
+        if (args.length > 3) {
+            Hex.openLog(args[3]);
+            log("##### Modo servidor (host Rust), semilla " + seed);
+        }
+        else {
+            Hex.quiet = true;
+        }
+        final SimCard sim = new SimCard(dataDir, seed);
+        int kx00 = 0;
+        final BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.US_ASCII));
+        final PrintStream out = new PrintStream(System.out, true, "US-ASCII");
+        String line;
+        while ((line = in.readLine()) != null) {
+            line = line.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            if ("QUIT".equals(line)) {
+                break;
+            }
+            if ("ATR".equals(line)) {
+                out.println(h(sim.resetBytes));
+                continue;
+            }
+            if (line.startsWith("#")) {
+                final String[] kv = line.substring(1).split(" ", 2);
+                final String v = kv.length > 1 ? kv[1] : "";
+                switch (kv[0]) {
+                    case "idesp": sim.idesp = v; break;
+                    case "can": sim.can = v; break;
+                    case "pin": sim.pin = v; break;
+                    case "retries": sim.retries = Integer.parseInt(v); break;
+                    case "outer63": sim.cwaOuterSwEqualsInner = Boolean.parseBoolean(v); break;
+                    case "log": log(v); break;
+                    case "stats":
+                        out.println("ctx=" + sim.ctxName() + " retries=" + sim.retries + " apdus=" + sim.apduCount
+                            + " maxCmd=" + sim.maxCmd + " maxRsp=" + sim.maxRsp + " envelope=" + sim.envelopeUsed
+                            + " ga4fail=" + sim.paceGa4Fail + " kx00=" + kx00);
+                        continue;
+                    default: out.println("ERROR orden desconocida " + kv[0]); continue;
+                }
+                out.println("OK");
+                continue;
+            }
+            final byte[] apdu = Hex.b(line);
+            final ResponseApdu r = sim.internalTransmit(apdu);
+            // Sesiones PACE cuya X del secreto compartido empieza por 00 (GA3: 7C 43 83 41).
+            if (apdu.length > 8 && apdu[1] == (byte) 0x86 && apdu[7] == (byte) 0x83 && sim.lastKxLeadingZero) {
+                kx00++;
+            }
+            out.println(h(r.getBytes()));
+        }
+        Hex.closeLog();
     }
 
     static void flow(final String out) throws Exception {

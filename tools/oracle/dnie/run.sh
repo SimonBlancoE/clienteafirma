@@ -6,7 +6,8 @@
 # Cambian en cada ejecución (PACE usa números aleatorios); las de referencia que cita
 # docs/spec/10-dnie-nfc.md están en testdata/dnie/.
 #
-# Uso: tools/oracle/dnie/run.sh [directorio de trabajo]   (STRESS=n para las pruebas de carga)
+# Uso: tools/oracle/dnie/run.sh [directorio de trabajo]   (STRESS=n para las pruebas de carga;
+#      BUILD_ONLY=1 solo compila, para la prueba cruzada de crates/afirma-dnie/tests/oracle.rs)
 # Requiere git y un JDK (javac/java).
 set -eu
 D=$(cd "$(dirname "$0")" && pwd)
@@ -24,6 +25,10 @@ if [ ! -d "$W/classes" ]; then
 fi
 mkdir -p "$W/out"
 javac -nowarn -encoding UTF-8 -cp "$W/classes" -d "$W/out" "$D"/src/sim/*.java
+# BUILD_ONLY=1: solo compilar (lo usa la prueba cruzada Rust, AFIRMA_DNIE_ORACLE=<directorio>).
+if [ "${BUILD_ONLY:-0}" = 1 ]; then
+    exit 0
+fi
 J="java -cp $W/out:$W/classes"
 T="$W/transcripts"
 mkdir -p "$T"
