@@ -2,8 +2,9 @@
 """Firma desde una página web real en Windows y macOS (CI), sin intervención.
 
 Como en una sede electrónica: Chrome (sin interfaz) carga una página con el
-`autoscript.js` original y pide una firma CAdES. AutoFirma se lanza con el
-manejador del sistema (`start afirma://...` en Windows, `open afirma://...` en
+`autoscript.js` original y pide una firma CAdES. Cuando la página está cargada
+(como hace `autoscript.js` al firmar, que un Chrome sin interfaz no puede),
+AutoFirma se lanza con el manejador del sistema (`start afirma://...` en Windows, `open afirma://...` en
 macOS, que entrega la URL como evento de Apple) y abre su servidor WebSocket
 TLS; Chrome solo puede conectarse si la CA local está instalada como de
 confianza (no se desactiva la comprobación de certificados). El certificado de
@@ -14,6 +15,12 @@ línea de comandos de AutoFirma.
 Uso: web_sign.py <autofirma> <directorio de trabajo>
 """
 import base64, http.server, json, os, platform, shutil, socket, subprocess, sys, threading, time
+
+T0 = time.monotonic()
+
+
+def log(msg):
+    print(f"[{time.monotonic() - T0:6.1f} s] {msg}", flush=True)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 APP, WORK = sys.argv[1], os.path.abspath(sys.argv[2])
@@ -61,15 +68,20 @@ def launch(url):
 os.makedirs(WORK, exist_ok=True)
 ws_port, web_port = free_port(), free_port()
 results = []
+launched = threading.Event()
 script = open(os.path.join(ROOT, "afirma-ui-miniapplet-deploy/src/main/webapp/js/autoscript.js"), "rb").read()
 params = f"headless=true\\nfilters=thumbprint:SHA1:{THUMBPRINT}\\nmode=implicit"
 page = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><script src="autoscript.js"></script></head><body><script>
-function report(o) {{ return fetch('/result', {{ method: 'POST', body: JSON.stringify(o) }}); }}
+function post(path, o) {{ return fetch(path, {{ method: 'POST', body: JSON.stringify(o) }}); }}
+function report(o) {{ return post('/result', o); }}
+var origLog = console.log;
+console.log = function () {{ post('/log', Array.prototype.join.call(arguments, ' ')); origLog.apply(console, arguments); }};
+window.onerror = function (m) {{ post('/log', 'error: ' + m); }};
 AutoScript.setPortRange({ws_port}, {ws_port});
 AutoScript.cargarAppAfirma();
-AutoScript.sign('{DATA}', 'SHA256withRSA', 'CAdES', '{params}',
+post('/ready', '').then(function () {{ AutoScript.sign('{DATA}', 'SHA256withRSA', 'CAdES', '{params}',
   function (sig, cert, extra) {{ report({{ ok: true, sig: sig, cert: cert }}); }},
-  function (t, m) {{ report({{ ok: false, type: t, msg: m }}); }});
+  function (t, m) {{ report({{ ok: false, type: t, msg: m }}); }}); }});
 </script></body></html>""".encode()
 
 
@@ -78,6 +90,7 @@ class H(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        log(f"GET {self.path}")
         body, ct = (page, "text/html; charset=utf-8") if self.path.startswith("/page") else (script, "application/javascript")
         self.send_response(200)
         self.send_header("Content-Type", ct)
@@ -87,7 +100,17 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
-        results.append(json.loads(self.rfile.read(n)))
+        body = json.loads(self.rfile.read(n) or b'""')
+        if self.path == "/ready":
+            log("página cargada: se lanza AutoFirma")
+            launch(f"afirma://websocket?ports={ws_port}&v=4&jvc=4")
+            time.sleep(2)
+            launched.set()
+        elif self.path == "/log":
+            log(f"consola: {body}")
+        else:
+            log("resultado recibido")
+            results.append(body)
         self.send_response(200)
         self.send_header("Content-Length", "2")
         self.end_headers()
@@ -97,16 +120,16 @@ class H(http.server.BaseHTTPRequestHandler):
 srv = http.server.ThreadingHTTPServer(("127.0.0.1", web_port), H)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
-# La página no puede lanzar el protocolo desde un navegador sin interfaz: se lanza con
-# el manejador registrado en el sistema, como haría el navegador.
-launch(f"afirma://websocket?ports={ws_port}&v=4&jvc=4")
-time.sleep(5)
+# `--use-mock-keychain`: en macOS, sin él Chrome puede quedarse esperando al llavero
+# para guardar su clave de cifrado (no afecta a la confianza en certificados).
+chrome_log = open(os.path.join(WORK, "chrome.log"), "wb")
+log("se abre Chrome")
 browser = subprocess.Popen(
-    [chrome(), "--headless=new", "--no-first-run", "--disable-gpu", f"--user-data-dir={WORK}/chrome",
-     f"http://127.0.0.1:{web_port}/page.html"],
-    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    [chrome(), "--headless=new", "--no-first-run", "--disable-gpu", "--use-mock-keychain",
+     "--password-store=basic", f"--user-data-dir={WORK}/chrome", f"http://127.0.0.1:{web_port}/page.html"],
+    stdout=chrome_log, stderr=subprocess.STDOUT)
 try:
-    for _ in range(180):
+    for _ in range(240):
         if results:
             break
         time.sleep(1)
@@ -114,6 +137,11 @@ finally:
     browser.terminate()
     srv.shutdown()
 if not results:
+    chrome_log.close()
+    print("--- Chrome (últimas líneas)")
+    print("\n".join(open(chrome_log.name, encoding="utf-8", errors="replace").read().splitlines()[-30:]))
+    if not launched.is_set():
+        sys.exit("la página no llegó a cargarse en Chrome")
     # Diagnóstico: ¿está AutoFirma en marcha y escuchando en el puerto?
     system = platform.system()
     cmds = {
