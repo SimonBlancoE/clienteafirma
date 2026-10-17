@@ -1,0 +1,44 @@
+[package]
+name = "autofirma-android"
+description = "AutoFirma-rs para Android: biblioteca nativa con la interfaz egui (GameActivity) y el puente JNI con la capa Java (KeyChain, selector de documentos, intents y NFC)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+# cdylib: libautofirma_android.so, que carga la GameActivity (android/app). rlib: pruebas,
+# clippy y documentación en el anfitrión, donde solo se compila la parte independiente de
+# Android (estado de la interfaz, puente de eventos, análisis de documentos, clave KeyChain).
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+afirma-core.workspace = true
+afirma-signers.workspace = true
+afirma-protocol.workspace = true
+egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+x509-parser.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# Solo en Android: así la compilación del anfitrión no arrastra winit/glutin sin X11 ni
+# Wayland (y los rasgos de estas dependencias no se unifican con los de la aplicación de
+# escritorio).
+[target.'cfg(target_os = "android")'.dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "android-game-activity"] }
+# Misma versión que usa winit 0.30 (la que incluye el código C de GameActivity 4.4.0; la
+# dependencia de Gradle androidx.games:games-activity debe coincidir).
+android-activity = { version = "0.6", features = ["game-activity"] }
+jni = "0.22"
+# Verificación TLS con el almacén de Android (la usa ureq en afirma-core); hay que
+# inicializarla con el contexto de la aplicación y añadir su componente Java en Gradle.
+rustls-platform-verifier = "0.7"
+# Propiedades del sistema (comprobación de TLS de las pruebas en el emulador).
+android-properties = "0.2"
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+rcgen.workspace = true

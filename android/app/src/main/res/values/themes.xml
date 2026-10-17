@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GameActivity es una AppCompatActivity: necesita un tema AppCompat. El fondo coincide
+         con el de la interfaz egui para que no haya destellos al arrancar. -->
+    <style name="Theme.AutoFirma" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorAccent">@color/primary</item>
+    </style>
+
+    <color name="background">#F5F6F8</color>
+    <color name="primary">#C2410C</color>
+</resources>

@@ -39,6 +39,7 @@ Java.
 | `afirma-hash` | Huellas digitales de ficheros y carpetas, documentos e informes de huellas | `afirma-simple-plugin-hash` |
 | `afirma-certval` | Validación del estado de certificados por OCSP y CRL | `afirma-simple-plugin-validatecerts` |
 | `autofirma` | Ejecutable: interfaz gráfica (egui), línea de comandos y arranque por protocolo | `afirma-simple` |
+| `autofirma-android` | App Android: biblioteca nativa con la interfaz egui sobre `GameActivity` y puente JNI con KeyChain, el selector de documentos, los intents `afirma://` y NFC ([`ANDROID.md`](ANDROID.md)) | `afirma-ui-android` («Cliente @firma móvil») |
 
 ## Flujo de una firma
 

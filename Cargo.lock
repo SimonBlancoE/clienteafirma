@@ -486,6 +486,7 @@ dependencies = [
  "ndk-context",
  "ndk-sys",
  "num_enum",
+ "simd_cesu8",
  "thiserror 2.0.21",
 ]
 
@@ -804,6 +805,27 @@ dependencies = [
  "tracing-subscriber",
  "windows-sys 0.61.2",
  "winresource",
+ "x509-parser",
+]
+
+[[package]]
+name = "autofirma-android"
+version = "2.0.0-alpha.1"
+dependencies = [
+ "afirma-core",
+ "afirma-protocol",
+ "afirma-signers",
+ "android-activity",
+ "android-properties",
+ "eframe",
+ "egui",
+ "image",
+ "jni",
+ "rcgen",
+ "rustls-platform-verifier",
+ "thiserror 2.0.21",
+ "tracing",
+ "tracing-subscriber",
  "x509-parser",
 ]
 

@@ -1,0 +1,12 @@
+# Gradle y Android Studio
+.gradle/
+.kotlin/
+.idea/
+*.iml
+build/
+local.properties
+captures/
+
+# El .gitignore raíz excluye *.jar: el envoltorio de Gradle sí se versiona (build.sh comprueba
+# su SHA-256).
+!gradle/wrapper/gradle-wrapper.jar

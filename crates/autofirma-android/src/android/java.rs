@@ -1,0 +1,347 @@
+//! Puente JNI con la capa Java (paquete `io.github.autofirma_rs.android`).
+//!
+//! - Rust → Java: métodos de instancia de `MainActivity` sobre la referencia global de la
+//!   actividad que mantiene `android-activity` ([`JavaPlatform`]). Se llaman sobre el
+//!   objeto (no con `FindClass`), así funcionan desde cualquier hilo enganchado a la JVM.
+//! - Java → Rust: métodos `static native` de `NativeBridge`, exportados con
+//!   [`jni_mangle`]. Solo copian los datos y encolan un evento en [`Bridge::global`].
+
+use std::fs::File;
+use std::io::Read;
+use std::os::fd::{FromRawFd, OwnedFd};
+
+use afirma_core::SignatureAlgorithm;
+use android_activity::{AndroidApp, OnCreateState};
+use jni::errors::{Error as JniError, LogErrorAndDefault};
+use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString, JValue};
+use jni::sys::{jboolean, jint, jlong};
+use jni::{Env, EnvUnowned, JavaVM, jni_mangle, jni_sig, jni_str};
+
+use crate::bridge::{Bridge, NfcTagInfo, Platform, PlatformError, PlatformEvent, RequestId};
+
+/// Tamaño máximo de un documento abierto con el selector del sistema.
+const MAX_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
+
+fn jni_error(e: JniError) -> PlatformError {
+    match e {
+        JniError::CaughtJavaException { name, msg, .. } => PlatformError(format!("{name}: {msg}")),
+        other => PlatformError(format!("error de JNI: {other}")),
+    }
+}
+
+/// Inicia `rustls-platform-verifier` (verificación TLS con el almacén de Android, que usa
+/// `ureq` en afirma-core) con el contexto de la aplicación.
+pub fn init_tls_verifier(state: &OnCreateState) -> Result<(), PlatformError> {
+    // SAFETY: puntero a la JavaVM del proceso que entrega android-activity.
+    let vm = unsafe { JavaVM::from_raw(state.vm_as_ptr().cast()) };
+    let activity = state.activity_as_ptr() as jni::sys::jobject;
+    vm.attach_current_thread(|env| -> Result<(), JniError> {
+        // SAFETY: referencia de la actividad válida mientras dura onCreate.
+        let activity = unsafe { env.as_cast_raw::<JObject>(&activity)? };
+        let context = env
+            .call_method(
+                &*activity,
+                jni_str!("getApplicationContext"),
+                jni_sig!("()Landroid/content/Context;"),
+                &[],
+            )?
+            .l()?;
+        rustls_platform_verifier::android::init_with_env(env, context)
+    })
+    .map_err(jni_error)
+}
+
+/// Llamadas de Rust a la capa Java (métodos públicos de `MainActivity`).
+pub struct JavaPlatform {
+    app: AndroidApp,
+}
+
+impl JavaPlatform {
+    pub fn new(app: AndroidApp) -> Self {
+        JavaPlatform { app }
+    }
+
+    /// Ejecuta `f` con el hilo actual enganchado a la JVM y la actividad.
+    fn with_activity<T>(
+        &self,
+        f: impl FnOnce(&mut Env<'_>, &JObject<'_>) -> Result<T, JniError>,
+    ) -> Result<T, PlatformError> {
+        let vm = JavaVM::singleton().map_err(jni_error)?;
+        let activity = self.app.activity_as_ptr() as jni::sys::jobject;
+        vm.attach_current_thread(|env| -> Result<T, JniError> {
+            // SAFETY: referencia global de la actividad, válida mientras viva `self.app`.
+            let activity = unsafe { env.as_cast_raw::<JObject>(&activity)? };
+            f(env, &activity)
+        })
+        .map_err(jni_error)
+    }
+}
+
+impl Platform for JavaPlatform {
+    fn open_document(&self, request: RequestId) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(
+                activity,
+                jni_str!("openDocument"),
+                jni_sig!("(J)V"),
+                &[JValue::Long(request)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn choose_certificate(&self, request: RequestId) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(
+                activity,
+                jni_str!("chooseCertificate"),
+                jni_sig!("(J)V"),
+                &[JValue::Long(request)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn certificate_chain(&self, alias: &str) -> Result<Vec<Vec<u8>>, PlatformError> {
+        self.with_activity(|env, activity| {
+            let alias = JString::new(env, alias)?;
+            let chain = env
+                .call_method(
+                    activity,
+                    jni_str!("certificateChain"),
+                    jni_sig!("(Ljava/lang/String;)[[B"),
+                    &[JValue::Object(&alias)],
+                )?
+                .l()?;
+            let chain = env.cast_local::<JObjectArray<JByteArray>>(chain)?;
+            let len = chain.len(env)?;
+            let mut certificates = Vec::with_capacity(len);
+            for i in 0..len {
+                let der = chain.get_element(env, i)?;
+                certificates.push(env.convert_byte_array(&der)?);
+            }
+            Ok(certificates)
+        })
+    }
+
+    fn sign(&self, alias: &str, algorithm: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>, PlatformError> {
+        self.with_activity(|env, activity| {
+            let alias = JString::new(env, alias)?;
+            let algorithm = JString::new(env, algorithm.java_name())?;
+            let data = env.byte_array_from_slice(data)?;
+            let signature = env
+                .call_method(
+                    activity,
+                    jni_str!("sign"),
+                    jni_sig!("(Ljava/lang/String;Ljava/lang/String;[B)[B"),
+                    &[
+                        JValue::Object(&alias),
+                        JValue::Object(&algorithm),
+                        JValue::Object(&data),
+                    ],
+                )?
+                .l()?;
+            let signature = env.cast_local::<JByteArray>(signature)?;
+            env.convert_byte_array(&signature)
+        })
+    }
+
+    fn start_nfc_reader(&self, request: RequestId) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(
+                activity,
+                jni_str!("startNfcReader"),
+                jni_sig!("(J)V"),
+                &[JValue::Long(request)],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn nfc_transceive(&self, apdu: &[u8]) -> Result<Vec<u8>, PlatformError> {
+        self.with_activity(|env, activity| {
+            let apdu = env.byte_array_from_slice(apdu)?;
+            let response = env
+                .call_method(
+                    activity,
+                    jni_str!("nfcTransceive"),
+                    jni_sig!("([B)[B"),
+                    &[JValue::Object(&apdu)],
+                )?
+                .l()?;
+            let response = env.cast_local::<JByteArray>(response)?;
+            env.convert_byte_array(&response)
+        })
+    }
+
+    fn stop_nfc_reader(&self) -> Result<(), PlatformError> {
+        self.with_activity(|env, activity| {
+            env.call_method(activity, jni_str!("stopNfcReader"), jni_sig!("()V"), &[])?;
+            Ok(())
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------------------
+// Java → Rust (`NativeBridge`). Todos vuelven enseguida: copian los datos y encolan un evento.
+
+fn optional_bytes(env: &Env<'_>, value: &JByteArray<'_>) -> Result<Option<Vec<u8>>, JniError> {
+    if value.is_null() {
+        Ok(None)
+    } else {
+        env.convert_byte_array(value).map(Some)
+    }
+}
+
+fn optional_string(env: &Env<'_>, value: &JString<'_>) -> Result<Option<String>, JniError> {
+    if value.is_null() {
+        Ok(None)
+    } else {
+        value.try_to_string(env).map(Some)
+    }
+}
+
+/// `NativeBridge.onViewIntent(String uri)`: intent `VIEW` (`afirma://...`).
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_view_intent<'local>(mut env: EnvUnowned<'local>, _class: JClass<'local>, uri: JString<'local>) {
+    env.with_env(|env| -> Result<(), JniError> {
+        if let Some(uri) = optional_string(env, &uri)? {
+            Bridge::global().post(PlatformEvent::ViewIntent { uri });
+        }
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onDocumentOpened(long request, String uri, String name, int fd)`: documento
+/// elegido en el selector. Java cede el descriptor (`ParcelFileDescriptor.detachFd`); se lee
+/// aquí, en el hilo de E/S de la capa Java.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_document_opened<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    request: jlong,
+    uri: JString<'local>,
+    name: JString<'local>,
+    fd: jint,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let uri = optional_string(env, &uri)?.unwrap_or_default();
+        let name = optional_string(env, &name)?;
+        let event = if fd < 0 {
+            PlatformEvent::RequestFailed {
+                request,
+                cancelled: false,
+                message: Some("descriptor de fichero no válido".to_string()),
+            }
+        } else {
+            // SAFETY: Java ha cedido la propiedad del descriptor y no lo vuelve a usar.
+            let file = File::from(unsafe { OwnedFd::from_raw_fd(fd) });
+            let mut data = Vec::new();
+            match file.take(MAX_DOCUMENT_BYTES + 1).read_to_end(&mut data) {
+                Ok(n) if n as u64 > MAX_DOCUMENT_BYTES => PlatformEvent::RequestFailed {
+                    request,
+                    cancelled: false,
+                    message: Some(format!(
+                        "el documento supera el tamaño máximo ({} MB)",
+                        MAX_DOCUMENT_BYTES / 1024 / 1024
+                    )),
+                },
+                Ok(_) => PlatformEvent::DocumentOpened {
+                    request,
+                    uri,
+                    name,
+                    data,
+                },
+                Err(e) => PlatformEvent::RequestFailed {
+                    request,
+                    cancelled: false,
+                    message: Some(format!("no se pudo leer el documento: {e}")),
+                },
+            }
+        };
+        Bridge::global().post(event);
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onCertificateChosen(long request, String alias)`: resultado del selector de
+/// KeyChain (`alias` nulo si no se eligió ninguno).
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_certificate_chosen<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    request: jlong,
+    alias: JString<'local>,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let alias = optional_string(env, &alias)?;
+        Bridge::global().post(PlatformEvent::CertificateChosen { request, alias });
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onNfcTag(long request, byte[] tagId, byte[] historicalBytes,
+/// byte[] hiLayerResponse, byte[] nfcbApplicationData, byte[] nfcbProtocolInfo)`: tarjeta
+/// ISO-DEP conectada (los cuatro últimos pueden ser nulos).
+#[allow(clippy::too_many_arguments)] // firma fijada por el método nativo de Java
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_nfc_tag<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    request: jlong,
+    tag_id: JByteArray<'local>,
+    historical_bytes: JByteArray<'local>,
+    hi_layer_response: JByteArray<'local>,
+    nfcb_application_data: JByteArray<'local>,
+    nfcb_protocol_info: JByteArray<'local>,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let tag = NfcTagInfo {
+            id: optional_bytes(env, &tag_id)?.unwrap_or_default(),
+            historical_bytes: optional_bytes(env, &historical_bytes)?,
+            hi_layer_response: optional_bytes(env, &hi_layer_response)?,
+            nfcb_application_data: optional_bytes(env, &nfcb_application_data)?,
+            nfcb_protocol_info: optional_bytes(env, &nfcb_protocol_info)?,
+        };
+        Bridge::global().post(PlatformEvent::NfcTag { request, tag });
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onRequestFailed(long request, boolean cancelled, String message)`.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_request_failed<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    request: jlong,
+    cancelled: jboolean,
+    message: JString<'local>,
+) {
+    env.with_env(|env| -> Result<(), JniError> {
+        let message = optional_string(env, &message)?;
+        Bridge::global().post(PlatformEvent::RequestFailed {
+            request,
+            cancelled,
+            message,
+        });
+        Ok(())
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+/// `NativeBridge.onInsets(int left, int top, int right, int bottom)`: zona segura en píxeles.
+#[jni_mangle("io.github.autofirma_rs.android.NativeBridge")]
+pub fn on_insets<'local>(
+    _env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    left: jint,
+    top: jint,
+    right: jint,
+    bottom: jint,
+) {
+    Bridge::global().set_safe_area_px([left as f32, top as f32, right as f32, bottom as f32]);
+}

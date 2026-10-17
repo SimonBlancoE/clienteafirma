@@ -1,0 +1,88 @@
+# Android: clippy del crate autofirma-android para Android, APK release (todas las ABI, firmado
+# con un almacén de claves DE PRUEBA efímero) y de depuración (x86_64), y prueba de humo de los
+# dos en el emulador x86_64 con KVM. Todo se compila y se ejecuta en las imágenes Docker de
+# tools/android/Dockerfile (véase docs/ANDROID.md).
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: &android-paths
+      - 'crates/**'
+      - 'android/**'
+      - 'packaging/icons/**'
+      - 'testdata/pades/**'
+      - 'tools/android/**'
+      - 'tools/package/common.sh'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths: *android-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Fuera del repositorio, en el disco de datos del runner.
+  AUTOFIRMA_ANDROID_BUILD_DIR: /mnt/autofirma-android
+  AUTOFIRMA_ANDROID_KEYSTORE: /mnt/autofirma-android/keystore/release-prueba.p12
+  AUTOFIRMA_BUILD_NUMBER: ${{ github.run_number }}
+
+jobs:
+  apk:
+    name: APK y prueba en el emulador
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Liberar espacio y preparar el directorio de compilación
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p "$AUTOFIRMA_ANDROID_BUILD_DIR"
+          sudo chown "$(id -u):$(id -g)" "$AUTOFIRMA_ANDROID_BUILD_DIR"
+          df -h / /mnt
+      - name: Activar KVM para el usuario del runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+      - uses: actions/checkout@v7
+      - name: Imágenes Docker (SDK, NDK, Rust y emulador con versiones y SHA-256 fijados)
+        run: |
+          docker build -f tools/android/Dockerfile --target build -t autofirma-android-build tools/android
+          docker build -f tools/android/Dockerfile --target emulator -t autofirma-android-emulator tools/android
+      - name: APK release (clippy y todas las ABI)
+        run: tools/android/build.sh --release --clippy
+      - name: APK de depuración (x86_64)
+        run: tools/android/build.sh --debug --abis x86_64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: autofirma-android-apk
+          path: ${{ env.AUTOFIRMA_ANDROID_BUILD_DIR }}/dist/*.apk
+          if-no-files-found: error
+      - name: Prueba de humo en el emulador (depuración, con verificación TLS)
+        run: |
+          tools/android/emulator-test.sh --tls-check https://github.com/ \
+            --out "$AUTOFIRMA_ANDROID_BUILD_DIR/emulator-debug"
+      - name: Prueba de humo en el emulador (release, R8)
+        run: |
+          version="$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p}' Cargo.toml | head -n 1)"
+          tools/android/emulator-test.sh --apk "$AUTOFIRMA_ANDROID_BUILD_DIR/dist/AutoFirma-$version-release.apk" \
+            --out "$AUTOFIRMA_ANDROID_BUILD_DIR/emulator-release"
+      - name: Capturas y logcat del emulador
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: autofirma-android-emulador
+          path: |
+            ${{ env.AUTOFIRMA_ANDROID_BUILD_DIR }}/emulator-debug/
+            ${{ env.AUTOFIRMA_ANDROID_BUILD_DIR }}/emulator-release/
+          if-no-files-found: ignore

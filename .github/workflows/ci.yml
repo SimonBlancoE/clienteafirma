@@ -198,7 +198,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends shellcheck desktop-file-utils appstream libxml2-utils
       - name: shellcheck
         run: |
-          shellcheck tools/package/*.sh
+          shellcheck tools/package/*.sh tools/android/*.sh
           shellcheck -s sh packaging/common/configure-hook.sh packaging/linux/autofirma-wrapper.sh \
             packaging/linux/appimage/AppRun packaging/linux/debian/* packaging/linux/rpm/*.sh \
             packaging/macos/scripts/postinstall packaging/macos/uninstall.sh
