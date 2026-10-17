@@ -13,4 +13,19 @@ if [ "$target_volume" != "/" ]; then
 fi
 
 app="${2:-/Applications}/AutoFirma.app"
-exec "$(dirname "$0")/configure-hook.sh" install "$app/Contents/MacOS/autofirma"
+"$(dirname "$0")/configure-hook.sh" install "$app/Contents/MacOS/autofirma"
+status=$?
+
+# LaunchServices es por usuario y el registro que hace root llega a la base de datos del
+# usuario con retraso: se registra también en la sesión de quien está ante el equipo, para
+# que afirma:// funcione en cuanto termina la instalación.
+lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+user="$(stat -f %Su /dev/console 2>/dev/null || true)"
+if [ -n "$user" ] && [ "$user" != "root" ] && [ -x "$lsregister" ]; then
+    uid="$(id -u "$user" 2>/dev/null || true)"
+    if [ -n "$uid" ]; then
+        launchctl asuser "$uid" sudo -u "$user" "$lsregister" -f -R -trusted "$app" \
+            || echo "autofirma-rs: AVISO: no se ha podido registrar AutoFirma en LaunchServices para $user"
+    fi
+fi
+exit "$status"

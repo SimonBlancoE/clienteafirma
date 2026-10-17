@@ -879,7 +879,17 @@ fn register_macos(ctx: &Context) -> Result<Change> {
 }
 
 fn status_macos(ctx: &Context) -> ProtocolStatus {
-    match macos_ls::default_handler(SCHEME) {
+    let mut handler = macos_ls::default_handler(SCHEME);
+    // Justo después de instalar, LaunchServices tarda unos segundos en actualizar la base
+    // de datos del usuario: se espera antes de dar el protocolo por no registrado.
+    for _ in 0..10 {
+        if handler.is_some() || !cfg!(target_os = "macos") {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        handler = macos_ls::default_handler(SCHEME);
+    }
+    match handler {
         Some(id) => ProtocolStatus {
             registered: true,
             points_to_current: id.eq_ignore_ascii_case(&ctx.app.macos_bundle_id),
