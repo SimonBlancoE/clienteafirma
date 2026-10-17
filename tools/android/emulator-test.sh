@@ -69,7 +69,9 @@ OUT="${OUT:-$BUILD_DIR/emulator}"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 [ -e /dev/kvm ] || die "no hay /dev/kvm: el emulador x86_64 necesita KVM"
-[ -r /dev/kvm ] && [ -w /dev/kvm ] || die "sin permiso de lectura y escritura en /dev/kvm"
+if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+    die "sin permiso de lectura y escritura en /dev/kvm"
+fi
 
 if [ "$REBUILD_IMAGE" = 1 ] || ! docker image inspect "$IMAGE" > /dev/null 2>&1; then
     info "Construyendo la imagen $IMAGE (tools/android/Dockerfile)"
