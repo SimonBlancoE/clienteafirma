@@ -359,6 +359,7 @@ dependencies = [
  "aes",
  "afirma-core",
  "afirma-keystores",
+ "afirma-signers",
  "afirma-xml",
  "base64 0.22.1",
  "chrono",

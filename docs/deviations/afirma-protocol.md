@@ -69,3 +69,41 @@ trifásico y de lotes de este repositorio, probados contra los WAR reales).
   y contenido de los datos) se entrega al manejador en la selección de
   certificado, la firma visible, los diálogos de ficheros y el progreso, para
   que la interfaz muestre qué se firma y quién lo pide.
+
+## Firma web de la app Android (`afirma_protocol::android`)
+
+Puerto del lado de protocolo de Autofirma App 1.9 (`docs/spec/09-android.md` §5, §6 y §10; la
+app usa `afirma-core` **1.9**). Se reproduce lo que ve la página (peticiones al servidor
+intermedio, formato de las respuestas y de los errores `ERR-NN:=AA… - …`, cifrado DES,
+reintentos, `#WAIT`) y se corrigen los fallos que §10 marca como «corregir» o «documentar».
+Las desviaciones S2, S3 y R1 de arriba se aplican igual (también a `key`). Referencias `n.º`
+a la tabla de §10.
+
+| # | Java (app 1.9) | Rust | Motivo |
+|---|---|---|---|
+| A1 (n.º 35, 36) | Un error de parámetros, o de la descarga/lectura del sobre (`fileid`), intenta responder sin `stservlet` (el análisis se detiene en `fileid`): `NullPointerException` capturada (la web no recibe nada) o, en lotes, la app se cierra. | Diálogo y respuesta `ERR-22` (o `ERR-14`/`ERR-18` de descarga) a `stservlet` con `id`; si no hay `id`, con `rid` (el identificador que consulta AutoScript), y si tampoco, con `fileid`. Sin `stservlet` no se responde y no se cierra nada. | La página recibe el error en vez de agotar el tiempo. |
+| A2 (n.º 33, 64) | Firma visible con los datos en `dat`: `NullPointerException` y cierre. Con los datos del sobre se firma sin expandir la política, sin comprobar el PDF y sin firma visible. | El mismo procesamiento para `dat`, sobre y fichero elegido; la vista previa recibe los datos. | Funciones que la página pedía y se perdían. |
+| A3 (n.º 32) | PAdES sobre datos no PDF responde `ERR-07` y además sigue firmando. | Responde `ERR-07` y se detiene. | La segunda respuesta podía sustituir a la primera. |
+| A4 (n.º 37, 62) | Error al cifrar el certificado: se sube `null\|<firma>`; en `selectcert`, `NullPointerException` (categoría mal buscada). | `ERR-16` con AA200101 / AA200200. | Respuestas mal formadas. |
+| A5 (n.º 56) | Error al procesar tras elegir el fichero, error de lectura o fichero demasiado grande: solo *toast* o diálogo, sin respuesta. | Diálogo y `ERR-14` (AA200002, AA200102 o AA200105). | La web no quedaba esperando. |
+| A6 (n.º 2, 49, 50) | `save` en un proceso nuevo: catálogos de error vacíos (`NullPointerException`); nombre propuesto «datosdatos.<ext>»; error de parámetros sin respuesta; `title`, `exts` y `desc` ignorados. | Catálogos estáticos; «datos.<ext>»; `ERR-22` con el texto fijo; `title`, `exts` y `desc` se pasan a la interfaz. | Fallos sin valor de compatibilidad. |
+| A7 (n.º 42) | «Atrás» tras un error ya subido sube además `ERR-11` con el mismo `id`. | Una sola respuesta final por invocación. | La cancelación podía sustituir al error. |
+| A8 (n.º 44) | El cuerpo de los POST se obtiene partiendo la URL con `StringTokenizer("?")` (se pierde lo que sigue a un segundo `?`). | Cuerpo explícito; mismos bytes en todos los casos reales. | Robustez. |
+| A9 | Los resultados se suben sin codificar: el Base64 **estándar** del resultado de un lote sin clave llega a la página con espacios en lugar de `+` (el servlet decodifica el formulario). | En los resultados se codifican `%`, `+` y `&` (`%25`, `%2B`, `%26`); ningún otro resultado los contiene. Los errores siguen pasando por `URLEncoder` (n.º 43, replicado). | El servlet guarda el texto exacto. |
+| A10 | La subida del resultado no espera al `#WAIT` en curso (pueden cruzarse). | Cerrojo común: el resultado nunca va antes de un `#WAIT`. | Orden garantizado. |
+| A11 (n.º 39) | Sobre sin clave: se decodifica el texto ya pasado al alfabeto estándar con el decodificador URL-safe (descarta `+` y `/`). | Se decodifica con el alfabeto correcto. | Sobres sin cifrar legibles. |
+| A12 (n.º 30) | `XAdES-ASiC-S` y `XAdES-ASiC-S-tri` se firman como XAdES trifásica sin contenedor ASiC. | `XAdES-ASiC-S-tri`. | Se entrega lo pedido. |
+| A13 (n.º 13) | Certificado aún no válido: error genérico de selección (`ERR-13`). | Aviso `CertificateWarning::NotYetValid` («Continuar»/«Cancelar»), como el de caducado. | Coherencia con el aviso de caducidad. |
+| A14 (n.º 51, 53, 52) | Lotes: se pierde el `signid` en la postfirma; lotes XML y locales no soportados (`ERR-14`); un fallo de subida no crítica deja la actividad abierta. | Se conserva `signid`; lotes XML (servidor) y locales con los firmadores del núcleo; la operación siempre termina. | Correcciones de §10. |
+| A15 | Lotes: el algoritmo del lote y la reescritura con resultados parciales decodifican el Base64 **URL-safe** del lote con el decodificador **estándar** de `afirma-core` 1.9, que descarta `-` y `_`: el JSON se corrompe y el lote falla (`ERR-14`) después de la prefirma casi siempre (demostrado en `testdata/android-web/oracle.golden`, casos `b64std`). | Se usan los datos originales del lote. | Fallo de Java que inutilizaba la firma de lotes. |
+| A16 | `extractParamsForBatch` no captura el error de un `%` mal formado: la app se cierra. | Error de parámetros (A1). | Robustez. |
+| A17 | `selectcert` con sobre no consulta la caché *sticky* (solo se comprueba con los parámetros de la URL, que no traen `sticky`). | Se consulta también tras leer el sobre. | La página pidió `sticky`. |
+| A18 (n.º 46) | La validación TLS se desactiva cambiando la configuración global del proceso (sin sincronizar) y las compilaciones de depuración nunca validan TLS. | `domains::http_trust_overrides` da `disable_ssl_checks` y `secure_domains` para el cliente común, que decide por petición; sin excepción de depuración. Reglas de coincidencia replicadas (n.º 48). | Seguridad. |
+| A19 (n.º 47) | La ayuda dice que los dominios se separan por comas; la app usa saltos de línea y una coma hacía fallar la validación. | `domains::normalize_input` acepta ambos y guarda un dominio por línea (el formato que lee la app original). | Ayuda y comportamiento coherentes. |
+| A20 (n.º 14) | Lotes: cancelar `KeyChain` cancela aunque haya NFC preferido. | La elección de almacén es de la interfaz (`AndroidWebHandler::select_key`), que debe volver a ofrecerla en todas las operaciones. | Coherencia con la firma. |
+| A21 | Cancelación del PIN de una tarjeta durante la firma (`AOCancelledOperationException`): `ERR-14`. | `ERR-11`. | Es una cancelación del usuario. |
+
+Diferencias de implementación sin efecto en la página: el sobre XML admite espacios y
+comentarios entre elementos (como en el escritorio); los números de los JSON de lotes que
+reescribe la app se normalizan solo si son enteros (`org.json` de Android también normaliza los
+decimales); `sign`, `selectcert` y `save` siguen sin enviar `#WAIT` (n.º 41 lo permitiría).

@@ -25,6 +25,7 @@
 // valor es la convención de todos los crates.
 #![allow(clippy::result_large_err)]
 
+pub mod android;
 pub mod batch;
 pub mod channel;
 pub mod cipher;

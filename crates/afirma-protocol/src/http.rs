@@ -229,8 +229,10 @@ pub(crate) mod testing {
 
     impl CoreHttpClient for MockTransport {
         fn read_url(&self, req: &HttpRequest) -> Result<Vec<u8>, HttpClientError> {
-            let (url, body) = match req.method {
-                HttpMethod::Get => (req.url.clone(), None),
+            let (url, body) = match (req.method, &req.body) {
+                (HttpMethod::Get, _) => (req.url.clone(), None),
+                // Cuerpo explícito (peticiones de Android).
+                (_, Some(b)) => (req.url.clone(), Some(b.clone())),
                 _ => {
                     let (u, b) = afirma_core::http::split_post_url(&req.url);
                     (u, Some(b.unwrap_or_default().into_bytes()))

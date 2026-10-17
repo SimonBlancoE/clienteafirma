@@ -40,6 +40,8 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 [dev-dependencies]
 serde_json.workspace = true
 afirma-keystores.workspace = true
+# Firmadores reales en las pruebas de extremo a extremo de la firma web Android.
+afirma-signers.workspace = true
 rcgen.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "process"] }
