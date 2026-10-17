@@ -236,7 +236,11 @@ mod tests {
             "id1".into(),
             Duration::from_millis(20),
         );
-        std::thread::sleep(Duration::from_millis(70));
+        // Sin suponer tiempos fijos: en una máquina cargada el hilo puede tardar.
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while t.bodies().len() < 2 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
         aw.stop();
         let n = t.bodies().len();
         assert!(n >= 2, "{n}");
